@@ -2,6 +2,8 @@ import SwiftUI
 
 struct DownloadsView: View {
     @State var model: DownloadsViewModel
+    var isActive = true
+    @Environment(\.scenePhase) private var scenePhase
     @State private var section: DownloadsSection = .all
     @State private var history = false
     @State private var typePresented = false
@@ -12,6 +14,7 @@ struct DownloadsView: View {
     @Environment(\.navigationContentBottomInset) private var bottomInset
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @AppStorage("preferences.animations") private var animations = true
+    @AppStorage("downloads.autoRetry") private var autoRetry = false
     private var reduceMotion: Bool { systemReduceMotion || !animations }
 
     var body: some View {
@@ -95,6 +98,19 @@ struct DownloadsView: View {
             }
         }
         .onDisappear { dismissTools() }
+        .task(id: isActive && scenePhase == .active) {
+            guard isActive && scenePhase == .active else { return }
+            model.autoRetry = autoRetry
+            while !Task.isCancelled {
+                await model.refresh()
+                do { try await Task.sleep(for: .seconds(3)) } catch { return }
+            }
+        }
+        .onChange(of: autoRetry) { _, value in model.autoRetry = value }
+        .onChange(of: model.autoRetry) { _, value in autoRetry = value }
+        .alert("Downloads", isPresented: Binding(get: { model.notice != nil }, set: { if !$0 { model.notice = nil } })) {
+            Button("OK") { model.notice = nil }
+        } message: { Text(model.notice ?? "") }
         .confirmationDialog(
             "Clear \(section.rawValue.lowercased()) downloads?",
             isPresented: $confirmClear, titleVisibility: .visible

@@ -39,24 +39,4 @@ enum SettingsCategory: String, CaseIterable, Hashable {
         }
     }
 
-    var availability: String {
-        switch self {
-        case .reader: ""
-        case .player:
-            "Playback and subtitle preferences will be available when the iOS player is ready."
-        case .automation: "Automatic downloads and cleanup aren’t available on iOS yet."
-        case .tracking: "Tracking account connections and sync aren’t available on iOS yet."
-        case .performance:
-            "Desktop rendering and GPU controls don’t apply to iOS. This section is reserved for mobile performance settings."
-        case .keybinds: "Keyboard shortcut customization isn’t available on iOS yet."
-        case .folders: "Folder management isn’t available on iOS yet."
-        case .content: "Content filters and source overrides aren’t available on iOS yet."
-        case .server:
-            "Moku runs Tsunagu on this device. External server configuration isn’t available on iOS yet."
-        case .auth:
-            "Moku uses its bundled server on this device. Server sign-in isn’t available on iOS."
-        case .devTools: "Developer tools aren’t available on iOS yet."
-        default: ""
-        }
-    }
 }

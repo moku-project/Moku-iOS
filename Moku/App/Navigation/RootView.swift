@@ -9,6 +9,13 @@ struct RootView: View {
     let homeStore: HomeStore
     @State private var downloadsModel = DownloadsViewModel.makeDefault()
     @AppStorage("preferences.language") private var sourceLanguage = "all"
+    @Environment(\.colorScheme) private var colorScheme
+    @AppStorage("preferences.systemTheme") private var systemTheme = false
+    @AppStorage("preferences.darkTheme") private var darkTheme = "midnight"
+    @AppStorage("preferences.lightTheme") private var lightTheme = "light"
+    @AppStorage("preferences.customThemes") private var customThemes = Data()
+    private var effectiveTheme: String { systemTheme ? (colorScheme == .dark ? darkTheme : lightTheme) : theme }
+    private var palette: NativeTheme { NativeTheme.resolve(effectiveTheme, custom: customThemes) }
     @AppStorage("preferences.theme") private var theme = "midnight"
     @AppStorage("contentMode") private var mode: ContentMode = .all
     @State private var isModePickerPresented = false
@@ -77,7 +84,7 @@ struct RootView: View {
                         } else if tab == .home {
                             HomeView(store: homeStore)
                         } else if tab == .downloads {
-                            DownloadsView(model: downloadsModel)
+                            DownloadsView(model: downloadsModel, isActive: selection == .downloads && accountPage == nil)
                         } else if tab == .library {
                             LibraryView(
                                 mode: $mode, isActive: selection == .library,
@@ -325,7 +332,7 @@ struct RootView: View {
             accountPage = .settings
         }
         .tint(NavigationStyle.accent)
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(systemTheme ? nil : (palette.isLight ? .light : .dark))
         .onReceive(
             NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)
         ) { _ in
@@ -338,8 +345,10 @@ struct RootView: View {
         }
         .onPreferenceChange(ModalPresentedKey.self) { libraryPopupPresented = $0 }
         .onPreferenceChange(PillDropdownOpenKey.self) { pillDropdownOpen = $0 }
-        .onAppear { AppTheme.shared.name = theme }
-        .onChange(of: theme) { _, value in AppTheme.shared.name = value }
+        .onChange(of: palette, initial: true) { _, value in
+            AppTheme.shared.name = value.id
+            AppTheme.shared.palette = value
+        }
         .onChange(of: selection) { _, tab in
             visitedTabs.insert(tab)
             dismissNavigationPopups()

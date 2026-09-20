@@ -9,6 +9,14 @@ struct LibraryView: View {
     var onSearch: () -> Void
     var onOpen: (MediaEntry) -> Void
     @Environment(LibraryStore.self) private var library
+    @Environment(HomeStore.self) private var home
+    @AppStorage("library.showAllInSaved") private var showAllInSaved = true
+    @AppStorage("library.hideCompletedInSaved") private var hideCompletedInSaved = false
+    @AppStorage("library.disableAutoComplete") private var disableAutoComplete = false
+    @AppStorage("library.defaultTab") private var defaultTab = "Saved"
+    @AppStorage("preferences.renderLimit") private var renderLimit = 48
+    @State private var pageIndex = 0
+    @State private var backendStats: [String: LibraryStats] = [:]
     @State private var model = LibraryViewModel()
     @State private var search: SearchViewModel?
     @State private var optionDraft = LibraryViewModel()
@@ -79,7 +87,9 @@ struct LibraryView: View {
                                         }
                                     }
                                 }
-                                let entries = model.visible(mode: mode)
+                                let allEntries = model.visible(mode: mode)
+                                let pageSize = min(200, max(12, renderLimit))
+                                let entries = Array(allEntries.dropFirst(pageIndex * pageSize).prefix(pageSize))
                                 if entries.isEmpty {
                                     VStack(spacing: 12) {
                                         Text(
@@ -119,6 +129,15 @@ struct LibraryView: View {
                                                 layout: layout, onOpen: onOpen)
                                         }
                                     }
+                                }
+                                if allEntries.count > pageSize {
+                                    HStack {
+                                        Button("Previous") { pageIndex = max(0, pageIndex - 1) }.disabled(pageIndex == 0)
+                                        Spacer()
+                                        Text("\(pageIndex + 1) / \((allEntries.count + pageSize - 1) / pageSize)").font(.system(size: 14)).monospacedDigit()
+                                        Spacer()
+                                        Button("Next") { pageIndex += 1 }.disabled((pageIndex + 1) * pageSize >= allEntries.count)
+                                    }.buttonStyle(GeneralTextButtonStyle())
                                 }
                             }
                             .padding(.horizontal, NavigationStyle.pagePadding).padding(.top, 4)
@@ -184,9 +203,19 @@ struct LibraryView: View {
         .onChange(of: library.entries, initial: true) { _, entries in
             syncItems()
         }
+        .onChange(of: [showAllInSaved, hideCompletedInSaved, disableAutoComplete], initial: true) { _, _ in
+            model.showAllInSaved = showAllInSaved
+            model.hideCompletedInSaved = hideCompletedInSaved
+            model.disableAutoComplete = disableAutoComplete
+        }
+        .onChange(of: model.visible(mode: mode).map(\.id)) { _, _ in pageIndex = 0 }
+        .onChange(of: renderLimit) { _, _ in pageIndex = 0 }
+        .onChange(of: library.serverVisibleIDs) { _, _ in syncItems() }
+        .onChange(of: home.snapshot.entries) { _, _ in syncItems() }
         .onChange(of: downloadedIDs) { _, _ in syncItems() }
         .onChange(of: library.organization.starred) { _, _ in syncItems() }
-        .onChange(of: library.organization.folders) { _, folders in
+        .onChange(of: library.organization.folders, initial: true) { _, folders in
+            model.folderEntryIDs = Set(folders.flatMap(\.entryIDs))
             if let id = model.folder?.id { model.folder = folders.first { $0.id == id } }
         }
         .task(id: isActive ? Array(library.entries.prefix(12).compactMap(\.coverURL)) : []) {
@@ -197,8 +226,12 @@ struct LibraryView: View {
         .task {
             await library.load()
             await library.loadOrganization()
+            _ = await library.refreshFromServer()
+            model.tab = LibraryTab(rawValue: defaultTab) ?? .saved
             syncItems()
+            await loadStats()
         }
+        .task(id: isActive) { if isActive { _ = await library.refreshFromServer(); await loadStats() } }
         .modifier(
             LibraryFolders(
                 foldersPresented: $foldersPresented, newFolderPresented: $newFolderPresented,
@@ -325,12 +358,27 @@ struct LibraryView: View {
     }
 
     private func syncItems() {
-        model.items = library.entries.map {
+        model.items = library.entries.filter { Int64($0.id) == nil || library.serverVisibleIDs?.contains($0.id) != false }.map {
             LibraryItem(
                 id: $0.id, title: $0.title, media: $0.media, coverURL: $0.coverURL,
-                downloaded: downloadedIDs.contains($0.id),
+                readUnits: backendStats[$0.id].map { max(0, $0.chapterCount - $0.unreadCount) } ?? home.entry($0.id)?.chapters.filter(\.isRead).count ?? 0,
+                totalUnits: backendStats[$0.id]?.chapterCount ?? home.entry($0.id)?.chapters.count ?? 0,
+                downloaded: downloadedIDs.contains($0.id) || (backendStats[$0.id]?.downloadedCount ?? 0) > 0,
                 bookmarked: library.organization.starred.contains($0.id))
         }
+    }
+
+    private struct LibraryStats: Decodable, Sendable {
+        let id: String; let chapterCount: Int; let unreadCount: Int; let downloadedCount: Int
+    }
+    private func loadStats() async {
+        guard !PreviewMode.isEnabled, library.entries.contains(where: { Int64($0.id) != nil }) else { return }
+        do {
+            struct Result: Decodable, Sendable { struct Page: Decodable, Sendable { let items: [LibraryStats] }; let library: Page }
+            let result: Result = try await BackendAPI.shared.graphql("{ library(limit: 10000) { items { id chapterCount unreadCount downloadedCount } } }", requiresSourceRuntime: false)
+            backendStats = Dictionary(result.library.items.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+            syncItems()
+        } catch { model.notice = "Couldn’t refresh library progress." }
     }
 
     private func copyOptions(from source: LibraryViewModel, to target: LibraryViewModel) {

@@ -5,6 +5,10 @@ import Observation
 @MainActor @Observable
 final class LibraryViewModel {
     var items: [LibraryItem] = []
+    var showAllInSaved = true
+    var hideCompletedInSaved = false
+    var disableAutoComplete = false
+    var folderEntryIDs: Set<String> = []
     var tab: LibraryTab = .saved
     var folder: LibraryFolder?
     var query = ""
@@ -70,11 +74,13 @@ final class LibraryViewModel {
 
     private func matches(_ item: LibraryItem, tab: LibraryTab) -> Bool {
         switch tab {
-        case .saved: true
+        case .saved:
+            (folder != nil || showAllInSaved || !folderEntryIDs.contains(item.id))
+                && (!hideCompletedInSaved || disableAutoComplete || !item.isCompleted)
         case .downloaded: item.downloaded
         case .starred: item.bookmarked
-        case .reading: item.readUnits > 0 && !item.isCompleted
-        case .completed: item.isCompleted
+        case .reading: item.readUnits > 0 && (disableAutoComplete || !item.isCompleted)
+        case .completed: !disableAutoComplete && item.isCompleted
         }
     }
 

@@ -30,7 +30,6 @@ struct AppHostView: View {
             "startup", loading: !storage.loaded && storage.error == nil, style: .startup
         )
         .environment(storage)
-        .preferredColorScheme(.dark)
         .task {
             await storage.load()
             #if DEBUG

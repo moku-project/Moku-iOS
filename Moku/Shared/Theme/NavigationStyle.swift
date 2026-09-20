@@ -5,6 +5,7 @@ import SwiftUI
 final class AppTheme {
     static let shared = AppTheme()
     var name = "midnight"
+    var palette = NativeTheme.builtins[0]
 }
 
 enum NavigationStyle {
@@ -19,27 +20,10 @@ enum NavigationStyle {
     static let compactNavigationHeight: CGFloat = 46
     static let navigationIndicatorSpacing: CGFloat = 2
 
-    @MainActor static var background: Color {
-        switch AppTheme.shared.name {
-        case "charcoal": Color(white: 0.10)
-        case "sepia": Color(red: 0.10, green: 0.085, blue: 0.06)
-        default: Color(white: 8 / 255)
-        }
-    }
-    @MainActor static var surface: Color {
-        switch AppTheme.shared.name {
-        case "charcoal": Color(white: 0.15)
-        case "sepia": Color(red: 0.15, green: 0.13, blue: 0.095)
-        default: Color(white: 23 / 255)
-        }
-    }
-    @MainActor static var accent: Color {
-        switch AppTheme.shared.name {
-        case "charcoal": Color(red: 0.55, green: 0.70, blue: 0.86)
-        case "sepia": Color(red: 0.82, green: 0.65, blue: 0.36)
-        default: Color(red: 122 / 255, green: 170 / 255, blue: 122 / 255)
-        }
-    }
+    @MainActor static var background: Color { Color(themeHex: AppTheme.shared.palette.background) }
+    @MainActor static var surface: Color { Color(themeHex: AppTheme.shared.palette.surface) }
+    @MainActor static var accent: Color { Color(themeHex: AppTheme.shared.palette.accent) }
+
 }
 
 struct FloatingSurface: ViewModifier {

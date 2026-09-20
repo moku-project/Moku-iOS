@@ -2,6 +2,9 @@ import AVFoundation
 import SwiftUI
 
 struct PlayerControls: View {
+    @AppStorage("keybinds.player.play") private var playKey = " "
+    @AppStorage("keybinds.player.previous") private var previousKey = "["
+    @AppStorage("keybinds.player.next") private var nextKey = "]"
     let model: PlayerViewModel
     let landscape: Bool
     let headerOnly: Bool
@@ -13,6 +16,9 @@ struct PlayerControls: View {
     let dismiss: () -> Void
     var body: some View {
         if headerOnly { header(landscape: landscape) } else { transport(landscape: landscape) }
+    }
+    private func shortcut(_ value: String) -> KeyboardShortcut? {
+        value.first.map { KeyboardShortcut(KeyEquivalent($0), modifiers: []) }
     }
     private func header(landscape: Bool) -> some View {
         HStack(spacing: 0) {
@@ -95,16 +101,19 @@ struct PlayerControls: View {
                     changeEpisode(model.index - 1)
                 }
                 .disabled(model.index == 0)
+                .keyboardShortcut(shortcut(previousKey))
                 icon(
                     model.playing ? "Pause.fill" : "Play.fill",
                     label: model.playing ? "Pause" : "Play", id: "player.play"
                 ) {
                     model.togglePlayback()
                 }.disabled(model.loading || model.player.currentItem == nil || model.error != nil)
+                    .keyboardShortcut(shortcut(playKey))
                 icon("SkipForward.fill", label: "Next episode", id: "player.next") {
                     changeEpisode(model.index + 1)
                 }
                 .disabled(model.index + 1 >= model.chapters.count)
+                .keyboardShortcut(shortcut(nextKey))
                 separator
                 if landscape {
                     timeline.padding(.horizontal, 8)

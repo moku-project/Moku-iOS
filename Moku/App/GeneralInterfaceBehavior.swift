@@ -4,6 +4,8 @@ import UIKit
 
 /// Scales layout proposals as well as artwork, so larger controls remain scrollable.
 /// Reader/player full-screen presentations keep their independent sizing.
+extension Notification.Name { static let mokuPreviewIdle = Notification.Name("moku.previewIdle") }
+
 struct GeneralInterfaceBehavior: ViewModifier {
     @AppStorage("preferences.interfaceScale") private var percentage = 100.0
     @AppStorage("preferences.idleTimeout") private var idleMinutes = 5
@@ -46,6 +48,7 @@ struct GeneralInterfaceBehavior: ViewModifier {
                     .accessibilityIdentifier("general.idleScreen")
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .mokuPreviewIdle)) { _ in idle.preview() }
         .onPreferenceChange(GeneralMediaPresentedKey.self) { presented in
             mediaPresented = presented
             idle.setMediaActive(presented)
@@ -71,6 +74,7 @@ struct GeneralInterfaceBehavior: ViewModifier {
     private var presentationBlocked = false
     private var mediaActive = false
     private var lastActivity = ContinuousClock.now
+    func preview() { if isActive && !mediaActive { isVisible = true } }
     func recordActivity(at instant: ContinuousClock.Instant = .now) {
         lastActivity = instant
         if isVisible { isVisible = false }

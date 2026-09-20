@@ -215,6 +215,9 @@
     "Back to Library" : {
 
     },
+    "Back up" : {
+
+    },
     "Background" : {
 
     },
@@ -230,13 +233,16 @@
     "Browse titles" : {
 
     },
-    "Cached covers and temporary results are stored in the iOS app sandbox. Clearing cache keeps your library, downloads, and history." : {
-
-    },
     "Cancel" : {
 
     },
     "Cancel waiting" : {
+
+    },
+    "Change" : {
+
+    },
+    "Change PIN" : {
 
     },
     "Chapters" : {
@@ -255,6 +261,9 @@
 
     },
     "Choose Moku library JSON" : {
+
+    },
+    "Clear" : {
 
     },
     "Clear %@" : {
@@ -311,6 +320,9 @@
     "Configure" : {
 
     },
+    "Confirm storage action" : {
+
+    },
     "Connect" : {
 
     },
@@ -326,13 +338,22 @@
     "Continue from your saved position" : {
 
     },
+    "Convert" : {
+
+    },
     "Copy authorization link" : {
 
     },
     "Create" : {
 
     },
+    "Create folder" : {
+
+    },
     "Creating…" : {
+
+    },
+    "Current PIN" : {
 
     },
     "day streak" : {
@@ -345,6 +366,18 @@
 
     },
     "Delete download" : {
+
+    },
+    "Delete folder" : {
+
+    },
+    "Delete folder?" : {
+
+    },
+    "Directory name" : {
+
+    },
+    "Disable" : {
 
     },
     "Disabled" : {
@@ -380,6 +413,9 @@
     "Double-tap the center to show or hide controls." : {
 
     },
+    "Download" : {
+
+    },
     "Download %@" : {
 
     },
@@ -410,6 +446,9 @@
     "Edit search and filters" : {
 
     },
+    "Enable" : {
+
+    },
     "Episodes" : {
 
     },
@@ -419,10 +458,16 @@
     "Expanded" : {
 
     },
+    "Export" : {
+
+    },
     "Export failures" : {
 
     },
     "F" : {
+
+    },
+    "Face ID / Touch ID" : {
 
     },
     "Filter chapters" : {
@@ -473,6 +518,12 @@
     "Idle screen timeout" : {
 
     },
+    "Import" : {
+
+    },
+    "Import %@?" : {
+
+    },
     "Import %lld" : {
 
     },
@@ -504,6 +555,9 @@
 
     },
     "Interface scale" : {
+
+    },
+    "Keyword" : {
 
     },
     "Language" : {
@@ -567,6 +621,9 @@
 
     },
     "More" : {
+
+    },
+    "Move existing files" : {
 
     },
     "Name" : {
@@ -662,7 +719,16 @@
     "Page progress" : {
 
     },
+    "Pages to preload" : {
+
+    },
     "Pages to preload: %lld" : {
+
+    },
+    "Password" : {
+
+    },
+    "PIN" : {
 
     },
     "Pin a title" : {
@@ -740,7 +806,19 @@
     "Remove completed records from history. Downloaded files will be kept." : {
 
     },
+    "Remove password" : {
+
+    },
     "Remove repository?" : {
+
+    },
+    "Remove the server password?" : {
+
+    },
+    "Rename" : {
+
+    },
+    "Rename folder" : {
 
     },
     "Rename preset" : {
@@ -749,10 +827,25 @@
     "Rename repository" : {
 
     },
+    "Require a password" : {
+
+    },
+    "Rescan" : {
+
+    },
     "Reset" : {
 
     },
+    "Reset all custom rules?" : {
+
+    },
+    "Reset content rules?" : {
+
+    },
     "Reset interface scale" : {
+
+    },
+    "Reset rules" : {
 
     },
     "Reset search and filters" : {
@@ -779,7 +872,16 @@
     "Retry chapters" : {
 
     },
+    "Retry failed downloads" : {
+
+    },
     "Reverse chapter order" : {
+
+    },
+    "Review" : {
+
+    },
+    "Run" : {
 
     },
     "S" : {
@@ -792,6 +894,9 @@
 
     },
     "Save preset" : {
+
+    },
+    "Save to Files" : {
 
     },
     "Saved titles and downloaded files will be kept." : {
@@ -863,6 +968,15 @@
     "Stopping…" : {
 
     },
+    "Storage limit reached." : {
+
+    },
+    "Subtitle bottom offset" : {
+
+    },
+    "Subtitle text size" : {
+
+    },
     "Subtitles" : {
 
     },
@@ -870,9 +984,6 @@
 
     },
     "Tap to continue" : {
-
-    },
-    "Themes and display preferences are saved on this device." : {
 
     },
     "This chapter" : {
@@ -896,6 +1007,9 @@
     "Title details" : {
 
     },
+    "Titles will remain in your library." : {
+
+    },
     "Token or redirect URL" : {
 
     },
@@ -912,6 +1026,9 @@
 
     },
     "Uninstall its sources before removing" : {
+
+    },
+    "Unlock" : {
 
     },
     "Unread only" : {
@@ -939,6 +1056,9 @@
         }
       }
     },
+    "Use Face ID / Touch ID" : {
+
+    },
     "Video" : {
 
     },
@@ -961,9 +1081,6 @@
 
     },
     "Working…" : {
-
-    },
-    "Your library and activity live in this app’s private storage. No server account or sign-in is required." : {
 
     },
     "Your saved titles will be kept." : {

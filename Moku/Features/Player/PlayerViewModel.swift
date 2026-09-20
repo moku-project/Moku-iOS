@@ -17,6 +17,10 @@ final class PlayerViewModel {
     var playing = false
     var isActive = true
     var autoplay = true
+    var autoplayNext = true
+    var autoSubtitles = true
+    var subtitleLanguage = ""
+    private(set) var episodeFinished = false
     var loading = false
     var buffering = false
     var error: String?
@@ -73,6 +77,7 @@ final class PlayerViewModel {
         error = nil
         playing = false
         finished = false
+        episodeFinished = false
         position = 0
         duration = 0
         stream = nil
@@ -89,6 +94,12 @@ final class PlayerViewModel {
             try await Task.sleep(until: revealAt, clock: .continuous)
             guard generation == token else { return }
             self.stream = stream
+            if autoSubtitles, !stream.subtitles.isEmpty {
+                let language = subtitleLanguage.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                let index = stream.subtitles.firstIndex { $0.lang.lowercased() == language || (!language.isEmpty && $0.lang.lowercased().hasPrefix(language + "-")) } ?? 0
+                await selectSubtitle(index)
+                guard generation == token else { return }
+            }
             try await replace(path: stream.url, resume: resume, token: token, shouldPlay: autoplay)
             if generation == token { loadedChapterID = requestedChapterID }
         } catch is CancellationError {
@@ -198,6 +209,7 @@ final class PlayerViewModel {
         position = min(duration, max(0, seconds))
         resumePosition = 0
         finished = false
+        episodeFinished = false
         let token = UUID()
         seekGeneration = token
         seeking = true
@@ -241,6 +253,7 @@ final class PlayerViewModel {
         buffering = playing && player.timeControlStatus == .waitingToPlayAtSpecifiedRate
         if !seeking, duration > 0, position >= duration - 0.25, !finished {
             finished = true
+            episodeFinished = true
             playing = false
             saveSnapshot()
         } else if playing, progressTask == nil, Date().timeIntervalSince(lastSave) >= 10 {

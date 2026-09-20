@@ -10,6 +10,18 @@ struct PlayerView: View {
     @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
     @Environment(\.skeletonStorageScope) private var skeletonStorage
     @AppStorage("preferences.animations") private var animations = true
+    @AppStorage("player.autoplay") private var defaultAutoplay = true
+    @AppStorage("player.speed") private var defaultSpeed = 1.0
+    @AppStorage("player.subtitleScale") private var defaultSubtitleScale = 1.0
+    @AppStorage("player.subtitleHeight") private var defaultSubtitleHeight = 9.0
+    @AppStorage("player.subtitleBackground") private var defaultSubtitleBackground = false
+    @AppStorage("player.autoplayNext") private var autoplayNext = true
+    @AppStorage("player.autoSubtitles") private var autoSubtitles = true
+    @AppStorage("player.subtitleLanguage") private var subtitleLanguage = ""
+    @AppStorage("player.manualControls") private var manualControls = false
+    @AppStorage("player.compactControls") private var compactControls = false
+    @AppStorage("player.qualityScaling") private var qualityScaling = false
+    @State private var appliedDefaults = false
     @State private var controlsVisible = true
     @State private var panel: Panel?
     @State private var lastInteraction = Date()
@@ -24,9 +36,9 @@ struct PlayerView: View {
             let landscape = geometry.size.width > geometry.size.height
             ZStack {
                 Color.black.ignoresSafeArea()
-                PlayerSurface(player: model.player).ignoresSafeArea()
+                PlayerSurface(player: model.player, qualityScaling: qualityScaling).ignoresSafeArea()
                     .contentShape(Rectangle())
-                    .onTapGesture {
+                    .onTapGesture(count: manualControls ? 2 : 1) {
                         withAnimation(reduceMotion ? nil : .easeOut(duration: 0.18)) {
                             controlsVisible.toggle()
                             panel = nil
@@ -105,7 +117,7 @@ struct PlayerView: View {
                             }.padding(.horizontal, 12).playerPanel()
                         }
                         PlayerControls(
-                            model: model, landscape: landscape, headerOnly: false,
+                            model: model, landscape: landscape || compactControls, headerOnly: false,
                             scrubbing: $scrubbing, scrubPosition: $scrubPosition,
                             toggle: toggle, reveal: reveal, changeEpisode: changeEpisode,
                             dismiss: { dismiss() })
@@ -130,8 +142,22 @@ struct PlayerView: View {
             active: model.playing && !model.buffering,
             valid: model.activityReady
         )
-        .onChange(of: model.playing) { _, _ in reveal() }
+        .onChange(of: model.playing) { _, _ in if !manualControls { reveal() } }
+        .onChange(of: model.episodeFinished) { _, finished in
+            if finished && autoplayNext { changeEpisode(model.index + 1) }
+        }
         .task(id: model.chapterID) {
+            if !appliedDefaults {
+                model.autoplay = defaultAutoplay
+                model.autoplayNext = autoplayNext
+                model.autoSubtitles = autoSubtitles
+                model.subtitleLanguage = subtitleLanguage
+                model.speed = Float(min(2, max(0.75, defaultSpeed)))
+                model.subtitleScale = min(2, max(0.75, defaultSubtitleScale))
+                model.subtitleHeight = min(20, max(3, defaultSubtitleHeight))
+                model.subtitleBackground = defaultSubtitleBackground
+                appliedDefaults = true
+            }
             let visits = SkeletonVisits.shared
             let key = "\(skeletonStorage):player-\(model.chapterID):\(visits.generation)"
             let delay = !reduceMotion && animations && !visits.contains(key)
@@ -145,7 +171,7 @@ struct PlayerView: View {
             try? AVAudioSession.sharedInstance().setActive(true)
             while !Task.isCancelled {
                 if !scrubbing { await model.tick() }
-                if model.playing && !model.buffering && panel == nil && !scrubbing && !voiceOver
+                if !manualControls && model.playing && !model.buffering && panel == nil && !scrubbing && !voiceOver
                     && Date().timeIntervalSince(lastInteraction) > 4
                 {
                     withAnimation(reduceMotion ? nil : .easeOut(duration: 0.18)) {
