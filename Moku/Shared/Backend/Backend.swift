@@ -57,6 +57,11 @@ actor Backend {
         return connection
     }
 
+    func importLocalFile(_ url: URL, kind: String, series: String, chapter: String) async throws {
+        _ = try await connection(requiresSourceRuntime: false)
+        try await controller.importLocalFile(url, kind: kind, series: series, chapter: chapter, name: url.lastPathComponent)
+    }
+
     func currentServerURL() async -> URL? {
         guard let startup else { return nil }
         return try? await startup.value.baseURL

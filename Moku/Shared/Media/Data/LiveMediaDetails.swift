@@ -26,7 +26,7 @@ extension LiveMediaRepository {
         let result: Response = try await BackendAPI.shared.graphql(
             """
             mutation { setInLibrary(mediaId: \(BackendAPI.literal(id)), inLibrary: \(saved)) { inLibrary } }
-            """)
+            """, requiresSourceRuntime: false)
         return result.setInLibrary.inLibrary
     }
 }

@@ -4,6 +4,7 @@ struct ReaderSettingsView: View {
     @Bindable var preferences: ReaderPreferences
     var mediaID: String?
     var landscape = false
+    var settingsPage = false
     @State private var presetName = ""
     @State private var editingPreset: UUID?
     @State private var naming = false
@@ -24,6 +25,26 @@ struct ReaderSettingsView: View {
             set: { preferences.document.behaviour[keyPath: key] = $0 })
     }
     var body: some View {
+        Group {
+            if settingsPage { pageContent } else { inlineContent }
+        }
+        .font(.system(size: 14)).buttonStyle(.plain).tint(NavigationStyle.accent)
+        .alert(editingPreset == nil ? "Save preset" : "Rename preset", isPresented: $naming) {
+            TextField("Preset name", text: $presetName)
+            Button("Cancel", role: .cancel) {}
+            Button("Save") {
+                if let id = editingPreset,
+                    let index = preferences.document.presets.firstIndex(where: { $0.id == id })
+                {
+                    preferences.document.presets[index].name = presetName.trimmingCharacters(
+                        in: .whitespacesAndNewlines)
+                } else {
+                    preferences.savePreset(presetName, mediaID: mediaID)
+                }
+            }.disabled(presetName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        }
+    }
+    private var inlineContent: some View {
         VStack(alignment: .leading, spacing: 24) {
             group("Layout") {
                 tiles(
@@ -174,20 +195,143 @@ struct ReaderSettingsView: View {
                 }.padding(.top, 12)
             }
         }
-        .font(.system(size: 14)).buttonStyle(.plain).tint(NavigationStyle.accent)
-        .alert(editingPreset == nil ? "Save preset" : "Rename preset", isPresented: $naming) {
-            TextField("Preset name", text: $presetName)
-            Button("Cancel", role: .cancel) {}
-            Button("Save") {
-                if let id = editingPreset,
-                    let index = preferences.document.presets.firstIndex(where: { $0.id == id })
-                {
-                    preferences.document.presets[index].name = presetName.trimmingCharacters(
-                        in: .whitespacesAndNewlines)
-                } else {
-                    preferences.savePreset(presetName, mediaID: mediaID)
+    }
+    private var pageContent: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            GeneralSection("Layout") {
+                pagePicker(
+                    "Page layout", setting(\.pageStyle),
+                    [
+                        ("single", "Single"), ("double", "Double"), ("auto", "Auto"),
+                        ("longstrip", "Strip"),
+                    ])
+                GeneralStyle.divider
+                pagePicker(
+                    "Transition", setting(\.transition),
+                    [("none", "None"), ("fade", "Fade"), ("slide", "Slide"), ("flip", "Turn")])
+                GeneralStyle.divider
+                pagePicker(
+                    "Fit", setting(\.fitMode),
+                    [
+                        ("width", "Width"), ("height", "Height"), ("screen", "Screen"),
+                        ("original", "Original"),
+                    ])
+                GeneralStyle.divider
+                pagePicker(
+                    "Reading direction", setting(\.readingDirection),
+                    [("ltr", "Left to right"), ("rtl", "Right to left")])
+                if settings.pageStyle == "double" || settings.pageStyle == "auto" {
+                    GeneralStyle.divider
+                    pageToggle("Offset spreads", setting(\.offsetDoubleSpreads))
                 }
-            }.disabled(presetName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                if settings.pageStyle == "longstrip" {
+                    GeneralStyle.divider
+                    pageToggle("Page gap", setting(\.pageGap))
+                    GeneralStyle.divider
+                    pageToggle("Auto scroll", behaviour(\.autoScroll))
+                    if preferences.document.behaviour.autoScroll {
+                        GeneralStyle.divider
+                        GeneralRow("Scroll speed", detail: "") {
+                            Stepper(value: behaviour(\.autoScrollSpeed), in: 1...30, step: 1) {
+                                Text("\(Int(preferences.document.behaviour.autoScrollSpeed))")
+                            }.frame(width: 150).font(.system(size: 14)).accessibilityLabel(
+                                "Scroll speed")
+                        }
+                    }
+                }
+            }
+            GeneralSection("Image") {
+                GeneralRow("Zoom", detail: "Default page scale.") {
+                    HStack(spacing: 8) {
+                        iconButton("Minus", label: "Zoom out") {
+                            setting(\.readerZoom).wrappedValue = max(
+                                0.1, settings.readerZoom - 0.05)
+                        }
+                        Text("\(Int((settings.readerZoom * 100).rounded()))%").font(
+                            .system(size: 14)
+                        )
+                        .monospacedDigit()
+                        iconButton("Plus", label: "Zoom in") {
+                            setting(\.readerZoom).wrappedValue = min(1, settings.readerZoom + 0.05)
+                        }
+                    }.foregroundStyle(GeneralStyle.text)
+                }
+                GeneralStyle.divider
+                pageToggle("Optimize contrast", setting(\.optimizeContrast))
+                GeneralStyle.divider
+                pageToggle("Pinch to zoom", behaviour(\.pinchZoom))
+            }
+            GeneralSection("Behaviour") {
+                pageToggle("Auto-mark read", behaviour(\.autoMarkRead))
+                GeneralStyle.divider
+                pageToggle("Mark read on advance", behaviour(\.markReadOnNext))
+                GeneralStyle.divider
+                pageToggle("Auto-advance chapters", behaviour(\.autoNextChapter))
+                GeneralStyle.divider
+                pageToggle("Auto-bookmark", behaviour(\.autoBookmark))
+                GeneralStyle.divider
+                GeneralRow("Pages to preload", detail: "") {
+                    ChoicePicker(
+                        title: "", selection: behaviour(\.preloadPages),
+                        options: (0...10).map { ($0, String($0)) }
+                    )
+                    .font(.system(size: 14)).accessibilityLabel("Pages to preload")
+                }
+            }
+            GeneralSection("Controls") {
+                pagePicker(
+                    "Bar position", setting(\.barPosition),
+                    [("top", "Top"), ("left", "Left"), ("right", "Right")])
+                GeneralStyle.divider
+                pageToggle("Tap to toggle bar", behaviour(\.tapToToggleBar))
+                GeneralStyle.divider
+                pageToggle("Containerized view", behaviour(\.containerized))
+            }
+            GeneralSection("Presets") {
+                GeneralRow("Current settings", detail: "") {
+                    Button("Save") {
+                        editingPreset = nil
+                        presetName = ""
+                        naming = true
+                    }
+                    .buttonStyle(GeneralTextButtonStyle()).accessibilityIdentifier(
+                        "reader.savePreset")
+                }
+                ForEach(preferences.document.presets) { preset in
+                    GeneralStyle.divider
+                    GeneralRow(preset.name, detail: "") {
+                        OverflowMenu {
+                            Button("Apply") { preferences.set(preset.settings, for: mediaID) }
+                            Button("Rename") {
+                                editingPreset = preset.id
+                                presetName = preset.name
+                                naming = true
+                            }
+                            Button("Delete", role: .destructive) {
+                                preferences.document.presets.removeAll { $0.id == preset.id }
+                            }
+                        } label: {
+                            Text("Manage").font(.system(size: 14)).foregroundStyle(
+                                GeneralStyle.text
+                            ).frame(
+                                minHeight: 44)
+                        }.accessibilityLabel("Manage \(preset.name)")
+                    }
+                }
+            }
+        }
+    }
+    private func pagePicker(
+        _ title: String, _ selection: Binding<String>, _ options: [(String, String)]
+    ) -> some View {
+        GeneralRow(title, detail: "") {
+            ChoicePicker(title: "", selection: selection, options: options)
+                .font(.system(size: 14)).accessibilityLabel(title)
+        }
+    }
+    private func pageToggle(_ title: String, _ selection: Binding<Bool>) -> some View {
+        GeneralRow(title, detail: "") {
+            Toggle(title, isOn: selection).toggleStyle(GeneralToggleStyle())
         }
     }
     private func group<Content: View>(_ title: String, @ViewBuilder content: () -> Content)

@@ -70,6 +70,24 @@ extension BackendController {
             return request
         }
 
+        func apiRequest(path: String, method: String = "GET", body: Data? = nil) throws -> URLRequest {
+            guard let parts = URLComponents(string: path), parts.scheme == nil, parts.host == nil,
+                parts.fragment == nil, parts.path.hasPrefix("/api/"),
+                !parts.path.split(separator: "/").contains(".."),
+                var target = URLComponents(url: baseURL, resolvingAgainstBaseURL: false)
+            else { throw BackendError.invalidEndpoint }
+            target.percentEncodedPath = parts.percentEncodedPath
+            target.percentEncodedQuery = parts.percentEncodedQuery
+            guard let url = target.url else { throw BackendError.invalidEndpoint }
+            var request = URLRequest(url: url)
+            request.httpMethod = method
+            request.httpBody = body
+            request.timeoutInterval = 60
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            if body != nil { request.setValue("application/json", forHTTPHeaderField: "Content-Type") }
+            return request
+        }
+
         public func statusRequest() -> URLRequest {
             var request = URLRequest(url: baseURL.appendingPathComponent("api/mobile/status"))
             request.timeoutInterval = 5

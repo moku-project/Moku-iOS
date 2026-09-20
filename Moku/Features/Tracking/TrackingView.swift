@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct TrackingView: View {
+    var settingsPage = false
     @Environment(AppDataStore.self) private var appData
     @Environment(LibraryStore.self) private var library
     @Environment(\.openURL) private var openURL
@@ -21,49 +22,8 @@ struct TrackingView: View {
     private enum TrackingPopup { case account, disconnect, services, setup, review, match, discard }
 
     var body: some View {
-        GeometryReader { geometry in
-            VStack(alignment: .leading, spacing: 24) {
-                Label("Services", phosphor: "Broadcast").font(.body.weight(.medium))
-                    .frame(minHeight: 44).padding(.horizontal, NavigationStyle.pagePadding + 12)
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 30) {
-                        if model.loading && model.services.isEmpty {
-                            ContentSkeleton(style: .extensions)
-                        } else {
-                            Text(
-                                "\(model.services.filter { $0.isLoggedIn && !$0.comingSoon }.count) connected"
-                            )
-                            .font(.subheadline).foregroundStyle(.secondary)
-                            ForEach(model.services) { tracker in serviceRow(tracker) }
-                            if model.services.isEmpty {
-                                Text("No services available").font(.body).foregroundStyle(
-                                    .secondary)
-                                Button("Try again") { Task { await model.load() } }
-                            }
-                        }
-                    }.padding(.horizontal, NavigationStyle.pagePadding + 12)
-                        .padding(.top, 8).padding(.bottom, 16)
-                        .frame(maxWidth: 700).frame(maxWidth: .infinity)
-                }.firstLoadSkeleton("tracking", loading: model.loading, style: .extensions)
-                    .tracksNavigationScroll().refreshable { await model.load() }
-                    .accessibilityIdentifier("tracking.scroll")
-                    .opacity(menuLevel == .closed ? 1 : 0.18)
-                    .overlay {
-                        if menuLevel != .closed {
-                            Color.black.opacity(0.001).contentShape(Rectangle()).onTapGesture {
-                                menuLevel = .closed
-                            }
-                        }
-                    }
-            }
-            .overlay(alignment: .bottomTrailing) {
-                RadialMenu(
-                    level: $menuLevel, reduceMotion: reduceMotion, actions: actions,
-                    accessibilityPrefix: "tracking", toolsTitle: "Tracking"
-                )
-                .padding(.trailing, max(16, (geometry.size.width - 336) / 2))
-                .padding(.bottom, bottomInset + 12)
-            }
+        Group {
+            if settingsPage { settingsContent } else { mainContent }
         }
         .background(NavigationStyle.background)
         .blur(radius: popup == nil ? 0 : 4).allowsHitTesting(popup == nil).accessibilityHidden(
@@ -111,6 +71,117 @@ struct TrackingView: View {
         } message: {
             Text(model.notice ?? "")
         }
+    }
+
+    private var mainContent: some View {
+        GeometryReader { geometry in
+            VStack(alignment: .leading, spacing: 24) {
+                Label("Services", phosphor: "Broadcast").font(.body.weight(.medium))
+                    .frame(minHeight: 44).padding(.horizontal, NavigationStyle.pagePadding + 12)
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 30) {
+                        if model.loading && model.services.isEmpty {
+                            ContentSkeleton(style: .extensions)
+                        } else {
+                            Text(
+                                "\(model.services.filter { $0.isLoggedIn && !$0.comingSoon }.count) connected"
+                            )
+                            .font(.subheadline).foregroundStyle(.secondary)
+                            ForEach(model.services) { tracker in serviceRow(tracker) }
+                            if model.services.isEmpty {
+                                Text("No services available").font(.body).foregroundStyle(
+                                    .secondary)
+                                Button("Try again") { Task { await model.load() } }
+                            }
+                        }
+                    }.padding(.horizontal, NavigationStyle.pagePadding + 12)
+                        .padding(.top, 8).padding(.bottom, 16)
+                        .frame(maxWidth: 700).frame(maxWidth: .infinity)
+                }.firstLoadSkeleton("tracking", loading: model.loading, style: .extensions)
+                    .tracksNavigationScroll().refreshable { await model.load() }
+                    .accessibilityIdentifier("tracking.scroll")
+                    .opacity(menuLevel == .closed ? 1 : 0.18)
+                    .overlay {
+                        if menuLevel != .closed {
+                            Color.black.opacity(0.001).contentShape(Rectangle()).onTapGesture {
+                                menuLevel = .closed
+                            }
+                        }
+                    }
+            }
+            .overlay(alignment: .bottomTrailing) {
+                RadialMenu(
+                    level: $menuLevel, reduceMotion: reduceMotion, actions: actions,
+                    accessibilityPrefix: "tracking", toolsTitle: "Tracking"
+                )
+                .padding(.trailing, max(16, (geometry.size.width - 336) / 2))
+                .padding(.bottom, bottomInset + 12)
+            }
+        }
+    }
+
+    private var settingsContent: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                GeneralSection("Services") {
+                    if model.loading && model.services.isEmpty {
+                        GeneralRow("Tracking services", detail: "Loading…") { ProgressView() }
+                    }
+                    ForEach(model.services) { tracker in
+                        GeneralRow(tracker.name, detail: tracker.status) {
+                            if !tracker.comingSoon {
+                                OverflowMenu {
+                                    if tracker.isLoggedIn {
+                                        Button("Import list") { chooseImport(tracker) }
+                                        Button("Account") {
+                                            service = tracker
+                                            popup = .account
+                                        }
+                                        Button("Disconnect", role: .destructive) {
+                                            service = tracker
+                                            popup = .disconnect
+                                        }
+                                    } else {
+                                        Button("Connect") {
+                                            service = tracker
+                                            token = ""
+                                            popup = .account
+                                        }
+                                    }
+                                } label: {
+                                    Text(tracker.isLoggedIn ? "Manage" : "Connect")
+                                        .font(.system(size: 14)).foregroundStyle(GeneralStyle.text)
+                                        .frame(minHeight: 44)
+                                }.accessibilityLabel("Actions for \(tracker.name)")
+                            }
+                        }.accessibilityIdentifier("tracking.service.\(tracker.key)")
+                        if tracker.id != model.services.last?.id { GeneralStyle.divider }
+                    }
+                    if !model.loading && model.services.isEmpty {
+                        GeneralRow("Tracking services", detail: "No services available.") {
+                            Button("Retry") { Task { await model.load() } }.buttonStyle(
+                                GeneralTextButtonStyle())
+                        }
+                    }
+                }
+                GeneralSection("Sync") {
+                    GeneralRow("Account status", detail: "Update connected services.") {
+                        Button("Refresh") { Task { await model.load() } }.buttonStyle(
+                            GeneralTextButtonStyle()
+                        )
+                        .disabled(model.loading)
+                    }
+                    if !model.items.isEmpty {
+                        GeneralStyle.divider
+                        GeneralRow("Saved import", detail: "Continue reviewing your list.") {
+                            Button("Review") { popup = .review }.buttonStyle(
+                                GeneralTextButtonStyle())
+                        }
+                    }
+                }
+            }.padding(.horizontal, 20).padding(.top, 16).padding(.bottom, 24)
+                .frame(maxWidth: 640).frame(maxWidth: .infinity)
+        }.tracksNavigationScroll().accessibilityIdentifier("tracking.scroll")
     }
 
     private func serviceRow(_ tracker: TrackingService) -> some View {

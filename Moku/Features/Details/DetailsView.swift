@@ -4,6 +4,8 @@ import SwiftUI
 struct DetailsView: View {
     @Environment(LibraryStore.self) private var library
     @Environment(ReaderPreferences.self) private var readerPreferences
+    @AppStorage("library.autoLinkOnOpen") private var autoLinkOnOpen = false
+    @State private var linkedEntry: MediaEntry?
     @State private var readingChapter: Chapter?
     @AppStorage("preferences.chapterAscending") private var defaultAscending = false
     let entry: MediaEntry
@@ -53,6 +55,11 @@ struct DetailsView: View {
             ascending = defaultAscending
             await library.load()
             await load()
+            await library.loadOrganization()
+            if autoLinkOnOpen { await library.autoLink(entry) }
+        }
+        .sheet(item: $linkedEntry) { linked in
+            DetailsView(entry: linked) { linkedEntry = nil }
         }
         .fullScreenCover(item: $playingChapter) { chapter in
             if let details {
@@ -106,6 +113,14 @@ struct DetailsView: View {
                     badge(status.capitalized, accent: true)
                 }
                 badge(entry.sourceName)
+            }
+            let linked = library.linkedEntries(for: entry.id)
+            if !linked.isEmpty {
+                Menu("Linked titles") {
+                    ForEach(linked) { item in
+                        Button("\(item.title) · \(item.sourceName)") { linkedEntry = item }
+                    }
+                }.foregroundStyle(NavigationStyle.accent)
             }
             if let genres = details?.genres, !genres.isEmpty {
                 Text(genres.joined(separator: " · "))
@@ -228,6 +243,23 @@ struct DetailsView: View {
                                 }
                             }.padding(.vertical, 14).contentShape(Rectangle())
                         }.buttonStyle(.plain)
+                        .contextMenu {
+                            Button(chapter.downloaded ? "Delete download" : "Download") {
+                                Task {
+                                    guard let details = model.details else { return }
+                                    do {
+                                        if chapter.downloaded {
+                                            let _: [String: Bool] = try await BackendAPI.shared.graphql("mutation { deleteDownload(mediaId: \(BackendAPI.literal(details.id)), chapterIds: [\(BackendAPI.literal(chapter.id))]) }", requiresSourceRuntime: false)
+                                        } else {
+                                            struct Queued: Decodable, Sendable { struct Item: Decodable, Sendable { let id: String }; let enqueueDownload: [Item] }
+                                            let _: Queued = try await BackendAPI.shared.graphql("mutation { enqueueDownload(mediaId: \(BackendAPI.literal(details.id)), chapterIds: [\(BackendAPI.literal(chapter.id))]) { id } }", requiresSourceRuntime: false)
+                                        }
+                                        await model.load()
+                                    } catch { model.chapterError = "Couldn’t update this download. Try again." }
+                                }
+                            }
+                        }
+
                             .disabled(entry.media != .anime && entry.media != .manga)
                             .accessibilityLabel(
                                 entry.media == .anime ? "Play \(chapter.label)" : chapter.label)

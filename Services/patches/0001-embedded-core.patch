@@ -24,10 +24,9 @@ index e1a50ed..1c34b4f 100644
  golang.org/x/mod v0.38.0/go.mod h1:V6Xz0pq8TQ3dGqVQ1FVHuelZpAL0uNhSkk9ogYP3c40=
  golang.org/x/net v0.57.0 h1:K5+3DljvIuDG9/Jv9rvyMywYNFCQ9RSUY6OOTTkT+tE=
 diff --git a/backend/internal/api/graph/convert.go b/backend/internal/api/graph/convert.go
-index e1e7d88..d768bfe 100644
 --- a/backend/internal/api/graph/convert.go
 +++ b/backend/internal/api/graph/convert.go
-@@ -4,7 +4,6 @@ import (
+@@ -4,7 +4,6 @@
  	"context"
  	"database/sql"
  	"encoding/base64"
@@ -35,7 +34,7 @@ index e1e7d88..d768bfe 100644
  	"fmt"
  	"log"
  	"net/url"
-@@ -21,6 +20,7 @@ import (
+@@ -21,6 +20,7 @@
  	"tsunagu/backend/internal/db/sqlcgen"
  	"tsunagu/backend/internal/flaresolverr"
  	"tsunagu/backend/internal/metadata"
@@ -43,7 +42,7 @@ index e1e7d88..d768bfe 100644
  	sandboxv1 "tsunagu/backend/internal/sandbox/gen/sandbox/v1"
  	"tsunagu/backend/internal/tracker"
  )
-@@ -412,9 +412,7 @@ func proxyResourceURL(route, mediaID, chapterID, absURL string, headers map[stri
+@@ -412,9 +412,7 @@
  	q := url.Values{}
  	q.Set("u", base64.RawURLEncoding.EncodeToString([]byte(absURL)))
  	if len(headers) > 0 {
@@ -54,6 +53,22 @@ index e1e7d88..d768bfe 100644
  	}
  	return fmt.Sprintf("/content/%s/%s/%s?%s", mediaID, chapterID, route, q.Encode())
  }
+@@ -801,9 +799,14 @@
+ }
+ 
+ func (r *Resolver) toSearchResponse(ctx context.Context, ext sqlcgen.Extension, resp *sandboxv1.SearchResponse) (*model.SearchResponse, error) {
++	overrides, err := contentfilter.LoadSourceOverrides(ctx, r.DB)
++	if err != nil {
++		return nil, err
++	}
++	decision := overrides.Decision(ext.ID)
+ 	results := make([]*model.Media, 0, len(resp.Results))
+ 	for _, res := range resp.Results {
+-		if r.Cf != nil && !r.Cf.BrowseAllowed(res.Title, res.GetGenres()) {
++		if decision < 0 || (decision == 0 && r.Cf != nil && !r.Cf.BrowseAllowed(res.Title, res.GetGenres())) {
+ 			continue
+ 		}
+ 		row, err := r.Q.UpsertMediaBare(ctx, sqlcgen.UpsertMediaBareParams{
 diff --git a/backend/internal/api/graph/resolver.go b/backend/internal/api/graph/resolver.go
 index 897b422..10104c5 100644
 --- a/backend/internal/api/graph/resolver.go
@@ -818,10 +833,9 @@ index 0000000..22aab18
 +}
 diff --git a/backend/internal/automation/manager.go b/backend/internal/automation/manager.go
 new file mode 100644
-index 0000000..41df24a
 --- /dev/null
 +++ b/backend/internal/automation/manager.go
-@@ -0,0 +1,320 @@
+@@ -0,0 +1,377 @@
 +// Package automation persists download policies independently of any reader UI.
 +package automation
 +
@@ -859,9 +873,62 @@ index 0000000..41df24a
 +func New(db *sql.DB, q *sqlcgen.Queries, dm *download.Manager) *Manager {
 +	return &Manager{db: db, q: q, dm: dm, Now: time.Now}
 +}
++
++type Controls struct {
++	Enabled       bool `json:"enabled"`
++	EnforceGlobal bool `json:"enforceGlobal"`
++}
++
++func (m *Manager) Controls(ctx context.Context) (Controls, error) {
++	result := Controls{Enabled: true}
++	var raw string
++	err := m.db.QueryRowContext(ctx, "SELECT value FROM app_settings WHERE key='mobile_automation_controls'").Scan(&raw)
++	if err == sql.ErrNoRows {
++		return result, nil
++	}
++	if err != nil {
++		return result, err
++	}
++	err = json.Unmarshal([]byte(raw), &result)
++	return result, err
++}
++func (m *Manager) SetControls(ctx context.Context, value Controls) error {
++	raw, err := json.Marshal(value)
++	if err != nil {
++		return err
++	}
++	_, err = m.db.ExecContext(ctx, "INSERT INTO app_settings(key,value) VALUES('mobile_automation_controls',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", string(raw))
++	return err
++}
++func (m *Manager) ResetOverrides(ctx context.Context) error {
++	_, err := m.db.ExecContext(ctx, "DELETE FROM automation_policies WHERE scope_id>0")
++	return err
++}
++
 +func (m *Manager) Policy(ctx context.Context, media int64) (Policy, error) {
 +	p := Policy{RefreshInterval: "manual"}
-+	for _, id := range []int64{0, media} {
++	controls, err := m.Controls(ctx)
++	if err != nil {
++		return p, err
++	}
++	if media > 0 && !controls.Enabled {
++		p.PauseUpdates = true
++		return p, nil
++	}
++	return m.savedPolicy(ctx, media, controls.EnforceGlobal)
++}
++
++// SavedPolicy returns editable rules even when automation is disabled.
++func (m *Manager) SavedPolicy(ctx context.Context, media int64) (Policy, error) {
++	return m.savedPolicy(ctx, media, false)
++}
++func (m *Manager) savedPolicy(ctx context.Context, media int64, enforceGlobal bool) (Policy, error) {
++	p := Policy{RefreshInterval: "manual"}
++	scopes := []int64{0}
++	if media > 0 && !enforceGlobal {
++		scopes = append(scopes, media)
++	}
++	for _, id := range scopes {
 +		var data string
 +		err := m.db.QueryRowContext(ctx, "SELECT policy_json FROM automation_policies WHERE scope_id=?", id).Scan(&data)
 +		if err == sql.ErrNoRows {
@@ -1012,16 +1079,20 @@ index 0000000..41df24a
 +	return nil
 +}
 +func (m *Manager) Tick(ctx context.Context) error {
++	controls, err := m.Controls(ctx)
++	if err != nil || !controls.Enabled {
++		return err
++	}
 +	m.mu.Lock()
 +	defer m.mu.Unlock()
 +	rows, err := m.db.QueryContext(ctx, `SELECT a.chapter_id FROM automation_actions a
 + JOIN chapters c ON c.id=a.chapter_id
-+ LEFT JOIN automation_policies p ON p.scope_id=c.media_id
++ LEFT JOIN automation_policies p ON p.scope_id=c.media_id AND ?=0
 + LEFT JOIN automation_policies g ON g.scope_id=0
 + WHERE NOT EXISTS(SELECT 1 FROM reading_progress r WHERE r.chapter_id=a.chapter_id AND r.completed=1)
 + OR COALESCE(json_extract(p.policy_json,'$.deleteOnRead'),json_extract(g.policy_json,'$.deleteOnRead'),0)=0
 + OR a.completed_at+3600*COALESCE(json_extract(p.policy_json,'$.deleteDelayHours'),json_extract(g.policy_json,'$.deleteDelayHours'),0)<=?
-+ ORDER BY a.completed_at,a.chapter_id LIMIT 100`, m.Now().Unix())
++ ORDER BY a.completed_at,a.chapter_id LIMIT 100`, controls.EnforceGlobal, m.Now().Unix())
 +	if err != nil {
 +		return err
 +	}
@@ -1144,10 +1215,9 @@ index 0000000..41df24a
 +}
 diff --git a/backend/internal/automation/manager_test.go b/backend/internal/automation/manager_test.go
 new file mode 100644
-index 0000000..04281d2
 --- /dev/null
 +++ b/backend/internal/automation/manager_test.go
-@@ -0,0 +1,181 @@
+@@ -0,0 +1,245 @@
 +package automation
 +
 +import (
@@ -1327,6 +1397,70 @@ index 0000000..04281d2
 +	}
 +	if count != 0 {
 +		t.Fatal("stale action starved behind future actions")
++	}
++}
++
++func TestControlsPreserveEditableRulesAndResetOverrides(t *testing.T) {
++	m, _ := fixture(t)
++	ctx := context.Background()
++	if err := m.SetPolicy(ctx, 0, []byte(`{"downloadAhead":2,"refreshInterval":"daily"}`)); err != nil {
++		t.Fatal(err)
++	}
++	if err := m.SetPolicy(ctx, 1, []byte(`{"downloadAhead":7}`)); err != nil {
++		t.Fatal(err)
++	}
++	if err := m.SetControls(ctx, Controls{Enabled: false}); err != nil {
++		t.Fatal(err)
++	}
++	p, err := m.Policy(ctx, 1)
++	if err != nil || p.DownloadAhead != 0 || !p.PauseUpdates {
++		t.Fatalf("disabled: %+v %v", p, err)
++	}
++	p, err = m.SavedPolicy(ctx, 1)
++	if err != nil || p.DownloadAhead != 7 {
++		t.Fatalf("saved: %+v %v", p, err)
++	}
++	if err := m.SetControls(ctx, Controls{Enabled: true, EnforceGlobal: true}); err != nil {
++		t.Fatal(err)
++	}
++	p, err = m.Policy(ctx, 1)
++	if err != nil || p.DownloadAhead != 2 {
++		t.Fatalf("enforced: %+v %v", p, err)
++	}
++	if err := m.ResetOverrides(ctx); err != nil {
++		t.Fatal(err)
++	}
++	p, err = m.SavedPolicy(ctx, 1)
++	if err != nil || p.DownloadAhead != 2 || p.RefreshInterval != "daily" {
++		t.Fatalf("reset: %+v %v", p, err)
++	}
++}
++
++func TestEnforcedGlobalDeletionIgnoresLongerSeriesDelay(t *testing.T) {
++	m, conn := fixture(t)
++	ctx := context.Background()
++	now := time.Unix(100000, 0)
++	m.Now = func() time.Time { return now }
++	for scope, raw := range map[int64]string{0: `{"deleteOnRead":false,"deleteDelayHours":1}`, 1: `{"deleteOnRead":true,"deleteDelayHours":168}`} {
++		if err := m.SetPolicy(ctx, scope, []byte(raw)); err != nil {
++			t.Fatal(err)
++		}
++	}
++	if _, err := conn.Exec(`INSERT INTO reading_progress(media_id,chapter_id,progress,completed) VALUES(1,1,1,1); INSERT INTO automation_actions(chapter_id,completed_at) VALUES(1,92800)`); err != nil {
++		t.Fatal(err)
++	}
++	if err := m.SetControls(ctx, Controls{Enabled: true, EnforceGlobal: true}); err != nil {
++		t.Fatal(err)
++	}
++	if err := m.Tick(ctx); err != nil {
++		t.Fatal(err)
++	}
++	var count int
++	if err := conn.QueryRow("SELECT count(*) FROM automation_actions").Scan(&count); err != nil {
++		t.Fatal(err)
++	}
++	if count != 0 {
++		t.Fatal("global deletion delay was blocked by series override")
 +	}
 +}
 diff --git a/backend/internal/db/db.go b/backend/internal/db/db.go
@@ -3213,10 +3347,17 @@ index 75ab078..f773573 100644
  	sc.killLocked()
  }
 diff --git a/backend/internal/sync/sync.go b/backend/internal/sync/sync.go
-index b5b1809..6e8f7ae 100644
 --- a/backend/internal/sync/sync.go
 +++ b/backend/internal/sync/sync.go
-@@ -21,13 +21,17 @@ import (
+@@ -14,6 +14,7 @@
+ 	"strings"
+ 	"sync"
+ 	"time"
++	"tsunagu/backend/internal/contentfilter"
+ 
+ 	"tsunagu/backend/internal/chapternum"
+ 	"tsunagu/backend/internal/db/sqlcgen"
+@@ -21,13 +22,17 @@
  	"tsunagu/backend/internal/repository"
  	"tsunagu/backend/internal/sandbox"
  	sandboxv1 "tsunagu/backend/internal/sandbox/gen/sandbox/v1"
@@ -3238,7 +3379,7 @@ index b5b1809..6e8f7ae 100644
  
  	installMu sync.Mutex
  	locks     map[string]*sync.Mutex
-@@ -51,7 +55,7 @@ func (s *Syncer) SetEnricher(e Enricher)     { s.enricher = e }
+@@ -51,7 +56,7 @@
  func (s *Syncer) SetRecomputer(r Recomputer) { s.recompute = r }
  
  func New(db *sql.DB, q *sqlcgen.Queries, cacheDir, mediaDir string) *Syncer {
@@ -3247,7 +3388,7 @@ index b5b1809..6e8f7ae 100644
  }
  
  type LibraryUpdateProgress struct {
-@@ -84,12 +88,12 @@ func (s *Syncer) StartLibraryUpdate(sc *sandbox.SupervisedClient, folderID *int6
+@@ -84,12 +89,12 @@
  	var err error
  	if folderID != nil {
  		var rows []sqlcgen.Medium
@@ -3262,7 +3403,7 @@ index b5b1809..6e8f7ae 100644
  	}
  	if err != nil {
  		s.updateMu.Unlock()
-@@ -103,12 +107,12 @@ func (s *Syncer) StartLibraryUpdate(sc *sandbox.SupervisedClient, folderID *int6
+@@ -103,12 +108,12 @@
  	}
  	s.updateMu.Unlock()
  
@@ -3277,7 +3418,7 @@ index b5b1809..6e8f7ae 100644
  	defer func() {
  		s.updateMu.Lock()
  		s.updateProg.Running = false
-@@ -311,7 +315,7 @@ func (s *Syncer) InstallExternalExtension(ctx context.Context, c *sandbox.Client
+@@ -311,7 +316,7 @@
  	}
  	tempPath := filepath.Join(tempDir, fmt.Sprintf("sideload-%d.%s", time.Now().UnixNano(), ext))
  
@@ -3286,7 +3427,7 @@ index b5b1809..6e8f7ae 100644
  		return sqlcgen.Extension{}, fmt.Errorf("downloading %s: %w", url, err)
  	}
  	defer os.Remove(tempPath)
-@@ -347,8 +351,14 @@ func (s *Syncer) InstallExternalExtension(ctx context.Context, c *sandbox.Client
+@@ -347,8 +352,14 @@
  	})
  }
  
@@ -3303,7 +3444,7 @@ index b5b1809..6e8f7ae 100644
  	if err != nil {
  		return err
  	}
-@@ -796,6 +806,11 @@ func (s *Syncer) MigrateMedia(ctx context.Context, c *sandbox.Client, fromMediaI
+@@ -796,6 +807,11 @@
  	}
  	defer func() { _ = tx.Rollback() }()
  	qtx := s.q.WithTx(tx)
@@ -3315,7 +3456,7 @@ index b5b1809..6e8f7ae 100644
  
  	for _, p := range progress {
  		oldCh, ok := oldByID[p.ChapterID]
-@@ -980,9 +995,9 @@ func (s *Syncer) upsertEntryFromDetails(ctx context.Context, c *sandbox.Client,
+@@ -980,9 +996,9 @@
  	// resolvers (e.g. ResolveMedia), so leaving it synchronous stalls the
  	// HTTP response on every newly-added entry.
  	id := entry.ID
@@ -3327,7 +3468,7 @@ index b5b1809..6e8f7ae 100644
  	}
  	if refreshed, err := s.q.GetMedia(ctx, entry.ID); err == nil {
  		entry = refreshed
-@@ -1025,18 +1040,21 @@ func (s *Syncer) EnsureHydrated(ctx context.Context, sc *sandbox.SupervisedClien
+@@ -1025,18 +1041,21 @@
  	if err != nil {
  		return sqlcgen.Medium{}, err
  	}
@@ -3353,7 +3494,7 @@ index b5b1809..6e8f7ae 100644
  		waitFor(done, hydrateWait)
  	} else {
  		waitForLock(lk, hydrateWait)
-@@ -1096,18 +1114,21 @@ func (s *Syncer) EnsureChapters(ctx context.Context, sc *sandbox.SupervisedClien
+@@ -1096,18 +1115,21 @@
  	if err != nil {
  		return nil, err
  	}
@@ -3379,7 +3520,35 @@ index b5b1809..6e8f7ae 100644
  		waitFor(done, hydrateWait)
  	} else {
  		waitForLock(lk, hydrateWait)
-@@ -1423,6 +1444,17 @@ func (s *Syncer) SyncChapters(ctx context.Context, c *sandbox.Client, libraryEnt
+@@ -1187,9 +1209,26 @@
+ 		}
+ 		args = append(args, len(q.GenreIDs))
+ 	}
++	overrides, err := contentfilter.LoadSourceOverrides(ctx, s.db)
++	if err != nil {
++		return nil, 0, err
++	}
++	if overrides.Enabled && len(overrides.Blocked) > 0 {
++		where = append(where, "(m.extension_id IS NULL OR m.extension_id NOT IN ("+strings.TrimSuffix(strings.Repeat("?,", len(overrides.Blocked)), ",")+"))")
++		for _, id := range overrides.Blocked {
++			args = append(args, id)
++		}
++	}
+ 	if q.ContentFilterRank > 0 {
+-		where = append(where, "(m.content_block_rank IS NULL OR m.content_block_rank > ?)")
++		condition := "m.content_block_rank IS NULL OR m.content_block_rank > ?"
+ 		args = append(args, q.ContentFilterRank)
++		if overrides.Enabled && len(overrides.Allowed) > 0 {
++			condition += " OR m.extension_id IN (" + strings.TrimSuffix(strings.Repeat("?,", len(overrides.Allowed)), ",") + ")"
++			for _, id := range overrides.Allowed {
++				args = append(args, id)
++			}
++		}
++		where = append(where, "("+condition+")")
+ 	}
+ 	if q.UnreadOnly {
+ 		where = append(where, `EXISTS (
+@@ -1423,6 +1462,17 @@
  		return nil, fmt.Errorf("get extension %d: %w", entry.ExtensionID.Int64, err)
  	}
  
@@ -3397,7 +3566,7 @@ index b5b1809..6e8f7ae 100644
  	summaries, err := s.fetchChapterSummaries(ctx, c, ext.PackageName, ext.ContentType, entry.ExternalID)
  	if err != nil {
  		return nil, err
-@@ -1470,6 +1502,22 @@ func (s *Syncer) SyncChapters(ctx context.Context, c *sandbox.Client, libraryEnt
+@@ -1470,6 +1520,22 @@
  		log.Printf("sync: marking chapters synced for media %d failed: %v", libraryEntryID, err)
  	}
  
@@ -3420,7 +3589,7 @@ index b5b1809..6e8f7ae 100644
  	return chapters, nil
  }
  
-@@ -1486,7 +1534,22 @@ func (s *Syncer) RecordProgress(ctx context.Context, libraryEntryID, chapterID i
+@@ -1486,7 +1552,22 @@
  	if durationSeconds != nil {
  		params.DurationSeconds = sql.NullFloat64{Float64: *durationSeconds, Valid: true}
  	}
@@ -3499,10 +3668,9 @@ index 0000000..c42eec5
 +}
 diff --git a/backend/mobile/admin.go b/backend/mobile/admin.go
 new file mode 100644
-index 0000000..564deac
 --- /dev/null
 +++ b/backend/mobile/admin.go
-@@ -0,0 +1,170 @@
+@@ -0,0 +1,242 @@
 +package mobile
 +
 +import (
@@ -3517,11 +3685,73 @@ index 0000000..564deac
 +	"strconv"
 +	"strings"
 +	"time"
++	"tsunagu/backend/internal/automation"
++	"tsunagu/backend/internal/contentfilter"
 +)
 +
 +func (b *Backend) mountAdmin(mux *http.ServeMux) {
 +	r := b.services
++	mux.HandleFunc("/api/mobile/source-overrides", func(w http.ResponseWriter, req *http.Request) {
++		switch req.Method {
++		case "GET":
++			value, err := contentfilter.LoadSourceOverrides(req.Context(), r.DB)
++			if err != nil {
++				http.Error(w, "Could not read overrides", 500)
++				return
++			}
++			w.Header().Set("Content-Type", "application/json")
++			json.NewEncoder(w).Encode(value)
++		case "PUT":
++			var value contentfilter.SourceOverrides
++			decoder := json.NewDecoder(http.MaxBytesReader(w, req.Body, 131072))
++			decoder.DisallowUnknownFields()
++			if err := decoder.Decode(&value); err != nil {
++				http.Error(w, "Invalid overrides", 400)
++				return
++			}
++			if err := contentfilter.SaveSourceOverrides(req.Context(), r.DB, value); err != nil {
++				http.Error(w, err.Error(), 400)
++				return
++			}
++			w.WriteHeader(204)
++		default:
++			w.WriteHeader(405)
++		}
++	})
 +	policies := r.Policies
++	mux.HandleFunc("/api/mobile/automation-controls", func(w http.ResponseWriter, req *http.Request) {
++		switch req.Method {
++		case "GET":
++			value, err := policies.Controls(req.Context())
++			if err != nil {
++				http.Error(w, "Could not read automation controls", 500)
++				return
++			}
++			w.Header().Set("Content-Type", "application/json")
++			json.NewEncoder(w).Encode(value)
++		case "PUT":
++			var value automation.Controls
++			decoder := json.NewDecoder(http.MaxBytesReader(w, req.Body, 1024))
++			decoder.DisallowUnknownFields()
++			if err := decoder.Decode(&value); err != nil {
++				http.Error(w, "Invalid controls", 400)
++				return
++			}
++			if err := policies.SetControls(req.Context(), value); err != nil {
++				http.Error(w, "Could not save controls", 500)
++				return
++			}
++			w.WriteHeader(204)
++		case "DELETE":
++			if err := policies.ResetOverrides(req.Context()); err != nil {
++				http.Error(w, "Could not reset overrides", 500)
++				return
++			}
++			w.WriteHeader(204)
++		default:
++			w.WriteHeader(405)
++		}
++	})
 +	mux.HandleFunc("/api/mobile/automation", func(w http.ResponseWriter, req *http.Request) {
 +		media, err := strconv.ParseInt(req.URL.Query().Get("mediaId"), 10, 64)
 +		if err != nil || media < 0 {
@@ -3530,7 +3760,7 @@ index 0000000..564deac
 +		}
 +		switch req.Method {
 +		case "GET":
-+			p, err := policies.Policy(req.Context(), media)
++			p, err := policies.SavedPolicy(req.Context(), media)
 +			if err != nil {
 +				http.Error(w, err.Error(), 400)
 +				return
@@ -3543,6 +3773,16 @@ index 0000000..564deac
 +				err = policies.SetPolicy(req.Context(), media, raw)
 +			}
 +			if err != nil {
++				http.Error(w, err.Error(), 400)
++				return
++			}
++			w.WriteHeader(204)
++		case "DELETE":
++			if media == 0 {
++				http.Error(w, "choose a series", 400)
++				return
++			}
++			if err := policies.SetPolicy(req.Context(), media, []byte(`{}`)); err != nil {
 +				http.Error(w, err.Error(), 400)
 +				return
 +			}
@@ -6229,5 +6469,131 @@ index 0000000..4913c72
 +	}
 +	if err := b.AttachSandbox(ln.Addr().String(), strings.Repeat("a", 32)); err == nil {
 +		t.Fatal("duplicate attachment accepted")
++	}
++}
+
+diff --git a/backend/internal/contentfilter/source_overrides.go b/backend/internal/contentfilter/source_overrides.go
+new file mode 100644
+--- /dev/null
++++ b/backend/internal/contentfilter/source_overrides.go
+@@ -0,0 +1,66 @@
++package contentfilter
++
++import (
++	"context"
++	"database/sql"
++	"encoding/json"
++	"fmt"
++)
++
++type SourceOverrides struct {
++	Enabled bool    `json:"enabled"`
++	Allowed []int64 `json:"allowed"`
++	Blocked []int64 `json:"blocked"`
++}
++
++func LoadSourceOverrides(ctx context.Context, db *sql.DB) (SourceOverrides, error) {
++	var result SourceOverrides
++	var raw string
++	err := db.QueryRowContext(ctx, "SELECT value FROM app_settings WHERE key='mobile_source_overrides'").Scan(&raw)
++	if err == sql.ErrNoRows {
++		return result, nil
++	}
++	if err != nil {
++		return result, err
++	}
++	err = json.Unmarshal([]byte(raw), &result)
++	return result, err
++}
++func SaveSourceOverrides(ctx context.Context, db *sql.DB, value SourceOverrides) error {
++	if len(value.Allowed)+len(value.Blocked) > 10000 {
++		return fmt.Errorf("too many sources")
++	}
++	seen := map[int64]bool{}
++	for _, ids := range [][]int64{value.Allowed, value.Blocked} {
++		for _, id := range ids {
++			if id <= 0 || seen[id] {
++				return fmt.Errorf("invalid or duplicate source")
++			}
++			seen[id] = true
++		}
++	}
++	raw, err := json.Marshal(value)
++	if err != nil {
++		return err
++	}
++	_, err = db.ExecContext(ctx, "INSERT INTO app_settings(key,value) VALUES('mobile_source_overrides',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", string(raw))
++	return err
++}
++
++// Decision is -1 for blocked, 1 for allowed, and 0 for the global rules.
++func (value SourceOverrides) Decision(id int64) int {
++	if !value.Enabled {
++		return 0
++	}
++	for _, source := range value.Blocked {
++		if source == id {
++			return -1
++		}
++	}
++	for _, source := range value.Allowed {
++		if source == id {
++			return 1
++		}
++	}
++	return 0
++}
+
+diff --git a/backend/internal/sync/source_overrides_test.go b/backend/internal/sync/source_overrides_test.go
+new file mode 100644
+--- /dev/null
++++ b/backend/internal/sync/source_overrides_test.go
+@@ -0,0 +1,48 @@
++package sync
++
++import (
++	"context"
++	"path/filepath"
++	"testing"
++	"tsunagu/backend/internal/contentfilter"
++	"tsunagu/backend/internal/db"
++	"tsunagu/backend/internal/db/sqlcgen"
++)
++
++func TestLibrarySourceOverridesApplyBeforePagination(t *testing.T) {
++	ctx := context.Background()
++	conn, err := db.Open(filepath.Join(t.TempDir(), "test.db"))
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer conn.Close()
++	_, err = conn.Exec(`PRAGMA foreign_keys=OFF;
++ INSERT INTO media(id,extension_id,external_id,content_type,title,added_at,content_block_rank) VALUES
++ (1,11,'one','manga','One',CURRENT_TIMESTAMP,1),
++ (2,22,'two','manga','Two',CURRENT_TIMESTAMP,1),
++ (3,33,'three','manga','Three',CURRENT_TIMESTAMP,NULL)`)
++	if err != nil {
++		t.Fatal(err)
++	}
++	value := contentfilter.SourceOverrides{Enabled: true, Allowed: []int64{11}, Blocked: []int64{33}}
++	if err = contentfilter.SaveSourceOverrides(ctx, conn, value); err != nil {
++		t.Fatal(err)
++	}
++	sy := New(conn, sqlcgen.New(conn), t.TempDir(), t.TempDir())
++	rows, total, err := sy.QueryLibrary(ctx, LibraryQuery{ContentFilterRank: 1, Limit: 1})
++	if err != nil || total != 1 || len(rows) != 1 || rows[0].ID != 1 {
++		t.Fatalf("overrides: rows=%+v total=%d err=%v", rows, total, err)
++	}
++	value.Enabled = false
++	if err = contentfilter.SaveSourceOverrides(ctx, conn, value); err != nil {
++		t.Fatal(err)
++	}
++	rows, total, err = sy.QueryLibrary(ctx, LibraryQuery{ContentFilterRank: 1, Limit: 1})
++	if err != nil || total != 1 || len(rows) != 1 || rows[0].ID != 3 {
++		t.Fatalf("disabled: rows=%+v total=%d err=%v", rows, total, err)
++	}
++	value.Allowed = []int64{33}
++	if err = contentfilter.SaveSourceOverrides(ctx, conn, value); err == nil {
++		t.Fatal("accepted conflicting allow and block")
 +	}
 +}

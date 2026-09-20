@@ -116,6 +116,17 @@ actor BackendAPI {
         }
     }
 
+    func api(path: String, method: String = "GET", body: Data? = nil, contentType: String = "application/json") async throws -> Data {
+        let connection = try await backend.connection(requiresSourceRuntime: false)
+        var request = try connection.apiRequest(path: path, method: method, body: body)
+        if body != nil { request.setValue(contentType, forHTTPHeaderField: "Content-Type") }
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw EmbeddedSearchError.message("The server could not complete this action.")
+        }
+        return data
+    }
+
     func chapterOpened(mediaID: String, chapterID: String) async throws {
         let connection = try await backend.connection()
         let request = try connection.chapterOpenRequest(mediaID: mediaID, chapterID: chapterID)

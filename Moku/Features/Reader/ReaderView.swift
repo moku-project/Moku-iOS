@@ -7,6 +7,8 @@ struct ReaderView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("preferences.animations") private var animations = true
+    @AppStorage("keybinds.reader") private var readerShortcuts = Data()
+    @FocusState private var keyboardFocused: Bool
     @State private var pickerOpen = false
     @State private var downloadsOpen = false
     @State private var pageEntryOpen = false
@@ -98,6 +100,12 @@ struct ReaderView: View {
                 model.landscape = size.width / max(1, size.height) > 1.25
             }
         }
+        .focusable().focusEffectDisabled().focused($keyboardFocused)
+        .onKeyPress(phases: [.down, .repeat]) { press in handleKey(press) }
+        .onAppear { keyboardFocused = true }
+        .onChange(of: model.drawerOpen) { _, open in if !open { keyboardFocused = true } }
+        .onChange(of: pickerOpen) { _, open in if !open { keyboardFocused = true } }
+        .onChange(of: downloadsOpen) { _, open in if !open { keyboardFocused = true } }
         .preference(key: GeneralMediaPresentedKey.self, value: true)
         .foregroundStyle(Color(white: 0.9)).tint(NavigationStyle.accent)
         .preferredColorScheme(.dark).statusBarHidden(!model.chromeVisible)
@@ -144,6 +152,36 @@ struct ReaderView: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("reader.screen")
+    }
+    private func handleKey(_ press: KeyPress) -> KeyPress.Result {
+        guard !model.loading, !pageEntryOpen, !pickerOpen, !downloadsOpen, !model.drawerOpen else { return .ignored }
+        let values = ReaderShortcut.values(readerShortcuts)
+        guard let action = ReaderShortcut.all.first(where: { ReaderShortcut.matches(values[$0.id] ?? $0.defaultValue, press: press) }) else { return .ignored }
+        if press.phase == .repeat && !["pageRight", "pageLeft"].contains(action.id) { return .handled }
+        switch action.id {
+        case "pageRight": keyboardPage(forward: model.settings.readingDirection != "rtl")
+        case "pageLeft": keyboardPage(forward: model.settings.readingDirection == "rtl")
+        case "firstPage": model.jump(1)
+        case "lastPage": model.jump(model.pages.count)
+        case "chapterRight": model.changeChapter(forward: true)
+        case "chapterLeft": model.changeChapter(forward: false)
+        case "exit": close()
+        case "direction": model.settings.readingDirection = model.settings.readingDirection == "ltr" ? "rtl" : "ltr"
+        case "layout":
+            let layouts = ["single", "double", "auto", "longstrip"]
+            model.settings.pageStyle = layouts[((layouts.firstIndex(of: model.settings.pageStyle) ?? 0) + 1) % layouts.count]
+        case "fullscreen": toggleChrome()
+        case "settings": drawer(true)
+        case "bookmark": model.toggleBookmark()
+        case "scroll": model.preferences.document.behaviour.autoScroll.toggle()
+        default: return .ignored
+        }
+        return .handled
+    }
+    private func keyboardPage(forward: Bool) {
+        if model.settings.pageStyle == "longstrip" {
+            model.jump(min(model.pages.count, max(1, model.page + (forward ? 1 : -1))))
+        } else { model.navigate(forward: forward) }
     }
     private var topBar: some View {
         HStack(spacing: 0) {

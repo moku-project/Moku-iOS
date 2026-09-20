@@ -5,10 +5,13 @@ struct AppSessionView: View {
     let searchHistory: SearchHistoryStore
     @State private var home: HomeStore
     @State private var library: LibraryStore
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var appLock: AppLockStore
     @State private var readerPreferences: ReaderPreferences
 
     init(storage: AppDataStore) {
         preferences = storage.preferences
+        _appLock = State(initialValue: AppLockStore(defaults: storage.preferences, scope: storage.directory.path))
         searchHistory = SearchHistoryStore(
             url: storage.directory.appending(path: "search-history.sqlite"))
         _readerPreferences = State(
@@ -25,7 +28,7 @@ struct AppSessionView: View {
             _home = State(initialValue: HomeStore(fileURL: storage.homeURL))
         #endif
         _library = State(
-            initialValue: LibraryStore(directory: storage.directory))
+            initialValue: LibraryStore(directory: storage.directory, synchronizeWithServer: !PreviewMode.isEnabled))
     }
 
     var body: some View {
@@ -33,8 +36,12 @@ struct AppSessionView: View {
             .modifier(GeneralInterfaceBehavior())
             .environment(\.searchHistoryStore, searchHistory)
             .environment(\.skeletonStorageScope, searchHistory.url.path)
-            .environment(home).environment(library).environment(readerPreferences)
+            .environment(home).environment(library).environment(readerPreferences).environment(appLock)
             .defaultAppStorage(preferences)
-            .task { await library.load() }
+            .task { appLock.showIfLocked(); await library.load() }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .background { appLock.lock() }
+                if phase == .active { appLock.showIfLocked() }
+            }
     }
 }

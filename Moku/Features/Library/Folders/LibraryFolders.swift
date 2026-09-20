@@ -91,7 +91,7 @@ struct LibraryFolders: ViewModifier {
     private var visibleFolders: [LibraryFolder] {
         let query = folderQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         return library.organization.folders.filter {
-            query.isEmpty || $0.name.localizedStandardContains(query)
+            ($0.hidden != true) && (query.isEmpty || $0.name.localizedStandardContains(query))
         }
     }
 

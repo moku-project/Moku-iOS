@@ -1,11 +1,11 @@
 import SwiftUI
 
 enum GeneralStyle {
-    static let border = Color(white: 37 / 255)
-    static let faint = Color(white: 155 / 255)
-    static let label = Color(red: 185 / 255, green: 188 / 255, blue: 192 / 255)
-    static let text = Color(red: 232 / 255, green: 230 / 255, blue: 224 / 255)
-    static var divider: some View { Rectangle().fill(border).frame(height: 1) }
+    @MainActor static var border: Color { Color(themeHex: AppTheme.shared.palette.border) }
+    @MainActor static var faint: Color { Color(themeHex: AppTheme.shared.palette.muted) }
+    @MainActor static var label: Color { Color(themeHex: AppTheme.shared.palette.secondary) }
+    @MainActor static var text: Color { Color(themeHex: AppTheme.shared.palette.text) }
+    @MainActor static var divider: some View { Rectangle().fill(border).frame(height: 1) }
 }
 struct GeneralSection<Content: View>: View {
     let title: String
@@ -40,8 +40,10 @@ struct GeneralRow<Control: View>: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title).font(.system(size: 15)).foregroundStyle(GeneralStyle.label)
                 .fixedSize(horizontal: false, vertical: true)
-            Text(detail).font(.system(size: 13)).foregroundStyle(GeneralStyle.faint)
-                .fixedSize(horizontal: false, vertical: true)
+            if !detail.isEmpty {
+                Text(detail).font(.system(size: 13)).foregroundStyle(GeneralStyle.faint)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
     var body: some View {
@@ -103,8 +105,16 @@ extension View {
     func generalInput() -> some View {
         self.font(.system(size: 14)).foregroundStyle(GeneralStyle.text)
             .padding(.vertical, 10).padding(.horizontal, 8)
-            .background(Color(white: 13 / 255))
+            .background(NavigationStyle.surface)
             .clipShape(RoundedRectangle(cornerRadius: 5))
             .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(GeneralStyle.border))
+    }
+}
+
+struct GeneralTextButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.font(.system(size: 14)).foregroundStyle(GeneralStyle.text)
+            .opacity(configuration.isPressed ? 0.6 : 1)
+            .frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
     }
 }
