@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+repo=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+# Clear Xcode's SDK selection only while building this macOS host tool.
+host_swift() (
+    unset SDKROOT SDK_DIR PLATFORM_NAME SWIFT_EXEC SWIFTFLAGS
+    exec xcrun --sdk macosx swift "$@"
+)
+# Finish SwiftPM before running; nested Xcode phases can then use the tool.
+host_swift build --package-path "$repo/Tools/MokuIOS" --configuration debug >&2
+binary_dir=$(host_swift build --package-path "$repo/Tools/MokuIOS" --configuration debug --show-bin-path)
+export MOKU_IOS_DIR="${MOKU_IOS_DIR:-$repo}"
+exec "$binary_dir/moku-ios" "$@"
