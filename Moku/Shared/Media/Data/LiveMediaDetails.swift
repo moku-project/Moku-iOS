@@ -1,0 +1,49 @@
+import Foundation
+
+extension LiveMediaRepository {
+    func details(for entry: MediaEntry, refresh: Bool = false, syncChapters: Bool = true)
+        async throws -> MediaDetails
+    {
+        guard let extensionID = entry.extensionID, let externalID = entry.externalID else {
+            throw SearchFailure.notConnected
+        }
+        struct Response: Decodable, Sendable { let resolveMedia: MediaDetails }
+        let result: Response = try await BackendAPI.shared.graphql(
+            """
+            { resolveMedia(extensionId: \(BackendAPI.literal(extensionID)), externalId: \(BackendAPI.literal(externalID)), syncChapters: \(syncChapters)) {
+                id title thumbnailUrl description author artist status genres inLibrary
+                \(syncChapters ? "chapters { id title number scanlator completed downloaded }" : "")
+            } }
+            """, cacheFor: 120, refresh: refresh)
+        return result.resolveMedia
+    }
+
+    func setSaved(_ saved: Bool, id: String) async throws -> Bool {
+        struct Response: Decodable, Sendable {
+            struct Media: Decodable, Sendable { let inLibrary: Bool }
+            let setInLibrary: Media
+        }
+        let result: Response = try await BackendAPI.shared.graphql(
+            """
+            mutation { setInLibrary(mediaId: \(BackendAPI.literal(id)), inLibrary: \(saved)) { inLibrary } }
+            """)
+        return result.setInLibrary.inLibrary
+    }
+}
+
+extension LiveMediaRepository: DetailsRepository {
+    func metadata(for entry: MediaEntry, refresh: Bool) async throws -> MediaDetails {
+        try await details(for: entry, refresh: refresh, syncChapters: false)
+    }
+
+    func chapters(mediaID: String) async throws -> [Chapter] {
+        struct Response: Decodable, Sendable { let syncChapters: [Chapter] }
+        let result: Response = try await BackendAPI.shared.graphql(
+            """
+            mutation { syncChapters(mediaId: \(BackendAPI.literal(mediaID))) {
+                id title number scanlator completed downloaded
+            } }
+            """)
+        return result.syncChapters
+    }
+}

@@ -1,0 +1,26 @@
+# Local dotfiles and dot-directories at any depth (including this file).
+.*
+
+# Repository ignore rules and Git submodule metadata.
+!/.gitignore
+!/.gitmodules
+
+# Agent instructions, skills, and local agent working directories.
+[Aa][Gg][Ee][Nn][Tt][Ss].[Mm][Dd]
+[Aa][Gg][Ee][Nn][Tt][Ss].*.[Mm][Dd]
+[Cc][Ll][Aa][Uu][Dd][Ee].[Mm][Dd]
+[Cc][Ll][Aa][Uu][Dd][Ee].*.[Mm][Dd]
+[Gg][Ee][Mm][Ii][Nn][Ii].[Mm][Dd]
+[Ss][Kk][Ii][Ll][Ll].[Mm][Dd]
+[Cc][Oo][Pp][Ii][Ll][Oo][Tt]-[Ii][Nn][Ss][Tt][Rr][Uu][Cc][Tt][Ii][Oo][Nn][Ss].[Mm][Dd]
+[Aa][Gg][Ee][Nn][Tt][Ss]/
+[Ss][Kk][Ii][Ll][Ll][Ss]/
+
+# Local Python tooling caches.
+__pycache__/
+*.pyc
+
+# Xcode developer state and frontend build products.
+xcuserdata/
+*.xcuserstate
+DerivedData/

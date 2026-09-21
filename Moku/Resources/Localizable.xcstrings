@@ -1,0 +1,943 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "/" : {
+
+    },
+    "%@ · %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · %2$@"
+          }
+        }
+      }
+    },
+    "%@ · %@ · %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · %2$@ · %3$@"
+          }
+        }
+      }
+    },
+    "%@ · %@ · %lld visit(s)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · %2$@ · %3$lld visit(s)"
+          }
+        }
+      }
+    },
+    "%@ · p.%lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · p.%2$lld"
+          }
+        }
+      }
+    },
+    "%@ / %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ / %2$@"
+          }
+        }
+      }
+    },
+    "%@ menu" : {
+
+    },
+    "%@ times" : {
+
+    },
+    "%@ tools" : {
+
+    },
+    "%@: %lld activity" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@: %2$lld activity"
+          }
+        }
+      }
+    },
+    "%@×" : {
+
+    },
+    "%lld" : {
+
+    },
+    "%lld / %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld / %2$lld"
+          }
+        }
+      }
+    },
+    "%lld / %lld read" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld / %2$lld read"
+          }
+        }
+      }
+    },
+    "%lld / 4" : {
+
+    },
+    "%lld active filters" : {
+
+    },
+    "%lld chapters" : {
+
+    },
+    "%lld connected" : {
+
+    },
+    "%lld days" : {
+
+    },
+    "%lld failed" : {
+
+    },
+    "%lld filters" : {
+
+    },
+    "%lld new %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld new %2$@"
+          }
+        }
+      }
+    },
+    "%lld selected" : {
+
+    },
+    "%lld unread" : {
+
+    },
+    "%lld updated titles" : {
+
+    },
+    "%lld%%" : {
+
+    },
+    "+ Add repository" : {
+
+    },
+    "+ Save current" : {
+
+    },
+    "1–%lld" : {
+
+    },
+    "18+" : {
+
+    },
+    "Account" : {
+
+    },
+    "Actions for %@" : {
+
+    },
+    "Activity" : {
+
+    },
+    "Activity statistics" : {
+
+    },
+    "Add" : {
+
+    },
+    "Add profile" : {
+
+    },
+    "Add repository" : {
+
+    },
+    "All languages" : {
+
+    },
+    "All remaining (%lld)" : {
+
+    },
+    "Anime" : {
+
+    },
+    "Apply" : {
+
+    },
+    "Approve access, then paste the token or redirected URL." : {
+
+    },
+    "Authorize %@" : {
+
+    },
+    "Back" : {
+
+    },
+    "Back to %@ tools" : {
+
+    },
+    "Back to Library" : {
+
+    },
+    "Background" : {
+
+    },
+    "Best" : {
+
+    },
+    "Browse extensions" : {
+
+    },
+    "Browse sources" : {
+
+    },
+    "Browse titles" : {
+
+    },
+    "Cancel" : {
+
+    },
+    "Cancel waiting" : {
+
+    },
+    "Chapters" : {
+
+    },
+    "Choose a source for source search." : {
+
+    },
+    "Choose content mode" : {
+
+    },
+    "Choose episode" : {
+
+    },
+    "Choose match" : {
+
+    },
+    "Choose Moku library JSON" : {
+
+    },
+    "Clear %@" : {
+
+    },
+    "Clear %@ downloads?" : {
+
+    },
+    "Clear all" : {
+
+    },
+    "Clear filter" : {
+
+    },
+    "Clear filters" : {
+
+    },
+    "Clear filters and search" : {
+
+    },
+    "Clear folder search" : {
+
+    },
+    "Clear history" : {
+
+    },
+    "Clear reading activity for this profile. Saved titles and files will be kept." : {
+
+    },
+    "Clear search" : {
+
+    },
+    "Clear title history" : {
+
+    },
+    "Close %@ menu" : {
+
+    },
+    "Close popup" : {
+
+    },
+    "Close reader settings" : {
+
+    },
+    "Collapsed" : {
+
+    },
+    "Compact" : {
+
+    },
+    "Configure" : {
+
+    },
+    "Connect" : {
+
+    },
+    "Connected" : {
+
+    },
+    "Content modes" : {
+
+    },
+    "Continue" : {
+
+    },
+    "Continue from your saved position" : {
+
+    },
+    "Copy authorization link" : {
+
+    },
+    "Create" : {
+
+    },
+    "Creating…" : {
+
+    },
+    "day streak" : {
+
+    },
+    "Delete" : {
+
+    },
+    "Delete download" : {
+
+    },
+    "Disabled" : {
+
+    },
+    "Discard" : {
+
+    },
+    "Disconnect" : {
+
+    },
+    "Dismiss" : {
+
+    },
+    "Dismiss content modes" : {
+
+    },
+    "Dismiss download tools" : {
+
+    },
+    "Dismiss Extensions menu" : {
+
+    },
+    "Dismiss library menu" : {
+
+    },
+    "Dismiss Recent menu" : {
+
+    },
+    "Done" : {
+
+    },
+    "Double-tap the center to show or hide controls." : {
+
+    },
+    "Download %@" : {
+
+    },
+    "Download chapters" : {
+
+    },
+    "Download queued" : {
+
+    },
+    "Download status" : {
+
+    },
+    "Downloaded only" : {
+
+    },
+    "Downloads" : {
+
+    },
+    "Downloads view" : {
+
+    },
+    "Dry run" : {
+
+    },
+    "Each profile has its own saved titles, reading activity, and preferences. Installed sources and their settings are shared on this device." : {
+
+    },
+    "Edit" : {
+
+    },
+    "Edit name" : {
+
+    },
+    "Edit profile" : {
+
+    },
+    "Edit search and filters" : {
+
+    },
+    "Episodes" : {
+
+    },
+    "Expand %@ updates" : {
+
+    },
+    "Expanded" : {
+
+    },
+    "Export failures" : {
+
+    },
+    "F" : {
+
+    },
+    "Filter chapters" : {
+
+    },
+    "Filtered" : {
+
+    },
+    "Filters" : {
+
+    },
+    "Find a genre" : {
+
+    },
+    "Find extensions" : {
+
+    },
+    "Find repositories" : {
+
+    },
+    "Folder name" : {
+
+    },
+    "Folders" : {
+
+    },
+    "Go" : {
+
+    },
+    "Go to page" : {
+
+    },
+    "Hide chapters" : {
+
+    },
+    "History" : {
+
+    },
+    "Hold to choose All, Manga, Novels, or Anime" : {
+
+    },
+    "Home" : {
+
+    },
+    "HTTPS index URL" : {
+
+    },
+    "Import %lld" : {
+
+    },
+    "Import library" : {
+
+    },
+    "Import list" : {
+
+    },
+    "Import saved titles from a Moku library.json file. Existing titles are kept." : {
+
+    },
+    "Imported %lld" : {
+
+    },
+    "Imported titles will be kept. Unfinished matches will be removed." : {
+
+    },
+    "Install" : {
+
+    },
+    "Installed" : {
+
+    },
+    "Language" : {
+
+    },
+    "Layout, fit, direction, zoom and image settings can be saved for this manga." : {
+
+    },
+    "Less" : {
+
+    },
+    "Library" : {
+
+    },
+    "Library layout" : {
+
+    },
+    "Library mode: %@" : {
+
+    },
+    "Library view" : {
+
+    },
+    "Lists" : {
+
+    },
+    "Load more" : {
+
+    },
+    "Loading list…" : {
+
+    },
+    "M" : {
+
+    },
+    "Main navigation" : {
+
+    },
+    "Manage %@" : {
+
+    },
+    "Manage local profiles" : {
+
+    },
+    "Manga" : {
+
+    },
+    "Manga Settings" : {
+
+    },
+    "Media" : {
+
+    },
+    "More" : {
+
+    },
+    "Name" : {
+
+    },
+    "Name (optional)" : {
+
+    },
+    "New folder" : {
+
+    },
+    "Next chapter" : {
+
+    },
+    "Next chapters" : {
+
+    },
+    "Next title" : {
+
+    },
+    "No %@ titles yet" : {
+
+    },
+    "No chapters match your filter." : {
+
+    },
+    "No chapters to show" : {
+
+    },
+    "No folders" : {
+
+    },
+    "No matches" : {
+
+    },
+    "No matches in your Library" : {
+
+    },
+    "No matching folders" : {
+
+    },
+    "No matching titles" : {
+
+    },
+    "No presets yet — save the current settings to make one." : {
+
+    },
+    "No results" : {
+
+    },
+    "No services available" : {
+
+    },
+    "No sources match these filters." : {
+
+    },
+    "No subtitle tracks available" : {
+
+    },
+    "No titles in the selected lists." : {
+
+    },
+    "Nothing here yet" : {
+
+    },
+    "Nothing installs until you select an extension." : {
+
+    },
+    "Number of chapters" : {
+
+    },
+    "OK" : {
+
+    },
+    "On this device" : {
+
+    },
+    "Open %@" : {
+
+    },
+    "Open profile" : {
+
+    },
+    "Page" : {
+
+    },
+    "Page %lld · In progress" : {
+
+    },
+    "Page progress" : {
+
+    },
+    "Pages to preload: %lld" : {
+
+    },
+    "Pin a title" : {
+
+    },
+    "Pin a title or keep reading to fill this slot." : {
+
+    },
+    "Pinned" : {
+
+    },
+    "Playback speed" : {
+
+    },
+    "Preferences for %@" : {
+
+    },
+    "Preset name" : {
+
+    },
+    "Preview import" : {
+
+    },
+    "Previous title" : {
+
+    },
+    "Profile name" : {
+
+    },
+    "Queue" : {
+
+    },
+    "Read" : {
+
+    },
+    "Read a title to see it here." : {
+
+    },
+    "Read more" : {
+
+    },
+    "Reader" : {
+
+    },
+    "Reading" : {
+
+    },
+    "Reading is not available yet" : {
+
+    },
+    "Recent" : {
+
+    },
+    "Recent searches" : {
+
+    },
+    "Refresh" : {
+
+    },
+    "Refresh chapters" : {
+
+    },
+    "Reload sources" : {
+
+    },
+    "Remove" : {
+
+    },
+    "Remove %@ from search history" : {
+
+    },
+    "Remove all %@ chapters from this view." : {
+
+    },
+    "Remove completed records from history. Downloaded files will be kept." : {
+
+    },
+    "Remove repository?" : {
+
+    },
+    "Remove shared cached covers. They will load again when needed. Saved titles and source installations will be kept." : {
+
+    },
+    "Rename %@" : {
+
+    },
+    "Rename preset" : {
+
+    },
+    "Rename repository" : {
+
+    },
+    "Reset" : {
+
+    },
+    "Reset search and filters" : {
+
+    },
+    "Restore default" : {
+
+    },
+    "Restore preferences for this profile. Saved titles and reading activity will be kept." : {
+
+    },
+    "Resume" : {
+
+    },
+    "Resume %@" : {
+
+    },
+    "Resume matching" : {
+
+    },
+    "Retry" : {
+
+    },
+    "Retry chapters" : {
+
+    },
+    "Reverse chapter order" : {
+
+    },
+    "S" : {
+
+    },
+    "Save" : {
+
+    },
+    "Save & close" : {
+
+    },
+    "Save preset" : {
+
+    },
+    "Saved titles and downloaded files will be kept." : {
+
+    },
+    "Scroll speed" : {
+
+    },
+    "Search" : {
+
+    },
+    "Search active" : {
+
+    },
+    "Search again for %@" : {
+
+    },
+    "Search folders" : {
+
+    },
+    "Search for a title. Your recent searches will appear here." : {
+
+    },
+    "Search source" : {
+
+    },
+    "Search titles or chapters" : {
+
+    },
+    "Select chapter" : {
+
+    },
+    "Settings" : {
+
+    },
+    "Show chapters" : {
+
+    },
+    "Show less" : {
+
+    },
+    "Show playback controls" : {
+
+    },
+    "Signed in as %@" : {
+
+    },
+    "Skip" : {
+
+    },
+    "Slot %lld" : {
+
+    },
+    "Source" : {
+
+    },
+    "SOURCE" : {
+
+    },
+    "Source installations and cached covers are shared by all profiles. iOS manages the app’s storage location." : {
+
+    },
+    "Start a new import" : {
+
+    },
+    "Stop" : {
+
+    },
+    "Stopping…" : {
+
+    },
+    "Subtitles" : {
+
+    },
+    "Switch to %@" : {
+
+    },
+    "T" : {
+
+    },
+    "Themes and display preferences are saved with this profile." : {
+
+    },
+    "This chapter" : {
+
+    },
+    "This extension does not expose configurable settings." : {
+
+    },
+    "This folder is empty" : {
+
+    },
+    "This removes the repository and its extension catalog. Uninstall its sources first." : {
+
+    },
+    "This screen is ready for design." : {
+
+    },
+    "This source will no longer be available for search." : {
+
+    },
+    "Title details" : {
+
+    },
+    "Token or redirect URL" : {
+
+    },
+    "Tracking" : {
+
+    },
+    "Try again" : {
+
+    },
+    "Uninstall" : {
+
+    },
+    "Uninstall %@?" : {
+
+    },
+    "Uninstall its sources before removing" : {
+
+    },
+    "Unread only" : {
+
+    },
+    "Update" : {
+
+    },
+    "Update available" : {
+
+    },
+    "Updated —" : {
+
+    },
+    "Updated %@" : {
+
+    },
+    "Updating library · %lld/%lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Updating library · %1$lld/%2$lld"
+          }
+        }
+      }
+    },
+    "Video" : {
+
+    },
+    "View %@" : {
+
+    },
+    "View title" : {
+
+    },
+    "View title on MangaDex" : {
+
+    },
+    "W" : {
+
+    },
+    "Watching" : {
+
+    },
+    "Without a source" : {
+
+    },
+    "Working…" : {
+
+    },
+    "Your profiles live in this app’s private storage. No server account or sign-in is required." : {
+
+    },
+    "Your saved titles will be kept." : {
+
+    },
+    "Zoom" : {
+
+    }
+  },
+  "version" : "1.0"
+}

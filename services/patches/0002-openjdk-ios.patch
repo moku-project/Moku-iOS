@@ -1,0 +1,76 @@
+diff --git a/src/hotspot/os/posix/signals_posix.cpp b/src/hotspot/os/posix/signals_posix.cpp
+index 0157d354f..e501225f5 100644
+--- a/src/hotspot/os/posix/signals_posix.cpp
++++ b/src/hotspot/os/posix/signals_posix.cpp
+@@ -589,6 +589,15 @@ int JVM_HANDLE_XXX_SIGNAL(int sig, siginfo_t* info,
+   }
+ #endif
+ 
++  // These asynchronous notifications do not need an instruction context.
++  // In particular, BSD Zero has no ucontext_get_pc implementation: a closed
++  // media socket must not turn SIGPIPE into a fatal ShouldNotCallThis().
++  // Preserve signal chaining, including handlers installed by an embedding VM.
++  if (sig == SIGPIPE || sig == SIGXFSZ) {
++    PosixSignals::chained_handler(sig, info, ucVoid);
++    return true;
++  }
++
+   // Extract pc from context. Note that for certain signals and certain
+   // architectures the pc in ucontext_t will point *after* the offending
+   // instruction. In those cases, use siginfo si_addr instead.
+@@ -605,12 +614,6 @@ int JVM_HANDLE_XXX_SIGNAL(int sig, siginfo_t* info,
+     signal_was_handled = handle_safefetch(sig, pc, uc);
+   }
+ 
+-  // Ignore SIGPIPE and SIGXFSZ (4229104, 6499219).
+-  if (!signal_was_handled &&
+-      (sig == SIGPIPE || sig == SIGXFSZ)) {
+-    PosixSignals::chained_handler(sig, info, ucVoid);
+-    signal_was_handled = true; // unconditionally.
+-  }
+ 
+ #ifndef ZERO
+   // Check for UD trap caused by NOP patching.
+diff --git a/src/hotspot/share/memory/memoryReserver.cpp b/src/hotspot/share/memory/memoryReserver.cpp
+index a6c1be5b3..015f80677 100644
+--- a/src/hotspot/share/memory/memoryReserver.cpp
++++ b/src/hotspot/share/memory/memoryReserver.cpp
+@@ -297,7 +297,13 @@ ReservedSpace CodeMemoryReserver::reserve(size_t size,
+                                  size,
+                                  alignment,
+                                  page_size,
++#if defined(ZERO) && defined(__IOS__)
++                                 // Zero stores interpreter metadata here, not machine code.
++                                 // iOS rejects writable executable mappings without JIT rights.
++                                 !ExecMem,
++#else
+                                  ExecMem,
++#endif
+                                  mtCode);
+ }
+ 
+diff --git a/src/java.base/share/classes/jdk/internal/util/OperatingSystem.java b/src/java.base/share/classes/jdk/internal/util/OperatingSystem.java
+index 927ab682c..eeecf9c63 100644
+--- a/src/java.base/share/classes/jdk/internal/util/OperatingSystem.java
++++ b/src/java.base/share/classes/jdk/internal/util/OperatingSystem.java
+@@ -73,6 +73,8 @@ public enum OperatingSystem {
+      * The Mac OS X Operating system.
+      */
+     MACOS,
++    /** The iOS operating system. */
++    IOS,
+     /**
+      * The Windows Operating system.
+      */
+diff --git a/src/java.base/unix/classes/sun/net/PortConfig.java b/src/java.base/unix/classes/sun/net/PortConfig.java
+index e0130ac2a..78d71accc 100644
+--- a/src/java.base/unix/classes/sun/net/PortConfig.java
++++ b/src/java.base/unix/classes/sun/net/PortConfig.java
+@@ -49,6 +49,7 @@ private PortConfig() {}
+                 defaultUpper = 61000;
+                 break;
+             case MACOS:
++            case IOS:
+                 defaultLower = 49152;
+                 defaultUpper = 65535;
+                 break;

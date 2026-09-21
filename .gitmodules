@@ -1,0 +1,3 @@
+[submodule "Backend/Tsunagu"]
+	path = vendor/Tsunagu
+	url = https://github.com/moku-project/Tsunagu.git

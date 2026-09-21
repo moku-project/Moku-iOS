@@ -1,0 +1,5 @@
+// Headers are architecture-independent. The correct native archive is selected per SDK.
+module Tsunagu {
+    umbrella header "../../services/.build/Tsunagu.xcframework/ios-arm64/Tsunagu.framework/Headers/Tsunagu.h"
+    export *
+}
