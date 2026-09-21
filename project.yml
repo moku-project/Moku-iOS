@@ -14,20 +14,17 @@ fileGroups:
   - README.md
   - LICENSE
   - moku-ios
-  - Tools/MokuIOS/Package.swift
-  - Tools/MokuIOS/README.md
-  - Tools/MokuIOS/Sources
-  - Tools/MokuIOS/Tests
+  - Tools/CLI/Package.swift
+  - Tools/CLI/Sources
+  - Tools/CLI/Tests
   - Configuration
-  - FRONTEND.md
-  - ARCHITECTURE.md
   - project.yml
 settings:
   base:
     SWIFT_VERSION: "6.0"
     SWIFT_STRICT_CONCURRENCY: complete
-    'FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]': '$(inherited) $(SRCROOT)/services/.build/Tsunagu.xcframework/ios-arm64-simulator'
-    'FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]': '$(inherited) $(SRCROOT)/services/.build/Tsunagu.xcframework/ios-arm64'
+    'FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]': '$(inherited) $(SRCROOT)/Services/.build/Tsunagu.xcframework/ios-arm64-simulator'
+    'FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]': '$(inherited) $(SRCROOT)/Services/.build/Tsunagu.xcframework/ios-arm64'
     SWIFT_INCLUDE_PATHS: "$(inherited) $(SRCROOT)/Configuration/Tsunagu"
     TARGETED_DEVICE_FAMILY: "1,2"
     CODE_SIGN_STYLE: Automatic
@@ -41,17 +38,26 @@ targets:
         createIntermediateGroups: true
         excludes:
           - "**/*.md"
-      - path: Moku
-        includes:
-          - "**/*.md"
-        buildPhase: none
-      - path: services/swift
+      - path: Services/swift
     preBuildScripts:
       - name: Embed source runtime
+        shell: /usr/bin/env -S xcrun --sdk macosx swift
         script: |
-          set -eu
-          cli="${MOKU_IOS_TOOL:-$SRCROOT/moku-ios}"
-          "$cli" --repo "$SRCROOT" embed-backend
+          import Foundation
+          import Darwin
+          let environment = ProcessInfo.processInfo.environment
+          guard let root = environment["SRCROOT"] else { fatalError("Missing SRCROOT") }
+          let process = Process()
+          process.executableURL = URL(fileURLWithPath: environment["MOKU_IOS_TOOL"] ?? root + "/moku-ios")
+          process.arguments = ["--repo", root, "embed-backend"]
+          do {
+              try process.run()
+              process.waitUntilExit()
+              exit(process.terminationStatus)
+          } catch {
+              FileHandle.standardError.write(Data("Runtime embedding failed: \(error)\n".utf8))
+              exit(1)
+          }
         basedOnDependencyAnalysis: false
     settings:
       base:
@@ -63,12 +69,12 @@ targets:
         ENABLE_DEBUG_DYLIB: NO
         ENABLE_USER_SCRIPT_SANDBOXING: NO
         SWIFT_OBJC_BRIDGING_HEADER: Configuration/Moku-Bridging-Header.h
-        'FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]': '$(inherited) $(SRCROOT)/services/.build/Tsunagu.xcframework/ios-arm64-simulator'
-        'FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]': '$(inherited) $(SRCROOT)/services/.build/Tsunagu.xcframework/ios-arm64'
+        'FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]': '$(inherited) $(SRCROOT)/Services/.build/Tsunagu.xcframework/ios-arm64-simulator'
+        'FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]': '$(inherited) $(SRCROOT)/Services/.build/Tsunagu.xcframework/ios-arm64'
         SWIFT_INCLUDE_PATHS: "$(inherited) $(SRCROOT)/Configuration/Tsunagu"
         'MOKU_BACKEND_PLATFORM[sdk=iphoneos*]': device
         'MOKU_BACKEND_PLATFORM[sdk=iphonesimulator*]': simulator
-        OTHER_LDFLAGS: '$(inherited) -Wl,-export_dynamic -Wl,-force_load,$(SRCROOT)/services/.build/native-$(MOKU_BACKEND_PLATFORM)/libtsunagu.a $(SRCROOT)/services/.build/native-$(MOKU_BACKEND_PLATFORM)/libtsmedia.a -framework Foundation -framework Security -framework CoreFoundation -framework CFNetwork -framework VideoToolbox -framework CoreMedia -framework CoreVideo -framework AudioToolbox -lresolv -lz -lxml2 -lc++'
+        OTHER_LDFLAGS: '$(inherited) -Wl,-export_dynamic -Wl,-force_load,$(SRCROOT)/Services/.build/native-$(MOKU_BACKEND_PLATFORM)/libtsunagu.a $(SRCROOT)/Services/.build/native-$(MOKU_BACKEND_PLATFORM)/libtsmedia.a -framework Foundation -framework Security -framework CoreFoundation -framework CFNetwork -framework VideoToolbox -framework CoreMedia -framework CoreVideo -framework AudioToolbox -lresolv -lz -lxml2 -lc++'
         INFOPLIST_FILE: Configuration/Info.plist
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         INFOPLIST_KEY_CFBundleDisplayName: Moku
@@ -86,10 +92,6 @@ targets:
         excludes:
           - "**/*.md"
           - "UI/**"
-      - path: Tests
-        includes:
-          - "**/*.md"
-        buildPhase: none
     dependencies:
       - target: Moku
     settings:
@@ -102,10 +104,6 @@ targets:
       - path: Tests/UI
         excludes:
           - "**/*.md"
-      - path: Tests/UI
-        includes:
-          - "**/*.md"
-        buildPhase: none
     dependencies:
       - target: Moku
     settings:
