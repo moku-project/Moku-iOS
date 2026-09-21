@@ -1,1 +1,0 @@
-Features own their screen, ViewModel when needed, and Components. Feature-specific Domain and Data live inside the feature. Cross-feature capabilities live in Shared. See ../../ARCHITECTURE.md for the full walkthrough.

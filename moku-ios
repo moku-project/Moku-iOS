@@ -1,13 +1,32 @@
-#!/bin/sh
-set -eu
-repo=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-# Clear Xcode's SDK selection only while building this macOS host tool.
-host_swift() (
-    unset SDKROOT SDK_DIR PLATFORM_NAME SWIFT_EXEC SWIFTFLAGS
-    exec xcrun --sdk macosx swift "$@"
-)
-# Finish SwiftPM before running; nested Xcode phases can then use the tool.
-host_swift build --package-path "$repo/Tools/MokuIOS" --configuration debug >&2
-binary_dir=$(host_swift build --package-path "$repo/Tools/MokuIOS" --configuration debug --show-bin-path)
-export MOKU_IOS_DIR="${MOKU_IOS_DIR:-$repo}"
-exec "$binary_dir/moku-ios" "$@"
+#!/usr/bin/env -S xcrun --sdk macosx swift
+import Foundation
+import Darwin
+
+let repo = URL(fileURLWithPath: #filePath).standardizedFileURL.deletingLastPathComponent()
+var environment = ProcessInfo.processInfo.environment
+for key in ["SDKROOT", "SDK_DIR", "PLATFORM_NAME", "SWIFT_EXEC", "SWIFTFLAGS"] { environment.removeValue(forKey: key) }
+func swift(_ arguments: [String], capture: Bool = false) throws -> String {
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
+    process.arguments = ["--sdk", "macosx", "swift"] + arguments
+    process.environment = environment
+    let pipe = Pipe()
+    process.standardOutput = capture ? pipe : FileHandle.standardError
+    try process.run()
+    let output = capture ? pipe.fileHandleForReading.readDataToEndOfFile() : Data()
+    process.waitUntilExit()
+    guard process.terminationStatus == 0 else { exit(process.terminationStatus) }
+    return String(decoding: output, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+}
+do {
+    let build = ["build", "--package-path", repo.appendingPathComponent("Tools/CLI").path, "--scratch-path", repo.appendingPathComponent(".build/cli").path, "--configuration", "debug"]
+    _ = try swift(build)
+    let directory = try swift(build + ["--show-bin-path"], capture: true)
+    if getenv("MOKU_IOS_DIR") == nil { setenv("MOKU_IOS_DIR", repo.path, 1) }
+    let args = [directory + "/moku-ios"] + CommandLine.arguments.dropFirst()
+    let pointers = args.map { strdup($0) } + [nil]
+    pointers.withUnsafeBufferPointer { _ = execv(args[0], $0.baseAddress!) }
+    throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno))
+} catch {
+    FileHandle.standardError.write(Data("Error: \(error)\n".utf8)); exit(1)
+}

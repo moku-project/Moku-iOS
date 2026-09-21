@@ -1,3 +1,3 @@
-#import "../services/native/TSJavaRuntime.h"
+#import "../Services/native/TSJavaRuntime.h"
 
-#import "../services/native/TSVideoEngine.h"
+#import "../Services/native/TSVideoEngine.h"

@@ -1,5 +1,3 @@
-![Moku for iOS](docs/banner.png)
-
 [![Release](https://www.shieldcn.dev/github/release/moku-project/Moku-iOS.svg?variant=outline&size=default)](https://github.com/moku-project/Moku-iOS/releases/latest)
 ![GitHub Downloads](https://www.shieldcn.dev/github/downloads/moku-project/Moku-iOS.svg?variant=outline&size=default)
 [![Stars](https://www.shieldcn.dev/github/stars/moku-project/Moku-iOS.svg?variant=outline&size=default)](https://github.com/moku-project/Moku-iOS)
@@ -45,7 +43,7 @@ The app bundles and starts Tsunagu automatically. No separate server or Java ins
 
 ## Development
 
-**Prerequisites:** an Apple Silicon Mac, Xcode, XcodeGen, Go, Python 3.12+, and a JDK 25 boot compiler.
+**Prerequisites:** an Apple Silicon Mac, Xcode, XcodeGen, Go, and a JDK 25 boot compiler.
 
 The `moku-ios` Swift tool is included in this repository. No separate install is needed.
 
@@ -58,9 +56,7 @@ cd Moku-iOS
 
 The CLI prepares the backend, launches Simulator, and watches for changes. Use `./moku-ios run` for a single build and launch, or `./moku-ios test` to run unit tests.
 
-See the [architecture and codebase walkthrough](ARCHITECTURE.md) for feature ownership, MVVM, and the test layout.
-
-For Xcode development, open `Moku.xcodeproj` and select the **Moku** scheme. Build requirements and native runtime details are documented in `FRONTEND.md` and `services/README.md`.
+For Xcode development, open `Moku.xcodeproj` and select the **Moku** scheme.
 
 ---
 
