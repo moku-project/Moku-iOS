@@ -11,6 +11,7 @@ struct PageHeader: View {
     @AppStorage("preferences.animations") private var animations = true
     var selectMode: ((ContentMode) -> Void)? = nil
     var onMode: (() -> Void)? = nil
+    @Environment(\.openMokuLinks) private var openMokuLinks
     @Environment(\.openSettings) private var openSettings
 
     @ScaledMetric(relativeTo: .body) private var titleSize = 18.7
@@ -22,7 +23,19 @@ struct PageHeader: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 4) {
-                Color.clear.frame(width: 44, height: 44)
+                Button(action: openMokuLinks) {
+                    Image("MokuMark")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 36, height: 36)
+                        .foregroundStyle(NavigationStyle.accent)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Moku links")
+                .accessibilityHint("Opens the project and community links")
+                .accessibilityIdentifier("header.mokuLinks")
 
                 Text(title).accessibilityIdentifier("header.title")
                     .font(.system(size: titleSize, weight: .semibold))

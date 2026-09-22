@@ -1,8 +1,13 @@
 {
-  "package": "phosphor-svelte",
-  "version": "3.1.0",
-  "sha256": "308250185e5ad1439f65d0929ae718e6f026b6fb8f176e2439743abbd7aee16d",
-  "icons": [
+  "additionalWeights" : {
+    "DownloadSimple" : [
+      "bold"
+    ],
+    "MagnifyingGlass" : [
+      "bold"
+    ]
+  },
+  "icons" : [
     "ArrowClockwise",
     "ArrowCounterClockwise",
     "ArrowDown",
@@ -23,6 +28,7 @@
     "Books",
     "Brain",
     "Broadcast",
+    "Browser",
     "CalendarBlank",
     "CalendarCheck",
     "CaretDown",
@@ -43,6 +49,7 @@
     "CookingPot",
     "Database",
     "Detective",
+    "DiscordLogo",
     "DoorOpen",
     "DotsThree",
     "DotsThreeCircle",
@@ -60,6 +67,7 @@
     "Gear",
     "GearSix",
     "Ghost",
+    "GithubLogo",
     "Globe",
     "GraduationCap",
     "GridNine",
@@ -84,7 +92,6 @@
     "Minus",
     "MonitorPlay",
     "MusicNotes",
-    "Package",
     "PaintBrush",
     "Pause",
     "PauseCircle",
@@ -119,6 +126,7 @@
     "SquaresFour",
     "Stack",
     "Star",
+    "Stop",
     "Subtitles",
     "Tag",
     "Translate",
@@ -126,7 +134,6 @@
     "TrayArrowDown",
     "TrendUp",
     "Unite",
-    "UserCircle",
     "Users",
     "UsersThree",
     "Video",
@@ -136,17 +143,12 @@
     "X",
     "XCircle"
   ],
-  "weights": [
+  "package" : "phosphor-svelte",
+  "sha256" : "308250185e5ad1439f65d0929ae718e6f026b6fb8f176e2439743abbd7aee16d",
+  "version" : "3.1.0",
+  "weights" : [
     "regular",
     "light",
     "fill"
-  ],
-  "additionalWeights": {
-    "MagnifyingGlass": [
-      "bold"
-    ],
-    "DownloadSimple": [
-      "bold"
-    ]
-  }
+  ]
 }

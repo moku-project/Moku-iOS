@@ -4,7 +4,7 @@ import XCTest
     func testNestedLibraryToolsAndSearchHandoff() {
         let app = XCUIApplication()
         app.launchArguments = [
-            "--ui-testing-profiles", "-mokuProfileTestID", UUID().uuidString,
+            "--ui-testing-storage", "-mokuStorageTestID", UUID().uuidString,
             "--ui-testing-search", "-contentMode", "all",
         ]
         app.launch()
@@ -58,7 +58,7 @@ import XCTest
 
     func testCompactViewAndLayoutMenus() {
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-testing-profiles", "-mokuProfileTestID", UUID().uuidString]
+        app.launchArguments = ["--ui-testing-storage", "-mokuStorageTestID", UUID().uuidString]
         app.launch()
         let control = app.buttons["library.layout.toggle"]
         XCTAssertTrue(control.waitForExistence(timeout: 5))
@@ -88,7 +88,7 @@ import XCTest
 
     func testNewFolderOpensDirectlyAsPopup() {
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-testing-profiles", "-mokuProfileTestID", UUID().uuidString]
+        app.launchArguments = ["--ui-testing-storage", "-mokuStorageTestID", UUID().uuidString]
         app.launch()
         let tools = app.buttons["library.fab"]
         XCTAssertTrue(tools.waitForExistence(timeout: 5))
@@ -112,7 +112,7 @@ import XCTest
     func testLibraryModeTabs() {
         let app = XCUIApplication()
         app.launchArguments = [
-            "--ui-testing-profiles", "-mokuProfileTestID", UUID().uuidString, "-contentMode", "all",
+            "--ui-testing-storage", "-mokuStorageTestID", UUID().uuidString, "-contentMode", "all",
         ]
         app.launch()
         let all = app.buttons["library.mode.all"]

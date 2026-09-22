@@ -1,80 +1,75 @@
 import SwiftUI
 
-/// Desktop General's panel structure, using the app's system typography.
+/// Open, readable settings sections using the app’s native navigation and controls.
 struct GeneralSettingsView: View {
     let openExtensions: () -> Void
     @AppStorage("preferences.interfaceScale") private var scale = 100.0
     @AppStorage("preferences.idleTimeout") private var idleTimeout = 5
     @AppStorage("preferences.animations") private var animations = true
     @AppStorage("preferences.language") private var language = "all"
-    // The embedded server is shared by every profile.
-    @AppStorage("backend.autoStart", store: .standard) private var autoStart = true
-    @State private var languageDraft = ""
-    @State private var scaleDraft = "100"
+    // The embedded server runs once per app process.
+    @AppStorage(
+        "backend.autoStart",
+        store: PreviewMode.isEnabled
+            ? UserDefaults(suiteName: "Moku.Previews.Settings")! : .standard
+    ) private var autoStart = true
     @State private var serverURL: String?
     @State private var starting = false
     @State private var serverError: String?
-    @FocusState private var focused: Field?
-    private enum Field { case language, scale }
 
     var body: some View {
-        VStack(spacing: 8) {
-            GeneralPanel("Interface scale") {
-                Text(
-                    "Fits your screen automatically. 100% is the default; adjust to taste. The reader has its own zoom."
-                )
-                .font(.system(size: 11)).foregroundStyle(GeneralStyle.faint)
-                .padding(.horizontal, 16).padding(.top, 8)
-                HStack(spacing: 12) {
-                    Slider(value: $scale, in: 50...200, step: 5)
-                        .tint(NavigationStyle.accent).accessibilityLabel("Interface scale")
-                        .accessibilityIdentifier("settings.general.scale")
-                    TextField("100", text: $scaleDraft)
-                        .keyboardType(.numberPad).multilineTextAlignment(.center)
-                        .focused($focused, equals: .scale)
-                        .generalInput().frame(width: 42)
-                        .accessibilityLabel("Interface scale percentage")
-                    Text("%").font(.system(size: 11)).foregroundStyle(GeneralStyle.faint)
+        VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Interface scale")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(GeneralStyle.text)
+                    .accessibilityAddTraits(.isHeader)
+                Text("Adjust the size of the app. Reader zoom is separate.")
+                    .font(.system(size: 13)).foregroundStyle(GeneralStyle.faint)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 8) {
                     Button {
-                        focused = nil
-                        scale = 100
-                        scaleDraft = "100"
+                        scale = GeneralPreferences.clampedScale(scale - 5)
                     } label: {
-                        PhosphorIcon("ArrowCounterClockwise", size: 14).frame(width: 28, height: 44)
-                    }.buttonStyle(.plain).disabled(scale == 100)
-                        .accessibilityLabel("Reset interface scale")
-                }.padding(.horizontal, 16).padding(.vertical, 4)
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 43), spacing: 4)], spacing: 4) {
-                    ForEach([50, 60, 70, 80, 90, 100, 110, 125, 150, 175, 200], id: \.self) {
-                        value in
-                        Button {
-                            focused = nil
-                            scale = Double(value)
-                        } label: {
-                            Text("\(value)%").font(.system(size: 10))
-                                .frame(maxWidth: .infinity, minHeight: 28)
-                                .background(
-                                    scale == Double(value)
-                                        ? NavigationStyle.accent.opacity(0.14) : .clear
-                                )
-                                .clipShape(RoundedRectangle(cornerRadius: 3))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 3).strokeBorder(
-                                        scale == Double(value)
-                                            ? NavigationStyle.accent.opacity(0.4)
-                                            : GeneralStyle.border))
-                        }.buttonStyle(.plain)
-                            .foregroundStyle(
-                                scale == Double(value) ? NavigationStyle.accent : GeneralStyle.faint
-                            )
-                            .accessibilityIdentifier("settings.general.scale.\(value)")
+                        PhosphorIcon("Minus", size: 18)
+                            .frame(width: 44, height: 44).contentShape(Rectangle())
                     }
-                }.padding(.horizontal, 16).padding(.bottom, 12)
+                    .disabled(scale <= 50)
+                    .accessibilityLabel("Decrease interface scale")
+                    .accessibilityIdentifier("settings.general.scale.decrease")
+                    Text("\(Int(GeneralPreferences.clampedScale(scale)))%")
+                        .font(.system(size: 18, weight: .medium)).monospacedDigit()
+                        .foregroundStyle(GeneralStyle.text)
+                        .frame(minWidth: 54)
+                        .accessibilityIdentifier("settings.general.scaleValue")
+                    Button {
+                        scale = GeneralPreferences.clampedScale(scale + 5)
+                    } label: {
+                        PhosphorIcon("Plus", size: 18)
+                            .frame(width: 44, height: 44).contentShape(Rectangle())
+                    }
+                    .disabled(scale >= 200)
+                    .accessibilityLabel("Increase interface scale")
+                    .accessibilityIdentifier("settings.general.scale.increase")
+                    Spacer(minLength: 0)
+                    Button {
+                        scale = 100
+                    } label: {
+                        PhosphorIcon("ArrowCounterClockwise", size: 18)
+                            .frame(width: 44, height: 44).contentShape(Rectangle())
+                    }
+                    .disabled(scale == 100)
+                    .accessibilityLabel("Reset interface scale")
+                }
+                .buttonStyle(.plain).foregroundStyle(GeneralStyle.label)
+                GeneralStyle.divider.padding(.top, 14)
             }
-            GeneralPanel("Server") {
+            GeneralSection("Server") {
                 GeneralRow("Server URL", detail: "Address of the bundled server on this device.") {
                     Text(serverURL ?? "On this iPhone")
-                        .font(.system(size: 11)).textSelection(.enabled)
+                        .font(.system(size: 14)).foregroundStyle(GeneralStyle.text).textSelection(
+                            .enabled
+                        )
                         .multilineTextAlignment(.trailing).frame(maxWidth: 130)
                 }
                 GeneralStyle.divider
@@ -107,30 +102,25 @@ struct GeneralSettingsView: View {
                     }
                 }
             }
-            GeneralPanel("Inactivity") {
+            GeneralSection("Inactivity") {
                 GeneralRow(
                     "Idle screen timeout",
                     detail:
                         "Show the Moku idle screen after this much inactivity. Paused while reading or playing media."
                 ) {
-                    Menu {
-                        ForEach([0, 1, 2, 5, 10, 15, 30], id: \.self) { minutes in
-                            Button(GeneralPreferences.timeoutLabel(minutes)) {
-                                idleTimeout = minutes
-                            }
+                    ChoicePicker(
+                        title: "", selection: $idleTimeout,
+                        options: [0, 1, 2, 5, 10, 15, 30].map {
+                            ($0, GeneralPreferences.timeoutLabel($0))
                         }
-                    } label: {
-                        HStack(spacing: 8) {
-                            Text(GeneralPreferences.timeoutLabel(idleTimeout))
-                            PhosphorIcon("CaretDown", size: 10)
-                        }
-                    }.buttonStyle(GeneralButtonStyle())
-                        .accessibilityLabel("Idle screen timeout")
-                        .accessibilityValue(GeneralPreferences.timeoutLabel(idleTimeout))
-                        .accessibilityIdentifier("settings.general.idleTimeout")
+                    )
+                    .font(.system(size: 14))
+                    .accessibilityLabel("Idle screen timeout")
+                    .accessibilityValue(GeneralPreferences.timeoutLabel(idleTimeout))
+                    .accessibilityIdentifier("settings.general.idleTimeout")
                 }
             }
-            GeneralPanel("Animations") {
+            GeneralSection("Animations") {
                 GeneralRow(
                     "Interface animations",
                     detail: "Tab transitions and button feedback. Respects Reduce Motion."
@@ -141,25 +131,24 @@ struct GeneralSettingsView: View {
                     .accessibilityIdentifier("Interface animations")
                 }
             }
-            GeneralPanel("Language") {
+            GeneralSection("Language") {
                 GeneralRow(
                     "Preferred source language",
                     detail: "\(GeneralPreferences.languageName(language)), pre-selected in Search."
                 ) {
-                    TextField("All", text: $languageDraft)
-                        .textInputAutocapitalization(.never).autocorrectionDisabled()
-                        .multilineTextAlignment(.center).submitLabel(.done)
-                        .focused($focused, equals: .language)
-                        .generalInput().frame(width: 88)
-                        .accessibilityLabel("Preferred source language")
-                        .accessibilityIdentifier("settings.general.language")
-                        .onSubmit {
-                            commitLanguage()
-                            focused = nil
-                        }
+                    ChoicePicker(
+                        title: "",
+                        selection: Binding(
+                            get: { GeneralPreferences.canonicalLanguage(language) },
+                            set: { language = $0 }),
+                        options: GeneralPreferences.languageOptions(including: language)
+                    )
+                    .font(.system(size: 14)).frame(maxWidth: 160)
+                    .accessibilityLabel("Preferred source language")
+                    .accessibilityIdentifier("settings.general.language")
                 }
             }
-            GeneralPanel("Extensions") {
+            GeneralSection("Extensions") {
                 GeneralRow(
                     "Extensions and sources",
                     detail: "Browse extensions and manage installed sources."
@@ -169,32 +158,10 @@ struct GeneralSettingsView: View {
                 }
             }
         }
-        .onAppear {
-            languageDraft = language == "all" ? "All" : language
-            scaleDraft = String(Int(GeneralPreferences.clampedScale(scale)))
+        .task {
+            guard !PreviewMode.isEnabled else { return }
+            serverURL = await Backend.shared.currentServerURL()?.absoluteString
         }
-        .onChange(of: scale) { _, value in
-            scaleDraft = String(Int(GeneralPreferences.clampedScale(value)))
-        }
-        .onChange(of: focused) { old, _ in
-            if old == .language { commitLanguage() }
-            if old == .scale {
-                scale = GeneralPreferences.clampedScale(Double(scaleDraft) ?? 100)
-                scaleDraft = String(Int(scale))
-            }
-        }
-        .onDisappear { commitLanguage() }
-        .toolbar {
-            ToolbarItemGroup(placement: .keyboard) {
-                Spacer()
-                Button("Done") { focused = nil }
-            }
-        }
-        .task { serverURL = await Backend.shared.currentServerURL()?.absoluteString }
     }
 
-    private func commitLanguage() {
-        language = GeneralPreferences.canonicalLanguage(languageDraft)
-        languageDraft = language == "all" ? "All" : language
-    }
 }
