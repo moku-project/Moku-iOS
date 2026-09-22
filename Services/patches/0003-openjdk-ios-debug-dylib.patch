@@ -1,0 +1,18 @@
+diff --git a/src/hotspot/os/posix/os_posix.cpp b/src/hotspot/os/posix/os_posix.cpp
+--- a/src/hotspot/os/posix/os_posix.cpp
++++ b/src/hotspot/os/posix/os_posix.cpp
+@@ -804,7 +804,13 @@
+ }
+ 
+ void* os::get_default_process_handle() {
+-#ifdef __APPLE__
++#if defined(__APPLE__) && defined(__IOS__)
++  // Xcode's Debug executable is a launcher: the statically linked JNI
++  // implementations live in the app's debug dylib. Search loaded images
++  // as well as the executable so both Debug/Canvas and Release resolve
++  // the same bootstrap natives. Keep desktop macOS lookup unchanged.
++  return (void*)::dlopen(nullptr, RTLD_LAZY);
++#elif defined(__APPLE__)
+   // MacOS X needs to use RTLD_FIRST instead of RTLD_LAZY
+   // to avoid finding unexpected symbols on second (or later)
+   // loads of a library.

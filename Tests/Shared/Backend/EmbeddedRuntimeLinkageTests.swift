@@ -2,10 +2,10 @@ import Darwin
 import Testing
 
 struct EmbeddedRuntimeLinkageTests {
-    @Test func jvmBootstrapSymbolsAreVisibleInTheAppExecutable() throws {
-        // Match OpenJDK's os::get_default_process_handle(), including RTLD_FIRST.
-        // RTLD_DEFAULT would hide a regression by also searching Moku.debug.dylib.
-        let executable = try #require(dlopen(nil, RTLD_FIRST))
+    @Test func jvmBootstrapSymbolsAreVisibleAcrossAppImages() throws {
+        // Match the iOS OpenJDK process handle: Debug stores JNI symbols in
+        // Moku.debug.dylib, while Release stores them in the main executable.
+        let executable = try #require(dlopen(nil, RTLD_LAZY))
         defer { dlclose(executable) }
 
         for symbol in [
@@ -15,7 +15,7 @@ struct EmbeddedRuntimeLinkageTests {
         ] {
             #expect(
                 dlsym(executable, symbol) != nil,
-                "JVM bootstrap requires this symbol in the app executable: \(symbol)")
+                "JVM bootstrap requires this symbol in the loaded app images: \(symbol)")
         }
     }
 }

@@ -165,6 +165,7 @@ final class NativeBuild {
       "OpenJDK revision differs from pin")
     try fetchInputs()
     try apply(path("patches/0002-openjdk-ios.patch"), in: source)
+    try apply(path("patches/0003-openjdk-ios-debug-dylib.patch"), in: source)
     let conf = value == "device" ? "moku-ios" : "moku-iossim"
     let ffi = path(value == "device" ? ".build/libffi-device" : ".build/libffi-sim")
     let flags =
