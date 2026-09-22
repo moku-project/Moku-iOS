@@ -7,7 +7,7 @@ import Testing
     @Test func importsMergeAndOrganizationPersists() async throws {
         let directory = URL.temporaryDirectory.appending(path: UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
-        let library = ProfileLibrary(directory: directory)
+        let library = LibraryStore(directory: directory)
         await library.load()
         await library.loadOrganization()
         let title = MediaEntry(
@@ -21,7 +21,7 @@ import Testing
         #expect(
             await library.saveOrganization(
                 LibraryOrganization(folders: [folder], starred: [title.id])))
-        let restored = ProfileLibrary(directory: directory)
+        let restored = LibraryStore(directory: directory)
         await restored.loadOrganization()
         #expect(restored.organization.folders == [folder])
         #expect(restored.organization.starred == [title.id])

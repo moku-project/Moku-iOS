@@ -11,7 +11,7 @@ extension EnvironmentValues {
     @Entry var searchHistoryStore: SearchHistoryStore? = nil
 }
 
-/// Profile-local search history, available without starting the source runtime.
+/// Local search history, available without starting the source runtime.
 actor SearchHistoryStore {
     let url: URL
     init(url: URL) { self.url = url }

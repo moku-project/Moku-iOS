@@ -22,10 +22,10 @@ struct MokuApp: App {
                     } else if ProcessInfo.processInfo.arguments.contains("--ui-testing-player") {
                         PlayerPreviewHost()
                     } else {
-                        ProfileHostView()
+                        AppHostView()
                     }
                 #else
-                    ProfileHostView()
+                    AppHostView()
                 #endif
             }
             #if DEBUG

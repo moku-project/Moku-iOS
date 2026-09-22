@@ -27,7 +27,7 @@ import Testing
         let directory = URL.temporaryDirectory.appending(path: UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let repo = TrackingFake(entries: [remote()])
-        let library = ProfileLibrary(directory: directory)
+        let library = LibraryStore(directory: directory)
         let model = TrackingViewModel(repository: repo)
         await model.configure(directory: directory)
         await model.load()
@@ -51,7 +51,7 @@ import Testing
         let directory = URL.temporaryDirectory.appending(path: UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let repo = TrackingFake(entries: [remote()])
-        let library = ProfileLibrary(directory: directory)
+        let library = LibraryStore(directory: directory)
         let model = TrackingViewModel(repository: repo)
         await model.configure(directory: directory)
         await model.load()

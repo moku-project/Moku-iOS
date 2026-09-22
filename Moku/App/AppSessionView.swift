@@ -1,38 +1,38 @@
 import SwiftUI
 
-struct ProfileSessionView: View {
+struct AppSessionView: View {
     let preferences: UserDefaults
     let searchHistory: SearchHistoryStore
     @State private var home: HomeStore
-    @State private var library: ProfileLibrary
+    @State private var library: LibraryStore
     @State private var readerPreferences: ReaderPreferences
 
-    init(profiles: ProfileStore, profileID: UUID) {
-        preferences = profiles.preferences(for: profileID)
+    init(storage: AppDataStore) {
+        preferences = storage.preferences
         searchHistory = SearchHistoryStore(
-            url: profiles.directory(for: profileID).appending(path: "search-history.sqlite"))
+            url: storage.directory.appending(path: "search-history.sqlite"))
         _readerPreferences = State(
-            initialValue: ReaderPreferences(defaults: profiles.preferences(for: profileID)))
+            initialValue: ReaderPreferences(defaults: storage.preferences))
         #if DEBUG
             if ProcessInfo.processInfo.arguments.contains(where: {
                 $0.hasPrefix("--ui-testing-home-")
             }) {
                 _home = State(initialValue: AppDependencies.homeStore)
             } else {
-                _home = State(initialValue: HomeStore(fileURL: profiles.homeURL(for: profileID)))
+                _home = State(initialValue: HomeStore(fileURL: storage.homeURL))
             }
         #else
-            _home = State(initialValue: HomeStore(fileURL: profiles.homeURL(for: profileID)))
+            _home = State(initialValue: HomeStore(fileURL: storage.homeURL))
         #endif
         _library = State(
-            initialValue: ProfileLibrary(directory: profiles.directory(for: profileID)))
+            initialValue: LibraryStore(directory: storage.directory))
     }
 
     var body: some View {
         RootView(homeStore: home)
             .modifier(GeneralInterfaceBehavior())
             .environment(\.searchHistoryStore, searchHistory)
-            .environment(\.skeletonProfileScope, searchHistory.url.path)
+            .environment(\.skeletonStorageScope, searchHistory.url.path)
             .environment(home).environment(library).environment(readerPreferences)
             .defaultAppStorage(preferences)
             .task { await library.load() }

@@ -3,7 +3,7 @@ import SwiftUI
 struct RecentView: View {
     @Binding var mode: ContentMode
     @Environment(HomeStore.self) private var home
-    @Environment(ProfileLibrary.self) private var library
+    @Environment(LibraryStore.self) private var library
     @Environment(ReaderPreferences.self) private var readerPreferences
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var model: RecentViewModel

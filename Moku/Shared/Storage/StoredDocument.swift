@@ -1,6 +1,6 @@
 import Foundation
 
-actor ProfileDocument<Value: Codable & Sendable> {
+actor StoredDocument<Value: Codable & Sendable> {
     let url: URL
     init(url: URL) { self.url = url }
     func read() throws -> Value? {

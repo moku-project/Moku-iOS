@@ -37,10 +37,9 @@ struct RootView: View {
     }
 
     private enum AccountPage: String, Hashable {
-        case profile = "Profile"
         case settings = "Settings"
     }
-    @Environment(ProfileLibrary.self) private var library
+    @Environment(LibraryStore.self) private var library
     @State private var searchModel: SearchViewModel?
     @State private var globalSearchModel: SearchViewModel?
     @State private var searchKeyboardVisible = false
@@ -132,7 +131,6 @@ struct RootView: View {
                 NavigationStack {
                     Group {
                         switch page {
-                        case .profile: ProfileView()
                         case .settings:
                             SettingsView(
                                 backLabel: accountBackLabel(for: page),
@@ -145,17 +143,6 @@ struct RootView: View {
                         }
                     }
                     .toolbar(.hidden, for: .navigationBar)
-                    .safeAreaInset(edge: .top, spacing: 0) {
-                        if page != .settings {
-                            BackHeader(
-                                title: page.rawValue, backLabel: accountBackLabel(for: page),
-                                identifier: "account.back"
-                            ) {
-                                if accountPage == page { accountPages.removeLast() }
-                            }
-                            .background(NavigationStyle.background)
-                        }
-                    }
                     .environment(\.navigationScrollChanged) { old, new in
                         guard accountPage == page, searchModel == nil, !isModePickerPresented
                         else { return }
@@ -332,11 +319,6 @@ struct RootView: View {
             }
         }
         .background(NavigationStyle.background.ignoresSafeArea())
-        .environment(\.openProfile) {
-            dismissNavigationPopups()
-            accountPage = .profile
-            searchModel = nil
-        }
         .environment(\.openSettings) {
             dismissNavigationPopups()
             searchModel = nil
@@ -374,7 +356,7 @@ struct RootView: View {
 }
 
 #Preview {
-    ProfileHostView()
+    AppHostView()
 }
 
 #if DEBUG

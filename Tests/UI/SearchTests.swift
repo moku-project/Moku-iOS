@@ -6,7 +6,7 @@ final class SearchTests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = [
             "--ui-testing-isolated-backend", "--ui-testing-start-runtime",
-            "--ui-testing-profiles", "-mokuProfileTestID", UUID().uuidString,
+            "--ui-testing-storage", "-mokuStorageTestID", UUID().uuidString,
         ]
         app.launch()
         for _ in 0..<2 {
@@ -123,26 +123,6 @@ final class SearchTests: XCTestCase {
         XCTAssertTrue(app.buttons["search.result.moon"].exists)
         XCTAssertFalse(app.buttons["search.result.garden"].exists)
         XCTAssertTrue(app.buttons["tab.browse"].isSelected)
-    }
-
-    func testProfileCardsAndLocalEditing() {
-        let app = XCUIApplication()
-        app.launch()
-        app.buttons["tab.more"].tap()
-        app.buttons["moreMenu.Profile"].tap()
-        XCTAssertTrue(app.buttons["profile.edit"].waitForExistence(timeout: 3))
-        screenshot("Profile cards")
-        app.buttons["profile.edit"].tap()
-        let name = app.textFields["profile.name"]
-        XCTAssertTrue(name.waitForExistence(timeout: 3))
-        name.tap()
-        name.typeText("Reader")
-        app.buttons["Save"].tap()
-        XCTAssertTrue(app.buttons["profile.edit"].waitForExistence(timeout: 3))
-        XCTAssertFalse(app.buttons["profile.Settings"].exists)
-        app.buttons["tab.more"].tap()
-        app.buttons["moreMenu.Settings"].tap()
-        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
     }
 
     private func screenshot(_ name: String) {

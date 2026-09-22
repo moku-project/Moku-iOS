@@ -116,7 +116,7 @@ import Observation
             notice = "Couldn’t load installed sources. You can retry or import without a source."
         }
     }
-    func fetchList(library: ProfileLibrary) async -> Bool {
+    func fetchList(library: LibraryStore) async -> Bool {
         guard !working, !statuses.isEmpty else { return false }
         working = true
         stopRequested = false
@@ -161,7 +161,7 @@ import Observation
         return try await searchRepository.search(
             SearchRequest(query: query, options: SearchOptions(media: media, sourceID: sourceID)))
     }
-    func matchPending(library: ProfileLibrary) async {
+    func matchPending(library: LibraryStore) async {
         guard !working, sourceID != nil else { return }
         working = true
         stopRequested = false
@@ -186,7 +186,7 @@ import Observation
             persist()
         }
     }
-    func assign(_ entry: MediaEntry, to id: String, library: ProfileLibrary) {
+    func assign(_ entry: MediaEntry, to id: String, library: LibraryStore) {
         guard let index = items.firstIndex(where: { $0.id == id }) else { return }
         guard
             !items.contains(where: {
@@ -206,7 +206,7 @@ import Observation
         items[index].state = .skipped
         persist()
     }
-    func runImport(library: ProfileLibrary, dryRun: Bool) async {
+    func runImport(library: LibraryStore, dryRun: Bool) async {
         guard !working else { return }
         guard let service = services.first(where: { $0.key == trackerKey }), service.isLoggedIn,
             service.username == importUsername
@@ -233,7 +233,7 @@ import Observation
                 let entry = try await repository.importTitle(
                     items[index], key: trackerKey, media: media)
                 guard await library.setSaved(true, entry: entry) else {
-                    throw TrackingError.message("Couldn’t save to this profile. Retry the import.")
+                    throw TrackingError.message("Couldn’t save to your library. Retry the import.")
                 }
                 items[index].state = .imported
                 items[index].message = nil
