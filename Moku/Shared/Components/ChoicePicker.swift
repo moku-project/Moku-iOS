@@ -1,42 +1,38 @@
 import SwiftUI
 
-/// A selection menu with highlighted rows and no system selection glyphs.
+/// Uses the shared anchored dropdown rather than a system popover.
 struct ChoicePicker<Value: Hashable>: View {
     let title: String
     @Binding var selection: Value
     let options: [(Value, String)]
-    @State private var presented = false
+
+    private var selectedLabel: String { options.first { $0.0 == selection }?.1 ?? "" }
 
     var body: some View {
-        Button {
-            presented.toggle()
+        OverflowMenu {
+            ForEach(options, id: \.0) { option in
+                Button {
+                    selection = option.0
+                } label: {
+                    Text(option.1)
+                        .foregroundStyle(
+                            selection == option.0 ? NavigationStyle.accent : Color.primary)
+                }
+                .accessibilityAddTraits(selection == option.0 ? .isSelected : [])
+            }
         } label: {
-            HStack {
-                Text(title).foregroundStyle(.primary)
-                Spacer()
-                Text(options.first { $0.0 == selection }?.1 ?? "")
+            HStack(spacing: 8) {
+                if !title.isEmpty {
+                    Text(title).foregroundStyle(.primary)
+                    Spacer(minLength: 12)
+                }
+                Text(selectedLabel)
                     .foregroundStyle(NavigationStyle.accent)
-                PhosphorIcon("CaretDown")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .lineLimit(1)
+                PhosphorIcon("CaretDown", size: 10).foregroundStyle(.secondary)
             }.frame(minHeight: 44).contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(title)
-        .accessibilityValue(options.first { $0.0 == selection }?.1 ?? "")
-        .popover(isPresented: $presented) {
-            ScrollView {
-                VStack(spacing: 4) {
-                    ForEach(options, id: \.0) { option in
-                        MenuRow(option.1, selected: selection == option.0, fontSize: 16) {
-                            selection = option.0
-                            presented = false
-                        }
-                    }
-                }.padding(8)
-            }
-            .frame(minWidth: 200, idealWidth: 240, maxWidth: 300)
-            .frame(height: min(360, CGFloat(options.count) * 48 + 16))
-            .presentationCompactAdaptation(.popover)
-        }
+        .accessibilityLabel(title.isEmpty ? selectedLabel : title)
+        .accessibilityValue(selectedLabel)
     }
 }

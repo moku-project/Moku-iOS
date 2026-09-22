@@ -56,7 +56,20 @@ cd Moku-iOS
 
 The CLI prepares the backend, launches Simulator, and watches for changes. Use `./moku-ios run` for a single build and launch, or `./moku-ios test` to run unit tests.
 
-For Xcode development, open `Moku.xcodeproj` and select the **Moku** scheme.
+Open `Moku.xcodeproj` and select **Moku** for both app development and SwiftUI
+Canvas previews. Debug dylib support is enabled on the app target. The iOS
+OpenJDK patch resolves JNI bootstrap symbols across loaded app images, including
+`Moku.debug.dylib`; Release continues to use the main executable.
+
+Canvas uses disposable fixture data when Xcode sets `XCODE_RUNNING_FOR_PREVIEWS`.
+Backend requests fail locally rather than starting a service or making a network
+request. Previews share the app build and require the prepared native dependencies;
+run `./moku-ios build` once after changing runtime patches. Open a `#Preview` file
+such as `Moku/Shared/Components/MokuLinksPreview.swift` and resume Canvas.
+
+Runtime embedding in the full app is dependency-tracked. It removes obsolete
+`EmbeddedRuntime` copies and OpenJDK `_the.*` build metadata, and dereferences
+runtime symlinks before bundling. It does not delete saved application data.
 
 ---
 

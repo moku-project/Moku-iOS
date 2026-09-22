@@ -4,6 +4,7 @@ import SwiftUI
 struct CoverImage: View {
     @AppStorage("preferences.cropCovers") private var cropCovers = true
     let url: URL?
+    var contentMode: SwiftUI.ContentMode?
     var symbol = "BookOpen"
     var isIcon = false
     var bareIcon = false
@@ -16,7 +17,7 @@ struct CoverImage: View {
             if !bareIcon { NavigationStyle.accent.opacity(0.12) }
             if loadedURL == url, let image {
                 Image(uiImage: image).resizable().aspectRatio(
-                    contentMode: isIcon || !cropCovers ? .fit : .fill
+                    contentMode: contentMode ?? (isIcon || !cropCovers ? .fit : .fill)
                 )
                 .padding(isIcon && !bareIcon ? 6 : 0)
             } else if loading {

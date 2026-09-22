@@ -45,8 +45,9 @@ struct ExtensionsView: View {
     var body: some View {
         GeometryReader { geometry in
             VStack(spacing: 8) {
-                ExtensionModeTabs(
-                    model: model, reduceMotion: reduceMotion, dismissTools: dismissTools
+                ModeTabs(
+                    mode: Binding(get: { model.media }, set: { model.media = $0 }),
+                    prefix: "extensions", onSelect: dismissTools
                 ).pillBackdrop(viewPicker).zIndex(3)
                 viewControls.zIndex(2)
                 content

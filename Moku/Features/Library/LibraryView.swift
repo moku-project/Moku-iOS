@@ -37,7 +37,7 @@ struct LibraryView: View {
     var body: some View {
         GeometryReader { geometry in
             VStack(spacing: 8) {
-                LibraryHeader(mode: $mode, reduceMotion: reduceMotion, dismissTools: dismissTools)
+                LibraryHeader(mode: $mode, dismissTools: dismissTools)
                     .pillBackdrop(panel == .view || panel == .layout).zIndex(4)
                 LibraryControls(
                     model: model, mode: $mode, panel: $panel,

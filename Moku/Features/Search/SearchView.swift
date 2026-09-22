@@ -49,7 +49,9 @@ struct SearchView: View {
             .padding(.horizontal, NavigationStyle.navigationHorizontalPadding)
             .modifier(
                 FloatingSurface(
-                    cornerRadius: NavigationStyle.navigationCornerRadius, tintOpacity: 0.12))
+                    cornerRadius: NavigationStyle.navigationCornerRadius, tintOpacity: 0.12)
+            )
+            .padding(.horizontal, 16)
             if let backToLibrary {
                 Button {
                     isInputFocused = false
@@ -62,6 +64,7 @@ struct SearchView: View {
                 .accessibilityLabel("Back to Library")
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityIdentifier("search.backToLibrary")
+                .padding(.horizontal, 16)
             }
             GeometryReader { geometry in
                 ScrollView {
@@ -91,7 +94,9 @@ struct SearchView: View {
                     }
                     .frame(
                         maxWidth: .infinity, minHeight: geometry.size.height,
-                        alignment: .top)
+                        alignment: .top
+                    )
+                    .padding(.horizontal, 16)
                 }
                 .contentMargins(
                     .bottom,
@@ -105,14 +110,14 @@ struct SearchView: View {
                 .safeAreaInset(edge: .bottom, spacing: 12) {
                     if model.panel != nil && !isPage {
                         optionActions
+                            .padding(.horizontal, 16)
                     }
                 }
                 .clipped()
             }
 
         }
-        .frame(maxWidth: isPage ? 700 : 600)
-        .padding(.horizontal, 16)
+        .frame(maxWidth: isPage ? 732 : 632)
         .padding(.top, 8)
         .padding(.bottom, 8)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

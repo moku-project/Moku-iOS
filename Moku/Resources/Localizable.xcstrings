@@ -63,6 +63,16 @@
     "%@ tools" : {
 
     },
+    "%@, %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, %2$@"
+          }
+        }
+      }
+    },
     "%@: %lld activity" : {
       "localizations" : {
         "en" : {
@@ -169,10 +179,10 @@
     "Add" : {
 
     },
-    "Add profile" : {
+    "Add repository" : {
 
     },
-    "Add repository" : {
+    "Adjust the size of the app. Reader zoom is separate." : {
 
     },
     "All languages" : {
@@ -191,6 +201,9 @@
 
     },
     "Authorize %@" : {
+
+    },
+    "Auto-start bundled server" : {
 
     },
     "Back" : {
@@ -215,6 +228,9 @@
 
     },
     "Browse titles" : {
+
+    },
+    "Cached covers and temporary results are stored in the iOS app sandbox. Clearing cache keeps your library, downloads, and history." : {
 
     },
     "Cancel" : {
@@ -265,7 +281,7 @@
     "Clear history" : {
 
     },
-    "Clear reading activity for this profile. Saved titles and files will be kept." : {
+    "Clear reading activity on this device. Saved titles and files will be kept." : {
 
     },
     "Clear search" : {
@@ -275,6 +291,9 @@
 
     },
     "Close %@ menu" : {
+
+    },
+    "Close Moku links" : {
 
     },
     "Close popup" : {
@@ -317,6 +336,9 @@
 
     },
     "day streak" : {
+
+    },
+    "Decrease interface scale" : {
 
     },
     "Delete" : {
@@ -382,16 +404,7 @@
     "Dry run" : {
 
     },
-    "Each profile has its own saved titles, reading activity, and preferences. Installed sources and their settings are shared on this device." : {
-
-    },
-    "Edit" : {
-
-    },
     "Edit name" : {
-
-    },
-    "Edit profile" : {
 
     },
     "Edit search and filters" : {
@@ -457,6 +470,9 @@
     "HTTPS index URL" : {
 
     },
+    "Idle screen timeout" : {
+
+    },
     "Import %lld" : {
 
     },
@@ -475,10 +491,19 @@
     "Imported titles will be kept. Unfinished matches will be removed." : {
 
     },
+    "Increase interface scale" : {
+
+    },
     "Install" : {
 
     },
     "Installed" : {
+
+    },
+    "Interface animations" : {
+
+    },
+    "Interface scale" : {
 
     },
     "Language" : {
@@ -517,10 +542,10 @@
     "Main navigation" : {
 
     },
-    "Manage %@" : {
+    "Manage" : {
 
     },
-    "Manage local profiles" : {
+    "Manage %@" : {
 
     },
     "Manga" : {
@@ -530,6 +555,15 @@
 
     },
     "Media" : {
+
+    },
+    "Moku" : {
+
+    },
+    "Moku idle screen. Tap to continue" : {
+
+    },
+    "Moku links" : {
 
     },
     "More" : {
@@ -580,6 +614,9 @@
     "No presets yet — save the current settings to make one." : {
 
     },
+    "No recent searches" : {
+
+    },
     "No results" : {
 
     },
@@ -607,13 +644,13 @@
     "OK" : {
 
     },
-    "On this device" : {
-
-    },
     "Open %@" : {
 
     },
-    "Open profile" : {
+    "Opens in your browser" : {
+
+    },
+    "Opens the project and community links" : {
 
     },
     "Page" : {
@@ -640,7 +677,7 @@
     "Playback speed" : {
 
     },
-    "Preferences for %@" : {
+    "Preferred source language" : {
 
     },
     "Preset name" : {
@@ -650,9 +687,6 @@
 
     },
     "Previous title" : {
-
-    },
-    "Profile name" : {
 
     },
     "Queue" : {
@@ -700,16 +734,13 @@
     "Remove all %@ chapters from this view." : {
 
     },
+    "Remove cached covers and temporary results. They will load again when needed. Your library, downloads, history, and source installations will be kept." : {
+
+    },
     "Remove completed records from history. Downloaded files will be kept." : {
 
     },
     "Remove repository?" : {
-
-    },
-    "Remove shared cached covers. They will load again when needed. Saved titles and source installations will be kept." : {
-
-    },
-    "Rename %@" : {
 
     },
     "Rename preset" : {
@@ -721,13 +752,16 @@
     "Reset" : {
 
     },
+    "Reset interface scale" : {
+
+    },
     "Reset search and filters" : {
 
     },
     "Restore default" : {
 
     },
-    "Restore preferences for this profile. Saved titles and reading activity will be kept." : {
+    "Restore preferences on this device. Saved titles and reading activity will be kept." : {
 
     },
     "Resume" : {
@@ -778,9 +812,6 @@
     "Search folders" : {
 
     },
-    "Search for a title. Your recent searches will appear here." : {
-
-    },
     "Search source" : {
 
     },
@@ -817,10 +848,13 @@
     "SOURCE" : {
 
     },
-    "Source installations and cached covers are shared by all profiles. iOS manages the app’s storage location." : {
+    "Start" : {
 
     },
     "Start a new import" : {
+
+    },
+    "Starting…" : {
 
     },
     "Stop" : {
@@ -832,13 +866,13 @@
     "Subtitles" : {
 
     },
-    "Switch to %@" : {
-
-    },
     "T" : {
 
     },
-    "Themes and display preferences are saved with this profile." : {
+    "Tap to continue" : {
+
+    },
+    "Themes and display preferences are saved on this device." : {
 
     },
     "This chapter" : {
@@ -929,7 +963,7 @@
     "Working…" : {
 
     },
-    "Your profiles live in this app’s private storage. No server account or sign-in is required." : {
+    "Your library and activity live in this app’s private storage. No server account or sign-in is required." : {
 
     },
     "Your saved titles will be kept." : {
