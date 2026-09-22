@@ -9,7 +9,8 @@ actor Backend {
     #if DEBUG
         /// Uses a disposable database and the real authenticated content server.
         func preparePlayerUITest() async throws {
-            guard ProcessInfo.processInfo.arguments.contains("--ui-testing-isolated-backend") else {
+            guard ProcessInfo.processInfo.arguments.contains("--ui-testing-isolated-backend")
+            else {
                 throw EmbeddedSearchError.message("Player tests require an isolated backend.")
             }
             _ = try await connection()
@@ -26,10 +27,14 @@ actor Backend {
     func connection(requiresSourceRuntime: Bool = true, manualStart: Bool = false) async throws
         -> BackendController.Connection
     {
+        guard !PreviewMode.isEnabled else {
+            throw EmbeddedSearchError.message("Backend access is disabled in UI previews.")
+        }
         if startup == nil {
             guard
                 manualStart
-                    || (UserDefaults.standard.object(forKey: "backend.autoStart") as? Bool ?? true)
+                    || (UserDefaults.standard.object(forKey: "backend.autoStart") as? Bool
+                        ?? true)
             else {
                 throw EmbeddedSearchError.message(
                     "Automatic server startup is off. Start the server in Settings → General.")
@@ -79,9 +84,11 @@ actor Backend {
 
     private func startSourceRuntime() async throws {
         guard let home = Bundle.main.resourceURL,
-            FileManager.default.fileExists(atPath: home.appendingPathComponent("Sandbox.jar").path)
+            FileManager.default.fileExists(
+                atPath: home.appendingPathComponent("Sandbox.jar").path)
         else {
-            throw EmbeddedSearchError.message("The embedded runtime is missing. Rebuild the app.")
+            throw EmbeddedSearchError.message(
+                "The embedded runtime is missing. Rebuild the app.")
         }
         let directory = try dataDirectory()
         let jar = home.appendingPathComponent("Sandbox.jar")
@@ -109,7 +116,8 @@ actor Backend {
         }
         try await controller.attachSandbox(.init(address: "127.0.0.1:\(port)", token: token))
         guard try await controller.status().extensionsAvailable else {
-            throw EmbeddedSearchError.message("The source runtime is not ready. Restart the app.")
+            throw EmbeddedSearchError.message(
+                "The source runtime is not ready. Restart the app.")
         }
         // sourceStartup retains failure too: this process must never start a second JVM.
         // The independent SQLite connection remains usable after a JVM failure.

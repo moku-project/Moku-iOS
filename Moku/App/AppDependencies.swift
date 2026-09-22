@@ -6,7 +6,9 @@ enum AppDependencies {
             if ProcessInfo.processInfo.arguments.contains("--ui-testing-home-empty") {
                 return HomeStore(fileURL: nil)
             }
-            if ProcessInfo.processInfo.arguments.contains("--ui-testing-home-populated") {
+            if PreviewMode.isEnabled
+                || ProcessInfo.processInfo.arguments.contains("--ui-testing-home-populated")
+            {
                 return HomePreviewData.makeStore()
             }
         #endif
@@ -15,7 +17,9 @@ enum AppDependencies {
 
     static var extensionRepository: any ExtensionRepository {
         #if DEBUG
-            if ProcessInfo.processInfo.arguments.contains("--ui-testing-extensions") {
+            if PreviewMode.isEnabled
+                || ProcessInfo.processInfo.arguments.contains("--ui-testing-extensions")
+            {
                 return UITestExtensionRepository.shared
             }
         #endif
@@ -24,7 +28,9 @@ enum AppDependencies {
 
     static var searchRepository: any SearchRepository {
         #if DEBUG
-            if ProcessInfo.processInfo.arguments.contains("--ui-testing-search") {
+            if PreviewMode.isEnabled
+                || ProcessInfo.processInfo.arguments.contains("--ui-testing-search")
+            {
                 return UITestSearchRepository()
             }
         #endif
