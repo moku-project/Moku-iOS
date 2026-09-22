@@ -58,15 +58,30 @@ targets:
               FileHandle.standardError.write(Data("Runtime embedding failed: \(error)\n".utf8))
               exit(1)
           }
-        basedOnDependencyAnalysis: false
+        basedOnDependencyAnalysis: true
+        inputFiles:
+          - $(SRCROOT)/project.yml
+          - $(SRCROOT)/moku-ios
+          - $(SRCROOT)/Tools/CLI/Sources/CLICore/Workflow.swift
+          - $(SRCROOT)/Tools/CLI/Sources/CLICore/RuntimePackaging.swift
+          - $(SRCROOT)/Services/.build/openjdk-local/$(MOKU_BACKEND_PLATFORM)/lib
+          - $(SRCROOT)/Services/.build/native-$(MOKU_BACKEND_PLATFORM)/libtsunagu.a
+          - $(SRCROOT)/Services/.build/native-$(MOKU_BACKEND_PLATFORM)/libtsmedia.a
+          - $(SRCROOT)/vendor/Tsunagu/sandbox/build/libs/sandbox-0.1.0-all.jar
+          - $(SRCROOT)/Services/.build/ffmpeg/$(MOKU_BACKEND_PLATFORM)/COPYING.LGPLv2.1
+          - $(SRCROOT)/Services/.build/ffmpeg/$(MOKU_BACKEND_PLATFORM)/LICENSE.md
+          - $(SRCROOT)/Services/THIRD_PARTY_MEDIA.md
+        outputFiles:
+          - $(DERIVED_FILE_DIR)/moku-runtime-embedded
+          - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/Sandbox.jar
+          - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/lib
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.moku.app
         DEVELOPMENT_TEAM: 7D6BVN4W87
         ARCHS: arm64
-        # Static OpenJDK resolves JNI symbols in the main executable via RTLD_FIRST.
-        # Moving them into Moku.debug.dylib crashes JVM bootstrap.
-        ENABLE_DEBUG_DYLIB: NO
+        # The iOS OpenJDK patch resolves JNI symbols across loaded images.
+        ENABLE_DEBUG_DYLIB: YES
         ENABLE_USER_SCRIPT_SANDBOXING: NO
         SWIFT_OBJC_BRIDGING_HEADER: Configuration/Moku-Bridging-Header.h
         'FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]': '$(inherited) $(SRCROOT)/Services/.build/Tsunagu.xcframework/ios-arm64-simulator'

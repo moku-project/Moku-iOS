@@ -189,6 +189,7 @@
 		D9999786D520929AB657981C /* ChapterPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4650EF36E39378F97FDD0FDA /* ChapterPicker.swift */; };
 		DF1B1F4C4834B9CDB9C8A53A /* PlayerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5560909BC1E5EFEE45D50C40 /* PlayerTests.swift */; };
 		DFA8FD742233530DBEB55239 /* MoreDestinationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5A925C735D6BF7A0535D4EF /* MoreDestinationView.swift */; };
+		E016D878CDA63BAE14615C92 /* BackendConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8947BB555B6611BE9D132D6E /* BackendConnection.swift */; };
 		E122FC18CF4A8C60D3EA39A5 /* CanvasCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73C0B542933499C6767CFF61 /* CanvasCoordinator.swift */; };
 		E1BC2AFBD823A55F9E178B2B /* PlayerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D31603674E050BB839D0412 /* PlayerViewModel.swift */; };
 		E293EBFCED0DBBCAA203815A /* RadialMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E2DC7BE80EFD889CDAA57A1 /* RadialMenu.swift */; };
@@ -360,6 +361,7 @@
 		74D7EFF6FE129D7BA8677E2B /* ExtensionModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionModelTests.swift; sourceTree = "<group>"; };
 		7557BD18D1FF8F194ED1743D /* MangaSourceDeviceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MangaSourceDeviceTests.swift; sourceTree = "<group>"; };
 		76107D2A9B5A6A4166C220FA /* LibraryPersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryPersistenceTests.swift; sourceTree = "<group>"; };
+		7633C1D8E563D713CD15977B /* RuntimePackagingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimePackagingTests.swift; sourceTree = "<group>"; };
 		782F1CF1236394E41C39F90E /* SearchHistoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchHistoryTests.swift; sourceTree = "<group>"; };
 		7B62707488C968C47C9CBD4B /* PlayerPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerPanel.swift; sourceTree = "<group>"; };
 		7BB44DB455700E73A4BE762A /* UITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = UITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -374,6 +376,7 @@
 		85035DFB832BDD7E1F601572 /* moku-ios */ = {isa = PBXFileReference; path = "moku-ios"; sourceTree = "<group>"; };
 		8540F6E8CBF1473AC19904DC /* AppDataStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDataStoreTests.swift; sourceTree = "<group>"; };
 		872BB5BA53E110B6DF0C8F67 /* NativeBuild.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeBuild.swift; sourceTree = "<group>"; };
+		8947BB555B6611BE9D132D6E /* BackendConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendConnection.swift; sourceTree = "<group>"; };
 		89C3A26B6C37F431FBA91669 /* Simulator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Simulator.swift; sourceTree = "<group>"; };
 		8D2A8D8ABCB789E35A40424B /* LibrarySearchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibrarySearchTests.swift; sourceTree = "<group>"; };
 		8D31603674E050BB839D0412 /* PlayerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerViewModel.swift; sourceTree = "<group>"; };
@@ -459,6 +462,7 @@
 		E39504D4C4A128549DA3CC96 /* PageHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageHeader.swift; sourceTree = "<group>"; };
 		E4DFC951E727F70F9C115D92 /* LibraryItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryItem.swift; sourceTree = "<group>"; };
 		E5A769C7E920F5889CE6038B /* HomeCover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeCover.swift; sourceTree = "<group>"; };
+		E5B6F93FD0071E53D7CB5F01 /* RuntimePackaging.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimePackaging.swift; sourceTree = "<group>"; };
 		E7559DABFA6C3D982350DFD3 /* player-preview.mp4 */ = {isa = PBXFileReference; path = "player-preview.mp4"; sourceTree = "<group>"; };
 		E87E7D61609BDD0F167211EB /* FolderViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderViewModelTests.swift; sourceTree = "<group>"; };
 		E8F8F49197228EA0BA60E4BC /* DetailsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailsView.swift; sourceTree = "<group>"; };
@@ -969,6 +973,7 @@
 			children = (
 				BADFDF9EC08582CF128ACCC0 /* Backend.swift */,
 				27AADDFE0A8815263B3F5CB6 /* BackendAPI.swift */,
+				8947BB555B6611BE9D132D6E /* BackendConnection.swift */,
 			);
 			path = Backend;
 			sourceTree = "<group>";
@@ -1282,6 +1287,7 @@
 				ED641925EDD1F1E4F35B00D7 /* MediaChecks.swift */,
 				872BB5BA53E110B6DF0C8F67 /* NativeBuild.swift */,
 				3D5BE4111B4AF5934888E101 /* Runner.swift */,
+				E5B6F93FD0071E53D7CB5F01 /* RuntimePackaging.swift */,
 				89C3A26B6C37F431FBA91669 /* Simulator.swift */,
 				824D092C49A3155F7EBBDC22 /* Support.swift */,
 				13B6826CE58B02AF90ECACCA /* Workflow.swift */,
@@ -1465,6 +1471,7 @@
 			children = (
 				F216F48BF30412FD01C8917B /* AcceptanceTests.swift */,
 				1A77723DF62A6782B827D08C /* CoreTests.swift */,
+				7633C1D8E563D713CD15977B /* RuntimePackagingTests.swift */,
 			);
 			path = CLICoreTests;
 			sourceTree = "<group>";
@@ -1596,18 +1603,31 @@
 /* Begin PBXShellScriptBuildPhase section */
 		22FA1B254FA4EE87A26393E4 /* Embed source runtime */ = {
 			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			inputFileListPaths = (
 			);
 			inputPaths = (
+				"$(SRCROOT)/project.yml",
+				"$(SRCROOT)/moku-ios",
+				"$(SRCROOT)/Tools/CLI/Sources/CLICore/Workflow.swift",
+				"$(SRCROOT)/Tools/CLI/Sources/CLICore/RuntimePackaging.swift",
+				"$(SRCROOT)/Services/.build/openjdk-local/$(MOKU_BACKEND_PLATFORM)/lib",
+				"$(SRCROOT)/Services/.build/native-$(MOKU_BACKEND_PLATFORM)/libtsunagu.a",
+				"$(SRCROOT)/Services/.build/native-$(MOKU_BACKEND_PLATFORM)/libtsmedia.a",
+				"$(SRCROOT)/vendor/Tsunagu/sandbox/build/libs/sandbox-0.1.0-all.jar",
+				"$(SRCROOT)/Services/.build/ffmpeg/$(MOKU_BACKEND_PLATFORM)/COPYING.LGPLv2.1",
+				"$(SRCROOT)/Services/.build/ffmpeg/$(MOKU_BACKEND_PLATFORM)/LICENSE.md",
+				"$(SRCROOT)/Services/THIRD_PARTY_MEDIA.md",
 			);
 			name = "Embed source runtime";
 			outputFileListPaths = (
 			);
 			outputPaths = (
+				"$(DERIVED_FILE_DIR)/moku-runtime-embedded",
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/Sandbox.jar",
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/lib",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = "/usr/bin/env -S xcrun --sdk macosx swift";
@@ -1680,6 +1700,7 @@
 				B39AEA7C77879A0FA29E35B7 /* AppTab.swift in Sources */,
 				FD6CDFF8E285E39921B90E34 /* Backend.swift in Sources */,
 				E9FAD1FFBD888A93630B162A /* BackendAPI.swift in Sources */,
+				E016D878CDA63BAE14615C92 /* BackendConnection.swift in Sources */,
 				E90312FF74373A233CF8EA2F /* BackendController.swift in Sources */,
 				E122FC18CF4A8C60D3EA39A5 /* CanvasCoordinator.swift in Sources */,
 				36738C2ABA4BF3D46132B83E /* CanvasScrollView.swift in Sources */,
@@ -1882,7 +1903,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_TEAM = 7D6BVN4W87;
-				ENABLE_DEBUG_DYLIB = NO;
+				ENABLE_DEBUG_DYLIB = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				"FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]" = "$(inherited) $(SRCROOT)/Services/.build/Tsunagu.xcframework/ios-arm64";
 				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(inherited) $(SRCROOT)/Services/.build/Tsunagu.xcframework/ios-arm64-simulator";
@@ -1974,7 +1995,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_TEAM = 7D6BVN4W87;
-				ENABLE_DEBUG_DYLIB = NO;
+				ENABLE_DEBUG_DYLIB = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				"FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]" = "$(inherited) $(SRCROOT)/Services/.build/Tsunagu.xcframework/ios-arm64";
 				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(inherited) $(SRCROOT)/Services/.build/Tsunagu.xcframework/ios-arm64-simulator";

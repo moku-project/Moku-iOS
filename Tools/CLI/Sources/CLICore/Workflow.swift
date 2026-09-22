@@ -25,7 +25,9 @@ public final class Workflow {
       try Cache.cached(
         runner.root, "jvm-\(platform)",
         inputs: [
-          "Services/patches/0002-openjdk-ios.patch", "Tools/CLI/Sources/CLICore/NativeBuild.swift",
+          "Services/patches/0002-openjdk-ios.patch",
+          "Services/patches/0003-openjdk-ios-debug-dylib.patch",
+          "Tools/CLI/Sources/CLICore/NativeBuild.swift",
           "Tools/CLI/Sources/CLICore/Support.swift",
         ],
         outputs: [
@@ -169,6 +171,7 @@ public final class Workflow {
       }
     }
     let output = URL(fileURLWithPath: target).appendingPathComponent(resources)
+    try RuntimePackaging.cleanBundle(output, debugDylib: env["ENABLE_DEBUG_DYLIB"] == "YES")
     let notices = output.appendingPathComponent("ThirdPartyNotices/FFmpeg")
     try fm.createDirectory(
       at: output.appendingPathComponent("lib"), withIntermediateDirectories: true)
@@ -183,8 +186,11 @@ public final class Workflow {
       "rsync", "-a", runner.path("Services/THIRD_PARTY_MEDIA.md").path,
       notices.appendingPathComponent("BUILD-AND-SOURCE.md").path,
     ])
-    try runner.run(["rsync", "-a", "--delete", runtime.path + "/", output.path + "/lib/"])
+    try RuntimePackaging.syncRuntime(runtime, to: output.appendingPathComponent("lib"), runner: runner)
     try runner.run(["rsync", "-a", sandbox.path, output.appendingPathComponent("Sandbox.jar").path])
+    if let derived = env["DERIVED_FILE_DIR"] {
+      try write("Runtime packaging complete\n", URL(fileURLWithPath: derived).appendingPathComponent("moku-runtime-embedded"))
+    }
   }
   func test(_ task: String, _ requested: String?) throws {
     switch task {
