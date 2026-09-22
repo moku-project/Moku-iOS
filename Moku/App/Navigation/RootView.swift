@@ -356,7 +356,7 @@ struct RootView: View {
 }
 
 #Preview {
-    AppHostView()
+    AppPreviewHost()
 }
 
 #if DEBUG

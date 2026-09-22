@@ -4,7 +4,9 @@ import Observation
 @MainActor @Observable final class TrackingViewModel {
     static func makeDefault() -> TrackingViewModel {
         #if DEBUG
-            if ProcessInfo.processInfo.arguments.contains("--ui-testing-tracking") {
+            if PreviewMode.isEnabled
+                || ProcessInfo.processInfo.arguments.contains("--ui-testing-tracking")
+            {
                 return TrackingViewModel(
                     repository: TrackingPreviewRepository(),
                     searchRepository: TrackingPreviewSearch())

@@ -4,7 +4,9 @@ import Observation
 @MainActor @Observable final class RecentViewModel {
     static func makeDefault() -> RecentViewModel {
         #if DEBUG
-            if ProcessInfo.processInfo.arguments.contains("--ui-testing-recent") {
+            if PreviewMode.isEnabled
+                || ProcessInfo.processInfo.arguments.contains("--ui-testing-recent")
+            {
                 return RecentViewModel(repository: RecentPreviewData.Repository())
             }
         #endif

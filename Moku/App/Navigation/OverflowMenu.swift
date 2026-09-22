@@ -13,13 +13,27 @@ import SwiftUI
 
 /// Row menus render at the page root so lists cannot clip the dropdown.
 struct OverflowMenu<Content: View, Label: View>: View {
-    @Environment(OverflowMenuPresentation.self) private var presentation
+    @Environment(OverflowMenuPresentation.self) private var presentation: OverflowMenuPresentation?
     @State private var anchor = CGRect.zero
     @State private var id = UUID()
     @ViewBuilder var content: () -> Content
     @ViewBuilder var label: () -> Label
 
     var body: some View {
+        if let presentation {
+            hostedMenu(presentation)
+        } else {
+            // Standalone screens and previews may not have a root popup host.
+            SwiftUI.Menu {
+                content()
+            } label: {
+                label()
+            }
+            .menuStyle(.borderlessButton)
+        }
+    }
+
+    private func hostedMenu(_ presentation: OverflowMenuPresentation) -> some View {
         Button {
             if presentation.owner == id {
                 presentation.dismiss()

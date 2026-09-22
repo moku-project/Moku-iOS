@@ -29,11 +29,4 @@
         }
     }
 
-    #Preview("Home · empty") {
-        NavigationStack { HomeView(store: HomeStore(fileURL: nil)) }.preferredColorScheme(.dark)
-    }
-
-    #Preview("Home · sample history") {
-        NavigationStack { HomeView(store: HomePreviewData.makeStore()) }.preferredColorScheme(.dark)
-    }
 #endif

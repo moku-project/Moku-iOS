@@ -3,6 +3,14 @@ import SwiftUI
 struct AppHostView: View {
     @State private var storage = AppDataStore.makeDefault()
     var body: some View {
+        #if DEBUG
+            if PreviewMode.isEnabled { AppPreviewHost() } else { appContent }
+        #else
+            appContent
+        #endif
+    }
+
+    private var appContent: some View {
         Group {
             if storage.loaded {
                 AppSessionView(storage: storage)
