@@ -4,8 +4,8 @@ import XCTest
     private func launch() -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
-            "--ui-testing-profiles", "--ui-testing-home-populated", "--ui-testing-recent",
-            "-mokuProfileTestID", UUID().uuidString,
+            "--ui-testing-storage", "--ui-testing-home-populated", "--ui-testing-recent",
+            "-mokuStorageTestID", UUID().uuidString,
         ]
         app.launch()
         XCTAssertTrue(app.buttons["tab.more"].waitForExistence(timeout: 10))
@@ -78,8 +78,8 @@ import XCTest
     func testServicesMenusAndDisconnectConfirmation() {
         let app = XCUIApplication()
         app.launchArguments = [
-            "--ui-testing-profiles", "--ui-testing-tracking",
-            "-mokuProfileTestID", UUID().uuidString,
+            "--ui-testing-storage", "--ui-testing-tracking",
+            "-mokuStorageTestID", UUID().uuidString,
         ]
         app.launch()
         XCTAssertTrue(app.buttons["tab.more"].waitForExistence(timeout: 10))

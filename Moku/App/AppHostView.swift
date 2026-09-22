@@ -1,17 +1,16 @@
 import SwiftUI
 
-struct ProfileHostView: View {
-    @State private var profiles = ProfileStore.makeDefault()
+struct AppHostView: View {
+    @State private var storage = AppDataStore.makeDefault()
     var body: some View {
         Group {
-            if profiles.loaded {
-                ProfileSessionView(profiles: profiles, profileID: profiles.activeID)
-                    .id(profiles.activeID)
+            if storage.loaded {
+                AppSessionView(storage: storage)
             } else {
                 VStack(spacing: 16) {
-                    if let error = profiles.error {
+                    if let error = storage.error {
                         Text(error).font(.subheadline)
-                        Button("Try again") { Task { await profiles.load() } }
+                        Button("Try again") { Task { await storage.load() } }
                     } else {
                         ContentSkeleton(style: .startup)
                     }
@@ -20,12 +19,12 @@ struct ProfileHostView: View {
             }
         }
         .firstLoadSkeleton(
-            "startup", loading: !profiles.loaded && profiles.error == nil, style: .startup
+            "startup", loading: !storage.loaded && storage.error == nil, style: .startup
         )
-        .environment(profiles)
+        .environment(storage)
         .preferredColorScheme(.dark)
         .task {
-            await profiles.load()
+            await storage.load()
             #if DEBUG
                 if ProcessInfo.processInfo.arguments.contains("--ui-testing-start-runtime"),
                     ProcessInfo.processInfo.arguments.contains("--ui-testing-isolated-backend")

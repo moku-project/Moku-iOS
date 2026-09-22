@@ -15,7 +15,7 @@ final class SkeletonVisits {
 }
 
 extension EnvironmentValues {
-    @Entry var skeletonProfileScope = "startup"
+    @Entry var skeletonStorageScope = "startup"
 }
 
 private struct FirstLoadSkeleton: ViewModifier {
@@ -23,7 +23,7 @@ private struct FirstLoadSkeleton: ViewModifier {
     let enabled: Bool
     let loading: Bool
     let style: ContentSkeleton.Style
-    @Environment(\.skeletonProfileScope) private var profile
+    @Environment(\.skeletonStorageScope) private var profile
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("preferences.animations") private var animations = true

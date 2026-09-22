@@ -6,7 +6,7 @@ struct LibraryItemView: View {
     let model: LibraryViewModel
     let layout: LibraryLayout
     let onOpen: (MediaEntry) -> Void
-    @Environment(ProfileLibrary.self) private var library
+    @Environment(LibraryStore.self) private var library
 
     var body: some View {
         Button {

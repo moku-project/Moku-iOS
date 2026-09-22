@@ -8,7 +8,7 @@ struct LibraryView: View {
     var onBrowse: () -> Void
     var onSearch: () -> Void
     var onOpen: (MediaEntry) -> Void
-    @Environment(ProfileLibrary.self) private var library
+    @Environment(LibraryStore.self) private var library
     @State private var model = LibraryViewModel()
     @State private var search: SearchViewModel?
     @State private var optionDraft = LibraryViewModel()

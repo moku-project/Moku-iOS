@@ -1,7 +1,7 @@
 import XCTest
 
 @MainActor final class NavigationTests: XCTestCase {
-    func testModesTabsAndProfileNavigation() {
+    func testModesTabsAndSettingsNavigation() {
         XCUIDevice.shared.orientation = .portrait
         let app = XCUIApplication()
         app.launch()
@@ -14,10 +14,7 @@ import XCTest
         XCTAssertEqual(library.value as? String, "Manga")
         XCTAssertFalse(app.buttons["mode.anime"].exists)
         app.buttons["tab.home"].tap()
-        app.buttons.matching(identifier: "header.profile").allElementsBoundByIndex.first(
-            where: \.isHittable)!.tap()
-        XCTAssertTrue(app.buttons["profile.edit"].waitForExistence(timeout: 3))
-        app.buttons["account.back"].tap()
+        XCTAssertFalse(app.buttons["header.profile"].exists)
         app.buttons.matching(identifier: "header.settings").allElementsBoundByIndex.first(
             where: \.isHittable)!.tap()
         XCTAssertTrue(app.buttons["settings.category.Appearance"].waitForExistence(timeout: 3))

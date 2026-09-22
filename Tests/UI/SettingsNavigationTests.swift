@@ -1,9 +1,9 @@
 import XCTest
 
-@MainActor final class SettingsProfileTests: XCTestCase {
-    func testSettingsAndProfileIsolation() {
+@MainActor final class SettingsNavigationTests: XCTestCase {
+    func testSettingsPreferencesPersist() {
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-testing-profiles", "-mokuProfileTestID", UUID().uuidString]
+        app.launchArguments = ["--ui-testing-storage", "-mokuStorageTestID", UUID().uuidString]
         app.launch()
         app.buttons["Settings"].firstMatch.tap()
         capture("Settings sections")
@@ -29,31 +29,16 @@ import XCTest
         capture("Settings storage")
         app.buttons["settings.back"].tap()
         app.buttons["account.back"].tap()
-        app.buttons["Open profile"].firstMatch.tap()
-        XCTAssertTrue(app.buttons["Add profile"].waitForExistence(timeout: 3))
-        capture("Profile")
-        app.buttons["Add profile"].tap()
-        let name = app.textFields["profile.name"]
-        XCTAssertTrue(name.waitForExistence(timeout: 3))
-        name.tap()
-        name.typeText("Second")
-        app.buttons["Save"].tap()
-        let second = app.buttons["Switch to Second"]
-        XCTAssertTrue(second.waitForExistence(timeout: 3))
-        second.tap()
-        app.buttons["Settings"].firstMatch.tap()
-        app.buttons["settings.category.Library"].tap()
-        XCTAssertEqual(app.switches["List layout"].value as? String, "0")
         app.terminate()
         app.launch()
-        app.buttons["Open profile"].firstMatch.tap()
-        XCTAssertTrue(app.buttons["Switch to Second"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["Switch to Second"].isSelected)
+        app.buttons["Settings"].firstMatch.tap()
+        app.buttons["settings.category.Library"].tap()
+        XCTAssertEqual(app.switches["List layout"].value as? String, "1")
     }
 
     func testEveryDesktopSectionHasADestinationAndBackButton() {
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-testing-profiles", "-mokuProfileTestID", UUID().uuidString]
+        app.launchArguments = ["--ui-testing-storage", "-mokuStorageTestID", UUID().uuidString]
         app.launch()
         app.buttons["Settings"].firstMatch.tap()
         for name in [
@@ -79,7 +64,7 @@ import XCTest
 
     func testAccountPagesReturnToOriginAndNestedSettings() {
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-testing-profiles", "-mokuProfileTestID", UUID().uuidString]
+        app.launchArguments = ["--ui-testing-storage", "-mokuStorageTestID", UUID().uuidString]
         app.launch()
         app.buttons["Downloads"].tap()
         app.buttons["downloads.history"].tap()
@@ -93,22 +78,9 @@ import XCTest
         capture("Settings spacious index")
         back.tap()
         XCTAssertTrue(app.buttons["downloads.history"].isSelected)
-        app.buttons["Open profile"].firstMatch.tap()
-        XCTAssertEqual(back.label, "Back to Downloads")
-        capture("Profile back header")
-        back.tap()
-        XCTAssertTrue(app.buttons["downloads.history"].isSelected)
+        XCTAssertFalse(app.buttons["header.profile"].exists)
         app.buttons["Settings"].firstMatch.tap()
-        let auth = app.buttons["settings.category.Auth"]
-        for _ in 0..<6 {
-            if auth.isHittable && auth.frame.maxY < app.frame.maxY - 130 { break }
-            app.scrollViews["settings.index"].swipeUp()
-        }
-        auth.tap()
-        app.buttons["Manage local profiles"].tap()
-        XCTAssertEqual(back.label, "Back to Settings")
-        back.tap()
-        XCTAssertTrue(app.buttons["Manage local profiles"].waitForExistence(timeout: 3))
+        app.buttons["settings.category.General"].tap()
         app.buttons["settings.back"].tap()
         back.tap()
         XCTAssertTrue(app.buttons["downloads.history"].isSelected)

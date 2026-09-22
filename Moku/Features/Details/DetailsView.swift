@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Native counterpart of desktop SeriesHeader + ChapterList.
 struct DetailsView: View {
-    @Environment(ProfileLibrary.self) private var library
+    @Environment(LibraryStore.self) private var library
     @Environment(ReaderPreferences.self) private var readerPreferences
     @State private var readingChapter: Chapter?
     @AppStorage("preferences.chapterAscending") private var defaultAscending = false

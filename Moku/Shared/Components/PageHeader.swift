@@ -11,7 +11,6 @@ struct PageHeader: View {
     @AppStorage("preferences.animations") private var animations = true
     var selectMode: ((ContentMode) -> Void)? = nil
     var onMode: (() -> Void)? = nil
-    @Environment(\.openProfile) private var openProfile
     @Environment(\.openSettings) private var openSettings
 
     @ScaledMetric(relativeTo: .body) private var titleSize = 18.7
@@ -23,17 +22,7 @@ struct PageHeader: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 4) {
-                Button(action: openProfile) {
-                    PhosphorIcon("UserCircle").iconSize(headerIconSize)
-                        .frame(width: 44, height: 44)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.primary)
-                .accessibilityLabel("Open profile")
-                .pillBackdrop(isModePresented)
-                .accessibilityIdentifier("header.profile")
-                .frame(width: 44, alignment: .leading)
+                Color.clear.frame(width: 44, height: 44)
 
                 Text(title).accessibilityIdentifier("header.title")
                     .font(.system(size: titleSize, weight: .semibold))

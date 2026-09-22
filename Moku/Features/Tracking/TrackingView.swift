@@ -1,8 +1,8 @@
 import SwiftUI
 
 struct TrackingView: View {
-    @Environment(ProfileStore.self) private var profiles
-    @Environment(ProfileLibrary.self) private var library
+    @Environment(AppDataStore.self) private var appData
+    @Environment(LibraryStore.self) private var library
     @Environment(\.openURL) private var openURL
     @Environment(\.navigationContentBottomInset) private var bottomInset
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -75,7 +75,7 @@ struct TrackingView: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("tracking.page")
         .task {
-            await model.configure(directory: profiles.directory(for: profiles.activeID))
+            await model.configure(directory: appData.directory)
             await model.load()
         }
         .task(id: waiting) {

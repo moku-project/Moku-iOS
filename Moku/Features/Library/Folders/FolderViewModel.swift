@@ -7,7 +7,7 @@ final class FolderViewModel {
     private(set) var isSaving = false
     var error: String?
 
-    func create(in library: ProfileLibrary) async -> LibraryFolder? {
+    func create(in library: LibraryStore) async -> LibraryFolder? {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, !isSaving else { return nil }
         isSaving = true

@@ -54,7 +54,7 @@ enum SettingsCategory: String, CaseIterable, Hashable {
         case .server:
             "Moku runs Tsunagu on this device. External server configuration isn’t available on iOS yet."
         case .auth:
-            "Profiles are stored on this device. Tsunagu server sign-in isn’t available on iOS."
+            "Moku uses its bundled server on this device. Server sign-in isn’t available on iOS."
         case .devTools: "Developer tools aren’t available on iOS yet."
         default: ""
         }

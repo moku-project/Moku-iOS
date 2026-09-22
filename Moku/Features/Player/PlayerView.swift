@@ -8,7 +8,7 @@ struct PlayerView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
-    @Environment(\.skeletonProfileScope) private var skeletonProfile
+    @Environment(\.skeletonStorageScope) private var skeletonStorage
     @AppStorage("preferences.animations") private var animations = true
     @State private var controlsVisible = true
     @State private var panel: Panel?
@@ -133,7 +133,7 @@ struct PlayerView: View {
         .onChange(of: model.playing) { _, _ in reveal() }
         .task(id: model.chapterID) {
             let visits = SkeletonVisits.shared
-            let key = "\(skeletonProfile):player-\(model.chapterID):\(visits.generation)"
+            let key = "\(skeletonStorage):player-\(model.chapterID):\(visits.generation)"
             let delay = !reduceMotion && animations && !visits.contains(key)
             await model.load(minimumLoadingDuration: delay ? .seconds(SkeletonTiming.cycle) : .zero)
             if !Task.isCancelled && model.error == nil { visits.complete(key) }

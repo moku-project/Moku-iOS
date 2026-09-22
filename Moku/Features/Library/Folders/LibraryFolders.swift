@@ -6,7 +6,7 @@ struct LibraryFolders: ViewModifier {
     @Binding var newFolderPresented: Bool
     let model: LibraryViewModel
     let selectSaved: () -> Void
-    @Environment(ProfileLibrary.self) private var library
+    @Environment(LibraryStore.self) private var library
     @State private var draft = FolderViewModel()
     @State private var folderQuery = ""
     @FocusState private var folderNameFocused: Bool

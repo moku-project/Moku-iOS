@@ -3,12 +3,10 @@ import SwiftUI
 struct SettingsSectionView: View {
     let category: SettingsCategory
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.openProfile) private var openProfile
 
     let openExtensions: () -> Void
     @Environment(HomeStore.self) private var home
     @Environment(ReaderPreferences.self) private var readerPreferences
-    @Environment(ProfileStore.self) private var profiles
     @AppStorage("preferences.language") private var language = "all"
     @AppStorage("preferences.interfaceScale") private var interfaceScale = 100.0
     @AppStorage("preferences.idleTimeout") private var idleTimeout = 5
@@ -47,16 +45,10 @@ struct SettingsSectionView: View {
                     Text(category.availability)
                         .font(.system(size: 13)).foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    if category == .auth {
-                        Button("Manage local profiles", action: openProfile)
-                            .font(.system(size: 13)).frame(minHeight: 44)
-                    }
+
                 }
                 if let notice { Text(notice).font(.system(size: 12)).foregroundStyle(.secondary) }
-                if category.availability.isEmpty && category != .general {
-                    Text("Preferences for \(profiles.active?.name ?? "this profile")")
-                        .font(.system(size: 11)).foregroundStyle(.tertiary)
-                }
+
             }
             .padding(.horizontal, 20).padding(.top, category == .general ? 16 : 12).padding(
                 .bottom, 24
@@ -83,14 +75,14 @@ struct SettingsSectionView: View {
             switch confirmation {
             case .history:
                 Text(
-                    "Clear reading activity for this profile. Saved titles and files will be kept.")
+                    "Clear reading activity on this device. Saved titles and files will be kept.")
             case .cache:
                 Text(
-                    "Remove cached covers and temporary results. They will load again when needed. Your library, downloads, profiles, history, and source installations will be kept."
+                    "Remove cached covers and temporary results. They will load again when needed. Your library, downloads, history, and source installations will be kept."
                 )
             case .reset:
                 Text(
-                    "Restore preferences for this profile. Saved titles and reading activity will be kept."
+                    "Restore preferences on this device. Saved titles and reading activity will be kept."
                 )
             case nil: EmptyView()
             }
@@ -120,7 +112,7 @@ struct SettingsSectionView: View {
                     detail: "Fill the cover frame instead of fitting the whole image.",
                     value: $cropCovers)
             }
-            Text("Themes and display preferences are saved with this profile.").font(
+            Text("Themes and display preferences are saved on this device.").font(
                 .system(size: 12)
             )
             .foregroundStyle(.secondary)
@@ -180,7 +172,7 @@ struct SettingsSectionView: View {
             }
             .firstLoadSkeleton("storage", loading: usage == nil && notice == nil, style: .settings)
             Text(
-                "Cached covers and temporary results are shared by all profiles and stored in the iOS app sandbox. Clearing cache keeps your library, downloads, profiles, and history."
+                "Cached covers and temporary results are stored in the iOS app sandbox. Clearing cache keeps your library, downloads, and history."
             )
             .font(.system(size: 12)).foregroundStyle(.secondary)
             SettingsGroup("Preferences", symbol: "Sliders") {
@@ -201,7 +193,7 @@ struct SettingsSectionView: View {
             valueRow("Source runtime", value: "Tsunagu · on device")
             Divider()
             Text(
-                "Your profiles live in this app’s private storage. No server account or sign-in is required."
+                "Your library and activity live in this app’s private storage. No server account or sign-in is required."
             )
             .font(.system(size: 12)).foregroundStyle(.secondary).frame(
                 maxWidth: .infinity, alignment: .leading

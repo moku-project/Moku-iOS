@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 @MainActor @Observable
-final class ProfileLibrary {
+final class LibraryStore {
     private(set) var entries: [MediaEntry] = []
     private(set) var loaded = false
     private(set) var busy = false
@@ -10,13 +10,13 @@ final class ProfileLibrary {
     private(set) var organization = LibraryOrganization()
     private var organizationLoaded = false
     private var organizationBusy = false
-    private let organizationDocument: ProfileDocument<LibraryOrganization>
-    private let document: ProfileDocument<[MediaEntry]>
+    private let organizationDocument: StoredDocument<LibraryOrganization>
+    private let document: StoredDocument<[MediaEntry]>
     private var loading: Task<[MediaEntry]?, Error>?
 
     init(directory: URL) {
-        document = ProfileDocument(url: directory.appending(path: "library.json"))
-        organizationDocument = ProfileDocument(
+        document = StoredDocument(url: directory.appending(path: "library.json"))
+        organizationDocument = StoredDocument(
             url: directory.appending(path: "library-organization.json"))
     }
 
@@ -30,7 +30,7 @@ final class ProfileLibrary {
             loaded = true
             error = nil
         } catch {
-            self.error = "Couldn’t load this profile’s library."
+            self.error = "Couldn’t load your library."
             loading = nil
         }
     }
@@ -102,7 +102,7 @@ final class ProfileLibrary {
             error = nil
             return true
         } catch {
-            self.error = "Couldn’t save this profile’s library."
+            self.error = "Couldn’t save your library."
             return false
         }
     }
