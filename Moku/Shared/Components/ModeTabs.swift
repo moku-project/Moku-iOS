@@ -27,7 +27,7 @@ struct ModeTabs: View {
                     } label: {
                         Text(choice.title)
                             .font(.subheadline.weight(.medium))
-                            .foregroundStyle(.white.opacity(mode == choice ? 0.92 : 0.45))
+                            .foregroundStyle(GeneralStyle.text.opacity(mode == choice ? 0.92 : 0.5))
                             .lineLimit(1)
                             .frame(width: tabWidth, height: 44)
                             .contentShape(Rectangle())

@@ -16,9 +16,9 @@ struct DownloadGroupView: View {
                 }
             } label: {
                 HStack(spacing: 12) {
-                    PhosphorIcon("BookOpen").foregroundStyle(.secondary)
+                    CoverImage(url: group.entries.first?.coverURL, symbol: "BookOpen")
                         .frame(width: 42, height: 58)
-                        .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 5))
+                        .clipShape(RoundedRectangle(cornerRadius: 5))
                     VStack(alignment: .leading, spacing: 6) {
                         Text(group.title).font(.subheadline.weight(.semibold)).foregroundStyle(
                             .primary
@@ -29,11 +29,22 @@ struct DownloadGroupView: View {
                             ProgressView(value: active.progress).tint(NavigationStyle.accent)
                         }
                     }.frame(maxWidth: .infinity, alignment: .leading)
-                    PhosphorIcon("CaretDown").font(.caption)
+                    PhosphorIcon("CaretDown", size: 12)
                         .rotationEffect(.degrees(open ? 180 : 0)).foregroundStyle(.secondary)
                 }.padding(14).contentShape(Rectangle())
             }.buttonStyle(.plain).accessibilityIdentifier("downloads.group.\(group.id)")
                 .accessibilityValue(open ? "Expanded" : "Collapsed")
+                .contextMenu {
+                    if section != .completed {
+                        Button("Move to top", phosphor: "ArrowUp") { model.move(titleID: group.id, toTop: true) }
+                        Button("Move to bottom", phosphor: "ArrowDown") { model.move(titleID: group.id, toTop: false) }
+                    }
+                    if group.failures > 0 {
+                        Button("Retry failed", phosphor: "ArrowClockwise") { model.retry(titleID: group.id) }
+                    }
+                    Button(section == .completed ? "Delete downloads" : "Remove series downloads",
+                           phosphor: "Trash", role: .destructive) { model.remove(group.entries) }
+                }
             if open {
                 Divider().overlay(.white.opacity(0.04))
                 if group.failures > 0 {
@@ -94,6 +105,14 @@ struct DownloadGroupView: View {
                 PhosphorIcon("DownloadSimple.fill").foregroundStyle(NavigationStyle.accent)
             }
         }.padding(.horizontal, 14).padding(.vertical, 10)
+            .contentShape(Rectangle())
+            .contextMenu {
+                if entry.status == .failed {
+                    Button("Retry", phosphor: "ArrowClockwise") { model.retry(entryID: entry.id) }
+                }
+                Button(entry.status == .completed ? "Delete download" : "Remove from queue",
+                       phosphor: "Trash", role: .destructive) { model.remove([entry]) }
+            }
     }
 
     private func retryButton(_ title: String, identifier: String, action: @escaping () -> Void)

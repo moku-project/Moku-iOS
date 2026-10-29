@@ -12,6 +12,9 @@ actor BackendAPI {
         memoryLimit: 8 * 1024 * 1024, cancelWhenUnused: true,
         directory: URL.cachesDirectory.appending(path: "Moku/Results-v1"),
         diskLimit: 32 * 1024 * 1024)
+    /// Reads that include read state. Progress saves (every page turn and every
+    /// 10 s of playback) invalidate only these, in memory, instead of every result.
+    private lazy var progressQueries = ResourceCache(memoryLimit: 4 * 1024 * 1024, cancelWhenUnused: true)
     private let backend = Backend.shared
     private lazy var session = URLSession(
         configuration: .ephemeral, delegate: LocalRedirectPolicy(), delegateQueue: nil)
@@ -30,12 +33,15 @@ actor BackendAPI {
         refresh: Bool = false, requiresSourceRuntime: Bool = true
     ) async throws -> T {
         try Task.checkCancellation()
-        let mutation = query.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("mutation")
-        if mutation || refresh { await queries.clear() }
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let mutation = trimmed.hasPrefix("mutation")
+        let progressOnly = mutation && Self.isProgressMutation(trimmed)
+        let cache = Self.readsProgress(query) ? progressQueries : queries
+        if mutation || refresh { await invalidate(progressOnly: progressOnly) }
         do {
             let data: Data
             if lifetime > 0 && !mutation {
-                data = try await queries.value(for: query, lifetime: lifetime) {
+                data = try await cache.value(for: query, lifetime: lifetime) {
                     let data = try await self.fetchGraphQL(
                         query, requiresSourceRuntime: requiresSourceRuntime)
                     let _: T = try Self.decode(data)
@@ -44,12 +50,29 @@ actor BackendAPI {
             } else {
                 data = try await fetchGraphQL(query, requiresSourceRuntime: requiresSourceRuntime)
             }
-            if mutation { await queries.clear() }
+            if mutation { await invalidate(progressOnly: progressOnly) }
             return try Self.decode(data)
         } catch {
-            if mutation { await queries.clear() }
+            if mutation { await invalidate(progressOnly: progressOnly) }
             throw error
         }
+    }
+
+    private func invalidate(progressOnly: Bool) async {
+        await progressQueries.clear()
+        if !progressOnly { await queries.clear() }
+    }
+
+    private nonisolated static func isProgressMutation(_ mutation: String) -> Bool {
+        let body = mutation.dropFirst("mutation".count)
+            .drop { $0 == " " || $0 == "{" || $0.isNewline }
+        return ["updateReadingProgress", "markChapterRead", "markChaptersRead"]
+            .contains { body.hasPrefix($0) }
+    }
+
+    private nonisolated static func readsProgress(_ query: String) -> Bool {
+        ["completed", "readingProgress", "unreadCount", "nextUnreadChapter"]
+            .contains { query.contains($0) }
     }
 
     private func fetchGraphQL(_ query: String, requiresSourceRuntime: Bool) async throws -> Data {
@@ -65,8 +88,7 @@ actor BackendAPI {
     private nonisolated static func decode<T: Decodable & Sendable>(_ data: Data) throws -> T {
         let envelope = try JSONDecoder().decode(Envelope<T>.self, from: data)
         if let errors = envelope.errors, !errors.isEmpty {
-            throw EmbeddedSearchError.message(
-                "The source could not complete the request. Check your connection and try again.")
+            throw EmbeddedSearchError.message(Self.describe(errors.first?.extensions?.code))
         }
         guard let result = envelope.data else {
             throw EmbeddedSearchError.message("The source returned an empty response. Try again.")
@@ -137,6 +159,20 @@ actor BackendAPI {
         }
     }
 
+    /// Novel chapter text from `/content/{media}/{chapter}/text`. The server sanitizes HTML.
+    func chapterText(mediaID: String, chapterID: String) async throws -> (text: String, isHTML: Bool) {
+        let connection = try await backend.connection()
+        let request = try connection.contentRequest(path: "/content/\(mediaID)/\(chapterID)/text")
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200,
+            let text = String(data: data, encoding: .utf8)
+        else {
+            throw EmbeddedSearchError.message("Couldn’t load this chapter. Check your connection and try again.")
+        }
+        try Task.checkCancellation()
+        return (text, http.mimeType?.contains("html") == true)
+    }
+
     func readerPageData(path: String) async throws -> Data {
         let connection = try await backend.connection()
         // Only use backend-returned content paths; keep source cookies and headers in its proxy.
@@ -153,12 +189,13 @@ actor BackendAPI {
 
     func trimMemory() async {
         await queries.trimMemory()
+        await progressQueries.trimMemory()
         await coverCache.trimMemory()
         await CoverImagePipeline.shared.trimMemory()
     }
 
     func clearContentCache() async {
-        await queries.clear()
+        await invalidate(progressOnly: false)
         await clearCoverCache()
     }
 
@@ -176,7 +213,24 @@ actor BackendAPI {
         let data: T?
         let errors: [GraphQLError]?
     }
-    private struct GraphQLError: Decodable { let message: String }
+    private struct GraphQLError: Decodable {
+        struct Extensions: Decodable { let code: String? }
+        let message: String
+        let extensions: Extensions?
+    }
+
+    /// Desktop `sourceErrors` labels, keyed by the server's error code.
+    private nonisolated static func describe(_ code: String?) -> String {
+        switch code {
+        case "SOURCE_CLOUDFLARE":
+            "This source is behind Cloudflare protection. Try again later, or set a Cloudflare solver in Settings → Server."
+        case "SOURCE_NOT_FOUND": "The source no longer has this title or chapter."
+        case "SOURCE_UNAVAILABLE", "SOURCE_NETWORK": "The source is unreachable right now. Check your connection and try again."
+        case "SOURCE_RATE_LIMITED": "The source is rate limiting requests. Wait a minute and try again."
+        case "SOURCE_PARSE": "The source changed and the extension may need updating. Check More → Extensions for an update."
+        default: "The source could not complete the request. Check your connection and try again."
+        }
+    }
 }
 
 private final class LocalRedirectPolicy: NSObject, URLSessionTaskDelegate, Sendable {

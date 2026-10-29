@@ -133,7 +133,7 @@ struct HomeHeroCard: View {
         HStack(spacing: 8) {
             if let onLibrary {
                 Button { onLibrary(entry) } label: {
-                    PhosphorIcon("Books").font(.title2).frame(width: 48, height: 48)
+                    PhosphorIcon("Books", size: 22).frame(width: 48, height: 48)
                 }
                 .buttonStyle(.plain)
                 .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 14))
@@ -173,7 +173,7 @@ struct HomeHeroCard: View {
                 Button {
                     onDetails(entry)
                 } label: {
-                    PhosphorIcon("Info").font(.title2).frame(
+                    PhosphorIcon("Info", size: 22).frame(
                         width: 44, height: 48)
                 }
                 .buttonStyle(.plain).accessibilityLabel("Title details")

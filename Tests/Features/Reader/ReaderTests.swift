@@ -128,16 +128,25 @@ import UIKit
         }
     }
     @Test func imageDecodeBoundsPixelsAndPreservesOriginalGeometry() async throws {
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 1
-        let data = UIGraphicsImageRenderer(size: CGSize(width: 4096, height: 128), format: format)
-            .pngData { context in
-                UIColor.white.setFill()
-                context.fill(CGRect(x: 0, y: 0, width: 4096, height: 128))
-            }
-        let image = try await PageDecoder.shared.decode(data)
-        #expect((image.cgImage?.width ?? 9999) <= 2048)
-        #expect(abs(image.size.width - 4096) < 1)
+        func png(_ width: CGFloat, _ height: CGFloat) -> Data {
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 1
+            return UIGraphicsImageRenderer(size: CGSize(width: width, height: height), format: format)
+                .pngData { context in
+                    UIColor.white.setFill()
+                    context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+                }
+        }
+        // Large pages stay within the decoded pixel budget, at the original point size.
+        let large = try await PageDecoder.shared.decode(png(6000, 6000))
+        let pixels = (large.cgImage?.width ?? 0) * (large.cgImage?.height ?? 0)
+        #expect(pixels <= 8_100_000)
+        #expect(abs(large.size.width - 6000) < 1)
+        // Tall webtoon strips keep a readable width instead of a 2048 px long side.
+        let strip = try await PageDecoder.shared.decode(png(800, 12000))
+        #expect((strip.cgImage?.width ?? 0) >= 600)
+        // Scale comes from the rounded decoded width, so allow 0.1 % on the long side.
+        #expect(abs(strip.size.height - 12000) < 12)
     }
     @Test func desktopReaderIconsAreBundled() throws {
         for name in [

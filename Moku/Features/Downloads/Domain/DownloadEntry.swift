@@ -41,6 +41,7 @@ struct DownloadEntry: Identifiable, Equatable, Sendable {
     var progress: Double = 0
     var bytes: Int64 = 0
     var completedAt: Date?
+    var coverURL: URL? = nil
 }
 
 struct DownloadGroup: Identifiable {

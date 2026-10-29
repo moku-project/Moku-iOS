@@ -86,6 +86,12 @@ struct PlayerMenu: View {
                             }
                         }
                     }
+                    // Desktop "Stream info".
+                    Text("STREAM").font(.system(size: 10, design: .monospaced)).foregroundStyle(.secondary)
+                        .padding(12)
+                    Text(model.streamInfo).font(.system(size: 12, design: .monospaced))
+                        .foregroundStyle(.secondary).padding(.horizontal, 12).padding(.bottom, 8)
+                        .accessibilityLabel("Stream: \(model.streamInfo)")
                 }
             }.padding(4)
         }

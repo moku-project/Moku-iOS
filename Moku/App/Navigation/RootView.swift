@@ -4,7 +4,13 @@ struct RootView: View {
     @State private var pillDropdownOpen = false
     @State private var libraryPopupPresented = false
     @State private var scrollNavigation = NavigationState()
-    @State private var navigation = RootNavigation()
+    @State private var navigation: RootNavigation = {
+        // Desktop "Default view". Read once at launch; changing it applies next time.
+        let navigation = RootNavigation()
+        let stored = AppDataStore.shared.preferences.string(forKey: "preferences.startTab")
+        if let tab = stored.flatMap(AppTab.init(rawValue:)), tab != .more { navigation.selection = tab }
+        return navigation
+    }()
     let homeStore: HomeStore
     @AppStorage("preferences.language") private var sourceLanguage = "all"
     @State private var downloadsModel = DownloadsViewModel.makeDefault()
@@ -25,6 +31,14 @@ struct RootView: View {
     }
 
     @State private var searchKeyboardVisible = false
+    @AppStorage("onboarding.completed") private var onboarded = false
+    @AppStorage("whatsNew.seenVersion") private var seenVersion = ""
+    /// UI tests and previews start inside the app, not on the welcome screen.
+    private static let skipsOnboarding: Bool = {
+        let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains("--ui-testing-onboarding") { return false }
+        return PreviewMode.isEnabled || arguments.contains { $0.hasPrefix("--ui-testing") || $0 == "--acceptance" }
+    }()
 
     private var tabSelection: Binding<AppTab> {
         Binding(get: { navigation.selection }, set: { navigation.select($0, language: sourceLanguage) })
@@ -179,6 +193,28 @@ struct RootView: View {
             }
         }
         .background(NavigationStyle.background.ignoresSafeArea())
+        .fullScreenCover(isPresented: Binding(get: { !onboarded && !Self.skipsOnboarding }, set: { _ in })) {
+            OnboardingView(
+                openExtensions: {
+                    navigation.morePath = [.extensions]
+                    navigation.selection = .more
+                },
+                openSettings: { navigation.accountPage = .settings },
+                finish: {
+                    onboarded = true
+                    // A fresh install has nothing "new" to show after onboarding.
+                    seenVersion = WhatsNew.current
+                })
+        }
+        .sheet(isPresented: Binding(
+            get: { onboarded && !Self.skipsOnboarding && seenVersion != WhatsNew.current
+                && WhatsNew.releases.contains { $0.version == WhatsNew.current } },
+            set: { if !$0 { seenVersion = WhatsNew.current } })
+        ) {
+            if let release = WhatsNew.releases.first(where: { $0.version == WhatsNew.current }) {
+                WhatsNewView(release: release) { seenVersion = WhatsNew.current }
+            }
+        }
         .environment(\.openSettings) {
             dismissNavigationPopups()
             navigation.accountPage = .settings

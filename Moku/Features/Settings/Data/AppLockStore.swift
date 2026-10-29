@@ -63,7 +63,9 @@ import SwiftUI
         guard status == errSecSuccess, let data = result as? Data else { throw LockError.storage }
         return try JSONDecoder().decode(Credential.self, from: data)
     }
-    private func digest(_ pin: String, salt: Data) throws -> Data {
+    private func digest(_ pin: String, salt: Data) throws -> Data { try Self.digest(pin, salt: salt) }
+    /// 100k PBKDF2 rounds take a noticeable moment; unlocking runs this off the main actor.
+    private nonisolated static func digest(_ pin: String, salt: Data) throws -> Data {
         let password = Array(pin.utf8)
         var result = [UInt8](repeating: 0, count: 32)
         let status = salt.withUnsafeBytes { saltBytes in
@@ -104,8 +106,11 @@ import SwiftUI
             return false
         }
         guard !pin.isEmpty, let value = try? credential(), let hash = try? digest(pin, salt: value.salt) else { return false }
-        let difference = zip(hash, value.digest).reduce(UInt8(0)) { $0 | ($1.0 ^ $1.1) }
-        if difference == 0 && hash.count == value.digest.count {
+        return record(hash: hash, expected: value.digest)
+    }
+    private func record(hash: Data, expected: Data) -> Bool {
+        let difference = zip(hash, expected).reduce(UInt8(0)) { $0 | ($1.0 ^ $1.1) }
+        if difference == 0 && hash.count == expected.count {
             defaults.removeObject(forKey: "appLock.attempts")
             defaults.removeObject(forKey: "appLock.retryAt")
             notice = nil
@@ -117,7 +122,19 @@ import SwiftUI
         notice = "Incorrect PIN."
         return false
     }
-    func unlock(pin: String) { if verify(pin) { unlock() } }
+    func unlock(pin: String) {
+        if Date().timeIntervalSince1970 < defaults.double(forKey: "appLock.retryAt") {
+            notice = "Too many attempts. Try again in a minute."
+            return
+        }
+        guard !pin.isEmpty, let value = try? credential() else { return }
+        let salt = value.salt
+        Task {
+            let hash = await Task.detached(priority: .userInitiated) { try? Self.digest(pin, salt: salt) }.value
+            guard let hash else { return }
+            if record(hash: hash, expected: value.digest) { unlock() }
+        }
+    }
     func authenticate() async {
         guard biometrics, enabled, locked else { return }
         let context = LAContext()
@@ -168,19 +185,54 @@ import SwiftUI
 private struct AppLockGate: View {
     @Bindable var model: AppLockStore
     @State private var pin = ""
+    @FocusState private var focused: Bool
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            GeneralSection("Unlock Moku") {
-                GeneralRow("PIN", detail: "") { SecureField("PIN", text: $pin).keyboardType(.numberPad).generalInput().frame(width: 150) }
-                GeneralRow("App lock", detail: model.notice ?? "") {
-                    Button("Unlock") { model.unlock(pin: pin); pin = "" }.buttonStyle(GeneralTextButtonStyle())
-                }
-                if model.biometrics {
-                    Button("Use Face ID / Touch ID") { Task { await model.authenticate() } }.buttonStyle(GeneralTextButtonStyle())
-                }
+        VStack(spacing: 22) {
+            Spacer()
+            Image("MokuMark").resizable().scaledToFit().frame(width: 52, height: 52)
+                .foregroundStyle(NavigationStyle.accent)
+                .accessibilityHidden(true)
+            Text("Moku is locked").font(.title2.weight(.semibold)).accessibilityAddTraits(.isHeader)
+            SecureField("PIN", text: $pin)
+                .keyboardType(.numberPad).textContentType(.oneTimeCode)
+                .multilineTextAlignment(.center).font(.title3.monospacedDigit())
+                .padding(.vertical, 12).frame(maxWidth: 220)
+                .background(NavigationStyle.surface, in: RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(GeneralStyle.border))
+                .focused($focused)
+                .onSubmit(unlock)
+                .accessibilityIdentifier("appLock.pin")
+            if let notice = model.notice {
+                Text(notice).font(.footnote).foregroundStyle(GeneralStyle.label)
+                    .multilineTextAlignment(.center)
             }
-        }.padding(20).frame(maxWidth: 640).frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(NavigationStyle.background.ignoresSafeArea()).preferredColorScheme(.dark)
-            .accessibilityAddTraits(.isModal)
+            Button("Unlock", action: unlock)
+                .font(.headline).foregroundStyle(NavigationStyle.background)
+                .frame(maxWidth: 220, minHeight: 48)
+                .background(NavigationStyle.accent, in: RoundedRectangle(cornerRadius: 12))
+                .buttonStyle(.plain)
+                .disabled(pin.isEmpty)
+            if model.biometrics {
+                Button("Use Face ID / Touch ID") { Task { await model.authenticate() } }
+                    .font(.subheadline).foregroundStyle(NavigationStyle.accent).frame(minHeight: 44)
+            }
+            Spacer()
+            Spacer()
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .foregroundStyle(GeneralStyle.text)
+        .background(NavigationStyle.background.ignoresSafeArea()).themedColorScheme()
+        .accessibilityAddTraits(.isModal)
+        .task {
+            // Desktop prompts Windows Hello straight away; do the same with Face ID.
+            if model.biometrics { await model.authenticate() } else { focused = true }
+        }
+    }
+
+    private func unlock() {
+        guard !pin.isEmpty else { return }
+        model.unlock(pin: pin)
+        pin = ""
     }
 }

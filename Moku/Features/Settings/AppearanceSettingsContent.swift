@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct NativeTheme: Codable, Identifiable, Equatable, Sendable {
     var id = UUID().uuidString
@@ -66,6 +67,10 @@ struct AppearanceSettingsContent: View {
                         OverflowMenu {
                             Button("Apply") { theme = item.id; system = false }
                             Button("Edit") { draft = item }
+                            Button("Copy as JSON") {
+                                UIPasteboard.general.string = item.desktopJSON
+                                Toaster.shared.show("Theme copied", detail: "Paste it into Moku desktop’s theme editor or another device.")
+                            }
                             Button("Delete", role: .destructive) {
                                 saveThemes(NativeTheme.custom(custom).filter { $0.id != item.id })
                                 if theme == item.id { theme = "midnight" }
@@ -76,6 +81,17 @@ struct AppearanceSettingsContent: View {
                     }
                     GeneralStyle.divider
                 }
+                GeneralRow("Import theme", detail: "Paste a theme copied from Moku desktop or another device.") {
+                    Button("Paste") {
+                        guard let text = UIPasteboard.general.string, let imported = NativeTheme(desktopJSON: text) else {
+                            Toaster.shared.show("No theme on the clipboard", detail: "Copy a theme’s JSON first.", kind: .error)
+                            return
+                        }
+                        saveThemes(NativeTheme.custom(custom) + [imported])
+                        Toaster.shared.show("Imported \(imported.name)")
+                    }.buttonStyle(GeneralTextButtonStyle())
+                }
+                GeneralStyle.divider
                 GeneralRow("Custom palette", detail: "Create a theme from the current colors.") {
                     Button("Create") {
                         var value = NativeTheme.resolve(theme, custom: custom)
@@ -139,5 +155,40 @@ private struct ThemeEditor: View {
         GeneralRow(title, detail: "") {
             ColorPicker(title, selection: Binding(get: { Color(themeHex: value[keyPath: key]) }, set: { value[keyPath: key] = $0.themeHex }), supportsOpacity: false).labelsHidden()
         }
+    }
+}
+
+/// Desktop ThemeEditor's JSON (`{ id, name, tokens }`), so themes move between apps.
+extension NativeTheme {
+    var desktopJSON: String {
+        let tokens = [
+            "bg-void": background, "bg-base": background, "bg-surface": surface, "bg-raised": surface,
+            "border-base": border, "text-primary": text, "text-secondary": secondary,
+            "text-muted": muted, "accent": accent, "accent-fg": accent,
+        ]
+        let object: [String: Any] = ["id": "custom:\(id)", "name": name, "tokens": tokens]
+        let data = (try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys])) ?? Data()
+        return String(decoding: data, as: UTF8.self)
+    }
+
+    init?(desktopJSON text: String) {
+        guard let object = try? JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any],
+            let tokens = object["tokens"] as? [String: String]
+        else { return nil }
+        func hex(_ keys: String...) -> String? {
+            keys.lazy.compactMap { tokens[$0] }.first { $0.hasPrefix("#") && ($0.count == 7) }
+        }
+        guard let background = hex("bg-void", "bg-base"), let text = hex("text-primary") else { return nil }
+        self.init(name: (object["name"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "Imported theme")
+        self.background = background
+        self.text = text
+        surface = hex("bg-raised", "bg-surface") ?? surface
+        accent = hex("accent-fg", "accent") ?? accent
+        secondary = hex("text-secondary") ?? secondary
+        muted = hex("text-muted") ?? muted
+        border = hex("border-base", "border-strong") ?? border
+        let value = UInt32(background.dropFirst(), radix: 16) ?? 0
+        let luminance = 0.2126 * Double(value >> 16 & 255) + 0.7152 * Double(value >> 8 & 255) + 0.0722 * Double(value & 255)
+        isLight = luminance > 140
     }
 }

@@ -12,6 +12,14 @@ protocol ExtensionRepository: Sendable {
     func preferences(package: String) async throws -> [SourcePreference]
     func savePreference(package: String, key: String, value: String) async throws
         -> [SourcePreference]
+    /// Desktop "Install from URL": an APK/JAR outside any repository.
+    func installExternal(url: String) async throws
+}
+
+extension ExtensionRepository {
+    func installExternal(url: String) async throws {
+        throw EmbeddedSearchError.message("Installing from a URL isn’t available here.")
+    }
 }
 
 enum RepositoryAction: String, Sendable { case syncRepository, renameRepository, deleteRepository }

@@ -38,6 +38,9 @@ struct LibraryFilters: View {
                 SearchOptionChoice(
                     title: "Starred", symbol: "Star", selected: optionDraft.bookmarkedOnly
                 ) { optionDraft.bookmarkedOnly.toggle() }
+                SearchOptionChoice(
+                    title: "Tracked", symbol: "Broadcast", selected: optionDraft.trackedOnly
+                ) { optionDraft.trackedOnly.toggle() }
             }
             SearchOptionSection(title: "Status") {
                 SearchOptionChoice(

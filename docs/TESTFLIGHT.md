@@ -15,7 +15,10 @@ holder. Nothing here has been uploaded, and no signing credentials were changed.
 | Launch screen | `UILaunchScreen` with the `LaunchBackground` colour (Midnight theme `#080808`) |
 | Export compliance | `ITSAppUsesNonExemptEncryption = NO` in `Configuration/Info.plist` |
 | Privacy manifest | `Moku/Resources/PrivacyInfo.xcprivacy`: no tracking, no collected data; required-reason APIs declared |
-| Usage strings | `NSFaceIDUsageDescription` (app lock). No camera, photos, location, contacts, microphone or tracking APIs are used. |
+| Usage strings | `NSFaceIDUsageDescription` (app lock), `NSLocalNetworkUsageDescription` (desktop sync). No camera, photos, location, contacts, microphone or tracking APIs are used. |
+| Background modes | `audio` (anime playback and Picture in Picture), `processing` (`com.moku.app.maintenance`: library updates and the download queue while idle) |
+| Bonjour | `NSBonjourServices`: `_moku._tcp` (finding Moku desktop on the local network) |
+| Notifications | Local only (new chapters found in background updates), asked when the user turns that option on. No push. |
 | Category | Books (`LSApplicationCategoryType`) |
 | Release archive | `xcodebuild archive` (Release, `generic/platform=iOS`) succeeds; app bundle is about 210 MB before App Store thinning |
 
@@ -56,6 +59,8 @@ commit will not resolve.
    ID above, SKU `moku-ios`.
 3. App Privacy → **Data Not Collected**. The app has no analytics. AniList and
    MyAnimeList sync only send data to those services when the user signs in.
+   Desktop sync is peer to peer on the user's own network, to their own
+   computer; no developer server is involved.
 4. Age rating: answer the content questions honestly. Sources are user-added
    and can include mature content, so expect 17+.
 
@@ -82,7 +87,8 @@ If it does:
 
 - Uses encryption? **Yes, only exempt encryption**: HTTPS/TLS through the OS,
   the Go standard library and the bundled JVM, plus PBKDF2 hashing of the local
-  app-lock PIN (authentication).
+  app-lock PIN (authentication). Desktop sync uses HTTP on the local network
+  with a password session; no custom cryptography.
 - Proprietary or non-standard algorithms? **No**.
 - No French declaration or CCATS is needed.
 
@@ -108,7 +114,15 @@ Suggested Beta App Review notes:
 > No account is required.
 
 Test information for testers: "Add a repository URL in More → Extensions →
-menu → Repositories, install a source, then Search."
+menu → Repositories, install a source, then Search. To sync with Moku on your
+computer, turn on Settings → Auth → Phone sync there (needs a server
+password), then connect in the app's Settings → Sync."
+
+If Beta App Review asks about the background modes: `audio` keeps anime
+episodes playing with the screen locked and in Picture in Picture;
+`processing` lets the app finish the user's download queue and check their
+library for new chapters while the phone is idle. Both are user-initiated
+features, and background updates are off by default.
 
 ## 6. Before tagging a build
 
@@ -130,6 +144,15 @@ menu → Repositories, install a source, then Search."
 - **Upstream drift.** Tsunagu `upstream/main` is about 60 commits ahead of the iOS fork. Only
   source-compatibility fixes were cherry-picked; see the `testflight-ready` branch log.
 
+## Desktop sync
+
+- Requires the desktop build from the `Moku` repo's `testflight-ready` branch: Settings →
+  Auth → Phone sync. That branch hasn't been built or run yet (see the ledger).
+- The pairing is kept in the Keychain. **Unsigned simulator builds have no Keychain
+  entitlement**, so there the pairing lasts only until the app quits. Signed builds keep it.
+- Tested end to end on the simulator against a Tsunagu server on this Mac. Bonjour
+  discovery between two real machines hasn't been tested.
+
 ## Layout coverage
 
 Checked on simulators on 2026-10-28:
@@ -144,6 +167,11 @@ Checked on simulators on 2026-10-28:
 | Home, Downloads, Recent, Tracking, About, Settings | ✅ | – | – |
 
 **Not verified. Check on a device or in Xcode Previews before inviting external testers:**
+- Picture in Picture (the simulator reports it isn't possible for the fixture stream), lock-screen
+  controls, and background audio with the screen off.
+- Background updates/downloads (`BGProcessingTask`): trigger with the debugger,
+  `e -l objc -- (void)[[BGTaskScheduler sharedScheduler] _simulateLaunchForTaskWithIdentifier:@"com.moku.app.maintenance"]`.
+- The novel reader with a real LNReader source; the light themes across all screens.
 - Every "–" above, especially Search shelves and Details on the 375-pt-wide SE (long titles,
   three-across cover shelves) and iPad multitasking (Split View / Stage Manager at compact width).
 - Landscape on iPhone and iPad (both are enabled in Info.plist).

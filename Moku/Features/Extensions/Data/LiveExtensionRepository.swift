@@ -59,6 +59,13 @@ struct LiveExtensionRepository: ExtensionRepository {
         let _: Mutation = try await api.graphql(
             "mutation { \(action.rawValue)(packageName: \(BackendAPI.literal(package))) { id } }")
     }
+    func installExternal(url: String) async throws {
+        guard let parsed = URL(string: url), parsed.scheme == "https" else {
+            throw EmbeddedSearchError.message("Use an https:// link to an APK or JAR file.")
+        }
+        let _: IgnoredGraphQLResult = try await api.graphql(
+            "mutation { installExternalExtension(url: \(BackendAPI.literal(parsed.absoluteString))) { id } }")
+    }
     func preferences(package: String) async throws -> [SourcePreference] {
         let result: Preferences = try await api.graphql(
             "{ sourcePreferences(extensionId: \(BackendAPI.literal(package))) { \(Self.preferenceFields) } }"

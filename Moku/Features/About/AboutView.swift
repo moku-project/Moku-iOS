@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Version, project links, open-source notices and the content disclaimer.
 struct AboutView: View {
@@ -46,8 +47,8 @@ struct AboutView: View {
                 GeneralSection("Project") {
                     link("GitHub", detail: "moku-project/Moku-iOS",
                         url: "https://github.com/moku-project/Moku-iOS")
-                    link("Report an issue", detail: "Bugs and feature requests",
-                        url: "https://github.com/moku-project/Moku-iOS/issues")
+                    link("Report an issue", detail: "Opens a GitHub issue with your app and iOS version filled in",
+                        url: IssueReport.url.absoluteString)
                     link("Website", detail: "moku-project.github.io",
                         url: "https://moku-project.github.io/")
                     link("Discord", detail: "Join the community",
@@ -92,3 +93,31 @@ struct AboutView: View {
         AboutView().preferredColorScheme(.dark)
     }
 #endif
+
+/// Desktop BugReporter, trimmed for iOS: a prefilled GitHub issue carrying only
+/// the app build, iOS version and device model. No settings or library data.
+enum IssueReport {
+    @MainActor static var url: URL {
+        let info = Bundle.main.infoDictionary
+        let version = "\(info?["CFBundleShortVersionString"] as? String ?? "?") (\(info?["CFBundleVersion"] as? String ?? "?"))"
+        var system = utsname()
+        uname(&system)
+        let model = withUnsafeBytes(of: &system.machine) { String(decoding: $0.prefix { $0 != 0 }, as: UTF8.self) }
+        let body = """
+        **What happened**
+
+
+        **Steps to reproduce**
+        1.
+
+        **Expected**
+
+
+        ---
+        Moku for iOS \(version) · iOS \(UIDevice.current.systemVersion) · \(model)
+        """
+        var parts = URLComponents(string: "https://github.com/moku-project/Moku-iOS/issues/new")!
+        parts.queryItems = [URLQueryItem(name: "body", value: body)]
+        return parts.url!
+    }
+}

@@ -5,11 +5,20 @@ struct Chapter: Decodable, Sendable, Identifiable, Equatable {
     let title: String?
     let number: Double?
     let scanlator: String?
-    let completed: Bool
-    let downloaded: Bool
+    var completed: Bool
+    var downloaded: Bool
     var uploadedAt: String? = nil
     var sourceOrder: Int? = nil
     var label: String { title ?? number.map { "Chapter \($0.formatted())" } ?? "Chapter" }
+    var uploadedDate: String? {
+        guard let uploadedAt, let date = Self.parse(uploadedAt) else { return nil }
+        return date.formatted(date: .abbreviated, time: .omitted)
+    }
+
+    private static func parse(_ value: String) -> Date? {
+        if let date = try? Date(value, strategy: .iso8601) { return date }
+        return try? Date(value, strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true))
+    }
 }
 
 /// Shared by Home and Details so a title keeps the same release selection.
@@ -53,16 +62,49 @@ struct ChapterDisplayPreferences: Codable, Equatable {
     }
 }
 
+/// Desktop SeriesActions sort modes.
+enum ChapterSort: String, CaseIterable, Identifiable, Sendable {
+    case number, source, uploaded
+    var id: Self { self }
+    var title: String {
+        switch self {
+        case .number: "Chapter number"
+        case .source: "Source order"
+        case .uploaded: "Upload date"
+        }
+    }
+}
+
 /// Pure list preparation runs outside SwiftUI's rendering transaction.
 enum ChapterPresentation {
     nonisolated static func filtered(
-        _ chapters: [Chapter], preferences: Data, mediaID: String, query: String, ascending: Bool
+        _ chapters: [Chapter], preferences: Data, mediaID: String, query: String, ascending: Bool,
+        sort: ChapterSort = .number
     ) async -> [Chapter] {
-        ChapterDisplayPreferences.read(preferences, id: mediaID).apply(chapters).filter {
+        let list = ChapterDisplayPreferences.read(preferences, id: mediaID).apply(chapters).filter {
             query.isEmpty || $0.label.localizedCaseInsensitiveContains(query)
-        }.sorted {
-            // Stable sorting preserves the preferred release group for equal numbers.
-            return ascending ? ($0.number ?? 0) < ($1.number ?? 0) : ($0.number ?? 0) > ($1.number ?? 0)
         }
+        // Stable sorting preserves the preferred release group for equal keys.
+        switch sort {
+        case .number:
+            return list.sorted {
+                ascending ? ($0.number ?? 0) < ($1.number ?? 0) : ($0.number ?? 0) > ($1.number ?? 0)
+            }
+        case .source:
+            // Sources list newest first, so ascending (oldest first) is the reverse.
+            return list.sorted {
+                ascending ? ($0.sourceOrder ?? 0) > ($1.sourceOrder ?? 0) : ($0.sourceOrder ?? 0) < ($1.sourceOrder ?? 0)
+            }
+        case .uploaded:
+            return list.sorted {
+                ascending ? ($0.uploadedAt ?? "") < ($1.uploadedAt ?? "") : ($0.uploadedAt ?? "") > ($1.uploadedAt ?? "")
+            }
+        }
+    }
+
+    /// Reading order is oldest first by chapter number, after release-group preferences.
+    nonisolated static func readingOrder(_ chapters: [Chapter], preferences: Data, mediaID: String) -> [Chapter] {
+        ChapterDisplayPreferences.read(preferences, id: mediaID).apply(chapters)
+            .sorted { ($0.number ?? 0) < ($1.number ?? 0) }
     }
 }

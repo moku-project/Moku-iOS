@@ -18,6 +18,7 @@ final class LibraryViewModel {
     var startedOnly = false { didSet { if startedOnly != oldValue { invalidateResults() } } }
     var downloadedOnly = false { didSet { if downloadedOnly != oldValue { invalidateResults() } } }
     var bookmarkedOnly = false { didSet { if bookmarkedOnly != oldValue { invalidateResults() } } }
+    var trackedOnly = false { didSet { if trackedOnly != oldValue { invalidateResults() } } }
     var status: LibraryStatus? { didSet { if status != oldValue { invalidateResults() } } }
     var selecting = false
     var selected: Set<String> = []
@@ -32,7 +33,7 @@ final class LibraryViewModel {
     }
 
     var hasFilters: Bool {
-        unreadOnly || startedOnly || downloadedOnly || bookmarkedOnly
+        unreadOnly || startedOnly || downloadedOnly || bookmarkedOnly || trackedOnly
             || status != nil
     }
 
@@ -61,6 +62,7 @@ final class LibraryViewModel {
         startedOnly = false
         downloadedOnly = false
         bookmarkedOnly = false
+        trackedOnly = false
         status = nil
     }
 
@@ -74,7 +76,7 @@ final class LibraryViewModel {
                          showAllInSaved: showAllInSaved, hideCompletedInSaved: hideCompletedInSaved,
                          disableAutoComplete: disableAutoComplete, folderEntryIDs: folderEntryIDs,
                          unreadOnly: unreadOnly, startedOnly: startedOnly, downloadedOnly: downloadedOnly,
-                         bookmarkedOnly: bookmarkedOnly, status: status)
+                         bookmarkedOnly: bookmarkedOnly, trackedOnly: trackedOnly, status: status)
     }
 
     func prepareVisible(mode: ContentMode) async -> [LibraryItem] {
@@ -108,6 +110,7 @@ private struct LibrarySelection: Sendable {
     let startedOnly: Bool
     let downloadedOnly: Bool
     let bookmarkedOnly: Bool
+    let trackedOnly: Bool
     let status: LibraryStatus?
 
     func evaluate() -> [LibraryItem] {
@@ -122,6 +125,7 @@ private struct LibrarySelection: Sendable {
                     && (!startedOnly || $0.hasStarted)
                     && (!downloadedOnly || $0.downloaded)
                     && (!bookmarkedOnly || $0.bookmarked)
+                    && (!trackedOnly || $0.tracked)
                     && (status == nil || $0.status == status)
             }.sorted { lhs, rhs in
                 try Task.checkCancellation()
@@ -132,6 +136,7 @@ private struct LibrarySelection: Sendable {
                 case .total: order = compare(lhs.totalUnits, rhs.totalUnits)
                 case .added: order = lhs.addedAt.compare(rhs.addedAt)
                 case .read: order = lhs.lastRead.compare(rhs.lastRead)
+                case .uploaded: order = lhs.latestUpload.compare(rhs.latestUpload)
                 }
                 if order == .orderedSame { return lhs.id < rhs.id }
                 return ascending ? order == .orderedAscending : order == .orderedDescending

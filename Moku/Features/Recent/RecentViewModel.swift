@@ -39,6 +39,7 @@ import Observation
             loading = false
             refreshing = false
         }
+        if repository.hasServerFeed, let feed = await loadFromServer(refresh: refresh) { return feed }
         let previous = updates
         var result: [RecentUpdate] = []
         var newCount = 0
@@ -85,6 +86,50 @@ import Observation
         return failedTitles.isEmpty
     }
 
+    var currentTitle: String?
+
+    /// Desktop behaviour: the server updates the whole library (respecting
+    /// folder "include in updates" flags) and records what was new.
+    /// Returns nil when the repository has no server feed.
+    private func loadFromServer(refresh: Bool) async -> Bool? {
+        do {
+            if refresh {
+                try await repository.startLibraryUpdate()
+                try await Task.sleep(for: .milliseconds(300))
+                var status = try await repository.libraryUpdateStatus()
+                while status.running {
+                    total = status.total
+                    done = status.done
+                    currentTitle = status.currentTitle
+                    try await Task.sleep(for: .seconds(1))
+                    status = try await repository.libraryUpdateStatus()
+                }
+                done = status.done
+                total = status.total
+                currentTitle = nil
+                failedTitles = status.failedTitles
+                let count = status.newChapterCount
+                Toaster.shared.show(
+                    failedTitles.isEmpty ? "Library update complete" : "\(failedTitles.count) series failed to update",
+                    detail: count == 0 ? "Nothing new." : "\(count) new chapter\(count == 1 ? "" : "s") or episode\(count == 1 ? "" : "s").",
+                    kind: failedTitles.isEmpty ? .success : .error)
+            }
+            guard let feed = try await repository.serverFeed() else { return nil }
+            guard !Task.isCancelled else { return false }
+            updates = feed
+            if !failedTitles.isEmpty {
+                error = "Couldn’t update \(failedTitles.count) title(s): \(failedTitles.prefix(5).joined(separator: ", "))."
+            }
+            return failedTitles.isEmpty
+        } catch is CancellationError {
+            return false
+        } catch {
+            guard !Task.isCancelled else { return false }
+            self.error = "Couldn’t load library updates. Check your connection and try again."
+            return false
+        }
+    }
+
     func act(on update: RecentUpdate, delete: Bool) async {
         guard busy.insert(update.id).inserted else { return }
         defer { busy.remove(update.id) }
@@ -98,7 +143,7 @@ import Observation
             } else {
                 queued.insert(update.id)
             }
-            notice = delete ? "Download deleted." : "Download queued."
+            Toaster.shared.show(delete ? "Download deleted" : "Download queued", kind: delete ? .success : .download)
         } catch {
             notice =
                 delete

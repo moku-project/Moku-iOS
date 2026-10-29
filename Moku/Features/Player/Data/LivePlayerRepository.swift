@@ -52,4 +52,12 @@ struct LivePlayerRepository: PlayerRepository {
                 durationSeconds: \(duration)) { progress } }
             """)
     }
+
+    func skipMarkers(chapterID: String, lengthMs: Int) async throws -> [SkipMarker] {
+        struct Response: Decodable, Sendable { let skipTimestamps: [SkipMarker] }
+        let response: Response = try await BackendAPI.shared.graphql(
+            "{ skipTimestamps(chapterId: \(BackendAPI.literal(chapterID)), episodeLengthMs: \(lengthMs)) { type name startMs endMs } }",
+            cacheFor: 3600, requiresSourceRuntime: false)
+        return response.skipTimestamps.filter { $0.endMs > $0.startMs }
+    }
 }

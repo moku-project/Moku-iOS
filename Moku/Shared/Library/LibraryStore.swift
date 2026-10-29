@@ -195,8 +195,13 @@ final class LibraryStore {
             guard let serverID = folder.serverID else { continue }
             let id = BackendAPI.literal(serverID)
             if old?.name != folder.name { try await mutate("renameFolder(folderId: \(id), name: \(BackendAPI.literal(folder.name))) { id }") }
-            try await mutate("updateFolderFlags(folderId: \(id), includeInUpdate: \(folder.includeInUpdate ?? true), includeInDownload: \(folder.includeInDownload ?? true)) { id }")
-            try await mutate("reorderFolder(folderId: \(id), sortOrder: \(index)) { id }")
+            // Starring a title saves organization too; only send what changed.
+            if old == nil || old?.includeInUpdate != folder.includeInUpdate || old?.includeInDownload != folder.includeInDownload {
+                try await mutate("updateFolderFlags(folderId: \(id), includeInUpdate: \(folder.includeInUpdate ?? true), includeInDownload: \(folder.includeInDownload ?? true)) { id }")
+            }
+            if old == nil || organization.folders.firstIndex(where: { $0.id == folder.id }) != index {
+                try await mutate("reorderFolder(folderId: \(id), sortOrder: \(index)) { id }")
+            }
             let before = old?.entryIDs ?? []
             for entry in folder.entryIDs.subtracting(before) where Int64(entry) != nil {
                 try await mutate("addMediaToFolder(mediaId: \(BackendAPI.literal(entry)), folderId: \(id))")

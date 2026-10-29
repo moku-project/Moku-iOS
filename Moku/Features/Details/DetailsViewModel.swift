@@ -41,6 +41,79 @@ import Observation
         return URL(string: "https://mangadex.org/title/\(id)")
     }
 
+    /// Desktop "Start / Continue · Ch X / Read again": the chapter after the last
+    /// completed one in reading order.
+    func continueTarget(preferences: Data) -> (chapter: Chapter, label: String)? {
+        guard let details else { return nil }
+        let ordered = ChapterPresentation.readingOrder(details.chapters, preferences: preferences, mediaID: entry.id)
+        guard let first = ordered.first else { return nil }
+        let verb = entry.media == .anime ? "watching" : "reading"
+        guard let last = ordered.lastIndex(where: \.completed) else {
+            return (first, "Start \(verb)")
+        }
+        guard ordered.indices.contains(last + 1) else {
+            return (first, entry.media == .anime ? "Watch again" : "Read again")
+        }
+        let next = ordered[last + 1]
+        let number = next.number.map { "\(entry.media == .anime ? "Ep" : "Ch") \($0.formatted())" } ?? next.label
+        return (next, "Continue · \(number)")
+    }
+
+    func setRead(_ ids: Set<String>, read: Bool) async {
+        guard var updated = details, !ids.isEmpty else { return }
+        let mediaID = updated.id
+        let previous = updated.chapters
+        // Update rows immediately; the server confirms or the list is restored.
+        // Build the new value first: reading `details` inside its own mutation traps.
+        updated.chapters = previous.map { chapter in
+            var chapter = chapter
+            if ids.contains(chapter.id) { chapter.completed = read }
+            return chapter
+        }
+        details = updated
+        do {
+            let _: IgnoredGraphQLResult = try await BackendAPI.shared.graphql(
+                "mutation { markChaptersRead(mediaId: \(BackendAPI.literal(mediaID)), chapterIds: [\(ids.map(BackendAPI.literal).joined(separator: ","))], read: \(read)) { id } }",
+                requiresSourceRuntime: false)
+        } catch {
+            if var restored = details {
+                restored.chapters = previous
+                details = restored
+            }
+            chapterError = "Couldn’t update read state. Try again."
+        }
+    }
+
+    func download(_ ids: [String]) async {
+        guard let mediaID = details?.id, !ids.isEmpty else { return }
+        do {
+            struct Queued: Decodable, Sendable { struct Item: Decodable, Sendable { let id: String }; let enqueueDownload: [Item] }
+            let _: Queued = try await BackendAPI.shared.graphql(
+                "mutation { enqueueDownload(mediaId: \(BackendAPI.literal(mediaID)), chapterIds: [\(ids.map(BackendAPI.literal).joined(separator: ","))]) { id } }",
+                requiresSourceRuntime: false)
+            Toaster.shared.show(ids.count == 1 ? "Download queued" : "\(ids.count) downloads queued", kind: .download)
+        } catch { chapterError = "Couldn’t queue downloads. Try again." }
+    }
+
+    func deleteDownloads(_ ids: [String]) async {
+        guard let mediaID = details?.id, !ids.isEmpty else { return }
+        do {
+            let _: IgnoredGraphQLResult = try await BackendAPI.shared.graphql(
+                "mutation { deleteDownload(mediaId: \(BackendAPI.literal(mediaID)), chapterIds: [\(ids.map(BackendAPI.literal).joined(separator: ","))]) }",
+                requiresSourceRuntime: false)
+            let removed = Set(ids)
+            if var updated = details {
+                updated.chapters = updated.chapters.map { chapter in
+                    var chapter = chapter
+                    if removed.contains(chapter.id) { chapter.downloaded = false }
+                    return chapter
+                }
+                details = updated
+            }
+            Toaster.shared.show(ids.count == 1 ? "Download deleted" : "\(ids.count) downloads deleted")
+        } catch { chapterError = "Couldn’t delete downloads. Try again." }
+    }
+
     func load(refresh: Bool = false) async {
         let current = UUID()
         generation = current

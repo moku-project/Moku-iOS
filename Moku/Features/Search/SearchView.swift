@@ -333,6 +333,22 @@ struct SearchView: View {
                         .accessibilityIdentifier("search.result.\(entry.id)")
                         if entry.id != entries.last?.id { Divider().padding(.leading, 104) }
                     }
+                    if model.canLoadMore {
+                        Button {
+                            Task { await model.loadMore() }
+                        } label: {
+                            Group {
+                                if model.loadingMore { ProgressView() } else { Text("Load more") }
+                            }
+                            .font(.subheadline.weight(.medium))
+                            .frame(maxWidth: .infinity, minHeight: 48)
+                            .background(NavigationStyle.surface, in: RoundedRectangle(cornerRadius: 8))
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(model.loadingMore)
+                        .padding(.vertical, 16)
+                        .accessibilityIdentifier("search.loadMore")
+                    }
                 }
                 .task(id: Array(entries.prefix(12).compactMap(\.coverURL))) {
                     await CoverImagePipeline.shared.prefetch(

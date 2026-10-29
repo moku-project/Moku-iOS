@@ -14,6 +14,7 @@ struct PlayerControls: View {
     let reveal: () -> Void
     let changeEpisode: (Int) -> Void
     let dismiss: () -> Void
+    var pictureInPicture: (() -> Void)? = nil
     var body: some View {
         if headerOnly { header(landscape: landscape) } else { transport(landscape: landscape) }
     }
@@ -57,6 +58,10 @@ struct PlayerControls: View {
                 icon("CaretRight", label: "Next episode") { changeEpisode(model.index + 1) }
                     .disabled(model.index + 1 >= model.chapters.count)
             }
+            if let pictureInPicture {
+                icon("PictureInPicture", label: "Picture in Picture", id: "player.pip") { pictureInPicture() }
+            }
+            AirPlayButton().frame(width: 44, height: 44)
             Button {
                 toggle(.subtitles)
             } label: {
