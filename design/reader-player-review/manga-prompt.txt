@@ -1,0 +1,21 @@
+Use case: ui-mockup
+Asset type: high-fidelity mobile app screenshot review sheet, three portrait screens side by side, high resolution.
+Primary request: Adapt Moku's actual desktop manga reader to an iPhone. Match the desktop reference extremely closely in visual design and control semantics. This is a sober shipping-app screenshot concept, not a marketing poster.
+Input images: Image 1 is the desktop reading screen, visual reference. Image 2 is the desktop Manga Settings panel, authoritative reference for controls, sage selected tiles, near-black panels, thin gray borders, monospaced uppercase group labels. Adapt to touch, not miniature desktop controls.
+Composition: Three equal iPhone portrait screenshot rectangles, each logical 393x852, no physical device frames, aligned with 24px neutral dark gutters. Small labels outside below each: "01 · Reading", "02 · Settings drawer", "03 · Drawer, scrolled". No other outside copy. Draw actual UI at native-like scale with crisp readable text and 44pt tap areas. No bottom app navigation inside a reader. iOS safe areas, small status bar and home indicator.
+Palette: near-black #080808, frosted charcoal #111111 panels, thin #303030 outlines, warm white #e8e6e0 type, sage accent #7aaa7a, active tile fill #1e2e1e and text #bcd8bc. DM Sans-like normal labels, DM Mono-like section labels and numbers. Small 7-10pt corners; avoid inflated pill cards and blue accents.
+Screen 1: immersive full-width fantasy manhwa page in the visual spirit of Image 1, neutral original illustration of a cloaked traveler and stone courtyard, no dialogue needed. Top compact frosted inset toolbar: close X, two-line title "The Last Wayfarer" and "Chapter 11 ▾", bookmark outline, hamburger icon at far right. Bottom floating frosted rectangular navigation bar: previous chapter icon, slim sage progress scrubber, next chapter icon. Above scrubber a small "42 / 75" tappable page readout. A minimal fit/zoom readout "100%" within the lower bar. Keep artwork dominant, dark outer margins.
+Screen 2: same page dimmed behind a RIGHT EDGE side drawer occupying 86% of screen width, a narrow visible strip of page on left. Drawer runs from below status safe area to bottom, floating slight 10pt corner edge. Header "Manga Settings", secondary "The Last Wayfarer", close X. Scrollable continuous desktop panel, thin scrollbar on right.
+Visible controls in exact order:
+"LAYOUT" four equal square icon tiles "Single" "Double" "Auto" "Strip", Strip selected sage.
+Three full touch rows: "Page gap" off switch; "Auto next chapter" on switch; "Auto scroll" off switch.
+"TRANSITION" four tiles "None" selected, "Fade", "Slide", "Turn".
+"FIT" four tiles "Width" selected, "Height", "Screen", "1:1".
+"DIRECTION" two equal segments "Left to right" selected and "Right to left".
+"ZOOM" readout "100%", minus button, thin slider, plus button, small "Reset".
+Show bottom edge of next "IMAGE" heading to clearly imply vertical scrolling. Do not squash rows.
+Screen 3: same RIGHT EDGE drawer in SCROLLED position, same fixed header, narrow artwork strip at left. Begin with "IMAGE": "Optimize contrast" off, "Pinch to zoom" on with tiny "BETA" badge, "Mark read on advance" on.
+Next separated group "Per-manga settings" on with helper "Save these settings for this manga." 
+"PRESETS" with "+ Save current". Two saved preset rows, "Webtoon" subtitle "Strip · Width · LTR", "Manga" subtitle "Single · Screen · RTL", each with pencil and trash outline actions. These are sample user-saved presets, not built-in names.
+Thin divider then three full tappable navigation rows: "Behaviour" chevron, "Bars & Chrome" chevron, "Downloads" chevron. At bottom "All settings" chevron. Keep all controls legible, ample touch spacing and desktop appearance. Show subtle scroll thumb lower down.
+Constraints: no invented social features, no ratings, no floating app tab bar, no gradients or purple, no huge page headings. The hamburger directly opens these settings. All three screens must depict one consistent app and identical toolbar geometry. Text must be spelled exactly.

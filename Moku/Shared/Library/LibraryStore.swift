@@ -1,11 +1,21 @@
 import Foundation
 import Observation
 
+extension Notification.Name {
+    static let contentVisibilityDidChange = Notification.Name("contentVisibilityDidChange")
+}
+
 @MainActor @Observable
 final class LibraryStore {
-    private(set) var entries: [MediaEntry] = []
+    private(set) var entries: [MediaEntry] = [] {
+        didSet { entryIDs = Set(entries.map(\.id)); entriesRevision &+= 1 }
+    }
+    private(set) var entriesRevision = 0
+    private var entryIDs: Set<String> = []
+    @ObservationIgnored private var refreshedAt: Date?
     private(set) var loaded = false
     private(set) var serverVisibleIDs: Set<String>?
+    private(set) var visibilityRevision = 0
     private(set) var busy = false
     var error: String?
     private(set) var organization = LibraryOrganization()
@@ -41,10 +51,18 @@ final class LibraryStore {
     }
 
     /// Merge server imports with device-only entries without removing local saves.
-    func refreshFromServer() async -> Bool {
+    func refreshFromServer(ifStale: Bool = false) async -> Bool {
         guard synchronizeWithServer else { return true }
         await load()
-        guard loaded, !busy else { return false }
+        guard loaded else { return false }
+        // A settings change can arrive while an older visibility query is running.
+        while busy {
+            do { try await Task.sleep(for: .milliseconds(25)) }
+            catch { return false }
+        }
+        guard !Task.isCancelled else { return false }
+        if ifStale, let refreshedAt, Date.now.timeIntervalSince(refreshedAt) < 30 { return true }
+        let revision = visibilityRevision
         busy = true
         defer { busy = false }
         struct Record: Decodable, Sendable {
@@ -60,11 +78,16 @@ final class LibraryStore {
             let library: Page
         }
         do {
+            var migrationFailed = false
             if try await migrationDocument.read() != true {
                 for entry in entries where Int64(entry.id) != nil {
-                    _ = try await LiveMediaRepository.shared.setSaved(true, id: entry.id)
+                    do {
+                        _ = try await LiveMediaRepository.shared.setSaved(true, id: entry.id)
+                    } catch {
+                        migrationFailed = true
+                    }
                 }
-                try await migrationDocument.write(true)
+                if !migrationFailed { try await migrationDocument.write(true) }
             }
             var imported: [MediaEntry] = []
             var offset = 0
@@ -74,14 +97,27 @@ final class LibraryStore {
                 guard response.library.hasMore, !response.library.items.isEmpty else { break }
                 offset += response.library.items.count
             }
+            try Task.checkCancellation()
+            guard revision == visibilityRevision else { return false }
             let ids = Set(imported.map(\.id))
-            serverVisibleIDs = ids
+            if serverVisibleIDs != ids { serverVisibleIDs = ids }
             let merged = entries.filter { !ids.contains($0.id) } + imported
-            try await document.write(merged)
-            entries = merged
-            error = nil
+            if entries != merged {
+                try await document.write(merged)
+                entries = merged
+            }
+            refreshedAt = migrationFailed || revision != visibilityRevision ? nil : .now
+            error = migrationFailed ? "Some saved titles couldn’t sync. Retry to restore them to the server library." : nil
             return true
-        } catch { self.error = "Couldn’t refresh the server library."; return false }
+        } catch {
+            if !Task.isCancelled { self.error = "Couldn’t refresh the server library." }
+            return false
+        }
+    }
+
+    func invalidateServerVisibility() {
+        refreshedAt = nil
+        visibilityRevision &+= 1
     }
 
     func autoLink(_ entry: MediaEntry) async {
@@ -189,14 +225,17 @@ final class LibraryStore {
             }.value
             var next = entries
             var known = Set(entries.map(\.id))
+            var addedIDs = Set<String>()
             for entry in imported where !entry.id.isEmpty && !entry.title.isEmpty {
                 if known.insert(entry.id).inserted {
                     if synchronizeWithServer, Int64(entry.id) != nil { _ = try await LiveMediaRepository.shared.setSaved(true, id: entry.id) }
                     next.append(entry)
+                    addedIDs.insert(entry.id)
                 }
             }
             try await document.write(next)
             entries = next
+            serverVisibleIDs?.formUnion(addedIDs)
             error = nil
             return true
         } catch {
@@ -205,11 +244,17 @@ final class LibraryStore {
         }
     }
 
-    func contains(_ entry: MediaEntry) -> Bool { entries.contains { $0.id == entry.id } }
+    func contains(_ entry: MediaEntry) -> Bool { entryIDs.contains(entry.id) }
 
     @discardableResult func setSaved(_ saved: Bool, entry: MediaEntry) async -> Bool {
         await load()
-        guard loaded, !busy else { return false }
+        guard loaded else { return false }
+        // A background refresh must not silently drop an explicit save/remove.
+        while busy {
+            do { try await Task.sleep(for: .milliseconds(25)) }
+            catch { return false }
+        }
+        guard !Task.isCancelled else { return false }
         busy = true
         defer { busy = false }
         var next = entries.filter { $0.id != entry.id }

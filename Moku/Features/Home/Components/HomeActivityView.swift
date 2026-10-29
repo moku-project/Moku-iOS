@@ -3,6 +3,12 @@ import SwiftUI
 struct HomeActivityView: View {
     let statistics: HomeStatistics
     @State private var weeks = 12
+    @State private var selectedDay: Date?
+    @State private var heatmapWidth: CGFloat = 320
+
+    private var cellSize: CGFloat {
+        max(16, (heatmapWidth - 18 - CGFloat(weeks - 1) * 4) / CGFloat(weeks))
+    }
     private let media = ["Manga", "Novels", "Anime"]
     private let colors = [
         NavigationStyle.accent, Color(red: 0.49, green: 0.49, blue: 0.94),
@@ -35,50 +41,27 @@ struct HomeActivityView: View {
             }
             VStack(alignment: .leading, spacing: 12) {
                 HomeSectionHeading(title: "Your stats")
-                HStack(spacing: 12) {
-                    PhosphorIcon("Fire.fill")
-                        .foregroundStyle(statistics.currentStreak > 0 ? Color.orange : .gray)
-                        .frame(width: 32, height: 40)
-                    Text("\(statistics.currentStreak)").font(
-                        .title2.weight(.medium))
-                    Text("day streak").font(.subheadline).foregroundStyle(.secondary)
-                    Spacer()
-                    VStack(alignment: .trailing, spacing: 3) {
-                        Text("Best").font(.caption2).foregroundStyle(.secondary)
-                        Text("\(statistics.bestStreak) days").font(.caption)
-                    }
-                }
-                .padding(12)
-                .background(
-                    statistics.currentStreak > 0
-                        ? Color.orange.opacity(0.09) : Color.white.opacity(0.03),
-                    in: RoundedRectangle(cornerRadius: 12)
-                )
-                .overlay {
-                    RoundedRectangle(cornerRadius: 12).strokeBorder(
-                        statistics.currentStreak > 0
-                            ? Color.orange.opacity(0.25) : .white.opacity(0.06), lineWidth: 0.5)
-                }
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 145), spacing: 8)], spacing: 8) {
-                    tile("\(statistics.units)", "Chapters / episodes", "BookOpen")
-                    tile(
-                        "\(statistics.minutes / 60)h \(statistics.minutes % 60)m", "Read time",
-                        "Clock")
-                    tile("\(statistics.thisWeek)", "This week", "CalendarBlank")
-                    tile(
-                        String(format: "%.1f", statistics.perDay), "Per day",
-                        "TrendUp")
-                    tile("\(statistics.series)", "Series started", "Books")
-                    tile(
-                        statistics.firstRead?.formatted(.dateTime.month(.abbreviated).year())
-                            ?? "—", "Reading since", "CalendarCheck")
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 155), spacing: 24, alignment: .leading)],
+                    alignment: .leading, spacing: 20
+                ) {
+                    stat("\(statistics.currentStreak)", "Day streak", "Fire.fill")
+                    stat("\(statistics.bestStreak)", "Best streak", "TrendUp")
+                    stat("\(statistics.units)", "Chapters / episodes", "BookOpen")
+                    stat("\(statistics.minutes)", "Minutes spent", "Clock")
+                    stat("\(statistics.thisWeek)", "Read · 7 days", "CalendarBlank")
+                    stat(String(format: "%.1f", statistics.perDay), "Daily average", "TrendUp")
+                    stat("\(statistics.series)", "Series started", "Books")
+                    stat(
+                        statistics.firstRead?.formatted(.dateTime.month(.abbreviated).year()) ?? "—",
+                        "Since", "CalendarCheck")
                 }
                 .accessibilityIdentifier("home.stats")
             }
             VStack(alignment: .leading, spacing: 16) {
-                HomeSectionHeading(title: "Read by type")
+                HomeSectionHeading(title: "By type")
                 if statistics.byMedia.values.reduce(0, +) == 0 {
-                    HomeEmptyRow(text: "No reading tracked yet", symbol: "ChartPie")
+                    HomeEmptyRow(text: "No completed chapters or episodes yet", symbol: "ChartPie")
                 } else {
                     HStack(spacing: 24) {
                         donut.frame(width: 94, height: 94).accessibilityHidden(true)
@@ -89,22 +72,17 @@ struct HomeActivityView: View {
                                         width: 10, height: 10)
                                     Text(name)
                                     Spacer()
+                                    Text("\(statistics.byMedia[name, default: 0])")
                                     Text("\(Int((fraction(index) * 100).rounded()))%")
+                                        .foregroundStyle(.secondary)
 
                                 }.font(.caption)
                             }
                         }
-                    }.padding(.horizontal, 8)
+                    }
                 }
             }
-            HStack {
-                Spacer()
-                if let last = statistics.lastRead {
-                    Text("Updated \(last.formatted(date: .abbreviated, time: .shortened))")
-                } else {
-                    Text("Updated —")
-                }
-            }.font(.caption2).foregroundStyle(.secondary)
+
         }
     }
 
@@ -114,26 +92,34 @@ struct HomeActivityView: View {
         let endOfWeek = calendar.date(
             byAdding: .day, value: (8 - calendar.component(.weekday, from: today)) % 7, to: today)!
         let start = calendar.date(byAdding: .day, value: -(weeks * 7 - 1), to: endOfWeek)!
-        return HStack(alignment: .top, spacing: 8) {
+        return HStack(alignment: .top, spacing: 4) {
             VStack(spacing: 4) {
                 ForEach(["M", "T", "W", "T", "F", "S", "S"].indices, id: \.self) { row in
                     Text(["M", "T", "W", "T", "F", "S", "S"][row]).font(
                         .system(size: 9)
                     )
-                    .foregroundStyle(.secondary).frame(height: 16)
+                    .foregroundStyle(.secondary).frame(width: 14, height: cellSize)
                 }
-            }.accessibilityHidden(true)
+            }.padding(.top, 20).accessibilityHidden(true)
             ScrollView(.horizontal) {
                 HStack(spacing: 4) {
                     ForEach(0..<weeks, id: \.self) { week in
                         VStack(spacing: 4) {
+                            let first = calendar.date(byAdding: .day, value: week * 7, to: start)!
+                            let previous = calendar.date(byAdding: .day, value: -7, to: first)!
+                            Text(week == 0 || calendar.component(.month, from: first) != calendar.component(.month, from: previous)
+                                 ? first.formatted(.dateTime.month(.abbreviated)) : "")
+                                .font(.system(size: 9)).foregroundStyle(.secondary)
+                                .fixedSize().frame(width: cellSize, height: 16, alignment: .leading)
+                                .accessibilityHidden(true)
                             ForEach(0..<7, id: \.self) { day in
                                 let date = calendar.date(
                                     byAdding: .day, value: week * 7 + day, to: start)!
                                 let count = statistics.daily[date, default: 0]
-                                RoundedRectangle(cornerRadius: 3)
+                                Button { selectedDay = date } label: {
+                                    RoundedRectangle(cornerRadius: 3)
                                     .fill(heatColor(count == 0 ? 0 : min(4, 1 + count / 3)))
-                                    .frame(width: 20, height: 16)
+                                    .frame(width: cellSize, height: cellSize)
                                     .opacity(date > today ? 0.3 : 1)
                                     .overlay {
                                         if date == today {
@@ -141,40 +127,50 @@ struct HomeActivityView: View {
                                                 NavigationStyle.accent.opacity(0.7), lineWidth: 1)
                                         }
                                     }
-                                    .accessibilityLabel(
-                                        "\(date.formatted(date: .abbreviated, time: .omitted)): \(count) activity"
-                                    )
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(date > today)
+                                .accessibilityLabel("\(date.formatted(date: .abbreviated, time: .omitted)): \(count) chapters or episodes")
+                                .popover(isPresented: Binding(
+                                    get: { selectedDay == date },
+                                    set: { if !$0 && selectedDay == date { selectedDay = nil } }
+                                )) {
+                                    VStack(spacing: 6) {
+                                        Text(date.formatted(date: .abbreviated, time: .omitted)).font(.caption)
+                                        Text("\(count) chapters / episodes").font(.subheadline.weight(.medium))
+                                    }.padding().presentationCompactAdaptation(.popover)
+                                }
                             }
                         }
                     }
                 }
             }
             .defaultScrollAnchor(.trailing)
+            .defaultScrollAnchor(.leading, for: .alignment)
             .scrollIndicators(.hidden)
             .accessibilityIdentifier("home.heatmap")
         }
+        .frame(height: cellSize * 7 + 44)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { heatmapWidth = $0 }
     }
 
     private func heatColor(_ level: Int) -> Color {
         level == 0 ? Color.white.opacity(0.07) : NavigationStyle.accent.opacity(Double(level) / 4)
     }
 
-    private func tile(_ value: String, _ label: String, _ symbol: String) -> some View {
-        HStack(spacing: 10) {
-            PhosphorIcon(symbol).font(.subheadline).foregroundStyle(.secondary).frame(
-                width: 22)
-            VStack(alignment: .leading, spacing: 6) {
-                Text(value).font(.body.weight(.medium))
-                Text(label).font(.caption2).foregroundStyle(.secondary).fixedSize(
-                    horizontal: false, vertical: true)
+    private func stat(_ value: String, _ label: String, _ symbol: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            PhosphorIcon(symbol).font(.subheadline).foregroundStyle(.secondary)
+                .frame(width: 22, height: 28)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(value).font(.title2.weight(.semibold)).foregroundStyle(.primary)
+                    .monospacedDigit()
+                Text(label).font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            Spacer(minLength: 0)
         }
-        .padding(12).frame(maxWidth: .infinity, minHeight: 76, alignment: .leading)
-        .background(.white.opacity(0.025), in: RoundedRectangle(cornerRadius: 10))
-        .overlay {
-            RoundedRectangle(cornerRadius: 10).strokeBorder(.white.opacity(0.07), lineWidth: 0.5)
-        }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
     }
 

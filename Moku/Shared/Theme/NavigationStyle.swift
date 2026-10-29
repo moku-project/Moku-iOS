@@ -9,6 +9,7 @@ final class AppTheme {
 }
 
 enum NavigationStyle {
+    static let selectionAnimation = Animation.easeInOut(duration: 0.28)
     static let pagePadding: CGFloat = 10
     static let navigationHeight: CGFloat = 52
     static let navigationCornerRadius: CGFloat = 26

@@ -74,3 +74,50 @@ private actor DetailFixture: DetailsRepository {
         return list
     }
 }
+
+@MainActor struct HomeTitleLoadingTests {
+    private var entry: HomeEntry {
+        HomeEntry(MediaEntry(id: "85", title: "Old title", media: .manga,
+                             sourceName: "Fixture", coverURL: nil, extensionID: "ext", externalID: "book"))
+    }
+
+    @Test func loadsSourceMetadataAndChaptersWithoutAddingActivity() async {
+        let fixture = DetailFixture()
+        await fixture.set(fail: false, chapters: ReaderPreview.details.chapters)
+        let loader = HomeTitleLoader(repository: fixture)
+        await loader.load(entry, library: [], refresh: false)
+        #expect(loader.updatedEntry?.title == "Fixture title")
+        #expect(loader.updatedEntry?.chapters.count == 5)
+        #expect(loader.updatedEntry?.sourceEntry == entry.sourceEntry)
+        #expect(loader.error == nil && !loader.loading)
+    }
+
+    @Test func failedRefreshRetainsChaptersAndCanRetry() async {
+        let fixture = DetailFixture(fail: true)
+        var original = entry
+        original.chapters = [HomeChapter(id: "old", title: "Saved chapter")]
+        let loader = HomeTitleLoader(repository: fixture)
+        await loader.load(original, library: [], refresh: true)
+        #expect(loader.updatedEntry?.chapters.first?.id == "old")
+        #expect(loader.updatedEntry?.summary == "Source description")
+        #expect(loader.error != nil)
+        await fixture.set(fail: false, chapters: ReaderPreview.details.chapters)
+        await loader.load(original, library: [], refresh: true)
+        #expect(loader.error == nil && loader.updatedEntry?.chapters.count == 5)
+    }
+
+    @Test func scanlatorPreferencesSelectPreferredReleasesAndExcludeBlockedGroups() {
+        let chapters = [
+            Chapter(id: "a", title: "One", number: 1, scanlator: "A", completed: false, downloaded: false),
+            Chapter(id: "b", title: "One", number: 1, scanlator: "B", completed: false, downloaded: false),
+            Chapter(id: "c", title: "Two", number: 2, scanlator: "A", completed: false, downloaded: false),
+            Chapter(id: "d", title: "Extra", number: nil, scanlator: "B", completed: false, downloaded: false)
+        ]
+        var prefs = ChapterDisplayPreferences(included: ["B"])
+        #expect(Set(prefs.apply(chapters).map(\.id)) == ["b", "c", "d"])
+        prefs.onlyIncluded = true
+        #expect(Set(prefs.apply(chapters).map(\.id)) == ["b", "d"])
+        prefs.excluded = ["B"]
+        #expect(prefs.apply(chapters).isEmpty)
+    }
+}

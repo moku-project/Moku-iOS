@@ -6,7 +6,7 @@ actor BackendAPI {
     // Actor initializers run on their caller. Defer session/cache setup until
     // an actor-isolated request, so creating a screen never does service setup.
     private lazy var coverCache = ResourceCache(
-        memoryLimit: 24 * 1024 * 1024,
+        memoryLimit: 24 * 1024 * 1024, cancelWhenUnused: true,
         directory: URL.cachesDirectory.appending(path: "Moku/Covers-v1"))
     private lazy var queries = ResourceCache(
         memoryLimit: 8 * 1024 * 1024, cancelWhenUnused: true,
@@ -29,6 +29,7 @@ actor BackendAPI {
         _ query: String, cacheFor lifetime: TimeInterval = 0,
         refresh: Bool = false, requiresSourceRuntime: Bool = true
     ) async throws -> T {
+        try Task.checkCancellation()
         let mutation = query.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("mutation")
         if mutation || refresh { await queries.clear() }
         do {
@@ -148,6 +149,12 @@ actor BackendAPI {
         }
         try Task.checkCancellation()
         return data
+    }
+
+    func trimMemory() async {
+        await queries.trimMemory()
+        await coverCache.trimMemory()
+        await CoverImagePipeline.shared.trimMemory()
     }
 
     func clearContentCache() async {

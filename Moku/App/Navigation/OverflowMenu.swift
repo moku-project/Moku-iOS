@@ -4,6 +4,7 @@ import SwiftUI
     var content: AnyView?
     var anchor = CGRect.zero
     var owner: UUID?
+    var dismissOnSelection = true
 
     func dismiss() {
         content = nil
@@ -11,11 +12,19 @@ import SwiftUI
     }
 }
 
+/// Geometry is needed when opening a menu, but moving a closed anchor must not
+/// invalidate its SwiftUI row on every navigation-animation frame.
+@MainActor private final class OverflowMenuAnchor {
+    var frame = CGRect.zero
+}
+
 /// Row menus render at the page root so lists cannot clip the dropdown.
 struct OverflowMenu<Content: View, Label: View>: View {
     @Environment(OverflowMenuPresentation.self) private var presentation: OverflowMenuPresentation?
-    @State private var anchor = CGRect.zero
+    @State private var anchor = OverflowMenuAnchor()
     @State private var id = UUID()
+    var dismissOnSelection = true
+    var dismissOnAnchorChange = true
     @ViewBuilder var content: () -> Content
     @ViewBuilder var label: () -> Label
 
@@ -38,7 +47,8 @@ struct OverflowMenu<Content: View, Label: View>: View {
             if presentation.owner == id {
                 presentation.dismiss()
             } else {
-                presentation.anchor = anchor
+                presentation.dismissOnSelection = dismissOnSelection
+                presentation.anchor = anchor.frame
                 presentation.owner = id
                 presentation.content = AnyView(content())
             }
@@ -49,9 +59,12 @@ struct OverflowMenu<Content: View, Label: View>: View {
         .onGeometryChange(for: CGRect.self) {
             $0.frame(in: .global)
         } action: { frame in
-            anchor = frame
+            anchor.frame = frame
             // A scrolled-away or rotated anchor should never leave a detached menu behind.
-            if presentation.owner == id && presentation.anchor != frame { presentation.dismiss() }
+            if presentation.owner == id && presentation.anchor != frame {
+                if dismissOnAnchorChange { presentation.dismiss() }
+                else { presentation.anchor = frame }
+            }
         }
         .onDisappear { if presentation.owner == id { presentation.dismiss() } }
     }
@@ -67,7 +80,7 @@ struct OverflowMenuHost: ViewModifier {
             .overlay {
                 if let menu = presentation.content {
                     OverflowMenuPanel(
-                        menu: menu, anchor: presentation.anchor, dismiss: presentation.dismiss
+                        menu: menu, anchor: presentation.anchor, dismissOnSelection: presentation.dismissOnSelection, dismiss: presentation.dismiss
                     )
                     .id(presentation.owner)
                 }
@@ -79,12 +92,13 @@ struct OverflowMenuHost: ViewModifier {
 private struct OverflowMenuPanel: View {
     let menu: AnyView
     let anchor: CGRect
+    let dismissOnSelection: Bool
     let dismiss: () -> Void
     @State private var measured = CGSize.zero
 
     private var rows: some View {
         VStack(alignment: .leading, spacing: 0) { menu }
-            .buttonStyle(OverflowMenuActionStyle(dismiss: dismiss))
+            .buttonStyle(OverflowMenuActionStyle(dismiss: dismissOnSelection ? dismiss : {}))
             .padding(4)
     }
 

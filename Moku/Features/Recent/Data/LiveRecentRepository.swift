@@ -2,20 +2,22 @@ import Foundation
 
 struct LiveRecentRepository: RecentRepository {
     func chapters(for entry: MediaEntry, refresh: Bool) async throws -> [RecentUpdate] {
-        let details = try await LiveMediaRepository.shared.metadata(for: entry, refresh: false)
-        if refresh { _ = try await LiveMediaRepository.shared.chapters(mediaID: details.id) }
+        let mediaID: String
+        if Int64(entry.id) != nil { mediaID = entry.id }
+        else { mediaID = try await LiveMediaRepository.shared.metadata(for: entry, refresh: false).id }
+        if refresh { _ = try await LiveMediaRepository.shared.chapters(mediaID: mediaID, refresh: true) }
         struct Response: Decodable, Sendable {
             struct Media: Decodable, Sendable { let chapters: [RecentChapter] }
             let media: Media?
         }
         let result: Response = try await BackendAPI.shared.graphql(
             """
-            { media(id: \(BackendAPI.literal(details.id))) {
+            { media(id: \(BackendAPI.literal(mediaID))) {
                 chapters { id title number uploadedAt completed downloaded }
             } }
-            """, refresh: refresh)
+            """, requiresSourceRuntime: false)
         guard let media = result.media else { throw SearchFailure.notConnected }
-        return media.chapters.map { RecentUpdate(entry: entry, mediaID: details.id, chapter: $0) }
+        return media.chapters.map { RecentUpdate(entry: entry, mediaID: mediaID, chapter: $0) }
     }
 
     func entry(id: String) async throws -> MediaEntry {

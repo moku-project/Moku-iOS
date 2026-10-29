@@ -16,6 +16,30 @@ struct LibraryView: View {
     @AppStorage("library.defaultTab") private var defaultTab = "Saved"
     @AppStorage("preferences.renderLimit") private var renderLimit = 48
     @State private var pageIndex = 0
+    @State private var visibleItems: [LibraryItem] = []
+    @State private var statsLoadedAt: Date?
+    @State private var didConfigure = false
+    @State private var statsRevision = 0
+    @State private var preparedItemInput: ItemInput?
+    private struct ItemInput: Equatable {
+        let entriesRevision: Int
+        let activityRevision: Int
+        let statsRevision: Int
+        let serverIDs: Set<String>?
+        let downloaded: Set<String>
+        let starred: Set<String>
+    }
+    private struct SelectionKey: Equatable {
+        let revision: Int
+        let mode: ContentMode
+        let isActive: Bool
+    }
+    private struct RefreshKey: Equatable {
+        let isActive: Bool
+        let visibilityRevision: Int
+    }
+    @State private var itemUpdate: Task<Void, Never>?
+    @State private var pendingItemInput: ItemInput?
     @State private var backendStats: [String: LibraryStats] = [:]
     @State private var model = LibraryViewModel()
     @State private var search: SearchViewModel?
@@ -38,7 +62,7 @@ struct LibraryView: View {
     typealias Panel = LibraryControls.Panel
 
     private var isLibraryEmpty: Bool {
-        model.scoped(to: mode).isEmpty && model.query.isEmpty && !model.hasFilters
+        !model.items.contains { mode == .all || $0.media == mode } && model.query.isEmpty && !model.hasFilters
             && model.tab == .saved && model.folder == nil
     }
 
@@ -53,6 +77,15 @@ struct LibraryView: View {
                     layoutValue: $layoutValue, layout: layout, reduceMotion: reduceMotion,
                     selectView: selectView, dismissTools: dismissTools
                 ).zIndex(3)
+                if let error = library.error {
+                    HStack {
+                        Text(error).font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Retry") {
+                            Task { _ = await library.refreshFromServer(); await loadStats() }
+                        }.disabled(library.busy)
+                    }.padding(.horizontal, NavigationStyle.pagePadding)
+                }
                 Group {
                     if !library.loaded && library.error == nil {
                         ScrollView {
@@ -87,7 +120,7 @@ struct LibraryView: View {
                                         }
                                     }
                                 }
-                                let allEntries = model.visible(mode: mode)
+                                let allEntries = visibleItems
                                 let pageSize = min(200, max(12, renderLimit))
                                 let entries = Array(allEntries.dropFirst(pageIndex * pageSize).prefix(pageSize))
                                 if entries.isEmpty {
@@ -155,6 +188,10 @@ struct LibraryView: View {
                 .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: menuLevel)
                 .scrollDismissesKeyboard(.interactively)
                 .tracksNavigationScroll()
+                .refreshable {
+                    _ = await library.refreshFromServer()
+                    await loadStats()
+                }
                 .environment(\.navigationContentBottomInset, bottomInset + 68)
                 .accessibilityIdentifier("library.scroll")
                 .overlay {
@@ -178,9 +215,8 @@ struct LibraryView: View {
             }
             .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: panel)
             .onChange(of: isActive) { _, active in
-                if !active {
-                    dismissTools()
-                }
+                if active { syncItems() }
+                else { cancelItemUpdate(); dismissTools() }
             }
             .onChange(of: mode) { _, _ in
                 dismissTools()
@@ -200,7 +236,7 @@ struct LibraryView: View {
                 Text(model.notice ?? "")
             }
         }
-        .onChange(of: library.entries, initial: true) { _, entries in
+        .onChange(of: library.entriesRevision, initial: true) { _, _ in
             syncItems()
         }
         .onChange(of: [showAllInSaved, hideCompletedInSaved, disableAutoComplete], initial: true) { _, _ in
@@ -208,10 +244,17 @@ struct LibraryView: View {
             model.hideCompletedInSaved = hideCompletedInSaved
             model.disableAutoComplete = disableAutoComplete
         }
-        .onChange(of: model.visible(mode: mode).map(\.id)) { _, _ in pageIndex = 0 }
+        .task(id: SelectionKey(revision: model.resultsRevision, mode: mode, isActive: isActive)) {
+            guard isActive else { return }
+            let revision = model.resultsRevision
+            let result = await model.prepareVisible(mode: mode)
+            guard !Task.isCancelled, revision == model.resultsRevision else { return }
+            if visibleItems.map(\.id) != result.map(\.id) { pageIndex = 0 }
+            if visibleItems != result { visibleItems = result }
+        }
         .onChange(of: renderLimit) { _, _ in pageIndex = 0 }
         .onChange(of: library.serverVisibleIDs) { _, _ in syncItems() }
-        .onChange(of: home.snapshot.entries) { _, _ in syncItems() }
+        .onChange(of: home.snapshotRevision) { _, _ in syncItems() }
         .onChange(of: downloadedIDs) { _, _ in syncItems() }
         .onChange(of: library.organization.starred) { _, _ in syncItems() }
         .onChange(of: library.organization.folders, initial: true) { _, folders in
@@ -226,52 +269,44 @@ struct LibraryView: View {
         .task {
             await library.load()
             await library.loadOrganization()
-            _ = await library.refreshFromServer()
-            model.tab = LibraryTab(rawValue: defaultTab) ?? .saved
+            if !didConfigure {
+                model.tab = LibraryTab(rawValue: defaultTab) ?? .saved
+                didConfigure = true
+            }
             syncItems()
-            await loadStats()
         }
-        .task(id: isActive) { if isActive { _ = await library.refreshFromServer(); await loadStats() } }
+        .task(id: RefreshKey(isActive: isActive, visibilityRevision: library.visibilityRevision)) {
+            if isActive {
+                _ = await library.refreshFromServer(ifStale: true)
+                await loadStats(ifStale: true)
+            }
+        }
         .modifier(
             LibraryFolders(
                 foldersPresented: $foldersPresented, newFolderPresented: $newFolderPresented,
                 model: model, selectSaved: { selectView(.saved) })
         )
-        .fullScreenCover(
-            isPresented: Binding(
-                get: { search != nil },
-                set: {
-                    if !$0 {
-                        search?.invalidate()
-                        search = nil
-                    }
-                }
-            )
-        ) {
+        .overlay {
             if let search {
-                ZStack {
-                    Rectangle().fill(.ultraThinMaterial)
-                        .overlay(Color.black.opacity(0.65)).ignoresSafeArea()
-                    SearchView(
-                        model: search,
-                        openEntry: { entry in
-                            self.search = nil
-                            onOpen(entry)
-                        },
-                        close: { self.search = nil },
-                        customOptions: AnyView(LibraryFilters(optionDraft: optionDraft)),
-                        prepareOptions: { copyOptions(from: model, to: optionDraft) },
-                        applyOptions: { copyOptions(from: optionDraft, to: model) },
-                        resetOptions: {
-                            optionDraft.clearFilters()
-                            optionDraft.sort = .title
-                            optionDraft.ascending = true
-                        }
-                    )
-                }
-                .tint(NavigationStyle.accent)
-                .preferredColorScheme(.dark)
-                .presentationBackground(.clear)
+                SearchView(
+                    model: search,
+                    openEntry: { entry in
+                        self.search = nil
+                        onOpen(entry)
+                    },
+                    close: { self.search = nil },
+                    isPage: true,
+                    isActive: isActive,
+                    backToLibrary: { self.search = nil },
+                    customOptions: AnyView(LibraryFilters(optionDraft: optionDraft)),
+                    prepareOptions: { copyOptions(from: model, to: optionDraft) },
+                    applyOptions: { copyOptions(from: optionDraft, to: model) },
+                    resetOptions: {
+                        optionDraft.clearFilters()
+                        optionDraft.sort = .title
+                        optionDraft.ascending = true
+                    }
+                )
             }
         }
         .confirmationDialog(
@@ -294,6 +329,7 @@ struct LibraryView: View {
             case .failure(let error): model.notice = error.localizedDescription
             }
         }
+        .onDisappear { cancelItemUpdate() }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("library.page")
         .preference(
@@ -358,27 +394,82 @@ struct LibraryView: View {
     }
 
     private func syncItems() {
-        model.items = library.entries.filter { Int64($0.id) == nil || library.serverVisibleIDs?.contains($0.id) != false }.map {
-            LibraryItem(
-                id: $0.id, title: $0.title, media: $0.media, coverURL: $0.coverURL,
-                readUnits: backendStats[$0.id].map { max(0, $0.chapterCount - $0.unreadCount) } ?? home.entry($0.id)?.chapters.filter(\.isRead).count ?? 0,
-                totalUnits: backendStats[$0.id]?.chapterCount ?? home.entry($0.id)?.chapters.count ?? 0,
-                downloaded: downloadedIDs.contains($0.id) || (backendStats[$0.id]?.downloadedCount ?? 0) > 0,
-                bookmarked: library.organization.starred.contains($0.id))
+        guard isActive else { return }
+        let input = ItemInput(entriesRevision: library.entriesRevision, activityRevision: home.snapshotRevision,
+                              statsRevision: statsRevision, serverIDs: library.serverVisibleIDs,
+                              downloaded: downloadedIDs, starred: library.organization.starred)
+        guard input != preparedItemInput else {
+            // Inputs can revert while a different snapshot is still preparing.
+            if pendingItemInput != nil { cancelItemUpdate() }
+            return
         }
+        guard input != pendingItemInput else { return }
+        itemUpdate?.cancel()
+        pendingItemInput = input
+        let entries = library.entries
+        let visibleIDs = library.serverVisibleIDs
+        let snapshot = home.snapshot
+        let stats = backendStats
+        let starred = library.organization.starred
+        let downloaded = downloadedIDs
+        let worker = Task.detached(priority: .userInitiated) {
+            var lastRead: [String: Date] = [:]
+            for session in snapshot.sessions {
+                if Task.isCancelled { return [LibraryItem]() }
+                lastRead[session.entryID] = max(lastRead[session.entryID] ?? .distantPast, session.endedAt)
+            }
+            let homeEntries = Dictionary(snapshot.entries.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
+            var items: [LibraryItem] = []
+            items.reserveCapacity(entries.count)
+            for entry in entries {
+                if Task.isCancelled { return [LibraryItem]() }
+                guard Int64(entry.id) == nil || visibleIDs?.contains(entry.id) != false else { continue }
+                let progress = stats[entry.id]
+                let saved = homeEntries[entry.id]
+                items.append(LibraryItem(
+                    id: entry.id, title: entry.title, media: entry.media, coverURL: entry.coverURL,
+                    readUnits: progress.map { max(0, $0.chapterCount - $0.unreadCount) } ?? saved?.chapters.filter(\.isRead).count ?? 0,
+                    totalUnits: progress?.chapterCount ?? saved?.chapters.count ?? 0,
+                    downloaded: downloaded.contains(entry.id) || (progress?.downloadedCount ?? 0) > 0,
+                    bookmarked: starred.contains(entry.id),
+                    lastRead: lastRead[entry.id] ?? .distantPast))
+            }
+            return items
+        }
+        itemUpdate = Task {
+            await withTaskCancellationHandler {
+                let items = await worker.value
+                guard !Task.isCancelled else { return }
+                preparedItemInput = input
+                pendingItemInput = nil
+                itemUpdate = nil
+                if model.items != items { model.items = items }
+            } onCancel: { worker.cancel() }
+        }
+    }
+
+    private func cancelItemUpdate() {
+        itemUpdate?.cancel()
+        itemUpdate = nil
+        pendingItemInput = nil
     }
 
     private struct LibraryStats: Decodable, Sendable {
         let id: String; let chapterCount: Int; let unreadCount: Int; let downloadedCount: Int
     }
-    private func loadStats() async {
+    private func loadStats(ifStale: Bool = false) async {
+        guard !Task.isCancelled else { return }
+        if ifStale, let statsLoadedAt, Date.now.timeIntervalSince(statsLoadedAt) < 30 { return }
         guard !PreviewMode.isEnabled, library.entries.contains(where: { Int64($0.id) != nil }) else { return }
         do {
             struct Result: Decodable, Sendable { struct Page: Decodable, Sendable { let items: [LibraryStats] }; let library: Page }
             let result: Result = try await BackendAPI.shared.graphql("{ library(limit: 10000) { items { id chapterCount unreadCount downloadedCount } } }", requiresSourceRuntime: false)
+            try Task.checkCancellation()
+            statsLoadedAt = .now
             backendStats = Dictionary(result.library.items.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+            statsRevision &+= 1
             syncItems()
-        } catch { model.notice = "Couldn’t refresh library progress." }
+        } catch { if !Task.isCancelled { model.notice = "Couldn’t refresh library progress." } }
     }
 
     private func copyOptions(from source: LibraryViewModel, to target: LibraryViewModel) {
@@ -395,9 +486,12 @@ struct LibraryView: View {
         dismissTools()
         copyOptions(from: model, to: optionDraft)
         let repository = ScopedLibrarySearchRepository {
-            let entries = Dictionary(
-                library.entries.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-            return model.visible(mode: mode).compactMap { entries[$0.id] }
+            let items = await model.prepareVisible(mode: mode)
+            let saved = library.entries
+            return await Task.detached(priority: .userInitiated) {
+                let entries = Dictionary(saved.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+                return items.compactMap { entries[$0.id] }
+            }.value
         }
         let next = SearchViewModel(repository: repository, isLibrary: true)
         if options { next.open(.filters) }

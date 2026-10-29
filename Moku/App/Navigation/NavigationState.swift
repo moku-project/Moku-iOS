@@ -1,13 +1,18 @@
 import SwiftUI
 
 /// Accumulate directional travel to avoid reacting to finger jitter or bounce.
-struct NavigationState {
+@MainActor @Observable final class NavigationState {
     private(set) var isCompact = false
-    private var travel: CGFloat = 0
+    @ObservationIgnored private var travel: CGFloat = 0
 
-    mutating func update(from old: CGFloat, to new: CGFloat) {
+    func reset() {
+        travel = 0
+        if isCompact { isCompact = false }
+    }
+
+    func update(from old: CGFloat, to new: CGFloat) {
         guard new > 8 else {
-            isCompact = false
+            if isCompact { isCompact = false }
             travel = 0
             return
         }
@@ -16,10 +21,10 @@ struct NavigationState {
         if (delta > 0) != (travel > 0) { travel = 0 }
         travel += delta
         if travel >= 24 {
-            isCompact = true
+            if !isCompact { isCompact = true }
             travel = 0
         } else if travel <= -12 {
-            isCompact = false
+            if isCompact { isCompact = false }
             travel = 0
         }
     }

@@ -59,10 +59,10 @@ struct HomeStoreTests {
         latest.completedUnits = 4
         store.record(latest, entry: entry)
         let stats = store.statistics(now: date(19), calendar: calendar)
-        #expect(stats.units == 8 && stats.thisWeek == 8)
+        #expect(stats.units == 1 && stats.thisWeek == 8)
         #expect(stats.minutes == 45 && stats.series == 1)
         #expect(stats.currentStreak == 2 && stats.bestStreak == 2)
-        #expect(stats.perDay == 1.6)
+        #expect(stats.perDay == 0.25)
         #expect(store.statistics(now: date(20), calendar: calendar).currentStreak == 0)
         #expect(store.statistics(now: date(20), calendar: calendar).bestStreak == 2)
     }
@@ -99,6 +99,58 @@ struct HomeStoreTests {
         await restored.load()
         #expect(restored.snapshot.sessions.count == 2)
         #expect(restored.slots[1].entry?.id == "b")
+    }
+
+    @Test func pinningUnreadLibraryTitlePersistsWithoutInventingHistory() async throws {
+        let url = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let store = HomeStore(fileURL: url)
+        let media = MediaEntry(id: "saved", title: "Saved title", media: .manga,
+                               sourceName: "Source", coverURL: nil, extensionID: "ext", externalID: "book")
+        store.pin(HomeEntry(media), slot: 1)
+        await store.flush()
+        let restored = HomeStore(fileURL: url)
+        await restored.load()
+        #expect(restored.slots[1].entry?.sourceEntry == media)
+        #expect(restored.snapshot.sessions.isEmpty)
+        #expect(restored.statistics().units == 0)
+    }
+
+    @Test func recordingKeepsResolvedSourceAndMetadata() {
+        let store = HomeStore(fileURL: nil)
+        let media = MediaEntry(id: "a", title: "A", media: .manga, sourceName: "Source", coverURL: nil)
+        var entry = HomeEntry(media)
+        entry.author = "Author"
+        entry.summary = "Description"
+        store.updateEntry(entry)
+        store.record(session("a", day: 19), entry: HomeEntry(id: "a", title: "A"))
+        #expect(store.entry("a")?.sourceEntry == media)
+        #expect(store.entry("a")?.summary == "Description")
+    }
+
+    @Test func readingVisitsContributeToStreakHeatmapAndWeeklyCounts() {
+        let store = HomeStore(fileURL: nil)
+        store.record(session("a", day: 19, units: 0), entry: HomeEntry(id: "a", title: "A"))
+        let stats = store.statistics(now: date(19), calendar: calendar)
+        #expect(stats.currentStreak == 1)
+        #expect(stats.units == 1)
+        #expect(stats.daily.values.reduce(0, +) == 1)
+        #expect(stats.thisWeek == 1)
+    }
+
+    @Test func shortSessionsContributeToTotalReadingTime() {
+        let store = HomeStore(fileURL: nil)
+        var first = session("a", day: 19, units: 0)
+        first.minutes = 0
+        first.durationSeconds = 40
+        var second = first
+        second.id = UUID()
+        second.chapterID = "two"
+        store.record(first, entry: HomeEntry(id: "a", title: "A"))
+        store.record(second, entry: HomeEntry(id: "a", title: "A"))
+        let stats = store.statistics(now: date(19), calendar: calendar)
+        #expect(stats.minutes == 1)
+        #expect(stats.units == 2)
     }
 
     @Test func corruptHistoryIsPreserved() async throws {

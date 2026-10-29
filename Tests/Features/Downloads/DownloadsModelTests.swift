@@ -3,6 +3,23 @@ import Testing
 @testable import Moku
 
 @MainActor struct DownloadsModelTests {
+    @Test func completedTitleIndexTracksQueueChanges() {
+        let model = DownloadsViewModel(entries: [
+            .init(id: "one", titleID: "a", title: "A", chapter: "1", status: .completed),
+            .init(id: "two", titleID: "a", title: "A", chapter: "2", status: .completed),
+            .init(id: "three", titleID: "b", title: "B", chapter: "1", status: .downloading),
+        ])
+        #expect(model.completedTitleIDs == ["a"])
+        model.entries[2].progress = 0.5
+        #expect(model.completedTitleIDs == ["a"])
+        model.entries[2].status = .completed
+        #expect(model.completedTitleIDs == ["a", "b"])
+        model.entries.removeFirst()
+        #expect(model.completedTitleIDs == ["a", "b"])
+        model.clear(history: true)
+        #expect(model.completedTitleIDs.isEmpty)
+    }
+
     @Test func retryIsScopedAndPreservesOtherStates() {
         let model = DownloadsViewModel(entries: [
             .init(id: "1", titleID: "a", title: "A", chapter: "1", status: .failed),

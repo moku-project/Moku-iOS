@@ -116,10 +116,7 @@ struct ReaderView: View {
         }
         .onDisappear { actionTask?.cancel() }
         .recordActivity(
-            entry: HomeEntry(
-                id: model.details.id, title: model.details.title,
-                coverURL: BackendAPI.coverURL(model.details.thumbnailUrl), media: "Manga",
-                chapters: model.details.chapters.map { HomeChapter(id: $0.id, title: $0.label) }),
+            entry: model.activityEntry,
             chapterID: model.chapterID, position: model.page,
             completed: !model.pages.isEmpty
                 && (model.isStrip ? model.page : (model.visiblePages.max() ?? model.page))

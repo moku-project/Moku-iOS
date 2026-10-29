@@ -3,11 +3,16 @@ import Observation
 
 @MainActor @Observable
 final class HomeStore {
-    private(set) var snapshot: HomeSnapshot
+    private(set) var snapshot: HomeSnapshot {
+        didSet { snapshotRevision &+= 1; cachedRecentSessions = nil }
+    }
+    private(set) var snapshotRevision = 0
+    @ObservationIgnored private var cachedRecentSessions: [HomeSession]?
     private(set) var storageError: String?
     @ObservationIgnored private let disk: HomeDisk?
     @ObservationIgnored private var loadingTask: Task<HomeSnapshot?, Error>?
     @ObservationIgnored private var saveTask: Task<Void, Never>?
+    @ObservationIgnored private var needsSave = false
     @ObservationIgnored private var pending: [(HomeStore) -> Void] = []
     private(set) var isLoaded: Bool
 
@@ -49,11 +54,21 @@ final class HomeStore {
     }
 
     var recentSessions: [HomeSession] {
-        var seen = Set<String>()
+        // Observe the revision even when serving the cached ordering.
+        _ = snapshotRevision
+        if let cachedRecentSessions { return cachedRecentSessions }
         let known = Set(snapshot.entries.map(\.id))
-        return snapshot.sessions.sorted { $0.endedAt > $1.endedAt }.filter {
-            known.contains($0.entryID) && seen.insert($0.entryID).inserted
+        var latest: [String: HomeSession] = [:]
+        for session in snapshot.sessions where known.contains(session.entryID) {
+            if latest[session.entryID] == nil || session.endedAt > latest[session.entryID]!.endedAt {
+                latest[session.entryID] = session
+            }
         }
+        let ordered = latest.values.sorted {
+            $0.endedAt == $1.endedAt ? $0.entryID < $1.entryID : $0.endedAt > $1.endedAt
+        }
+        cachedRecentSessions = ordered
+        return ordered
     }
 
     var slots: [HomeSlot] {
@@ -81,10 +96,12 @@ final class HomeStore {
             return
         }
         // A reader can update the same session without inflating activity totals.
-        snapshot.entries.removeAll { $0.id == entry.id }
-        snapshot.entries.append(entry)
-        snapshot.sessions.removeAll { $0.id == session.id }
-        snapshot.sessions.append(session)
+        updateEntry(entry, shouldPersist: false)
+        if let index = snapshot.sessions.lastIndex(where: { $0.id == session.id }) {
+            snapshot.sessions[index] = session
+        } else {
+            snapshot.sessions.append(session)
+        }
         persist()
     }
 
@@ -94,8 +111,36 @@ final class HomeStore {
             pending.append { $0.pin(entry, slot: slot) }
             return
         }
+        if let entry {
+            var saved = self.entry(entry.id) ?? entry
+            saved.sourceEntry = entry.sourceEntry ?? saved.sourceEntry
+            updateEntry(saved, shouldPersist: false)
+        }
         snapshot.pins[slot] = entry?.id
         persist()
+    }
+
+    /// Refresh metadata without inventing reading sessions or losing source identity.
+    func updateEntry(_ entry: HomeEntry, shouldPersist: Bool = true) {
+        guard isLoaded else {
+            pending.append { $0.updateEntry(entry, shouldPersist: shouldPersist) }
+            return
+        }
+        var next = entry
+        if let previous = self.entry(entry.id) {
+            next.sourceEntry = entry.sourceEntry ?? previous.sourceEntry
+            next.coverURL = entry.coverURL ?? previous.coverURL
+            next.author = entry.author ?? previous.author
+            next.summary = entry.summary ?? previous.summary
+            if next.genres.isEmpty { next.genres = previous.genres }
+        }
+        if let index = snapshot.entries.firstIndex(where: { $0.id == entry.id }) {
+            guard snapshot.entries[index] != next else { return }
+            snapshot.entries[index] = next
+        } else {
+            snapshot.entries.append(next)
+        }
+        if shouldPersist { persist() }
     }
 
     func clearHistory(entryID: String? = nil) async {
@@ -112,58 +157,24 @@ final class HomeStore {
 
     private func persist() {
         guard let disk, storageError == nil else { return }
-        let value = snapshot
-        let previous = saveTask
+        needsSave = true
+        guard saveTask == nil else { return }
         saveTask = Task { [weak self] in
-            await previous?.value
-            guard self?.storageError == nil else { return }
-            do {
-                try await disk.write(value)
-            } catch {
-                self?.storageError = "Couldn’t save your Home activity."
+            // Coalesce rapid page turns, retaining at most one pending snapshot.
+            try? await Task.sleep(for: .milliseconds(200))
+            guard let self else { return }
+            while needsSave && storageError == nil {
+                needsSave = false
+                let value = snapshot
+                do { try await disk.write(value) }
+                catch { storageError = "Couldn’t save your Home activity." }
             }
+            saveTask = nil
         }
     }
 
     func statistics(now: Date = .now, calendar: Calendar = .current) -> HomeStatistics {
-        var result = HomeStatistics()
-        let sessions = snapshot.sessions.filter { $0.endedAt <= now }
-        let today = calendar.startOfDay(for: now)
-        let weekStart = calendar.date(byAdding: .day, value: -6, to: today)!
-        let mediaByID = Dictionary(
-            snapshot.entries.map { ($0.id, $0.media) }, uniquingKeysWith: { _, latest in latest })
-        for session in sessions {
-            let units = max(0, session.completedUnits)
-            result.units += units
-            result.minutes += max(0, session.minutes)
-            if session.endedAt >= weekStart { result.thisWeek += units }
-            let day = calendar.startOfDay(for: session.endedAt)
-            result.daily[day, default: 0] += max(1, units)
-            if let media = mediaByID[session.entryID] { result.byMedia[media, default: 0] += units }
-        }
-        result.series = Set(sessions.map(\.entryID)).count
-        result.firstRead = sessions.map(\.endedAt).min()
-        result.lastRead = sessions.map(\.endedAt).max()
-        if let first = result.firstRead {
-            let days = max(
-                1,
-                (calendar.dateComponents([.day], from: calendar.startOfDay(for: first), to: today)
-                    .day ?? 0) + 1)
-            result.perDay = Double(result.units) / Double(days)
-        }
-        var previous: Date?
-        var streak = 0
-        for day in result.daily.keys.sorted() {
-            streak =
-                previous.flatMap { calendar.date(byAdding: .day, value: 1, to: $0) } == day
-                ? streak + 1 : 1
-            result.bestStreak = max(result.bestStreak, streak)
-            previous = day
-        }
-        if let previous, previous >= calendar.date(byAdding: .day, value: -1, to: today)! {
-            result.currentStreak = streak
-        }
-        return result
+        HomeStatistics.calculate(snapshot: snapshot, now: now, calendar: calendar)
     }
 }
 

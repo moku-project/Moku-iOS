@@ -33,7 +33,7 @@ import SwiftUI
             guard active else { return }
             session = HomeSession(
                 entryID: entry.id, chapterID: chapterID, page: position,
-                endedAt: now, minutes: 0, completedUnits: 0)
+                endedAt: now, minutes: 0, completedUnits: 0, startedAt: now)
         }
         session?.page = position
         let units = max(session?.completedUnits ?? 0, completed ? 1 : 0)
@@ -54,6 +54,7 @@ import SwiftUI
     private func persist(home: HomeStore, now: Date) {
         guard var session, let entry else { return }
         session.minutes = Int(seconds / 60)
+        session.durationSeconds = seconds
         // Paused sessions don't continually jump to the top of Recent.
         if wasActive { session.endedAt = now }
         self.session = session
@@ -88,6 +89,7 @@ private struct ActivityRecording: ViewModifier {
         content
             .onChange(of: sample, initial: true) { _, _ in record() }
             .task(id: sample) {
+                guard sample.active && sample.valid else { return }
                 while !Task.isCancelled {
                     do { try await Task.sleep(for: .seconds(5)) } catch { break }
                     record()

@@ -24,9 +24,10 @@ index e1a50ed..1c34b4f 100644
  golang.org/x/mod v0.38.0/go.mod h1:V6Xz0pq8TQ3dGqVQ1FVHuelZpAL0uNhSkk9ogYP3c40=
  golang.org/x/net v0.57.0 h1:K5+3DljvIuDG9/Jv9rvyMywYNFCQ9RSUY6OOTTkT+tE=
 diff --git a/backend/internal/api/graph/convert.go b/backend/internal/api/graph/convert.go
+index e1e7d88..0fdf935 100644
 --- a/backend/internal/api/graph/convert.go
 +++ b/backend/internal/api/graph/convert.go
-@@ -4,7 +4,6 @@
+@@ -4,7 +4,6 @@ import (
  	"context"
  	"database/sql"
  	"encoding/base64"
@@ -34,7 +35,7 @@ diff --git a/backend/internal/api/graph/convert.go b/backend/internal/api/graph/
  	"fmt"
  	"log"
  	"net/url"
-@@ -21,6 +20,7 @@
+@@ -21,6 +20,7 @@ import (
  	"tsunagu/backend/internal/db/sqlcgen"
  	"tsunagu/backend/internal/flaresolverr"
  	"tsunagu/backend/internal/metadata"
@@ -42,7 +43,7 @@ diff --git a/backend/internal/api/graph/convert.go b/backend/internal/api/graph/
  	sandboxv1 "tsunagu/backend/internal/sandbox/gen/sandbox/v1"
  	"tsunagu/backend/internal/tracker"
  )
-@@ -412,9 +412,7 @@
+@@ -412,9 +412,7 @@ func proxyResourceURL(route, mediaID, chapterID, absURL string, headers map[stri
  	q := url.Values{}
  	q.Set("u", base64.RawURLEncoding.EncodeToString([]byte(absURL)))
  	if len(headers) > 0 {
@@ -53,7 +54,7 @@ diff --git a/backend/internal/api/graph/convert.go b/backend/internal/api/graph/
  	}
  	return fmt.Sprintf("/content/%s/%s/%s?%s", mediaID, chapterID, route, q.Encode())
  }
-@@ -801,9 +799,14 @@
+@@ -801,9 +799,14 @@ func toProtoFilterNodes(ins []*model.FilterInput) []*sandboxv1.FilterNode {
  }
  
  func (r *Resolver) toSearchResponse(ctx context.Context, ext sqlcgen.Extension, resp *sandboxv1.SearchResponse) (*model.SearchResponse, error) {
@@ -294,7 +295,7 @@ index 583a388..e4272c2 100644
  	if err != nil {
  		http.Error(w, "missing file field", http.StatusBadRequest)
 diff --git a/backend/internal/api/rest/content.go b/backend/internal/api/rest/content.go
-index 1611923..ec1cae1 100644
+index 1611923..668ecf0 100644
 --- a/backend/internal/api/rest/content.go
 +++ b/backend/internal/api/rest/content.go
 @@ -6,6 +6,7 @@ import (
@@ -327,16 +328,26 @@ index 1611923..ec1cae1 100644
  }
  
  func (h *ContentHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-@@ -153,7 +157,7 @@ func (h *ContentHandler) servePage(w http.ResponseWriter, r *http.Request, chapt
+@@ -145,6 +149,7 @@ func (h *ContentHandler) servePage(w http.ResponseWriter, r *http.Request, chapt
+ 
+ 	urls, err := client.GetPageURLs(ctx, dctx.ExtensionPackageName, dctx.SourceEntryID, dctx.SourceChapterID)
+ 	if err != nil {
++		log.Printf("chapter %d: page list from %s failed: %v", chapterID, dctx.ExtensionPackageName, err)
+ 		http.Error(w, "fetching page list failed", http.StatusBadGateway)
+ 		return
+ 	}
+@@ -153,8 +158,9 @@ func (h *ContentHandler) servePage(w http.ResponseWriter, r *http.Request, chapt
  		return
  	}
  
 -	data, ct, err := fetchMangaImage(ctx, client, dctx.ExtensionPackageName, urls[pageNumber-1])
 +	data, ct, err := h.images().fetch(ctx, client, dctx.ExtensionPackageName, urls[pageNumber-1])
  	if err != nil {
++		log.Printf("chapter %d page %d from %s failed: %v", chapterID, pageNumber, dctx.ExtensionPackageName, err)
  		http.Error(w, "fetching image failed", http.StatusBadGateway)
  		return
-@@ -163,7 +167,7 @@ func (h *ContentHandler) servePage(w http.ResponseWriter, r *http.Request, chapt
+ 	}
+@@ -163,7 +169,7 @@ func (h *ContentHandler) servePage(w http.ResponseWriter, r *http.Request, chapt
  		if end > len(urls) {
  			end = len(urls)
  		}
@@ -345,7 +356,7 @@ index 1611923..ec1cae1 100644
  	}
  
  	if ct == "" {
-@@ -196,8 +200,8 @@ func (h *ContentHandler) prefetchChapter(w http.ResponseWriter, r *http.Request,
+@@ -196,8 +202,8 @@ func (h *ContentHandler) prefetchChapter(w http.ResponseWriter, r *http.Request,
  		return
  	}
  
@@ -356,7 +367,7 @@ index 1611923..ec1cae1 100644
  		defer cancel()
  		urls, err := client.GetPageURLs(ctx, dctx.ExtensionPackageName, dctx.SourceEntryID, dctx.SourceChapterID)
  		if err != nil {
-@@ -207,8 +211,8 @@ func (h *ContentHandler) prefetchChapter(w http.ResponseWriter, r *http.Request,
+@@ -207,8 +213,8 @@ func (h *ContentHandler) prefetchChapter(w http.ResponseWriter, r *http.Request,
  		if k > len(urls) {
  			k = len(urls)
  		}
@@ -367,7 +378,7 @@ index 1611923..ec1cae1 100644
  	w.WriteHeader(http.StatusNoContent)
  }
  
-@@ -588,8 +592,9 @@ func (h *ContentHandler) serveHLS(w http.ResponseWriter, r *http.Request, chapte
+@@ -588,8 +594,9 @@ func (h *ContentHandler) serveHLS(w http.ResponseWriter, r *http.Request, chapte
  	}
  	var headers map[string]string
  	if hp := r.URL.Query().Get("h"); hp != "" {
@@ -379,7 +390,7 @@ index 1611923..ec1cae1 100644
  		}
  	}
  	h.streamHLS(w, r, tgt, headers, chapterID)
-@@ -605,7 +610,7 @@ func (h *ContentHandler) streamHLS(w http.ResponseWriter, r *http.Request, targe
+@@ -605,7 +612,7 @@ func (h *ContentHandler) streamHLS(w http.ResponseWriter, r *http.Request, targe
  	isRanged := r.Header.Get("Range") != ""
  	looksSegment := !strings.Contains(strings.ToLower(target.Path), ".m3u8")
  	if looksSegment && !isRanged {
@@ -388,7 +399,7 @@ index 1611923..ec1cae1 100644
  			writeCachedSegment(w, b, ct)
  			return
  		}
-@@ -649,7 +654,7 @@ func (h *ContentHandler) streamHLS(w http.ResponseWriter, r *http.Request, targe
+@@ -649,7 +656,7 @@ func (h *ContentHandler) streamHLS(w http.ResponseWriter, r *http.Request, targe
  
  func (h *ContentHandler) writeSegment(w http.ResponseWriter, r *http.Request, key string, resp *http.Response) {
  	respCT := resp.Header.Get("Content-Type")
@@ -397,7 +408,7 @@ index 1611923..ec1cae1 100644
  
  	for _, hk := range []string{"Content-Type", "Content-Length", "Content-Range", "Accept-Ranges"} {
  		if v := resp.Header.Get(hk); v != "" {
-@@ -659,15 +664,47 @@ func (h *ContentHandler) writeSegment(w http.ResponseWriter, r *http.Request, ke
+@@ -659,15 +666,47 @@ func (h *ContentHandler) writeSegment(w http.ResponseWriter, r *http.Request, ke
  	w.Header().Set("Cache-Control", "no-store")
  	w.WriteHeader(resp.StatusCode)
  
@@ -453,7 +464,7 @@ index 1611923..ec1cae1 100644
  }
  
  func writeCachedSegment(w http.ResponseWriter, data []byte, ct string) {
-@@ -851,8 +888,9 @@ func (h *ContentHandler) serveSubtitle(w http.ResponseWriter, r *http.Request, c
+@@ -851,8 +890,9 @@ func (h *ContentHandler) serveSubtitle(w http.ResponseWriter, r *http.Request, c
  	}
  	var headers map[string]string
  	if hp := r.URL.Query().Get("h"); hp != "" {
@@ -465,7 +476,7 @@ index 1611923..ec1cae1 100644
  		}
  	}
  
-@@ -957,11 +995,7 @@ func encodeHeaderParam(headers map[string]string) string {
+@@ -957,11 +997,7 @@ func encodeHeaderParam(headers map[string]string) string {
  	if len(headers) == 0 {
  		return ""
  	}
@@ -478,7 +489,7 @@ index 1611923..ec1cae1 100644
  }
  
  func dashSegmentBase(manifest *url.URL, headers map[string]string) string {
-@@ -970,11 +1004,10 @@ func dashSegmentBase(manifest *url.URL, headers map[string]string) string {
+@@ -970,11 +1006,10 @@ func dashSegmentBase(manifest *url.URL, headers map[string]string) string {
  		dir.Path = dir.Path[:i+1]
  	}
  	dir.RawQuery, dir.Fragment = "", ""
@@ -491,7 +502,7 @@ index 1611923..ec1cae1 100644
  }
  
  var (
-@@ -1007,16 +1040,11 @@ func (h *ContentHandler) serveDASH(w http.ResponseWriter, r *http.Request, rest
+@@ -1007,16 +1042,11 @@ func (h *ContentHandler) serveDASH(w http.ResponseWriter, r *http.Request, rest
  		http.Error(w, "bad dash path", http.StatusBadRequest)
  		return
  	}
@@ -509,7 +520,7 @@ index 1611923..ec1cae1 100644
  		http.Error(w, "bad dash base", http.StatusBadRequest)
  		return
  	}
-@@ -1037,7 +1065,7 @@ func (h *ContentHandler) serveDASH(w http.ResponseWriter, r *http.Request, rest
+@@ -1037,7 +1067,7 @@ func (h *ContentHandler) serveDASH(w http.ResponseWriter, r *http.Request, rest
  	}
  
  	if r.Header.Get("Range") == "" {
@@ -518,7 +529,7 @@ index 1611923..ec1cae1 100644
  			writeCachedSegment(w, b, ct)
  			return
  		}
-@@ -1315,3 +1343,15 @@ func serveZipEntry(w http.ResponseWriter, archivePath, entryName string) bool {
+@@ -1315,3 +1345,15 @@ func serveZipEntry(w http.ResponseWriter, archivePath, entryName string) bool {
  }
  
  var _ = sql.ErrNoRows
@@ -755,6 +766,161 @@ index be90cde..27618be 100644
 +	c.ll.Init()
 +	c.size = 0
 +}
+diff --git a/backend/internal/api/rest/segment_stream_test.go b/backend/internal/api/rest/segment_stream_test.go
+new file mode 100644
+index 0000000..3dadd61
+--- /dev/null
++++ b/backend/internal/api/rest/segment_stream_test.go
+@@ -0,0 +1,149 @@
++package rest
++
++import (
++	"bytes"
++	"errors"
++	"io"
++	"net/http"
++	"net/http/httptest"
++	"testing"
++	"time"
++)
++
++func TestSegmentDeliversBytesBeforeUpstreamCompletes(t *testing.T) {
++	h := &ContentHandler{Segments: NewSegmentCache(32 << 20)}
++	release := make(chan struct{})
++	finished := make(chan struct{})
++	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		defer close(finished)
++		reader, writer := io.Pipe()
++		go func() {
++			defer writer.Close()
++			_, _ = writer.Write([]byte("first"))
++			<-release
++			_, _ = writer.Write([]byte("last"))
++		}()
++		defer reader.Close()
++		h.writeSegment(w, r, "segment", &http.Response{
++			StatusCode: 200, Header: http.Header{"Content-Type": {"video/mp2t"}},
++			Body: reader, ContentLength: -1,
++		})
++	}))
++	defer server.Close()
++	first := make(chan error, 1)
++	complete := make(chan []byte, 1)
++	go func() {
++		response, err := server.Client().Get(server.URL)
++		if err != nil {
++			first <- err
++			complete <- nil
++			return
++		}
++		defer response.Body.Close()
++		prefix := make([]byte, 5)
++		_, err = io.ReadFull(response.Body, prefix)
++		if err == nil && string(prefix) != "first" {
++			err = errors.New("wrong first bytes")
++		}
++		first <- err
++		rest, _ := io.ReadAll(response.Body)
++		complete <- append(prefix, rest...)
++	}()
++	select {
++	case err := <-first:
++		if err != nil {
++			t.Error(err)
++		}
++	case <-time.After(2 * time.Second):
++		t.Error("player received no bytes while the upstream segment was still downloading")
++	}
++	close(release)
++	if got := <-complete; string(got) != "firstlast" {
++		t.Errorf("body = %q", got)
++	}
++	<-finished
++	if got, _, ok := h.segments().get("segment"); !ok || string(got) != "firstlast" {
++		t.Error("complete small segment was not cached")
++	}
++}
++
++func TestLargeSegmentIsDeliveredInFullWithoutCaching(t *testing.T) {
++	h := &ContentHandler{Segments: NewSegmentCache(32 << 20)}
++	body := bytes.Repeat([]byte{0xA5}, segCacheMaxObject+65536)
++	response := httptest.NewRecorder()
++	h.writeSegment(response, httptest.NewRequest("GET", "/", nil), "large", &http.Response{
++		StatusCode: 200, Header: http.Header{}, Body: io.NopCloser(bytes.NewReader(body)), ContentLength: -1,
++	})
++	if !bytes.Equal(response.Body.Bytes(), body) {
++		t.Fatalf("segment truncated: got %d, want %d", response.Body.Len(), len(body))
++	}
++	if _, _, ok := h.segments().get("large"); ok {
++		t.Fatal("oversized segment cached")
++	}
++}
++
++func TestRangeSegmentPreservesHeadersAndBypassesCache(t *testing.T) {
++	h := &ContentHandler{Segments: NewSegmentCache(32 << 20)}
++	request := httptest.NewRequest("GET", "/", nil)
++	request.Header.Set("Range", "bytes=2-4")
++	response := httptest.NewRecorder()
++	h.writeSegment(response, request, "range", &http.Response{
++		StatusCode: 206, Header: http.Header{"Content-Range": {"bytes 2-4/9"}, "Content-Length": {"3"}},
++		Body: io.NopCloser(bytes.NewBufferString("abc")), ContentLength: 3,
++	})
++	if response.Code != 206 || response.Header().Get("Content-Range") != "bytes 2-4/9" || response.Body.String() != "abc" {
++		t.Fatal("range response changed")
++	}
++	if _, _, ok := h.segments().get("range"); ok {
++		t.Fatal("partial segment cached")
++	}
++}
++
++type failedSegmentReader struct{ sent bool }
++
++type nonFlushingWriter struct{ http.ResponseWriter }
++
++func TestSegmentSupportsWritersWithoutFlush(t *testing.T) {
++	h := &ContentHandler{Segments: NewSegmentCache(32 << 20)}
++	response := httptest.NewRecorder()
++	h.writeSegment(nonFlushingWriter{response}, httptest.NewRequest("GET", "/", nil), "plain", &http.Response{
++		StatusCode: 200, Header: http.Header{}, Body: io.NopCloser(bytes.NewBufferString("complete")), ContentLength: 8,
++	})
++	if response.Body.String() != "complete" {
++		t.Fatal("body missing")
++	}
++}
++
++func (r *failedSegmentReader) Read(p []byte) (int, error) {
++	if r.sent {
++		return 0, errors.New("upstream disconnected")
++	}
++	r.sent = true
++	return copy(p, "partial"), nil
++}
++
++func TestIncompleteSegmentIsAbortedAndNeverCached(t *testing.T) {
++	for _, body := range []io.Reader{&failedSegmentReader{}, bytes.NewBufferString("short")} {
++		h := &ContentHandler{Segments: NewSegmentCache(32 << 20)}
++		aborted := false
++		func() {
++			defer func() {
++				if reason := recover(); reason != nil {
++					if reason != http.ErrAbortHandler {
++						panic(reason)
++					}
++					aborted = true
++				}
++			}()
++			h.writeSegment(httptest.NewRecorder(), httptest.NewRequest("GET", "/", nil), "failed", &http.Response{
++				StatusCode: 200, Header: http.Header{}, Body: io.NopCloser(body), ContentLength: 100,
++			})
++		}()
++		if !aborted {
++			t.Error("incomplete response was reported as complete")
++		}
++		if _, _, ok := h.segments().get("failed"); ok {
++			t.Error("incomplete response cached")
++		}
++	}
++}
 diff --git a/backend/internal/api/rest/subtitle_http_test.go b/backend/internal/api/rest/subtitle_http_test.go
 new file mode 100644
 index 0000000..22aab18
@@ -833,6 +999,7 @@ index 0000000..22aab18
 +}
 diff --git a/backend/internal/automation/manager.go b/backend/internal/automation/manager.go
 new file mode 100644
+index 0000000..91ad889
 --- /dev/null
 +++ b/backend/internal/automation/manager.go
 @@ -0,0 +1,377 @@
@@ -1215,6 +1382,7 @@ new file mode 100644
 +}
 diff --git a/backend/internal/automation/manager_test.go b/backend/internal/automation/manager_test.go
 new file mode 100644
+index 0000000..c5afb44
 --- /dev/null
 +++ b/backend/internal/automation/manager_test.go
 @@ -0,0 +1,245 @@
@@ -1462,6 +1630,78 @@ new file mode 100644
 +	if count != 0 {
 +		t.Fatal("global deletion delay was blocked by series override")
 +	}
++}
+diff --git a/backend/internal/contentfilter/source_overrides.go b/backend/internal/contentfilter/source_overrides.go
+new file mode 100644
+index 0000000..8c6c57e
+--- /dev/null
++++ b/backend/internal/contentfilter/source_overrides.go
+@@ -0,0 +1,66 @@
++package contentfilter
++
++import (
++	"context"
++	"database/sql"
++	"encoding/json"
++	"fmt"
++)
++
++type SourceOverrides struct {
++	Enabled bool    `json:"enabled"`
++	Allowed []int64 `json:"allowed"`
++	Blocked []int64 `json:"blocked"`
++}
++
++func LoadSourceOverrides(ctx context.Context, db *sql.DB) (SourceOverrides, error) {
++	var result SourceOverrides
++	var raw string
++	err := db.QueryRowContext(ctx, "SELECT value FROM app_settings WHERE key='mobile_source_overrides'").Scan(&raw)
++	if err == sql.ErrNoRows {
++		return result, nil
++	}
++	if err != nil {
++		return result, err
++	}
++	err = json.Unmarshal([]byte(raw), &result)
++	return result, err
++}
++func SaveSourceOverrides(ctx context.Context, db *sql.DB, value SourceOverrides) error {
++	if len(value.Allowed)+len(value.Blocked) > 10000 {
++		return fmt.Errorf("too many sources")
++	}
++	seen := map[int64]bool{}
++	for _, ids := range [][]int64{value.Allowed, value.Blocked} {
++		for _, id := range ids {
++			if id <= 0 || seen[id] {
++				return fmt.Errorf("invalid or duplicate source")
++			}
++			seen[id] = true
++		}
++	}
++	raw, err := json.Marshal(value)
++	if err != nil {
++		return err
++	}
++	_, err = db.ExecContext(ctx, "INSERT INTO app_settings(key,value) VALUES('mobile_source_overrides',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", string(raw))
++	return err
++}
++
++// Decision is -1 for blocked, 1 for allowed, and 0 for the global rules.
++func (value SourceOverrides) Decision(id int64) int {
++	if !value.Enabled {
++		return 0
++	}
++	for _, source := range value.Blocked {
++		if source == id {
++			return -1
++		}
++	}
++	for _, source := range value.Allowed {
++		if source == id {
++			return 1
++		}
++	}
++	return 0
 +}
 diff --git a/backend/internal/db/db.go b/backend/internal/db/db.go
 index fa69458..e20278e 100644
@@ -2596,11 +2836,290 @@ index 0000000..0a5fd3c
 +		t.Fatal("legacy contract broken")
 +	}
 +}
+diff --git a/backend/internal/repository/client.go b/backend/internal/repository/client.go
+index f39d049..f589c5b 100644
+--- a/backend/internal/repository/client.go
++++ b/backend/internal/repository/client.go
+@@ -32,6 +32,8 @@ var validPackageName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
+ 
+ func IsValidPackageName(s string) bool { return validPackageName.MatchString(s) }
+ 
++var unsafeFileChars = regexp.MustCompile(`[^A-Za-z0-9._-]`)
++
+ func ClassifyContentType(packageName string) string {
+ 	if strings.HasPrefix(packageName, "eu.kanade.tachiyomi.animeextension.") {
+ 		return "anime"
+@@ -61,7 +63,7 @@ func DownloadExtensionFile(cacheDir, packageName, version, downloadURL, ext stri
+ 		return "", fmt.Errorf("create cache dir %s: %w", cacheDir, err)
+ 	}
+ 
+-	dest := filepath.Join(cacheDir, fmt.Sprintf("%s-%s.%s", packageName, version, ext))
++	dest := filepath.Join(cacheDir, fmt.Sprintf("%s-%s.%s", packageName, unsafeFileChars.ReplaceAllString(version, "_"), ext))
+ 	if _, err := os.Stat(dest); err == nil {
+ 		return dest, nil
+ 	}
+@@ -96,19 +98,69 @@ func DownloadExtensionFile(cacheDir, packageName, version, downloadURL, ext stri
+ 	return dest, nil
+ }
+ 
+-func filterValid(exts []ParsedExtension) []ParsedExtension {
++func filterValid(indexURL string, exts []ParsedExtension) []ParsedExtension {
+ 	out := make([]ParsedExtension, 0, len(exts))
++	var skipped []string
+ 	for _, ext := range exts {
+ 		if !IsValidPackageName(ext.PackageName) {
+-			log.Printf("skipping repo entry with invalid package name %q", ext.PackageName)
++			skipped = append(skipped, fmt.Sprintf("%q (%s)", ext.PackageName, ext.Name))
+ 			continue
+ 		}
+ 		out = append(out, ext)
+ 	}
++	if len(skipped) > 0 {
++		log.Printf("repo %s: skipped %d entries without a valid package name, e.g. %s", indexURL, len(skipped), skipped[0])
++	}
+ 	return out
+ }
+ 
++// indexV2URL returns the protobuf index a Mihon-style repo advertises in the
++// repo.json next to its index (or at indexURL itself), or "" when it has none.
++// Such repos (Keiyoushi, NovelSourcery) serve a placeholder index.min.json to
++// apps that predate index_v2.
++func indexV2URL(indexURL string) string {
++	if !strings.HasSuffix(indexURL, ".json") {
++		return ""
++	}
++	repoJSON := indexURL
++	if !strings.HasSuffix(indexURL, "/repo.json") {
++		i := strings.LastIndex(indexURL, "/")
++		if i < 0 {
++			return ""
++		}
++		repoJSON = indexURL[:i] + "/repo.json"
++	}
++	resp, err := repoClient.Get(repoJSON)
++	if err != nil {
++		return ""
++	}
++	defer resp.Body.Close()
++	if resp.StatusCode != http.StatusOK {
++		return ""
++	}
++	var meta struct {
++		IndexV2 string `json:"index_v2"`
++	}
++	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&meta); err != nil {
++		return ""
++	}
++	return meta.IndexV2
++}
++
+ func FetchIndex(indexURL string) ([]ParsedExtension, error) {
++	if v2 := indexV2URL(indexURL); v2 != "" && v2 != indexURL {
++		// Some repo.json files point at a moved or unreadable index; the one the
++		// user added still works then.
++		exts, err := fetchIndexAt(v2)
++		if err == nil {
++			return exts, nil
++		}
++		log.Printf("repo %s: index_v2 %s unusable (%v), using the index as given", indexURL, v2, err)
++	}
++	return fetchIndexAt(indexURL)
++}
++
++func fetchIndexAt(indexURL string) ([]ParsedExtension, error) {
+ 	resp, err := repoClient.Get(indexURL)
+ 	if err != nil {
+ 		return nil, fetchErrorf("failed to fetch %s: %v", indexURL, err)
+@@ -165,12 +217,12 @@ func FetchIndex(indexURL string) ([]ParsedExtension, error) {
+ 			if hasID && hasURL && !hasPkg {
+ 				var novel []novelRepoEntry
+ 				if err := json.Unmarshal(data, &novel); err == nil {
+-					return filterValid(novelToParsedExtensions(novel)), nil
++					return filterValid(indexURL, novelToParsedExtensions(novel)), nil
+ 				}
+ 			}
+ 			var legacy []legacyRepoExtension
+ 			if err := json.Unmarshal(data, &legacy); err == nil {
+-				return filterValid(legacyToParsedExtensions(legacy, apkBaseURL)), nil
++				return filterValid(indexURL, legacyToParsedExtensions(legacy, apkBaseURL)), nil
+ 			}
+ 		}
+ 	}
+@@ -187,5 +239,5 @@ func FetchIndex(indexURL string) ([]ParsedExtension, error) {
+ 		)
+ 	}
+ 
+-	return filterValid(idx.toParsedExtensions(apkBaseURL)), nil
++	return filterValid(indexURL, idx.toParsedExtensions(apkBaseURL)), nil
+ }
+diff --git a/backend/internal/repository/client_test.go b/backend/internal/repository/client_test.go
+new file mode 100644
+index 0000000..f60cf5a
+--- /dev/null
++++ b/backend/internal/repository/client_test.go
+@@ -0,0 +1,134 @@
++package repository
++
++import (
++	"net/http"
++	"net/http/httptest"
++	"path/filepath"
++	"testing"
++
++	"google.golang.org/protobuf/encoding/protowire"
++)
++
++func bytesField(b []byte, num protowire.Number, v []byte) []byte {
++	b = protowire.AppendTag(b, num, protowire.BytesType)
++	return protowire.AppendBytes(b, v)
++}
++
++// novelIndexPB is a one-extension index_v2 shaped like NovelSourcery's.
++func novelIndexPB() []byte {
++	var res []byte
++	res = bytesField(res, 501, []byte("https://example.com/boxnovel.jar"))
++	var src []byte
++	src = bytesField(src, 3, []byte("en"))
++	var ext []byte
++	ext = bytesField(ext, 1, []byte("BoxNovel"))
++	ext = bytesField(ext, 2, []byte("eu.kanade.tachiyomi.novelextension.en.boxnovel"))
++	ext = bytesField(ext, 3, res)
++	ext = bytesField(ext, 6, []byte("1.6.12"))
++	ext = bytesField(ext, 8, src)
++	list := bytesField(nil, 1, ext)
++	idx := bytesField(nil, 1, []byte("NovelSourcery"))
++	return bytesField(idx, 101, list)
++}
++
++const decoyIndex = `[{"name":"Outdated App","pkg":"eu.kanade.tachiyomi.extension.all.keiyoushi","apk":"x.apk","lang":"all","version":"1.4.1"}]`
++
++func TestFetchIndexFollowsIndexV2(t *testing.T) {
++	mux := http.NewServeMux()
++	srv := httptest.NewServer(mux)
++	defer srv.Close()
++	mux.HandleFunc("/repo/index.min.json", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte(decoyIndex)) })
++	mux.HandleFunc("/repo/repo.json", func(w http.ResponseWriter, _ *http.Request) {
++		w.Write([]byte(`{"index_v2":"` + srv.URL + `/repo/index.pb","meta":{"name":"NovelSourcery"}}`))
++	})
++	mux.HandleFunc("/repo/index.pb", func(w http.ResponseWriter, _ *http.Request) { w.Write(novelIndexPB()) })
++	mux.HandleFunc("/plain/index.min.json", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte(decoyIndex)) })
++
++	for _, u := range []string{srv.URL + "/repo/index.min.json", srv.URL + "/repo/repo.json"} {
++		exts, err := FetchIndex(u)
++		if err != nil {
++			t.Fatalf("%s: %v", u, err)
++		}
++		if len(exts) != 1 || exts[0].Name != "BoxNovel" || exts[0].JarURL != "https://example.com/boxnovel.jar" || exts[0].Lang != "en" {
++			t.Fatalf("%s: got %+v, want the BoxNovel entry from index_v2", u, exts)
++		}
++	}
++
++	// No repo.json: the index is used as given.
++	exts, err := FetchIndex(srv.URL + "/plain/index.min.json")
++	if err != nil || len(exts) != 1 || exts[0].Name != "Outdated App" {
++		t.Fatalf("plain index: %+v %v", exts, err)
++	}
++}
++
++func TestClassifyContentType(t *testing.T) {
++	for pkg, want := range map[string]string{
++		"eu.kanade.tachiyomi.extension.en.mangadex":     "manga",
++		"eu.kanade.tachiyomi.animeextension.en.anikoto": "anime",
++	} {
++		if got := ClassifyContentType(pkg); got != want {
++			t.Errorf("ClassifyContentType(%q) = %q, want %q", pkg, got, want)
++		}
++	}
++}
++
++// aniyomiIndexPB is shaped like Secozzi's: field 8 is a varint flag and the
++// sources sit in field 9.
++func aniyomiIndexPB() []byte {
++	res := bytesField(nil, 1, []byte("https://example.com/jellyfin.apk"))
++	src := bytesField(nil, 3, []byte("all"))
++	var ext []byte
++	ext = bytesField(ext, 1, []byte("Jellyfin"))
++	ext = bytesField(ext, 2, []byte("eu.kanade.tachiyomi.animeextension.all.jellyfin"))
++	ext = bytesField(ext, 3, res)
++	ext = bytesField(ext, 6, []byte("17.2"))
++	ext = protowire.AppendTag(ext, 8, protowire.VarintType)
++	ext = protowire.AppendVarint(ext, 1)
++	ext = bytesField(ext, 9, src)
++	idx := bytesField(nil, 1, []byte("Jellyfin, Stremio, and Torbox"))
++	return bytesField(idx, 101, bytesField(nil, 1, ext))
++}
++
++func TestFetchIndexAniyomiLayout(t *testing.T) {
++	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.Write(aniyomiIndexPB()) }))
++	defer srv.Close()
++	exts, err := FetchIndex(srv.URL + "/index.pb")
++	if err != nil {
++		t.Fatal(err)
++	}
++	if len(exts) != 1 || exts[0].PackageName != "eu.kanade.tachiyomi.animeextension.all.jellyfin" || exts[0].Lang != "all" {
++		t.Fatalf("got %+v", exts)
++	}
++}
++
++func TestFetchIndexFallsBackWhenIndexV2IsDead(t *testing.T) {
++	mux := http.NewServeMux()
++	srv := httptest.NewServer(mux)
++	defer srv.Close()
++	mux.HandleFunc("/repo/repo.json", func(w http.ResponseWriter, _ *http.Request) {
++		w.Write([]byte(`{"index_v2":"` + srv.URL + `/moved/index.pb"}`))
++	})
++	mux.HandleFunc("/repo/index.min.json", func(w http.ResponseWriter, _ *http.Request) {
++		w.Write([]byte(`[{"name":"Tachiyomi: MangaDex","pkg":"eu.kanade.tachiyomi.extension.all.mangadex","apk":"x.apk","lang":"all","version":"1.4.1"}]`))
++	})
++	exts, err := FetchIndex(srv.URL + "/repo/index.min.json")
++	if err != nil || len(exts) != 1 || exts[0].PackageName != "eu.kanade.tachiyomi.extension.all.mangadex" {
++		t.Fatalf("got %+v %v", exts, err)
++	}
++}
++
++// A repo's version string must not steer the download outside the cache.
++func TestDownloadExtensionFileStaysInCache(t *testing.T) {
++	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		_, _ = w.Write([]byte("jar"))
++	}))
++	defer srv.Close()
++	cache := filepath.Join(t.TempDir(), "cache")
++	path, err := DownloadExtensionFile(cache, "eu.kanade.tachiyomi.extension.en.x", "1/../../../escaped", srv.URL, "jar")
++	if err != nil {
++		t.Fatal(err)
++	}
++	if filepath.Dir(path) != cache {
++		t.Fatalf("downloaded to %s, outside %s", path, cache)
++	}
++}
+diff --git a/backend/internal/repository/protobuf.go b/backend/internal/repository/protobuf.go
+index f02a8d0..6596b92 100644
+--- a/backend/internal/repository/protobuf.go
++++ b/backend/internal/repository/protobuf.go
+@@ -176,7 +176,17 @@ func decodeExtension(b []byte) (*extension, error) {
+ 			}
+ 			b = b[n:]
+ 			ext.ContentWarning = int32(v)
+-		case 8:
++		// Keiyoushi-style indexes put sources in 8; Aniyomi-style ones use 8 for a
++		// varint flag and put sources in 9.
++		case 8, 9:
++			if typ != protowire.BytesType {
++				n, err := skipField(b, typ)
++				if err != nil {
++					return nil, err
++				}
++				b = b[n:]
++				continue
++			}
+ 			v, n := protowire.ConsumeBytes(b)
+ 			if n < 0 {
+ 				return nil, fmt.Errorf("consume source entry: %w", protowire.ParseError(n))
 diff --git a/backend/internal/sandbox/client.go b/backend/internal/sandbox/client.go
-index d8e26a2..b6d4b36 100644
+index d8e26a2..d1581d5 100644
 --- a/backend/internal/sandbox/client.go
 +++ b/backend/internal/sandbox/client.go
-@@ -34,8 +34,11 @@ type Client struct {
+@@ -34,16 +34,25 @@ type Client struct {
  }
  
  func NewClient(addr string) (*Client, error) {
@@ -2609,12 +3128,17 @@ index d8e26a2..b6d4b36 100644
 +	return newClient(addr)
 +}
 +
++// The sandbox rejects source images over 32 MiB; leave room for protobuf framing.
++// gRPC's 4 MiB default dropped ordinary high-resolution manga pages.
++const maxImageBytes = 40 << 20
++
 +func newClient(addr string, extra ...grpc.DialOption) (*Client, error) {
 +	options := []grpc.DialOption{
  		grpc.WithTransportCredentials(insecure.NewCredentials()),
++		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(maxImageBytes)),
  		grpc.WithKeepaliveParams(keepalive.ClientParameters{
  			Time:                20 * time.Second,
-@@ -43,7 +46,8 @@ func NewClient(addr string) (*Client, error) {
+ 			Timeout:             5 * time.Second,
  			PermitWithoutStream: true,
  		}),
  		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`),
@@ -2624,7 +3148,7 @@ index d8e26a2..b6d4b36 100644
  	if err != nil {
  		return nil, fmt.Errorf("dial sandbox at %s: %w", addr, err)
  	}
-@@ -181,3 +185,14 @@ func (c *Client) GetImageBytes(ctx context.Context, extensionID, imageURL string
+@@ -181,3 +190,14 @@ func (c *Client) GetImageBytes(ctx context.Context, extensionID, imageURL string
  		ImageUrl:    imageURL,
  	})
  }
@@ -3346,10 +3870,65 @@ index 75ab078..f773573 100644
 +	}
  	sc.killLocked()
  }
+diff --git a/backend/internal/sync/source_overrides_test.go b/backend/internal/sync/source_overrides_test.go
+new file mode 100644
+index 0000000..e403fbb
+--- /dev/null
++++ b/backend/internal/sync/source_overrides_test.go
+@@ -0,0 +1,48 @@
++package sync
++
++import (
++	"context"
++	"path/filepath"
++	"testing"
++	"tsunagu/backend/internal/contentfilter"
++	"tsunagu/backend/internal/db"
++	"tsunagu/backend/internal/db/sqlcgen"
++)
++
++func TestLibrarySourceOverridesApplyBeforePagination(t *testing.T) {
++	ctx := context.Background()
++	conn, err := db.Open(filepath.Join(t.TempDir(), "test.db"))
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer conn.Close()
++	_, err = conn.Exec(`PRAGMA foreign_keys=OFF;
++ INSERT INTO media(id,extension_id,external_id,content_type,title,added_at,content_block_rank) VALUES
++ (1,11,'one','manga','One',CURRENT_TIMESTAMP,1),
++ (2,22,'two','manga','Two',CURRENT_TIMESTAMP,1),
++ (3,33,'three','manga','Three',CURRENT_TIMESTAMP,NULL)`)
++	if err != nil {
++		t.Fatal(err)
++	}
++	value := contentfilter.SourceOverrides{Enabled: true, Allowed: []int64{11}, Blocked: []int64{33}}
++	if err = contentfilter.SaveSourceOverrides(ctx, conn, value); err != nil {
++		t.Fatal(err)
++	}
++	sy := New(conn, sqlcgen.New(conn), t.TempDir(), t.TempDir())
++	rows, total, err := sy.QueryLibrary(ctx, LibraryQuery{ContentFilterRank: 1, Limit: 1})
++	if err != nil || total != 1 || len(rows) != 1 || rows[0].ID != 1 {
++		t.Fatalf("overrides: rows=%+v total=%d err=%v", rows, total, err)
++	}
++	value.Enabled = false
++	if err = contentfilter.SaveSourceOverrides(ctx, conn, value); err != nil {
++		t.Fatal(err)
++	}
++	rows, total, err = sy.QueryLibrary(ctx, LibraryQuery{ContentFilterRank: 1, Limit: 1})
++	if err != nil || total != 1 || len(rows) != 1 || rows[0].ID != 3 {
++		t.Fatalf("disabled: rows=%+v total=%d err=%v", rows, total, err)
++	}
++	value.Allowed = []int64{33}
++	if err = contentfilter.SaveSourceOverrides(ctx, conn, value); err == nil {
++		t.Fatal("accepted conflicting allow and block")
++	}
++}
 diff --git a/backend/internal/sync/sync.go b/backend/internal/sync/sync.go
+index b5b1809..4f306e9 100644
 --- a/backend/internal/sync/sync.go
 +++ b/backend/internal/sync/sync.go
-@@ -14,6 +14,7 @@
+@@ -14,6 +14,7 @@ import (
  	"strings"
  	"sync"
  	"time"
@@ -3357,7 +3936,7 @@ diff --git a/backend/internal/sync/sync.go b/backend/internal/sync/sync.go
  
  	"tsunagu/backend/internal/chapternum"
  	"tsunagu/backend/internal/db/sqlcgen"
-@@ -21,13 +22,17 @@
+@@ -21,13 +22,17 @@ import (
  	"tsunagu/backend/internal/repository"
  	"tsunagu/backend/internal/sandbox"
  	sandboxv1 "tsunagu/backend/internal/sandbox/gen/sandbox/v1"
@@ -3379,7 +3958,7 @@ diff --git a/backend/internal/sync/sync.go b/backend/internal/sync/sync.go
  
  	installMu sync.Mutex
  	locks     map[string]*sync.Mutex
-@@ -51,7 +56,7 @@
+@@ -51,7 +56,7 @@ func (s *Syncer) SetEnricher(e Enricher)     { s.enricher = e }
  func (s *Syncer) SetRecomputer(r Recomputer) { s.recompute = r }
  
  func New(db *sql.DB, q *sqlcgen.Queries, cacheDir, mediaDir string) *Syncer {
@@ -3388,7 +3967,7 @@ diff --git a/backend/internal/sync/sync.go b/backend/internal/sync/sync.go
  }
  
  type LibraryUpdateProgress struct {
-@@ -84,12 +89,12 @@
+@@ -84,12 +89,12 @@ func (s *Syncer) StartLibraryUpdate(sc *sandbox.SupervisedClient, folderID *int6
  	var err error
  	if folderID != nil {
  		var rows []sqlcgen.Medium
@@ -3403,7 +3982,7 @@ diff --git a/backend/internal/sync/sync.go b/backend/internal/sync/sync.go
  	}
  	if err != nil {
  		s.updateMu.Unlock()
-@@ -103,12 +108,12 @@
+@@ -103,12 +108,12 @@ func (s *Syncer) StartLibraryUpdate(sc *sandbox.SupervisedClient, folderID *int6
  	}
  	s.updateMu.Unlock()
  
@@ -3418,7 +3997,7 @@ diff --git a/backend/internal/sync/sync.go b/backend/internal/sync/sync.go
  	defer func() {
  		s.updateMu.Lock()
  		s.updateProg.Running = false
-@@ -311,7 +316,7 @@
+@@ -311,7 +316,7 @@ func (s *Syncer) InstallExternalExtension(ctx context.Context, c *sandbox.Client
  	}
  	tempPath := filepath.Join(tempDir, fmt.Sprintf("sideload-%d.%s", time.Now().UnixNano(), ext))
  
@@ -3427,7 +4006,7 @@ diff --git a/backend/internal/sync/sync.go b/backend/internal/sync/sync.go
  		return sqlcgen.Extension{}, fmt.Errorf("downloading %s: %w", url, err)
  	}
  	defer os.Remove(tempPath)
-@@ -347,8 +352,14 @@
+@@ -347,8 +352,14 @@ func (s *Syncer) InstallExternalExtension(ctx context.Context, c *sandbox.Client
  	})
  }
  
@@ -3444,7 +4023,7 @@ diff --git a/backend/internal/sync/sync.go b/backend/internal/sync/sync.go
  	if err != nil {
  		return err
  	}
-@@ -796,6 +807,11 @@
+@@ -796,6 +807,11 @@ func (s *Syncer) MigrateMedia(ctx context.Context, c *sandbox.Client, fromMediaI
  	}
  	defer func() { _ = tx.Rollback() }()
  	qtx := s.q.WithTx(tx)
@@ -3456,7 +4035,7 @@ diff --git a/backend/internal/sync/sync.go b/backend/internal/sync/sync.go
  
  	for _, p := range progress {
  		oldCh, ok := oldByID[p.ChapterID]
-@@ -980,9 +996,9 @@
+@@ -980,9 +996,9 @@ func (s *Syncer) upsertEntryFromDetails(ctx context.Context, c *sandbox.Client,
  	// resolvers (e.g. ResolveMedia), so leaving it synchronous stalls the
  	// HTTP response on every newly-added entry.
  	id := entry.ID
@@ -3468,7 +4047,7 @@ diff --git a/backend/internal/sync/sync.go b/backend/internal/sync/sync.go
  	}
  	if refreshed, err := s.q.GetMedia(ctx, entry.ID); err == nil {
  		entry = refreshed
-@@ -1025,18 +1041,21 @@
+@@ -1025,18 +1041,21 @@ func (s *Syncer) EnsureHydrated(ctx context.Context, sc *sandbox.SupervisedClien
  	if err != nil {
  		return sqlcgen.Medium{}, err
  	}
@@ -3494,7 +4073,7 @@ diff --git a/backend/internal/sync/sync.go b/backend/internal/sync/sync.go
  		waitFor(done, hydrateWait)
  	} else {
  		waitForLock(lk, hydrateWait)
-@@ -1096,18 +1115,21 @@
+@@ -1096,18 +1115,21 @@ func (s *Syncer) EnsureChapters(ctx context.Context, sc *sandbox.SupervisedClien
  	if err != nil {
  		return nil, err
  	}
@@ -3520,7 +4099,7 @@ diff --git a/backend/internal/sync/sync.go b/backend/internal/sync/sync.go
  		waitFor(done, hydrateWait)
  	} else {
  		waitForLock(lk, hydrateWait)
-@@ -1187,9 +1209,26 @@
+@@ -1187,9 +1209,26 @@ func (s *Syncer) QueryLibrary(ctx context.Context, q LibraryQuery) ([]sqlcgen.Me
  		}
  		args = append(args, len(q.GenreIDs))
  	}
@@ -3548,7 +4127,7 @@ diff --git a/backend/internal/sync/sync.go b/backend/internal/sync/sync.go
  	}
  	if q.UnreadOnly {
  		where = append(where, `EXISTS (
-@@ -1423,6 +1462,17 @@
+@@ -1423,6 +1462,17 @@ func (s *Syncer) SyncChapters(ctx context.Context, c *sandbox.Client, libraryEnt
  		return nil, fmt.Errorf("get extension %d: %w", entry.ExtensionID.Int64, err)
  	}
  
@@ -3566,7 +4145,7 @@ diff --git a/backend/internal/sync/sync.go b/backend/internal/sync/sync.go
  	summaries, err := s.fetchChapterSummaries(ctx, c, ext.PackageName, ext.ContentType, entry.ExternalID)
  	if err != nil {
  		return nil, err
-@@ -1470,6 +1520,22 @@
+@@ -1470,6 +1520,22 @@ func (s *Syncer) SyncChapters(ctx context.Context, c *sandbox.Client, libraryEnt
  		log.Printf("sync: marking chapters synced for media %d failed: %v", libraryEntryID, err)
  	}
  
@@ -3589,7 +4168,7 @@ diff --git a/backend/internal/sync/sync.go b/backend/internal/sync/sync.go
  	return chapters, nil
  }
  
-@@ -1486,7 +1552,22 @@
+@@ -1486,7 +1552,22 @@ func (s *Syncer) RecordProgress(ctx context.Context, libraryEntryID, chapterID i
  	if durationSeconds != nil {
  		params.DurationSeconds = sql.NullFloat64{Float64: *durationSeconds, Valid: true}
  	}
@@ -3668,6 +4247,7 @@ index 0000000..c42eec5
 +}
 diff --git a/backend/mobile/admin.go b/backend/mobile/admin.go
 new file mode 100644
+index 0000000..5c0b8f1
 --- /dev/null
 +++ b/backend/mobile/admin.go
 @@ -0,0 +1,242 @@
@@ -4769,6 +5349,97 @@ index 0000000..1530a9d
 +	}
 +
 +}
+diff --git a/backend/mobile/deferred_test.go b/backend/mobile/deferred_test.go
+new file mode 100644
+index 0000000..4913c72
+--- /dev/null
++++ b/backend/mobile/deferred_test.go
+@@ -0,0 +1,85 @@
++package mobile
++
++import (
++	"bytes"
++	"encoding/json"
++	"io"
++	"net"
++	"net/http"
++	"strings"
++	"testing"
++	"time"
++)
++
++func TestDeferredSandboxPreservesCatalogBeforeAndAfterAttach(t *testing.T) {
++	b := NewBackend()
++	dir := t.TempDir()
++	if err := b.Start(dir); err != nil {
++		t.Fatal(err)
++	}
++	defer b.Stop()
++	// Existing SQLite data, as on a subsequent app launch; no repository network fetch.
++	if _, err := b.conn.Exec(`INSERT INTO repositories(id,index_url,name) VALUES(1,'https://example.com/index.pb','Saved repository');
++        INSERT INTO extensions(repository_id,package_name,name,version,content_type,lang,apk_url,installed)
++        VALUES(1,'source','Saved source','1','manga','en','fixture',1)`); err != nil {
++		t.Fatal(err)
++	}
++	if err := b.Stop(); err != nil {
++		t.Fatal(err)
++	}
++	if err := b.StartDeferredSandbox(dir); err != nil {
++		t.Fatal(err)
++	}
++	url, token := b.BaseURL(), b.AccessToken()
++	call := func(query string) string {
++		t.Helper()
++		body, _ := json.Marshal(map[string]string{"query": query})
++		req, _ := http.NewRequest("POST", url+"/api/graphql", bytes.NewReader(body))
++		req.Header.Set("Content-Type", "application/json")
++		req.Header.Set("Authorization", "Bearer "+token)
++		res, err := (&http.Client{Timeout: time.Second}).Do(req)
++		if err != nil {
++			t.Fatal(err)
++		}
++		defer res.Body.Close()
++		data, _ := io.ReadAll(res.Body)
++		return string(data)
++	}
++	check := func() {
++		result := call(`{repositories{name} installedExtensions{displayName} extensions(limit:40){total}}`)
++		if strings.Contains(result, `"errors"`) || !strings.Contains(result, "Saved repository") || !strings.Contains(result, "Saved source") || !strings.Contains(result, `"total":1`) {
++			t.Fatal(result)
++		}
++	}
++	check()
++	_, status := request(t, b, "/api/mobile/status", token)
++	if !bytes.Contains(status, []byte(`"extensionsAvailable":false`)) {
++		t.Fatal(string(status))
++	}
++	if result := call(`{sourcePreferences(extensionId:"source"){key}}`); !strings.Contains(result, "not yet available") {
++		t.Fatal(result)
++	}
++	if err := b.AttachSandbox("example.com:1", strings.Repeat("a", 32)); err == nil {
++		t.Fatal("invalid attachment accepted")
++	}
++	check() // A failed JVM attachment must not hide durable SQLite data.
++	ln, err := net.Listen("tcp4", "127.0.0.1:0")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer ln.Close()
++	if err := b.AttachSandbox(ln.Addr().String(), strings.Repeat("a", 32)); err != nil {
++		t.Fatal(err)
++	}
++	if b.BaseURL() != url || b.AccessToken() != token {
++		t.Fatal("attachment restarted HTTP/SQLite")
++	}
++	check()
++	_, status = request(t, b, "/api/mobile/status", token)
++	if !bytes.Contains(status, []byte(`"extensionsAvailable":true`)) {
++		t.Fatal(string(status))
++	}
++	if err := b.AttachSandbox(ln.Addr().String(), strings.Repeat("a", 32)); err == nil {
++		t.Fatal("duplicate attachment accepted")
++	}
++}
 diff --git a/backend/mobile/installation_test.go b/backend/mobile/installation_test.go
 new file mode 100644
 index 0000000..cb14733
@@ -5376,11 +6047,291 @@ index cc1802f..9df5193 100644
 +    fun flush() {}
 +    companion object { private val instance = CookieManager(); @JvmStatic fun getInstance(): CookieManager = instance }
  }
+diff --git a/sandbox/src/main/kotlin/android/webkit/WebView.kt b/sandbox/src/main/kotlin/android/webkit/WebView.kt
+index 89b0c6c..fe4c42d 100644
+--- a/sandbox/src/main/kotlin/android/webkit/WebView.kt
++++ b/sandbox/src/main/kotlin/android/webkit/WebView.kt
+@@ -30,6 +30,11 @@ open class WebSettings {
+         const val LOAD_CACHE_ELSE_NETWORK = 1
+         const val LOAD_CACHE_ONLY = 3
+         const val MIXED_CONTENT_ALWAYS_ALLOW = 0
++
++        @JvmStatic
++        fun getDefaultUserAgent(context: Context?): String =
++            "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 " +
++                "(KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36"
+     }
+ }
+ 
+diff --git a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/AnimeSource.kt b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/AnimeSource.kt
+index 4feeff2..3ac9b4a 100644
+--- a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/AnimeSource.kt
++++ b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/AnimeSource.kt
+@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.animesource
+ 
+ import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
+ import eu.kanade.tachiyomi.animesource.model.AnimesPage
++import eu.kanade.tachiyomi.animesource.model.Hoster
+ import eu.kanade.tachiyomi.animesource.model.SAnime
+ import eu.kanade.tachiyomi.animesource.model.SEpisode
+ import eu.kanade.tachiyomi.animesource.model.Video
+@@ -34,6 +35,15 @@ interface AnimeSource {
+ 
+     suspend fun getVideoList(episode: SEpisode): List<Video>
+ 
++    /** @since extensions-lib 16 */
++    suspend fun getSeasonList(anime: SAnime): List<SAnime> = throw UnsupportedOperationException()
++
++    /** @since extensions-lib 16. The first hoster should be the preferred one. */
++    suspend fun getHosterList(episode: SEpisode): List<Hoster> = throw IllegalStateException("Not used")
++
++    /** @since extensions-lib 16 */
++    suspend fun getVideoList(hoster: Hoster): List<Video> = throw IllegalStateException("Not used")
++
+     fun getFilterList(): AnimeFilterList = AnimeFilterList()
+ 
+     @Deprecated("Use the suspend API instead", ReplaceWith("getAnimeDetails"))
+diff --git a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/UnmeteredSource.kt b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/UnmeteredSource.kt
+new file mode 100644
+index 0000000..4c4cc31
+--- /dev/null
++++ b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/UnmeteredSource.kt
+@@ -0,0 +1,12 @@
++// Adapted from Aniyomi (https://github.com/aniyomiorg/aniyomi), licensed under Apache License 2.0.
++// See /NOTICE.md and /THIRD_PARTY_LICENSES/Apache-2.0.txt for full attribution.
++
++package eu.kanade.tachiyomi.animesource
++
++/**
++ * A source that explicitly doesn't require traffic considerations.
++ *
++ * This typically applies for self-hosted sources.
++ */
++@Suppress("unused")
++interface UnmeteredSource
+diff --git a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/AnimeUpdateStrategy.kt b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/AnimeUpdateStrategy.kt
+new file mode 100644
+index 0000000..d8c5d82
+--- /dev/null
++++ b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/AnimeUpdateStrategy.kt
+@@ -0,0 +1,14 @@
++// Adapted from Aniyomi (https://github.com/aniyomiorg/aniyomi), licensed under Apache License 2.0.
++// See /NOTICE.md and /THIRD_PARTY_LICENSES/Apache-2.0.txt for full attribution.
++
++package eu.kanade.tachiyomi.animesource.model
++
++enum class AnimeUpdateStrategy {
++    ALWAYS_UPDATE,
++    ONLY_FETCH_ONCE,
++}
++
++enum class FetchType {
++    Seasons,
++    Episodes,
++}
+diff --git a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/Hoster.kt b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/Hoster.kt
+new file mode 100644
+index 0000000..7eb8a94
+--- /dev/null
++++ b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/Hoster.kt
+@@ -0,0 +1,27 @@
++// Adapted from Aniyomi (https://github.com/aniyomiorg/aniyomi), licensed under Apache License 2.0.
++// See /NOTICE.md and /THIRD_PARTY_LICENSES/Apache-2.0.txt for full attribution.
++
++package eu.kanade.tachiyomi.animesource.model
++
++open class Hoster(
++    val hosterUrl: String = "",
++    val hosterName: String = "",
++    val videoList: List<Video>? = null,
++    val internalData: String = "",
++    val lazy: Boolean = false,
++) {
++    fun copy(
++        hosterUrl: String = this.hosterUrl,
++        hosterName: String = this.hosterName,
++        videoList: List<Video>? = this.videoList,
++        internalData: String = this.internalData,
++        lazy: Boolean = this.lazy,
++    ): Hoster = Hoster(hosterUrl, hosterName, videoList, internalData, lazy)
++
++    companion object {
++        const val NO_HOSTER_LIST = "no_hoster_list"
++
++        fun List<Video>.toHosterList(): List<Hoster> =
++            listOf(Hoster(hosterUrl = "", hosterName = NO_HOSTER_LIST, videoList = this))
++    }
++}
+diff --git a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/SAnime.kt b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/SAnime.kt
+index 32e73c8..905b884 100644
+--- a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/SAnime.kt
++++ b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/SAnime.kt
+@@ -1,7 +1,5 @@
+ package eu.kanade.tachiyomi.animesource.model
+ 
+-import eu.kanade.tachiyomi.source.model.UpdateStrategy
+-
+ @Suppress("unused")
+ interface SAnime {
+ 
+@@ -21,7 +19,13 @@ interface SAnime {
+ 
+     var thumbnail_url: String?
+ 
+-    var update_strategy: UpdateStrategy
++    var background_url: String?
++
++    var update_strategy: AnimeUpdateStrategy
++
++    var fetch_type: FetchType
++
++    var season_number: Double
+ 
+     var initialized: Boolean
+ 
+diff --git a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/SAnimeImpl.kt b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/SAnimeImpl.kt
+index d8b107c..055d642 100644
+--- a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/SAnimeImpl.kt
++++ b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/SAnimeImpl.kt
+@@ -1,7 +1,5 @@
+ package eu.kanade.tachiyomi.animesource.model
+ 
+-import eu.kanade.tachiyomi.source.model.UpdateStrategy
+-
+ class SAnimeImpl : SAnime {
+     override lateinit var url: String
+     override lateinit var title: String
+@@ -11,7 +9,10 @@ class SAnimeImpl : SAnime {
+     override var genre: String? = null
+     override var status: Int = 0
+     override var thumbnail_url: String? = null
+-    override var update_strategy: UpdateStrategy = UpdateStrategy.ALWAYS_UPDATE
++    override var background_url: String? = null
++    override var update_strategy: AnimeUpdateStrategy = AnimeUpdateStrategy.ALWAYS_UPDATE
++    override var fetch_type: FetchType = FetchType.Episodes
++    override var season_number: Double = -1.0
+     override var initialized: Boolean = false
+     override var memo: kotlinx.serialization.json.JsonObject? = kotlinx.serialization.json.JsonObject(emptyMap())
+ }
+diff --git a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/SEpisode.kt b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/SEpisode.kt
+index 9d330b4..68b1114 100644
+--- a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/SEpisode.kt
++++ b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/SEpisode.kt
+@@ -11,8 +11,14 @@ interface SEpisode {
+ 
+     var episode_number: Float
+ 
++    var fillermark: Boolean
++
+     var scanlator: String?
+ 
++    var summary: String?
++
++    var preview_url: String?
++
+     var memo: kotlinx.serialization.json.JsonObject?
+ 
+     companion object {
+diff --git a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/SEpisodeImpl.kt b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/SEpisodeImpl.kt
+index eb3d9ff..d8a982a 100644
+--- a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/SEpisodeImpl.kt
++++ b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/SEpisodeImpl.kt
+@@ -5,6 +5,9 @@ class SEpisodeImpl : SEpisode {
+     override lateinit var name: String
+     override var date_upload: Long = 0
+     override var episode_number: Float = -1f
++    override var fillermark: Boolean = false
+     override var scanlator: String? = null
++    override var summary: String? = null
++    override var preview_url: String? = null
+     override var memo: kotlinx.serialization.json.JsonObject? = kotlinx.serialization.json.JsonObject(emptyMap())
+ }
+diff --git a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/Video.kt b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/Video.kt
+index 9645b65..93bffe5 100644
+--- a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/Video.kt
++++ b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/Video.kt
+@@ -3,9 +3,11 @@ package eu.kanade.tachiyomi.animesource.model
+ import android.net.Uri
+ import okhttp3.Headers
+ 
++// The primary constructor (and so the generated copy) must keep the extensions-lib 16 shape:
++// lib 16 extensions are compiled against it and call it directly.
+ data class Video(
+-    var videoUrl: String,
+-    var videoTitle: String,
++    var videoUrl: String = "",
++    var videoTitle: String = "",
+     var resolution: Int? = null,
+     var bitrate: Int? = null,
+     var headers: Headers? = null,
+@@ -13,6 +15,10 @@ data class Video(
+     var subtitleTracks: List<Track> = emptyList(),
+     var audioTracks: List<Track> = emptyList(),
+     var timestamps: List<TimeStamp> = emptyList(),
++    var mpvArgs: List<Pair<String, String>> = emptyList(),
++    var ffmpegStreamArgs: List<Pair<String, String>> = emptyList(),
++    var ffmpegVideoArgs: List<Pair<String, String>> = emptyList(),
++    var internalData: String = "",
+     var initialized: Boolean = false,
+ ) {
+     @Deprecated("Use videoTitle instead", ReplaceWith("videoTitle"))
+@@ -50,13 +56,32 @@ data class Video(
+         uri: Uri? = null,
+         headers: Headers? = null,
+     ) : this(url, quality, videoUrl, headers)
++
++    @Deprecated("Only for extensions-lib 14 binaries", level = DeprecationLevel.HIDDEN)
++    fun copy(
++        url: String,
++        quality: String,
++        videoUrl: String?,
++        headers: Headers? = this.headers,
++        subtitleTracks: List<Track> = this.subtitleTracks,
++        audioTracks: List<Track> = this.audioTracks,
++    ): Video = Video(url, quality, videoUrl, headers, subtitleTracks, audioTracks)
+ }
+ 
+ data class Track(val url: String, val lang: String)
+-data class TimeStamp(val start: Long, val end: Long, val name: String, val type: ChapterType)
++
++/** [start] and [end] are in seconds, as in extensions-lib 16. */
++data class TimeStamp(
++    val start: Double,
++    val end: Double,
++    val name: String,
++    val type: ChapterType = ChapterType.Other,
++)
++
+ enum class ChapterType {
+-    OPENING,
+-    ENDING,
+-    RECAP,
+-    OTHER,
++    Opening,
++    Ending,
++    Recap,
++    MixedOp,
++    Other,
+ }
 diff --git a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/online/AnimeHttpSource.kt b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/online/AnimeHttpSource.kt
-index eaec6ff..80b2a2c 100644
+index eaec6ff..3bd4245 100644
 --- a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/online/AnimeHttpSource.kt
 +++ b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/online/AnimeHttpSource.kt
-@@ -18,6 +18,7 @@ import okhttp3.Request
+@@ -5,11 +5,13 @@ package eu.kanade.tachiyomi.animesource.online
+ import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
+ import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
+ import eu.kanade.tachiyomi.animesource.model.AnimesPage
++import eu.kanade.tachiyomi.animesource.model.Hoster
+ import eu.kanade.tachiyomi.animesource.model.SAnime
+ import eu.kanade.tachiyomi.animesource.model.SEpisode
+ import eu.kanade.tachiyomi.animesource.model.Video
+ import eu.kanade.tachiyomi.network.NetworkHelper
+ import eu.kanade.tachiyomi.network.asObservableSuccess
++import eu.kanade.tachiyomi.network.awaitSuccess
+ import org.koin.core.context.GlobalContext
+ import okhttp3.Headers
+ import okhttp3.HttpUrl.Companion.toHttpUrl
+@@ -18,6 +20,7 @@ import okhttp3.Request
  import okhttp3.Response
  import rx.Observable
  import tsunagu.util.awaitSingle
@@ -5388,7 +6339,72 @@ index eaec6ff..80b2a2c 100644
  import java.security.MessageDigest
  
  @Suppress("unused", "unused_parameter")
-@@ -130,17 +131,7 @@ abstract class AnimeHttpSource : AnimeCatalogueSource {
+@@ -29,11 +32,7 @@ abstract class AnimeHttpSource : AnimeCatalogueSource {
+ 
+     open val versionId: Int = 1
+ 
+-    override val id: Long by lazy {
+-        val key = "${name.lowercase()}/$lang/$versionId"
+-        val bytes = MessageDigest.getInstance("MD5").digest(key.toByteArray())
+-        (0..7).map { bytes[it].toLong() and 0xff shl 8 * (7 - it) }.reduce(Long::or) and Long.MAX_VALUE
+-    }
++    override val id: Long by lazy { generateId(name, lang, versionId) }
+ 
+     val headers: Headers by lazy { headersBuilder().build() }
+ 
+@@ -120,8 +119,51 @@ abstract class AnimeHttpSource : AnimeCatalogueSource {
+     override suspend fun getVideoList(episode: SEpisode): List<Video> =
+         fetchVideoList(episode).awaitSingle()
+ 
++    override suspend fun getSeasonList(anime: SAnime): List<SAnime> =
++        seasonListParse(client.newCall(seasonListRequest(anime)).awaitSuccess())
++
++    protected open fun seasonListRequest(anime: SAnime): Request = GET(baseUrl + anime.url, headers)
++
++    protected open fun seasonListParse(response: Response): List<SAnime> = throw UnsupportedOperationException()
++
++    override suspend fun getHosterList(episode: SEpisode): List<Hoster> =
++        hosterListParse(client.newCall(hosterListRequest(episode)).awaitSuccess())
++
++    protected open fun hosterListRequest(episode: SEpisode): Request = GET(baseUrl + episode.url, headers)
++
++    protected open fun hosterListParse(response: Response): List<Hoster> = throw UnsupportedOperationException()
++
++    override suspend fun getVideoList(hoster: Hoster): List<Video> =
++        videoListParse(client.newCall(videoListRequest(hoster)).awaitSuccess(), hoster)
++
++    protected open fun videoListRequest(hoster: Hoster): Request = GET(hoster.hosterUrl, headers)
++
++    protected open fun videoListParse(response: Response, hoster: Hoster): List<Video> =
++        throw UnsupportedOperationException()
++
++    /** Resolves a lazily-loaded video; null when it can't be played. */
++    open suspend fun resolveVideo(video: Video): Video? = video
++
++    open fun List<Hoster>.sortHosters(): List<Hoster> = this
++
+     open fun List<Video>.sortVideos(): List<Video> = this
+ 
++    @Deprecated("Use resolveVideo instead")
++    open suspend fun getVideoUrl(video: Video): String =
++        videoUrlParse(client.newCall(videoUrlRequest(video)).awaitSuccess())
++
++    @Deprecated("Use resolveVideo instead")
++    protected open fun videoUrlRequest(video: Video): Request = GET(video.url, headers)
++
++    @Deprecated("Use resolveVideo instead")
++    protected open fun videoUrlParse(response: Response): String = throw UnsupportedOperationException()
++
++    protected fun generateId(name: String, lang: String, versionId: Int): Long {
++        val key = "${name.lowercase()}/$lang/$versionId"
++        val bytes = MessageDigest.getInstance("MD5").digest(key.toByteArray())
++        return (0..7).map { bytes[it].toLong() and 0xff shl 8 * (7 - it) }.reduce(Long::or) and Long.MAX_VALUE
++    }
++
+     fun SEpisode.setUrlWithoutDomain(url: String) {
+         this.url = getUrlWithoutDomain(url)
+     }
+@@ -130,17 +172,7 @@ abstract class AnimeHttpSource : AnimeCatalogueSource {
          this.url = getUrlWithoutDomain(url)
      }
  
@@ -5407,6 +6423,28 @@ index eaec6ff..80b2a2c 100644
  
      open fun getAnimeUrl(anime: SAnime): String {
          return try {
+diff --git a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/online/ParsedAnimeHttpSource.kt b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/online/ParsedAnimeHttpSource.kt
+index 1ac5b89..4a3a221 100644
+--- a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/online/ParsedAnimeHttpSource.kt
++++ b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/online/ParsedAnimeHttpSource.kt
+@@ -64,6 +64,15 @@ abstract class ParsedAnimeHttpSource : AnimeHttpSource() {
+         return document.select(videoListSelector()).map { videoFromElement(it) }
+     }
+ 
+-    protected abstract fun videoListSelector(): String
+-    protected abstract fun videoFromElement(element: Element): Video
++    // Not abstract: extensions-lib 16 dropped them, so lib 16 subclasses don't implement them.
++    protected open fun videoListSelector(): String = throw UnsupportedOperationException()
++    protected open fun videoFromElement(element: Element): Video = throw UnsupportedOperationException()
++
++    override fun seasonListParse(response: Response): List<SAnime> {
++        val document = response.asJsoup()
++        return document.select(seasonListSelector()).map { seasonFromElement(it) }
++    }
++
++    protected open fun seasonListSelector(): String = throw UnsupportedOperationException()
++    protected open fun seasonFromElement(element: Element): SAnime = throw UnsupportedOperationException()
+ }
 diff --git a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/network/NetworkHelper.kt b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/network/NetworkHelper.kt
 index 06672c1..7dcd6a8 100644
 --- a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/network/NetworkHelper.kt
@@ -5663,8 +6701,26 @@ index 82bee33..dac24a5 100644
 +        maxAge=if(c.persistent) ((c.expiresAt-System.currentTimeMillis())/1000).coerceAtLeast(0) else -1
      }
  }
+diff --git a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/source/UnmeteredSource.kt b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/source/UnmeteredSource.kt
+new file mode 100644
+index 0000000..ded56c8
+--- /dev/null
++++ b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/source/UnmeteredSource.kt
+@@ -0,0 +1,12 @@
++// Adapted from Mihon/Tachiyomi (https://github.com/mihonapp/mihon), licensed under Apache License 2.0.
++// See /NOTICE.md and /THIRD_PARTY_LICENSES/Apache-2.0.txt for full attribution.
++
++package eu.kanade.tachiyomi.source
++
++/**
++ * A source that explicitly doesn't require traffic considerations.
++ *
++ * This typically applies for self-hosted sources.
++ */
++@Suppress("unused")
++interface UnmeteredSource
 diff --git a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/source/online/HttpSource.kt b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/source/online/HttpSource.kt
-index 7424a50..59d0979 100644
+index 7424a50..4720283 100644
 --- a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/source/online/HttpSource.kt
 +++ b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/source/online/HttpSource.kt
 @@ -16,6 +16,7 @@ import okhttp3.Request
@@ -5675,7 +6731,18 @@ index 7424a50..59d0979 100644
  import java.security.MessageDigest
  
  @Suppress("unused", "unused_parameter")
-@@ -164,17 +165,7 @@ abstract class HttpSource : CatalogueSource {
+@@ -156,6 +157,10 @@ abstract class HttpSource : CatalogueSource {
+ 
+     protected open fun imageRequest(page: Page): Request = GET(page.imageUrl!!, headers)
+ 
++    // Some sources (e.g. MangaDex) store a relative value in `page.imageUrl` and only build the
++    // absolute URL in their `imageRequest` override, which callers outside the hierarchy can't call.
++    fun resolveImageUrl(page: Page): String = imageRequest(page).url.toString()
++
+     fun SChapter.setUrlWithoutDomain(url: String) {
+         this.url = getUrlWithoutDomain(url)
+     }
+@@ -164,17 +169,7 @@ abstract class HttpSource : CatalogueSource {
          this.url = getUrlWithoutDomain(url)
      }
  
@@ -5781,8 +6848,141 @@ index 0000000..1110be5
 +        }
 +    }
 +}
+diff --git a/sandbox/src/main/kotlin/tsunagu/grpc/AnimeVideoLoader.kt b/sandbox/src/main/kotlin/tsunagu/grpc/AnimeVideoLoader.kt
+new file mode 100644
+index 0000000..0502c70
+--- /dev/null
++++ b/sandbox/src/main/kotlin/tsunagu/grpc/AnimeVideoLoader.kt
+@@ -0,0 +1,127 @@
++package tsunagu.grpc
++
++import eu.kanade.tachiyomi.animesource.model.Hoster
++import eu.kanade.tachiyomi.animesource.model.SEpisode
++import eu.kanade.tachiyomi.animesource.model.Video
++import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
++import eu.kanade.tachiyomi.animesource.online.ParsedAnimeHttpSource
++import io.github.oshai.kotlinlogging.KotlinLogging
++import kotlinx.coroutines.CancellationException
++import kotlinx.coroutines.Dispatchers
++import kotlinx.coroutines.async
++import kotlinx.coroutines.awaitAll
++import kotlinx.coroutines.coroutineScope
++import kotlinx.coroutines.sync.Semaphore
++import kotlinx.coroutines.sync.withPermit
++import kotlinx.coroutines.withTimeoutOrNull
++
++/**
++ * Loads every playable video of an episode the way Aniyomi does: extensions-lib 16 sources
++ * expose hosters (each with its own video list and lazily resolved videos), older ones return
++ * the videos straight from getVideoList(episode).
++ */
++object AnimeVideoLoader {
++    private val logger = KotlinLogging.logger {}
++    private val hosterMethods = setOf("getHosterList", "hosterListRequest", "hosterListParse")
++    private const val HOSTER_TIMEOUT_MS = 45_000L
++    private const val RESOLVE_TIMEOUT_MS = 30_000L
++    private const val PARALLEL_RESOLVES = 4
++
++    /** Same check as Aniyomi's EpisodeLoader: the extension class itself overrides a hoster method. */
++    fun usesHosters(source: AnimeHttpSource): Boolean {
++        var current: Class<*>? = source.javaClass
++        while (current != null &&
++            current != AnimeHttpSource::class.java &&
++            current != ParsedAnimeHttpSource::class.java
++        ) {
++            if (current.declaredMethods.any { it.name in hosterMethods }) return true
++            current = current.superclass
++        }
++        return false
++    }
++
++    suspend fun loadVideos(source: AnimeHttpSource, episode: SEpisode): List<Video> =
++        uniqueTitles(loadAll(source, episode))
++
++    /** The backend picks a stream by its label, so repeated labels would hide every copy but the first. */
++    private fun uniqueTitles(videos: List<Video>): List<Video> {
++        val seen = HashMap<String, Int>()
++        return videos.map { video ->
++            val count = seen.merge(video.videoTitle, 1, Int::plus)!!
++            if (count == 1) video else video.copy(videoTitle = "${video.videoTitle} ($count)")
++        }
++    }
++
++    private suspend fun loadAll(source: AnimeHttpSource, episode: SEpisode): List<Video> {
++        if (!usesHosters(source)) {
++            val videos = with(source) { source.getVideoList(episode).sortVideos() }
++            return resolveAll(source, videos, mutableListOf())
++        }
++
++        val hosters = with(source) { source.getHosterList(episode).sortHosters() }
++        val errors = mutableListOf<String>()
++        val perHoster = coroutineScope {
++            hosters.map { hoster ->
++                async(Dispatchers.IO) {
++                    try {
++                        withTimeoutOrNull(HOSTER_TIMEOUT_MS) { videosOf(source, hoster) }
++                            ?: emptyList<Video>().also { synchronized(errors) { errors += "${hoster.hosterName}: timeout" } }
++                    } catch (e: CancellationException) {
++                        throw e
++                    } catch (e: Throwable) {
++                        logger.warn { "hoster ${hoster.hosterName} failed: ${e.javaClass.simpleName}: ${e.message}" }
++                        synchronized(errors) { errors += "${hoster.hosterName}: ${e.message ?: e.javaClass.simpleName}" }
++                        emptyList()
++                    }
++                }
++            }.awaitAll()
++        }
++        val videos = resolveAll(source, perHoster.flatten(), errors)
++        if (videos.isEmpty() && errors.isNotEmpty()) {
++            throw IllegalStateException("no playable video from ${hosters.size} hoster(s): ${errors.take(3).joinToString("; ")}")
++        }
++        return videos
++    }
++
++    private suspend fun videosOf(source: AnimeHttpSource, hoster: Hoster): List<Video> {
++        val videos = hoster.videoList ?: source.getVideoList(hoster)
++        val sorted = with(source) { videos.sortVideos() }
++        if (hoster.hosterName.isBlank() || hoster.hosterName == Hoster.NO_HOSTER_LIST) return sorted
++        return sorted.map { video ->
++            if (video.videoTitle.contains(hoster.hosterName, ignoreCase = true)) {
++                video
++            } else {
++                video.copy(videoTitle = "${hoster.hosterName} - ${video.videoTitle}".trimEnd(' ', '-'))
++            }
++        }
++    }
++
++    private suspend fun resolveAll(source: AnimeHttpSource, videos: List<Video>, errors: MutableList<String>): List<Video> {
++        val gate = Semaphore(PARALLEL_RESOLVES)
++        return coroutineScope {
++            videos.map { video ->
++                async(Dispatchers.IO) { gate.withPermit { resolve(source, video, errors) } }
++            }.awaitAll()
++        }.filterNotNull()
++    }
++
++    @Suppress("DEPRECATION")
++    private suspend fun resolve(source: AnimeHttpSource, video: Video, errors: MutableList<String>): Video? {
++        return try {
++            withTimeoutOrNull(RESOLVE_TIMEOUT_MS) {
++                val resolved = if (video.initialized) video else source.resolveVideo(video)
++                when {
++                    resolved == null -> null
++                    resolved.videoUrl == "null" -> resolved.copy(videoUrl = source.getVideoUrl(resolved), initialized = true)
++                    else -> resolved.copy(initialized = true)
++                }
++            }?.takeIf { it.videoUrl.isNotBlank() && it.videoUrl != "null" }
++        } catch (e: CancellationException) {
++            throw e
++        } catch (e: Throwable) {
++            logger.warn { "resolving ${video.videoTitle} failed: ${e.javaClass.simpleName}: ${e.message}" }
++            synchronized(errors) { errors += "${video.videoTitle}: ${e.message ?: e.javaClass.simpleName}" }
++            null
++        }
++    }
++}
 diff --git a/sandbox/src/main/kotlin/tsunagu/grpc/ExtensionServiceImpl.kt b/sandbox/src/main/kotlin/tsunagu/grpc/ExtensionServiceImpl.kt
-index fcd5d8e..8938417 100644
+index fcd5d8e..ce06935 100644
 --- a/sandbox/src/main/kotlin/tsunagu/grpc/ExtensionServiceImpl.kt
 +++ b/sandbox/src/main/kotlin/tsunagu/grpc/ExtensionServiceImpl.kt
 @@ -7,6 +7,7 @@ import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
@@ -5793,7 +6993,15 @@ index fcd5d8e..8938417 100644
  import eu.kanade.tachiyomi.network.GET
  import eu.kanade.tachiyomi.network.awaitSuccess
  import io.github.oshai.kotlinlogging.KotlinLogging
-@@ -35,6 +36,22 @@ class ExtensionServiceImpl(
+@@ -25,7 +26,6 @@ import tsunagu.novel.ChapterItem
+ import tsunagu.novel.NovelPlugin
+ import tsunagu.novel.SourceNovel
+ import tsunagu.grpc.AnimeFilterSerde
+-import tsunagu.util.awaitSingle
+ import tsunagu.grpc.FilterSerde.applyTo
+ import tsunagu.grpc.FilterSerde.toProto
+ import tsunagu.registry.ExtensionRegistry
+@@ -35,6 +35,22 @@ class ExtensionServiceImpl(
      private val registry: ExtensionRegistry,
  ) : ExtensionServiceGrpc.ExtensionServiceImplBase() {
  
@@ -5816,18 +7024,75 @@ index fcd5d8e..8938417 100644
      private val logger = KotlinLogging.logger {}
  
      private val verboseErrors = System.getenv("SANDBOX_VERBOSE_ERRORS")?.toBoolean() == true
-@@ -448,9 +465,7 @@ class ExtensionServiceImpl(
+@@ -170,6 +186,8 @@ class ExtensionServiceImpl(
+             responseObserver.onNext(builder.build())
+             responseObserver.onCompleted()
+         } catch (e: Throwable) {
++            // Classified like every other call so callers can tell "no results"
++            // from "source blocked by Cloudflare / offline".
+             logExtensionFailure(e)
+             responseObserver.onError(internal(e))
+         }
+@@ -253,7 +271,7 @@ class ExtensionServiceImpl(
+             val builder = Sandbox.SearchResponse.newBuilder()
+             when (val source = extension.source) {
+                 is HttpSource -> {
+-                    val page = runBlocking { source.fetchPopularManga(request.page).awaitSingle() }
++                    val page = runBlocking { source.getPopularManga(request.page) }
+                     builder.setHasNextPage(page.hasNextPage)
+                     page.mangas.forEach { manga ->
+                         EntryModelCache.putManga(request.extensionId, manga)
+@@ -261,7 +279,7 @@ class ExtensionServiceImpl(
+                     }
+                 }
+                 is AnimeHttpSource -> {
+-                    val page = runBlocking { source.fetchPopularAnime(request.page).awaitSingle() }
++                    val page = runBlocking { source.getPopularAnime(request.page) }
+                     builder.setHasNextPage(page.hasNextPage)
+                     page.animes.forEach { anime ->
+                         EntryModelCache.putAnime(request.extensionId, anime)
+@@ -310,7 +328,7 @@ class ExtensionServiceImpl(
+             val builder = Sandbox.SearchResponse.newBuilder()
+             when (val source = extension.source) {
+                 is HttpSource -> {
+-                    val page = runBlocking { source.fetchLatestUpdates(request.page).awaitSingle() }
++                    val page = runBlocking { source.getLatestUpdates(request.page) }
+                     builder.setHasNextPage(page.hasNextPage)
+                     page.mangas.forEach { manga ->
+                         EntryModelCache.putManga(request.extensionId, manga)
+@@ -318,7 +336,7 @@ class ExtensionServiceImpl(
+                     }
+                 }
+                 is AnimeHttpSource -> {
+-                    val page = runBlocking { source.fetchLatestUpdates(request.page).awaitSingle() }
++                    val page = runBlocking { source.getLatestUpdates(request.page) }
+                     builder.setHasNextPage(page.hasNextPage)
+                     page.animes.forEach { anime ->
+                         EntryModelCache.putAnime(request.extensionId, anime)
+@@ -448,8 +466,11 @@ class ExtensionServiceImpl(
          handle(responseObserver, request.extensionId) { source ->
              val chapter: SChapter = chapterStub(request.extensionId, request.sourceChapterId)
              val pages = runBlocking {
 -                source.getPageList(chapter).map { page ->
 -                    page.imageUrl ?: source.getImageUrl(page)
--                }
-+                resolvePageURLs(source.getPageList(chapter)) { source.getImageUrl(it) }
++                val pageList = source.getPageList(chapter)
++                val urls = resolvePageURLs(pageList) { source.getImageUrl(it) }
++                pageList.zip(urls).map { (page, url) ->
++                    page.imageUrl = url
++                    source.resolveImageUrl(page)
+                 }
              }
              val builder = Sandbox.PageList.newBuilder()
-             pages.forEach { builder.addPageUrls(it) }
-@@ -519,7 +534,7 @@ class ExtensionServiceImpl(
+@@ -506,7 +527,7 @@ class ExtensionServiceImpl(
+     ) {
+         handleAnime(responseObserver, request.extensionId) { source ->
+             val episode: SEpisode = episodeStub(request.extensionId, request.sourceEpisodeId)
+-            val videos = runBlocking { source.getVideoList(episode) }
++            val videos = runBlocking { AnimeVideoLoader.loadVideos(source, episode) }
+             if (videos.isEmpty()) {
+                 throw IllegalStateException("no videos returned for episode ${request.sourceEpisodeId}")
+             }
+@@ -519,7 +540,7 @@ class ExtensionServiceImpl(
                      "audio=${videos.sumOf { it.audioTracks.size }} " +
                      "timestamps=${preferred.timestamps.size}"
              }
@@ -5836,7 +7101,7 @@ index fcd5d8e..8938417 100644
          }
      }
  
-@@ -535,6 +550,8 @@ class ExtensionServiceImpl(
+@@ -535,6 +556,8 @@ class ExtensionServiceImpl(
          val (client, headers) = when (val s = extension.source) {
              is HttpSource -> s.client to s.headers
              is AnimeHttpSource -> s.client to s.headers
@@ -5845,7 +7110,7 @@ index fcd5d8e..8938417 100644
              else -> {
                  responseObserver.onError(internal(IllegalStateException("extension ${request.extensionId} has no HTTP client")))
                  return
-@@ -545,7 +562,8 @@ class ExtensionServiceImpl(
+@@ -545,7 +568,8 @@ class ExtensionServiceImpl(
                  client.newCall(GET(request.imageUrl, headers)).awaitSuccess()
              }
              val data = response.use { resp ->
@@ -5855,7 +7120,7 @@ index fcd5d8e..8938417 100644
                  val contentType = resp.header("Content-Type") ?: "image/jpeg"
                  Sandbox.ImageData.newBuilder()
                      .setData(com.google.protobuf.ByteString.copyFrom(bytes))
-@@ -778,16 +796,28 @@ class ExtensionServiceImpl(
+@@ -778,16 +802,28 @@ class ExtensionServiceImpl(
              Sandbox.SubtitleTrack.newBuilder().setUrl(it.url).setLang(it.lang).build()
          }
  
@@ -5888,7 +7153,7 @@ index fcd5d8e..8938417 100644
  
          all.forEach { v ->
              val src = Sandbox.VideoSource.newBuilder()
-@@ -796,7 +826,7 @@ class ExtensionServiceImpl(
+@@ -796,7 +832,7 @@ class ExtensionServiceImpl(
                  .setResolution(parseResolution(v))
                  .setPreferred(v === preferred || v.preferred)
                  .addAllSubtitles(subtitleProtos(v))
@@ -5897,6 +7162,49 @@ index fcd5d8e..8938417 100644
              builder.addSources(src.build())
          }
  
+@@ -809,10 +845,10 @@ class ExtensionServiceImpl(
+         preferred.timestamps.forEach { ts ->
+             builder.addTimestamps(
+                 Sandbox.SkipTimestamp.newBuilder()
+-                    .setStartMs(ts.start)
+-                    .setEndMs(ts.end)
++                    .setStartMs((ts.start * 1000).toLong())
++                    .setEndMs((ts.end * 1000).toLong())
+                     .setName(ts.name)
+-                    .setType(ts.type.name)
++                    .setType(ts.type.name.uppercase())
+                     .build(),
+             )
+         }
+diff --git a/sandbox/src/main/kotlin/tsunagu/grpc/PageResolution.kt b/sandbox/src/main/kotlin/tsunagu/grpc/PageResolution.kt
+new file mode 100644
+index 0000000..c820104
+--- /dev/null
++++ b/sandbox/src/main/kotlin/tsunagu/grpc/PageResolution.kt
+@@ -0,0 +1,23 @@
++package tsunagu.grpc
++
++import eu.kanade.tachiyomi.source.model.Page
++import kotlinx.coroutines.Dispatchers
++import kotlinx.coroutines.async
++import kotlinx.coroutines.awaitAll
++import kotlinx.coroutines.coroutineScope
++import kotlinx.coroutines.sync.Semaphore
++import kotlinx.coroutines.sync.withPermit
++
++// Some sources return page links that each require another HTTP request.
++// Bound that work without serializing the whole chapter or changing page order.
++internal suspend fun resolvePageURLs(
++    pages: List<Page>,
++    resolve: suspend (Page) -> String,
++): List<String> = coroutineScope {
++    val slots = Semaphore(3)
++    pages.map { page ->
++        async(Dispatchers.IO) {
++            page.imageUrl ?: slots.withPermit { resolve(page) }
++        }
++    }.awaitAll()
++}
 diff --git a/sandbox/src/main/kotlin/tsunagu/grpc/SourceErrors.kt b/sandbox/src/main/kotlin/tsunagu/grpc/SourceErrors.kt
 index 9d7c85f..83a9710 100644
 --- a/sandbox/src/main/kotlin/tsunagu/grpc/SourceErrors.kt
@@ -5910,6 +7218,126 @@ index 9d7c85f..83a9710 100644
                  code in 500..599 -> UNAVAILABLE to "The source is temporarily unavailable (HTTP $code)."
                  else -> UNAVAILABLE to "The source request failed (HTTP $code)."
              }
+diff --git a/sandbox/src/main/kotlin/tsunagu/loader/ExtensionLoader.kt b/sandbox/src/main/kotlin/tsunagu/loader/ExtensionLoader.kt
+index ce0ebd7..4db3751 100644
+--- a/sandbox/src/main/kotlin/tsunagu/loader/ExtensionLoader.kt
++++ b/sandbox/src/main/kotlin/tsunagu/loader/ExtensionLoader.kt
+@@ -17,7 +17,18 @@ data class LoadedExtension(
+     val source: Any,
+     val classLoader: ClassLoader,
+     val contentType: ContentType,
+-)
++) : AutoCloseable {
++    private val closed = java.util.concurrent.atomic.AtomicBoolean()
++
++    override fun close() {
++        if (!closed.compareAndSet(false, true)) return
++        runCatching { (source as? AutoCloseable)?.close() }
++            .onFailure { System.err.println("Failed to close source $packageName: $it") }
++        // Novel plugins borrow the application loader; only APK/JAR loaders are owned here.
++        runCatching { (classLoader as? ChildFirstURLClassLoader)?.close() }
++            .onFailure { System.err.println("Failed to close loader $packageName: $it") }
++    }
++}
+ 
+ class ExtensionLoadException(message: String) : Exception(message)
+ 
+@@ -44,8 +55,7 @@ object ExtensionLoader {
+                 return doc.documentElement.getAttribute("package")
+             }
+         }
+-        val apk = ApkFile(file)
+-        return apk.apkMeta.packageName
++        return ApkFile(file).use { it.apkMeta.packageName }
+     }
+ 
+     fun load(file: File): LoadedExtension {
+@@ -77,48 +87,54 @@ object ExtensionLoader {
+             }
+             jarFile = file
+         } else {
+-            val apk = ApkFile(file)
+-            packageName = apk.apkMeta.packageName
++            ApkFile(file).use { apk ->
++                packageName = apk.apkMeta.packageName
+ 
+-            val dbFactory = DocumentBuilderFactory.newInstance()
+-            val dBuilder = dbFactory.newDocumentBuilder()
+-            val doc = apk.manifestXml.byteInputStream().use { dBuilder.parse(it) }
++                val dbFactory = DocumentBuilderFactory.newInstance()
++                val dBuilder = dbFactory.newDocumentBuilder()
++                val doc = apk.manifestXml.byteInputStream().use { dBuilder.parse(it) }
+ 
+-            val sourceClassMeta = getManifestMetaData(doc, METADATA_SOURCE_CLASS)
+-                ?: getManifestMetaData(doc, METADATA_ANIME_SOURCE_CLASS)
+-                ?: throw ExtensionLoadException("no $METADATA_SOURCE_CLASS or $METADATA_ANIME_SOURCE_CLASS meta-data in manifest for $packageName")
++                val sourceClassMeta = getManifestMetaData(doc, METADATA_SOURCE_CLASS)
++                    ?: getManifestMetaData(doc, METADATA_ANIME_SOURCE_CLASS)
++                    ?: throw ExtensionLoadException("no $METADATA_SOURCE_CLASS or $METADATA_ANIME_SOURCE_CLASS meta-data in manifest for $packageName")
+ 
+-            className = sourceClassMeta.trim().let {
+-                if (it.startsWith(".")) packageName + it else it
+-            }
++                className = sourceClassMeta.trim().let {
++                    if (it.startsWith(".")) packageName + it else it
++                }
+ 
++            }
+             jarFile = Dex2JarConverter.convert(file)
+         }
+ 
+         val classLoader = ChildFirstURLClassLoader(arrayOf(jarFile.toURI().toURL()), javaClass.classLoader)
+ 
+-        val clazz = classLoader.loadClass(className)
+-        val instance = clazz.getDeclaredConstructor().newInstance()
+-
+-        val source: Any = when (instance) {
+-            is Source -> instance
+-            is SourceFactory -> instance.createSources().pickPreferredLang()
+-                ?: throw ExtensionLoadException("$className is a SourceFactory but createSources() returned nothing")
+-            is AnimeSource -> instance
+-            is AnimeSourceFactory -> instance.createSources().pickPreferredLang()
+-                ?: throw ExtensionLoadException("$className is an AnimeSourceFactory but createSources() returned nothing")
+-            else -> throw ExtensionLoadException(
+-                "$className does not implement eu.kanade.tachiyomi.source.Source, SourceFactory, " +
+-                    "eu.kanade.tachiyomi.animesource.AnimeSource, or AnimeSourceFactory " +
+-                    "(loaded as ${instance.javaClass.name} — check for a duplicate/stub definition " +
+-                    "of eu.kanade.tachiyomi.source.Source on the classpath)",
+-            )
+-        }
++        try {
++            val clazz = classLoader.loadClass(className)
++            val instance = clazz.getDeclaredConstructor().newInstance()
++
++            val source: Any = when (instance) {
++                is Source -> instance
++                is SourceFactory -> instance.createSources().pickPreferredLang()
++                    ?: throw ExtensionLoadException("$className is a SourceFactory but createSources() returned nothing")
++                is AnimeSource -> instance
++                is AnimeSourceFactory -> instance.createSources().pickPreferredLang()
++                    ?: throw ExtensionLoadException("$className is an AnimeSourceFactory but createSources() returned nothing")
++                else -> throw ExtensionLoadException(
++                    "$className does not implement eu.kanade.tachiyomi.source.Source, SourceFactory, " +
++                        "eu.kanade.tachiyomi.animesource.AnimeSource, or AnimeSourceFactory " +
++                        "(loaded as ${instance.javaClass.name} — check for a duplicate/stub definition " +
++                        "of eu.kanade.tachiyomi.source.Source on the classpath)",
++                )
++            }
+ 
+-        val contentType = ContentTypeClassifier.classify(source.javaClass)
+-            ?: throw ExtensionLoadException("could not classify content type for $className")
++            val contentType = ContentTypeClassifier.classify(source.javaClass)
++                ?: throw ExtensionLoadException("could not classify content type for $className")
+ 
+-        return LoadedExtension(packageName, source, classLoader, contentType)
++            return LoadedExtension(packageName, source, classLoader, contentType)
++        } catch (failure: Throwable) {
++            runCatching { classLoader.close() }.onFailure { failure.addSuppressed(it) }
++            throw failure
++        }
+     }
+ 
+     private fun getManifestMetaData(doc: org.w3c.dom.Document, key: String): String? {
 diff --git a/sandbox/src/main/kotlin/tsunagu/novel/NovelJsBridge.kt b/sandbox/src/main/kotlin/tsunagu/novel/NovelJsBridge.kt
 index 855afbb..76f5dea 100644
 --- a/sandbox/src/main/kotlin/tsunagu/novel/NovelJsBridge.kt
@@ -5938,6 +7366,276 @@ index 855afbb..76f5dea 100644
              wrapPromise.execute(text)
          },
      ))
+diff --git a/sandbox/src/main/kotlin/tsunagu/novel/NovelPlugin.kt b/sandbox/src/main/kotlin/tsunagu/novel/NovelPlugin.kt
+index ee6a687..3a88462 100644
+--- a/sandbox/src/main/kotlin/tsunagu/novel/NovelPlugin.kt
++++ b/sandbox/src/main/kotlin/tsunagu/novel/NovelPlugin.kt
+@@ -5,7 +5,8 @@ import org.graalvm.polyglot.Value
+ import java.util.concurrent.Callable
+ import java.util.concurrent.ExecutionException
+ import java.util.concurrent.ExecutorService
+-import java.util.concurrent.TimeUnit
++import java.util.concurrent.Future
++import java.util.concurrent.atomic.AtomicBoolean
+ 
+ data class NovelItem(val name: String, val path: String, val cover: String? = null)
+ 
+@@ -44,7 +45,10 @@ class NovelPlugin(
+     private val jsThread: Thread,
+ ) : AutoCloseable {
+ 
++    private val closed = AtomicBoolean()
++
+     private fun <T> onJs(block: () -> T): T {
++        check(!closed.get()) { "Novel plugin $id is closed" }
+         if (Thread.currentThread() === jsThread) return block()
+         return try {
+             exec.submit(Callable { block() }).get()
+@@ -114,11 +118,13 @@ class NovelPlugin(
+     }
+ 
+     override fun close() {
++        if (!closed.compareAndSet(false, true)) return
+         try {
+-            exec.submit { context.close(true) }.get(5, TimeUnit.SECONDS)
+-        } catch (_: Throwable) {
++            // Cancel directly: queueing close behind a stuck JS call cannot release it.
++            context.close(true)
++        } finally {
++            exec.shutdownNow().forEach { (it as? Future<*>)?.cancel(false) }
+         }
+-        exec.shutdownNow()
+     }
+ 
+     private fun toValueList(v: Value): List<Value> = (0 until v.arraySize).map { v.getArrayElement(it) }
+diff --git a/sandbox/src/main/kotlin/tsunagu/novel/NovelPluginLoader.kt b/sandbox/src/main/kotlin/tsunagu/novel/NovelPluginLoader.kt
+index 5086eb8..85c4c30 100644
+--- a/sandbox/src/main/kotlin/tsunagu/novel/NovelPluginLoader.kt
++++ b/sandbox/src/main/kotlin/tsunagu/novel/NovelPluginLoader.kt
+@@ -90,46 +90,48 @@ object NovelPluginLoader {
+             .allowHostClassLookup { false }
+             .build()
+ 
+-        context.eval("js", PROMISE_WRAP_GLUE)
+-        val wrapPromise: Value = context.getBindings("js").getMember("__wrapPromise")
+-
+-        context.getBindings("js").putMember("__hostRequire", NovelJsBridge.requireFn(storageNamespace, wrapPromise))
+-        context.eval("js", NovelJsBridge.REQUIRE_GLUE)
+-        context.eval("js", FORM_DATA_GLUE)
+-        context.eval("js", URL_SEARCH_PARAMS_GLUE)
+-
+-        val wrapped = """
+-            (function() {
+-              var module = { exports: {} };
+-              var exports = module.exports;
+-              (function(require, module, exports) {
+-              $rawCode
+-              })(__require, module, exports);
+-              return module.exports.default;
+-            })()
+-        """.trimIndent()
+-
+-        val pluginValue = try {
+-            context.eval("js", wrapped)
+-        } catch (e: PolyglotException) {
+-            context.close(true)
+-            throw ExtensionLoadException("failed to evaluate novel plugin ${file.name}: ${e.message}")
+-        }
++        try {
++            context.eval("js", PROMISE_WRAP_GLUE)
++            val wrapPromise: Value = context.getBindings("js").getMember("__wrapPromise")
++
++            context.getBindings("js").putMember("__hostRequire", NovelJsBridge.requireFn(storageNamespace, wrapPromise))
++            context.eval("js", NovelJsBridge.REQUIRE_GLUE)
++            context.eval("js", FORM_DATA_GLUE)
++            context.eval("js", URL_SEARCH_PARAMS_GLUE)
++
++            val wrapped = """
++                (function() {
++                  var module = { exports: {} };
++                  var exports = module.exports;
++                  (function(require, module, exports) {
++                  $rawCode
++                  })(__require, module, exports);
++                  return module.exports.default;
++                })()
++            """.trimIndent()
++
++            val pluginValue = try {
++                context.eval("js", wrapped)
++            } catch (e: PolyglotException) {
++                throw ExtensionLoadException("failed to evaluate novel plugin ${file.name}: ${e.message}")
++            }
+ 
+-        if (pluginValue == null || pluginValue.isNull) {
+-            context.close(true)
+-            throw ExtensionLoadException("novel plugin ${file.name} did not export a default plugin object")
+-        }
++            if (pluginValue == null || pluginValue.isNull) {
++                throw ExtensionLoadException("novel plugin ${file.name} did not export a default plugin object")
++            }
+ 
+-        val id = pluginValue.str("id") ?: run {
+-            context.close(true)
+-            throw ExtensionLoadException("novel plugin ${file.name} missing required field: id")
++            val id = pluginValue.str("id") ?: run {
++                throw ExtensionLoadException("novel plugin ${file.name} missing required field: id")
++            }
++            val name = pluginValue.str("name") ?: id
++            val site = pluginValue.str("site") ?: ""
++            val lang = pluginValue.str("lang") ?: ""
++            val version = pluginValue.str("version") ?: "0.0.0"
++
++            return NovelPlugin(id, name, site, lang, version, context, pluginValue, exec, Thread.currentThread())
++        } catch (failure: Throwable) {
++            runCatching { context.close(true) }.onFailure { failure.addSuppressed(it) }
++            throw failure
+         }
+-        val name = pluginValue.str("name") ?: id
+-        val site = pluginValue.str("site") ?: ""
+-        val lang = pluginValue.str("lang") ?: ""
+-        val version = pluginValue.str("version") ?: "0.0.0"
+-
+-        return NovelPlugin(id, name, site, lang, version, context, pluginValue, exec, Thread.currentThread())
+     }
+ }
+diff --git a/sandbox/src/main/kotlin/tsunagu/registry/ExtensionRegistry.kt b/sandbox/src/main/kotlin/tsunagu/registry/ExtensionRegistry.kt
+index 22e40ef..342d5e1 100644
+--- a/sandbox/src/main/kotlin/tsunagu/registry/ExtensionRegistry.kt
++++ b/sandbox/src/main/kotlin/tsunagu/registry/ExtensionRegistry.kt
+@@ -4,7 +4,6 @@ import okhttp3.OkHttpClient
+ import okhttp3.Request
+ import tsunagu.loader.ExtensionLoader
+ import tsunagu.loader.LoadedExtension
+-import java.io.Closeable
+ import java.io.File
+ import java.nio.file.FileSystemException
+ import java.nio.file.Files
+@@ -20,7 +19,6 @@ class ExtensionRegistry(
+ ) {
+     private val extensions = ConcurrentHashMap<String, LoadedExtension>()
+     private val pendingFiles = ConcurrentHashMap<String, File>()
+-    private val loadLocks = ConcurrentHashMap<String, Any>()
+     private val client = OkHttpClient()
+ 
+     init {
+@@ -43,6 +41,7 @@ class ExtensionRegistry(
+         return target
+     }
+ 
++    @Synchronized
+     fun loadAll() {
+         extensionsDir.listFiles { file ->
+             file.extension == "apk" || file.extension == "jar"
+@@ -58,36 +57,36 @@ class ExtensionRegistry(
+         }
+     }
+ 
++    @Synchronized
+     fun load(file: File): LoadedExtension {
+         val extension = ExtensionLoader.load(file)
+-        extensions[extension.packageName] = extension
++        extensions.put(extension.packageName, extension)?.close()
+         return extension
+     }
+ 
+     fun get(extensionId: String): LoadedExtension? {
++        extensions[extensionId]?.let { return it }
++        return loadPending(extensionId)
++    }
++
++    // Serialize lifecycle changes so a lazy load cannot resurrect an uninstalled source.
++    // Already-loaded sources and network downloads do not wait on this lock.
++    @Synchronized
++    private fun loadPending(extensionId: String): LoadedExtension? {
+         extensions[extensionId]?.let { return it }
+         val pendingFile = pendingFiles[extensionId] ?: return null
+-        val lock = loadLocks.computeIfAbsent(extensionId) { Any() }
+-        synchronized(lock) {
+-            extensions[extensionId]?.let { return it }
+-            if (!pendingFiles.containsKey(extensionId)) {
+-                return extensions.values.firstOrNull { it.packageName == extensionId }
+-            }
+-            val loaded = runCatching { load(pendingFile) }.getOrElse { e ->
+-                println("FAILED to lazily load extension $extensionId: ${e.stackTraceToString()}")
+-                pendingFiles.remove(extensionId)
+-                return null
+-            }
++        val loaded = runCatching { load(pendingFile) }.getOrElse { e ->
++            println("FAILED to lazily load extension $extensionId: ${e.stackTraceToString()}")
+             pendingFiles.remove(extensionId)
+-            if (loaded.packageName != extensionId) {
+-                println("WARNING: extension file '${pendingFile.name}' declares id '${loaded.packageName}' (key mismatch, was cataloged as '$extensionId')")
+-            }
+-            return loaded
++            return null
+         }
++        pendingFiles.remove(extensionId)
++        return loaded
+     }
+ 
+     fun list(): List<LoadedExtension> = extensions.values.toList()
+ 
++    @Synchronized
+     fun install(sourceFile: File, extensionId: String): LoadedExtension {
+         val ext = sourceFile.extension.ifBlank { "apk" }
+         if (ext == "js" && !novelEnabled) {
+@@ -104,9 +103,7 @@ class ExtensionRegistry(
+     }
+ 
+     private fun evict(extensionId: String) {
+-        extensions.remove(extensionId)?.let { ext ->
+-            (ext.classLoader as? Closeable)?.let { runCatching { it.close() } }
+-        }
++        extensions.remove(extensionId)?.close()
+         pendingFiles.remove(extensionId)
+     }
+ 
+@@ -137,12 +134,17 @@ class ExtensionRegistry(
+         }
+ 
+         val request = Request.Builder().url(url).build()
+-        val response = client.newCall(request).execute()
+-        if (!response.isSuccessful) {
+-            response.close()
+-            throw ExtensionDownloadException("failed to download $url: HTTP ${response.code}")
++        val bytes = client.newCall(request).execute().use { response ->
++            if (!response.isSuccessful) {
++                throw ExtensionDownloadException("failed to download $url: HTTP ${response.code}")
++            }
++            response.body.bytes()
+         }
+-        val bytes = response.body.bytes()
++        return installBytes(extensionId, ext, bytes)
++    }
++
++    @Synchronized
++    private fun installBytes(extensionId: String, ext: String, bytes: ByteArray): LoadedExtension {
+ 
+         val target = targetFile(extensionId, ext)
+         val upToDate = target.exists() && target.length() == bytes.size.toLong()
+@@ -153,16 +155,20 @@ class ExtensionRegistry(
+         return load(target)
+     }
+ 
++    @Synchronized
+     fun uninstall(extensionId: String) {
+         requireSafeExtensionId(extensionId)
+-        extensions.remove(extensionId)
++        evict(extensionId)
+         File(extensionsDir, "$extensionId.apk").delete()
+         File(extensionsDir, "$extensionId.jar").delete()
+         File(extensionsDir, "$extensionId.js").delete()
+     }
+ 
++    @Synchronized
+     fun invalidateAll() {
++        extensions.values.forEach { it.close() }
+         extensions.clear()
++        pendingFiles.clear()
+         loadAll()
+     }
+ }
 diff --git a/sandbox/src/main/kotlin/tsunagu/util/SourceUrl.kt b/sandbox/src/main/kotlin/tsunagu/util/SourceUrl.kt
 new file mode 100644
 index 0000000..22194ff
@@ -6063,254 +7761,6 @@ index 0000000..de03bf4
 +        }
 +    }
 +}
-diff --git a/sandbox/src/test/kotlin/tsunagu/grpc/SourceErrorsTest.kt b/sandbox/src/test/kotlin/tsunagu/grpc/SourceErrorsTest.kt
-index b0fc6fe..ea45454 100644
---- a/sandbox/src/test/kotlin/tsunagu/grpc/SourceErrorsTest.kt
-+++ b/sandbox/src/test/kotlin/tsunagu/grpc/SourceErrorsTest.kt
-@@ -18,7 +18,7 @@ class SourceErrorsTest {
-         assertEquals(SourceErrors.NOT_FOUND, code(RuntimeException("boom", RuntimeException("HTTP error 410"))))
-         assertEquals(SourceErrors.RATE_LIMITED, code(HttpException(429)))
-         assertEquals(SourceErrors.UNAVAILABLE, code(HttpException(522)))
--        assertEquals(SourceErrors.CLOUDFLARE, code(HttpException(403)))
-+        assertEquals(SourceErrors.UNAVAILABLE, code(HttpException(403)))
-         assertEquals(SourceErrors.NETWORK, code(UnknownHostException("nope.example")))
-         assertEquals(SourceErrors.PARSE, code(NullPointerException("jsoup select returned null")))
-         assertEquals(SourceErrors.INTERNAL, code(IllegalStateException("something odd")))
-diff --git a/sandbox/src/test/kotlin/tsunagu/util/SourceUrlTest.kt b/sandbox/src/test/kotlin/tsunagu/util/SourceUrlTest.kt
-new file mode 100644
-index 0000000..21ddce6
---- /dev/null
-+++ b/sandbox/src/test/kotlin/tsunagu/util/SourceUrlTest.kt
-@@ -0,0 +1,45 @@
-+package tsunagu.util
-+
-+import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
-+import eu.kanade.tachiyomi.animesource.model.SEpisode
-+import eu.kanade.tachiyomi.animesource.model.SAnime
-+import eu.kanade.tachiyomi.source.online.HttpSource
-+import eu.kanade.tachiyomi.source.model.SChapter
-+import kotlin.test.Test
-+import kotlin.test.assertEquals
-+
-+class SourceUrlTest {
-+    private val anime = object : AnimeHttpSource() {
-+        override val name = "Test"
-+        override val lang = "en"
-+        override val supportsLatest = false
-+        override val baseUrl = "https://source.example"
-+    }
-+    private val manga = object : HttpSource() {
-+        override val name = "Test"
-+        override val lang = "en"
-+        override val supportsLatest = false
-+        override val baseUrl = "https://source.example"
-+    }
-+
-+    @Test fun preservesSourceOwnedRelativeIdentifiers() {
-+        val raw = "kanojo-okarishimasu-5th-season/1"
-+        with(anime) {
-+            assertEquals(raw, SEpisode.create().apply { setUrlWithoutDomain(raw) }.url)
-+            assertEquals(raw, SAnime.create().apply { setUrlWithoutDomain(raw) }.url)
-+        }
-+        with(manga) {
-+            assertEquals(raw, SChapter.create().apply { setUrlWithoutDomain(raw) }.url)
-+        }
-+        for (value in listOf("/1", "series/1?lang=en#part", "?id=1", "opaque:id/1")) {
-+            assertEquals(value, sourceUrlWithoutDomain(value))
-+        }
-+    }
-+
-+    @Test fun removesOnlyTheOriginAndPreservesEscaping() {
-+        for (origin in listOf("https://source.example", "http://source.example:8080", "//source.example")) {
-+            assertEquals("/series%20name/1?a=%2F#part", sourceUrlWithoutDomain("$origin/series%20name/1?a=%2F#part"))
-+        }
-+        assertEquals("not a URL/1", sourceUrlWithoutDomain("not a URL/1"))
-+    }
-+}
-diff --git a/backend/internal/api/rest/segment_stream_test.go b/backend/internal/api/rest/segment_stream_test.go
-new file mode 100644
-index 0000000..3dadd61
---- /dev/null
-+++ b/backend/internal/api/rest/segment_stream_test.go
-@@ -0,0 +1,149 @@
-+package rest
-+
-+import (
-+	"bytes"
-+	"errors"
-+	"io"
-+	"net/http"
-+	"net/http/httptest"
-+	"testing"
-+	"time"
-+)
-+
-+func TestSegmentDeliversBytesBeforeUpstreamCompletes(t *testing.T) {
-+	h := &ContentHandler{Segments: NewSegmentCache(32 << 20)}
-+	release := make(chan struct{})
-+	finished := make(chan struct{})
-+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-+		defer close(finished)
-+		reader, writer := io.Pipe()
-+		go func() {
-+			defer writer.Close()
-+			_, _ = writer.Write([]byte("first"))
-+			<-release
-+			_, _ = writer.Write([]byte("last"))
-+		}()
-+		defer reader.Close()
-+		h.writeSegment(w, r, "segment", &http.Response{
-+			StatusCode: 200, Header: http.Header{"Content-Type": {"video/mp2t"}},
-+			Body: reader, ContentLength: -1,
-+		})
-+	}))
-+	defer server.Close()
-+	first := make(chan error, 1)
-+	complete := make(chan []byte, 1)
-+	go func() {
-+		response, err := server.Client().Get(server.URL)
-+		if err != nil {
-+			first <- err
-+			complete <- nil
-+			return
-+		}
-+		defer response.Body.Close()
-+		prefix := make([]byte, 5)
-+		_, err = io.ReadFull(response.Body, prefix)
-+		if err == nil && string(prefix) != "first" {
-+			err = errors.New("wrong first bytes")
-+		}
-+		first <- err
-+		rest, _ := io.ReadAll(response.Body)
-+		complete <- append(prefix, rest...)
-+	}()
-+	select {
-+	case err := <-first:
-+		if err != nil {
-+			t.Error(err)
-+		}
-+	case <-time.After(2 * time.Second):
-+		t.Error("player received no bytes while the upstream segment was still downloading")
-+	}
-+	close(release)
-+	if got := <-complete; string(got) != "firstlast" {
-+		t.Errorf("body = %q", got)
-+	}
-+	<-finished
-+	if got, _, ok := h.segments().get("segment"); !ok || string(got) != "firstlast" {
-+		t.Error("complete small segment was not cached")
-+	}
-+}
-+
-+func TestLargeSegmentIsDeliveredInFullWithoutCaching(t *testing.T) {
-+	h := &ContentHandler{Segments: NewSegmentCache(32 << 20)}
-+	body := bytes.Repeat([]byte{0xA5}, segCacheMaxObject+65536)
-+	response := httptest.NewRecorder()
-+	h.writeSegment(response, httptest.NewRequest("GET", "/", nil), "large", &http.Response{
-+		StatusCode: 200, Header: http.Header{}, Body: io.NopCloser(bytes.NewReader(body)), ContentLength: -1,
-+	})
-+	if !bytes.Equal(response.Body.Bytes(), body) {
-+		t.Fatalf("segment truncated: got %d, want %d", response.Body.Len(), len(body))
-+	}
-+	if _, _, ok := h.segments().get("large"); ok {
-+		t.Fatal("oversized segment cached")
-+	}
-+}
-+
-+func TestRangeSegmentPreservesHeadersAndBypassesCache(t *testing.T) {
-+	h := &ContentHandler{Segments: NewSegmentCache(32 << 20)}
-+	request := httptest.NewRequest("GET", "/", nil)
-+	request.Header.Set("Range", "bytes=2-4")
-+	response := httptest.NewRecorder()
-+	h.writeSegment(response, request, "range", &http.Response{
-+		StatusCode: 206, Header: http.Header{"Content-Range": {"bytes 2-4/9"}, "Content-Length": {"3"}},
-+		Body: io.NopCloser(bytes.NewBufferString("abc")), ContentLength: 3,
-+	})
-+	if response.Code != 206 || response.Header().Get("Content-Range") != "bytes 2-4/9" || response.Body.String() != "abc" {
-+		t.Fatal("range response changed")
-+	}
-+	if _, _, ok := h.segments().get("range"); ok {
-+		t.Fatal("partial segment cached")
-+	}
-+}
-+
-+type failedSegmentReader struct{ sent bool }
-+
-+type nonFlushingWriter struct{ http.ResponseWriter }
-+
-+func TestSegmentSupportsWritersWithoutFlush(t *testing.T) {
-+	h := &ContentHandler{Segments: NewSegmentCache(32 << 20)}
-+	response := httptest.NewRecorder()
-+	h.writeSegment(nonFlushingWriter{response}, httptest.NewRequest("GET", "/", nil), "plain", &http.Response{
-+		StatusCode: 200, Header: http.Header{}, Body: io.NopCloser(bytes.NewBufferString("complete")), ContentLength: 8,
-+	})
-+	if response.Body.String() != "complete" {
-+		t.Fatal("body missing")
-+	}
-+}
-+
-+func (r *failedSegmentReader) Read(p []byte) (int, error) {
-+	if r.sent {
-+		return 0, errors.New("upstream disconnected")
-+	}
-+	r.sent = true
-+	return copy(p, "partial"), nil
-+}
-+
-+func TestIncompleteSegmentIsAbortedAndNeverCached(t *testing.T) {
-+	for _, body := range []io.Reader{&failedSegmentReader{}, bytes.NewBufferString("short")} {
-+		h := &ContentHandler{Segments: NewSegmentCache(32 << 20)}
-+		aborted := false
-+		func() {
-+			defer func() {
-+				if reason := recover(); reason != nil {
-+					if reason != http.ErrAbortHandler {
-+						panic(reason)
-+					}
-+					aborted = true
-+				}
-+			}()
-+			h.writeSegment(httptest.NewRecorder(), httptest.NewRequest("GET", "/", nil), "failed", &http.Response{
-+				StatusCode: 200, Header: http.Header{}, Body: io.NopCloser(body), ContentLength: 100,
-+			})
-+		}()
-+		if !aborted {
-+			t.Error("incomplete response was reported as complete")
-+		}
-+		if _, _, ok := h.segments().get("failed"); ok {
-+			t.Error("incomplete response cached")
-+		}
-+	}
-+}
-diff --git a/sandbox/src/main/kotlin/tsunagu/grpc/PageResolution.kt b/sandbox/src/main/kotlin/tsunagu/grpc/PageResolution.kt
-new file mode 100644
-index 0000000..c820104
---- /dev/null
-+++ b/sandbox/src/main/kotlin/tsunagu/grpc/PageResolution.kt
-@@ -0,0 +1,23 @@
-+package tsunagu.grpc
-+
-+import eu.kanade.tachiyomi.source.model.Page
-+import kotlinx.coroutines.Dispatchers
-+import kotlinx.coroutines.async
-+import kotlinx.coroutines.awaitAll
-+import kotlinx.coroutines.coroutineScope
-+import kotlinx.coroutines.sync.Semaphore
-+import kotlinx.coroutines.sync.withPermit
-+
-+// Some sources return page links that each require another HTTP request.
-+// Bound that work without serializing the whole chapter or changing page order.
-+internal suspend fun resolvePageURLs(
-+    pages: List<Page>,
-+    resolve: suspend (Page) -> String,
-+): List<String> = coroutineScope {
-+    val slots = Semaphore(3)
-+    pages.map { page ->
-+        async(Dispatchers.IO) {
-+            page.imageUrl ?: slots.withPermit { resolve(page) }
-+        }
-+    }.awaitAll()
-+}
 diff --git a/sandbox/src/test/kotlin/tsunagu/grpc/PageResolutionTest.kt b/sandbox/src/test/kotlin/tsunagu/grpc/PageResolutionTest.kt
 new file mode 100644
 index 0000000..9dec1e7
@@ -6380,220 +7830,124 @@ index 0000000..9dec1e7
 +        }
 +    }
 +}
-diff --git a/backend/mobile/deferred_test.go b/backend/mobile/deferred_test.go
+diff --git a/sandbox/src/test/kotlin/tsunagu/grpc/SourceErrorsTest.kt b/sandbox/src/test/kotlin/tsunagu/grpc/SourceErrorsTest.kt
+index b0fc6fe..ea45454 100644
+--- a/sandbox/src/test/kotlin/tsunagu/grpc/SourceErrorsTest.kt
++++ b/sandbox/src/test/kotlin/tsunagu/grpc/SourceErrorsTest.kt
+@@ -18,7 +18,7 @@ class SourceErrorsTest {
+         assertEquals(SourceErrors.NOT_FOUND, code(RuntimeException("boom", RuntimeException("HTTP error 410"))))
+         assertEquals(SourceErrors.RATE_LIMITED, code(HttpException(429)))
+         assertEquals(SourceErrors.UNAVAILABLE, code(HttpException(522)))
+-        assertEquals(SourceErrors.CLOUDFLARE, code(HttpException(403)))
++        assertEquals(SourceErrors.UNAVAILABLE, code(HttpException(403)))
+         assertEquals(SourceErrors.NETWORK, code(UnknownHostException("nope.example")))
+         assertEquals(SourceErrors.PARSE, code(NullPointerException("jsoup select returned null")))
+         assertEquals(SourceErrors.INTERNAL, code(IllegalStateException("something odd")))
+diff --git a/sandbox/src/test/kotlin/tsunagu/novel/ExtensionLifecycleTest.kt b/sandbox/src/test/kotlin/tsunagu/novel/ExtensionLifecycleTest.kt
 new file mode 100644
-index 0000000..4913c72
+index 0000000..1a327d8
 --- /dev/null
-+++ b/backend/mobile/deferred_test.go
-@@ -0,0 +1,85 @@
-+package mobile
++++ b/sandbox/src/test/kotlin/tsunagu/novel/ExtensionLifecycleTest.kt
+@@ -0,0 +1,51 @@
++package tsunagu.novel
 +
-+import (
-+	"bytes"
-+	"encoding/json"
-+	"io"
-+	"net"
-+	"net/http"
-+	"strings"
-+	"testing"
-+	"time"
-+)
++import tsunagu.registry.ExtensionRegistry
++import java.nio.file.Files
++import kotlin.test.Test
++import kotlin.test.assertEquals
++import kotlin.test.assertNull
++import kotlin.test.assertFails
 +
-+func TestDeferredSandboxPreservesCatalogBeforeAndAfterAttach(t *testing.T) {
-+	b := NewBackend()
-+	dir := t.TempDir()
-+	if err := b.Start(dir); err != nil {
-+		t.Fatal(err)
-+	}
-+	defer b.Stop()
-+	// Existing SQLite data, as on a subsequent app launch; no repository network fetch.
-+	if _, err := b.conn.Exec(`INSERT INTO repositories(id,index_url,name) VALUES(1,'https://example.com/index.pb','Saved repository');
-+        INSERT INTO extensions(repository_id,package_name,name,version,content_type,lang,apk_url,installed)
-+        VALUES(1,'source','Saved source','1','manga','en','fixture',1)`); err != nil {
-+		t.Fatal(err)
-+	}
-+	if err := b.Stop(); err != nil {
-+		t.Fatal(err)
-+	}
-+	if err := b.StartDeferredSandbox(dir); err != nil {
-+		t.Fatal(err)
-+	}
-+	url, token := b.BaseURL(), b.AccessToken()
-+	call := func(query string) string {
-+		t.Helper()
-+		body, _ := json.Marshal(map[string]string{"query": query})
-+		req, _ := http.NewRequest("POST", url+"/api/graphql", bytes.NewReader(body))
-+		req.Header.Set("Content-Type", "application/json")
-+		req.Header.Set("Authorization", "Bearer "+token)
-+		res, err := (&http.Client{Timeout: time.Second}).Do(req)
-+		if err != nil {
-+			t.Fatal(err)
-+		}
-+		defer res.Body.Close()
-+		data, _ := io.ReadAll(res.Body)
-+		return string(data)
-+	}
-+	check := func() {
-+		result := call(`{repositories{name} installedExtensions{displayName} extensions(limit:40){total}}`)
-+		if strings.Contains(result, `"errors"`) || !strings.Contains(result, "Saved repository") || !strings.Contains(result, "Saved source") || !strings.Contains(result, `"total":1`) {
-+			t.Fatal(result)
-+		}
-+	}
-+	check()
-+	_, status := request(t, b, "/api/mobile/status", token)
-+	if !bytes.Contains(status, []byte(`"extensionsAvailable":false`)) {
-+		t.Fatal(string(status))
-+	}
-+	if result := call(`{sourcePreferences(extensionId:"source"){key}}`); !strings.Contains(result, "not yet available") {
-+		t.Fatal(result)
-+	}
-+	if err := b.AttachSandbox("example.com:1", strings.Repeat("a", 32)); err == nil {
-+		t.Fatal("invalid attachment accepted")
-+	}
-+	check() // A failed JVM attachment must not hide durable SQLite data.
-+	ln, err := net.Listen("tcp4", "127.0.0.1:0")
-+	if err != nil {
-+		t.Fatal(err)
-+	}
-+	defer ln.Close()
-+	if err := b.AttachSandbox(ln.Addr().String(), strings.Repeat("a", 32)); err != nil {
-+		t.Fatal(err)
-+	}
-+	if b.BaseURL() != url || b.AccessToken() != token {
-+		t.Fatal("attachment restarted HTTP/SQLite")
-+	}
-+	check()
-+	_, status = request(t, b, "/api/mobile/status", token)
-+	if !bytes.Contains(status, []byte(`"extensionsAvailable":true`)) {
-+		t.Fatal(string(status))
-+	}
-+	if err := b.AttachSandbox(ln.Addr().String(), strings.Repeat("a", 32)); err == nil {
-+		t.Fatal("duplicate attachment accepted")
-+	}
++class ExtensionLifecycleTest {
++    @Test fun replacementUninstallAndInvalidationReleaseWorkers() {
++        val directory = Files.createTempDirectory("extension-lifecycle").toFile()
++        val id = "lifecycle-${System.nanoTime()}"
++        val source = directory.resolve("$id.js")
++        source.writeText("module.exports.default = { id: '$id', popularNovels: async function() { return []; } };")
++        val registry = ExtensionRegistry(directory.resolve("installed"), true)
++        fun workers() = Thread.getAllStackTraces().keys.filter { it.isAlive && it.name == "novel-js-$id" }
++        fun expectWorkers(expected: Int) {
++            repeat(100) {
++                if (workers().size == expected) return
++                Thread.sleep(10)
++            }
++            assertEquals(expected, workers().size)
++        }
++        try {
++            repeat(5) {
++                val loaded = registry.install(source, id)
++                assertEquals(emptyList(), (loaded.source as NovelPlugin).popularNovels(1))
++                expectWorkers(1)
++            }
++            registry.uninstall(id)
++            expectWorkers(0)
++            assertNull(registry.get(id))
++            repeat(5) {
++                registry.install(source, id)
++                registry.invalidateAll()
++                expectWorkers(0)
++            }
++            // Invalidated entries are catalogued lazily; uninstall must remove that entry too.
++            registry.uninstall(id)
++            assertNull(registry.get(id))
++            expectWorkers(0)
++            source.writeText("module.exports.default = { get id() { throw Error('bad metadata'); } };")
++            assertFails { registry.install(source, id) }
++            expectWorkers(0)
++        } finally {
++            registry.uninstall(id)
++            directory.deleteRecursively()
++        }
++    }
 +}
-
-diff --git a/backend/internal/contentfilter/source_overrides.go b/backend/internal/contentfilter/source_overrides.go
+diff --git a/sandbox/src/test/kotlin/tsunagu/util/SourceUrlTest.kt b/sandbox/src/test/kotlin/tsunagu/util/SourceUrlTest.kt
 new file mode 100644
+index 0000000..21ddce6
 --- /dev/null
-+++ b/backend/internal/contentfilter/source_overrides.go
-@@ -0,0 +1,66 @@
-+package contentfilter
++++ b/sandbox/src/test/kotlin/tsunagu/util/SourceUrlTest.kt
+@@ -0,0 +1,45 @@
++package tsunagu.util
 +
-+import (
-+	"context"
-+	"database/sql"
-+	"encoding/json"
-+	"fmt"
-+)
++import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
++import eu.kanade.tachiyomi.animesource.model.SEpisode
++import eu.kanade.tachiyomi.animesource.model.SAnime
++import eu.kanade.tachiyomi.source.online.HttpSource
++import eu.kanade.tachiyomi.source.model.SChapter
++import kotlin.test.Test
++import kotlin.test.assertEquals
 +
-+type SourceOverrides struct {
-+	Enabled bool    `json:"enabled"`
-+	Allowed []int64 `json:"allowed"`
-+	Blocked []int64 `json:"blocked"`
-+}
++class SourceUrlTest {
++    private val anime = object : AnimeHttpSource() {
++        override val name = "Test"
++        override val lang = "en"
++        override val supportsLatest = false
++        override val baseUrl = "https://source.example"
++    }
++    private val manga = object : HttpSource() {
++        override val name = "Test"
++        override val lang = "en"
++        override val supportsLatest = false
++        override val baseUrl = "https://source.example"
++    }
 +
-+func LoadSourceOverrides(ctx context.Context, db *sql.DB) (SourceOverrides, error) {
-+	var result SourceOverrides
-+	var raw string
-+	err := db.QueryRowContext(ctx, "SELECT value FROM app_settings WHERE key='mobile_source_overrides'").Scan(&raw)
-+	if err == sql.ErrNoRows {
-+		return result, nil
-+	}
-+	if err != nil {
-+		return result, err
-+	}
-+	err = json.Unmarshal([]byte(raw), &result)
-+	return result, err
-+}
-+func SaveSourceOverrides(ctx context.Context, db *sql.DB, value SourceOverrides) error {
-+	if len(value.Allowed)+len(value.Blocked) > 10000 {
-+		return fmt.Errorf("too many sources")
-+	}
-+	seen := map[int64]bool{}
-+	for _, ids := range [][]int64{value.Allowed, value.Blocked} {
-+		for _, id := range ids {
-+			if id <= 0 || seen[id] {
-+				return fmt.Errorf("invalid or duplicate source")
-+			}
-+			seen[id] = true
-+		}
-+	}
-+	raw, err := json.Marshal(value)
-+	if err != nil {
-+		return err
-+	}
-+	_, err = db.ExecContext(ctx, "INSERT INTO app_settings(key,value) VALUES('mobile_source_overrides',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", string(raw))
-+	return err
-+}
++    @Test fun preservesSourceOwnedRelativeIdentifiers() {
++        val raw = "kanojo-okarishimasu-5th-season/1"
++        with(anime) {
++            assertEquals(raw, SEpisode.create().apply { setUrlWithoutDomain(raw) }.url)
++            assertEquals(raw, SAnime.create().apply { setUrlWithoutDomain(raw) }.url)
++        }
++        with(manga) {
++            assertEquals(raw, SChapter.create().apply { setUrlWithoutDomain(raw) }.url)
++        }
++        for (value in listOf("/1", "series/1?lang=en#part", "?id=1", "opaque:id/1")) {
++            assertEquals(value, sourceUrlWithoutDomain(value))
++        }
++    }
 +
-+// Decision is -1 for blocked, 1 for allowed, and 0 for the global rules.
-+func (value SourceOverrides) Decision(id int64) int {
-+	if !value.Enabled {
-+		return 0
-+	}
-+	for _, source := range value.Blocked {
-+		if source == id {
-+			return -1
-+		}
-+	}
-+	for _, source := range value.Allowed {
-+		if source == id {
-+			return 1
-+		}
-+	}
-+	return 0
-+}
-
-diff --git a/backend/internal/sync/source_overrides_test.go b/backend/internal/sync/source_overrides_test.go
-new file mode 100644
---- /dev/null
-+++ b/backend/internal/sync/source_overrides_test.go
-@@ -0,0 +1,48 @@
-+package sync
-+
-+import (
-+	"context"
-+	"path/filepath"
-+	"testing"
-+	"tsunagu/backend/internal/contentfilter"
-+	"tsunagu/backend/internal/db"
-+	"tsunagu/backend/internal/db/sqlcgen"
-+)
-+
-+func TestLibrarySourceOverridesApplyBeforePagination(t *testing.T) {
-+	ctx := context.Background()
-+	conn, err := db.Open(filepath.Join(t.TempDir(), "test.db"))
-+	if err != nil {
-+		t.Fatal(err)
-+	}
-+	defer conn.Close()
-+	_, err = conn.Exec(`PRAGMA foreign_keys=OFF;
-+ INSERT INTO media(id,extension_id,external_id,content_type,title,added_at,content_block_rank) VALUES
-+ (1,11,'one','manga','One',CURRENT_TIMESTAMP,1),
-+ (2,22,'two','manga','Two',CURRENT_TIMESTAMP,1),
-+ (3,33,'three','manga','Three',CURRENT_TIMESTAMP,NULL)`)
-+	if err != nil {
-+		t.Fatal(err)
-+	}
-+	value := contentfilter.SourceOverrides{Enabled: true, Allowed: []int64{11}, Blocked: []int64{33}}
-+	if err = contentfilter.SaveSourceOverrides(ctx, conn, value); err != nil {
-+		t.Fatal(err)
-+	}
-+	sy := New(conn, sqlcgen.New(conn), t.TempDir(), t.TempDir())
-+	rows, total, err := sy.QueryLibrary(ctx, LibraryQuery{ContentFilterRank: 1, Limit: 1})
-+	if err != nil || total != 1 || len(rows) != 1 || rows[0].ID != 1 {
-+		t.Fatalf("overrides: rows=%+v total=%d err=%v", rows, total, err)
-+	}
-+	value.Enabled = false
-+	if err = contentfilter.SaveSourceOverrides(ctx, conn, value); err != nil {
-+		t.Fatal(err)
-+	}
-+	rows, total, err = sy.QueryLibrary(ctx, LibraryQuery{ContentFilterRank: 1, Limit: 1})
-+	if err != nil || total != 1 || len(rows) != 1 || rows[0].ID != 3 {
-+		t.Fatalf("disabled: rows=%+v total=%d err=%v", rows, total, err)
-+	}
-+	value.Allowed = []int64{33}
-+	if err = contentfilter.SaveSourceOverrides(ctx, conn, value); err == nil {
-+		t.Fatal("accepted conflicting allow and block")
-+	}
++    @Test fun removesOnlyTheOriginAndPreservesEscaping() {
++        for (origin in listOf("https://source.example", "http://source.example:8080", "//source.example")) {
++            assertEquals("/series%20name/1?a=%2F#part", sourceUrlWithoutDomain("$origin/series%20name/1?a=%2F#part"))
++        }
++        assertEquals("not a URL/1", sourceUrlWithoutDomain("not a URL/1"))
++    }
 +}

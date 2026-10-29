@@ -58,8 +58,12 @@ struct RecentView: View {
     }
 
     private var query: Binding<String> { tab == .history ? $historySearch : $updatesSearch }
-    private var history: [RecentHistoryTitle] {
-        RecentViewModel.history(home.snapshot, query: historySearch, mode: mode)
+    @State private var history: [RecentHistoryDay] = []
+    @State private var activityStats = HomeStatistics()
+    private struct HistoryKey: Equatable {
+        let revision: Int
+        let query: String
+        let mode: ContentMode
     }
     private var updates: [RecentUpdate] {
         model.visibleUpdates(query: updatesSearch, mode: mode).filter {
@@ -153,8 +157,29 @@ struct RecentView: View {
         .task {
             await home.load()
             await library.load()
+        }
+        .task(id: tab) {
+            guard tab == .updates, !didLoad else { return }
+            await library.load()
             _ = await model.load(entries: savedEntries)
-            didLoad = true
+            if !Task.isCancelled { didLoad = true }
+        }
+        .task(id: HistoryKey(revision: home.snapshotRevision, query: historySearch, mode: mode)) {
+            let snapshot = home.snapshot, query = historySearch, selectedMode = mode
+            let result = await Task.detached(priority: .userInitiated) {
+                RecentHistoryDay.group(RecentViewModel.history(snapshot, query: query, mode: selectedMode))
+            }.value
+            guard !Task.isCancelled else { return }
+            history = result
+        }
+        .task(id: tool == .statistics) {
+            guard tool == .statistics else { return }
+            let snapshot = home.snapshot
+            let result = await Task.detached(priority: .userInitiated) {
+                HomeStatistics.calculate(snapshot: snapshot)
+            }.value
+            guard !Task.isCancelled else { return }
+            activityStats = result
         }
         .alert(
             "Recent",
@@ -170,7 +195,7 @@ struct RecentView: View {
         .fullScreenCover(
             item: $route,
             onDismiss: {
-                Task { _ = await model.load(entries: savedEntries) }
+                if tab == .updates { Task { _ = await model.load(entries: savedEntries) } }
             }
         ) { route in
             NavigationStack {
@@ -291,7 +316,7 @@ struct RecentView: View {
     }
 
     private var statistics: some View {
-        let stats = home.statistics()
+        let stats = activityStats
         return LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
             stat("\(stats.currentStreak)", "Day streak", "Fire")
             stat("\(stats.units)", "Chapters / episodes", "BookOpen")

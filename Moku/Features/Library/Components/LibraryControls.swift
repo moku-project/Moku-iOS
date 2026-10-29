@@ -3,6 +3,7 @@ import SwiftUI
 struct LibraryControls: View {
     enum Panel { case mode, view, layout, sort, filter }
     let model: LibraryViewModel
+    @AppStorage("preferences.modeTabs") private var savedModes = ""
     @Binding var mode: ContentMode
     @Binding var panel: Panel?
     @Binding var menuLevel: RadialMenuLevel
@@ -125,7 +126,7 @@ struct LibraryControls: View {
                 .accessibilityIdentifier("library.layout.\(choice.rawValue)")
             }
         case .mode:
-            ForEach(ContentMode.allCases) { choice in
+            ForEach(ModeTabConfiguration(storage: savedModes).visible) { choice in
                 MenuRow(
                     choice.title,
                     selected: mode == choice, fontSize: 17, iconSize: 22,

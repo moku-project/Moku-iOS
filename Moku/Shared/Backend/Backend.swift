@@ -27,6 +27,8 @@ actor Backend {
     func connection(requiresSourceRuntime: Bool = true, manualStart: Bool = false) async throws
         -> BackendController.Connection
     {
+        // A screen that has already disappeared must not boot either service.
+        try Task.checkCancellation()
         guard !PreviewMode.isEnabled else {
             throw EmbeddedSearchError.message("Backend access is disabled in UI previews.")
         }

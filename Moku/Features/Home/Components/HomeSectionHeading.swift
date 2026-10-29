@@ -13,8 +13,8 @@ struct HomeSectionHeading: View {
                     HStack(spacing: 5) {
                         Text(action)
                         PhosphorIcon("CaretRight")
-                    }
-                }
+                    }.frame(minHeight: 44).contentShape(Rectangle())
+                }.buttonStyle(.plain)
                 .font(.caption).foregroundStyle(.secondary).frame(minHeight: 44)
             }
         }.frame(minHeight: 28)
@@ -29,6 +29,6 @@ struct HomeEmptyRow: View {
             PhosphorIcon(symbol).foregroundStyle(.gray.opacity(0.5))
             Text(text).font(.subheadline).foregroundStyle(.secondary)
             Spacer()
-        }.padding(18).frame(minHeight: 76).homePanel()
+        }.padding(.vertical, 14).frame(minHeight: 60)
     }
 }

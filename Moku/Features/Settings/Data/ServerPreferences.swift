@@ -55,6 +55,9 @@ struct ServerPreference: Codable, Identifiable, Sendable {
             struct Result: Decodable, Sendable { let updateServerSetting: Update }
             let result: Result = try await BackendAPI.shared.graphql("mutation { updateServerSetting(key: \(BackendAPI.literal(setting.key)), value: \(BackendAPI.literal(value))) { setting { \(Self.fields) } restartRequired } }", requiresSourceRuntime: false)
             if let index = values.firstIndex(where: { $0.key == setting.key }) { values[index] = result.updateServerSetting.setting }
+            if setting.key == "content_filter_level" {
+                NotificationCenter.default.post(name: .contentVisibilityDidChange, object: nil)
+            }
             notice = result.updateServerSetting.restartRequired ? "Saved. Restart Moku to apply this setting." : nil
         } catch { notice = "Couldn’t save \(setting.label). Check the value and try again." }
     }
@@ -90,6 +93,7 @@ struct ContentRule: Codable, Identifiable, Sendable {
         busy = true
         do {
             let _: [String: Bool] = try await BackendAPI.shared.graphql("mutation { \(mutation) }", requiresSourceRuntime: false)
+            NotificationCenter.default.post(name: .contentVisibilityDidChange, object: nil)
             await load()
         } catch { notice = "Couldn’t update content rules." }
         busy = false
@@ -101,6 +105,7 @@ struct ContentRule: Codable, Identifiable, Sendable {
             struct Result: Decodable, Sendable { let addContentFilterRule: ContentRule }
             let result: Result = try await BackendAPI.shared.graphql("mutation { addContentFilterRule(category: \(BackendAPI.literal(category)), field: \(field), keyword: \(BackendAPI.literal(keyword)), minWeight: \(weight), blockLevel: \(level)) { \(Self.fields) } }", requiresSourceRuntime: false)
             rules.append(result.addContentFilterRule)
+            NotificationCenter.default.post(name: .contentVisibilityDidChange, object: nil)
             notice = nil
         } catch { notice = "Couldn’t add the content rule." }
         busy = false

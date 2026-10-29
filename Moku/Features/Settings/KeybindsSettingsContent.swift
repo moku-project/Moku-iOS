@@ -67,7 +67,7 @@ struct KeybindsSettingsContent: View {
     @State private var draft = ""
     @State private var notice: String?
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        LazyVStack(alignment: .leading, spacing: 20) {
             GeneralSection("Reader") {
                 ForEach(ReaderShortcut.all) { item in
                     GeneralRow(item.title, detail: "") {

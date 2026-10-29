@@ -9,12 +9,13 @@ struct HomeRecentRow: View {
                 RoundedRectangle(cornerRadius: 5))
             VStack(alignment: .leading, spacing: 5) {
                 Text(entry.title).font(.subheadline.weight(.medium)).lineLimit(2)
-                Text(entry.chapters.first { $0.id == session.chapterID }?.title ?? "In progress")
+                Text((entry.chapters.first { $0.id == session.chapterID }?.displayTitle ?? "In progress")
+                     + (entry.media == "Anime" ? "" : " · p.\(session.page)"))
                     .font(.caption).foregroundStyle(.secondary)
             }
             Spacer(minLength: 4)
-            Text(session.endedAt, style: .relative).font(.caption2).foregroundStyle(.secondary)
-                .lineLimit(1)
+            Text(RecentFormat.timeAgo(session.endedAt)).font(.caption2).foregroundStyle(.secondary)
+                .lineLimit(1).fixedSize(horizontal: true, vertical: false)
         }.padding(.vertical, 10).contentShape(Rectangle())
     }
 }

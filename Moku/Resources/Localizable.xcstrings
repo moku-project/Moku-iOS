@@ -34,6 +34,16 @@
         }
       }
     },
+    "%@ · %lld:%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · %2$lld:%3$@"
+          }
+        }
+      }
+    },
     "%@ · p.%lld" : {
       "localizations" : {
         "en" : {
@@ -73,12 +83,12 @@
         }
       }
     },
-    "%@: %lld activity" : {
+    "%@: %lld chapters or episodes" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "%1$@: %2$lld activity"
+            "value" : "%1$@: %2$lld chapters or episodes"
           }
         }
       }
@@ -109,19 +119,16 @@
         }
       }
     },
-    "%lld / 4" : {
-
-    },
     "%lld active filters" : {
 
     },
     "%lld chapters" : {
 
     },
-    "%lld connected" : {
+    "%lld chapters / episodes" : {
 
     },
-    "%lld days" : {
+    "%lld connected" : {
 
     },
     "%lld failed" : {
@@ -185,6 +192,9 @@
     "Adjust the size of the app. Reader zoom is separate." : {
 
     },
+    "All chapters" : {
+
+    },
     "All languages" : {
 
     },
@@ -192,6 +202,9 @@
 
     },
     "Anime" : {
+
+    },
+    "Any group" : {
 
     },
     "Apply" : {
@@ -221,9 +234,6 @@
     "Background" : {
 
     },
-    "Best" : {
-
-    },
     "Browse extensions" : {
 
     },
@@ -239,10 +249,16 @@
     "Cancel waiting" : {
 
     },
+    "Category" : {
+
+    },
     "Change" : {
 
     },
     "Change PIN" : {
+
+    },
+    "Chapter name" : {
 
     },
     "Chapters" : {
@@ -302,6 +318,9 @@
     "Close %@ menu" : {
 
     },
+    "Close modes" : {
+
+    },
     "Close Moku links" : {
 
     },
@@ -344,6 +363,9 @@
     "Copy authorization link" : {
 
     },
+    "Couldn’t open title" : {
+
+    },
     "Create" : {
 
     },
@@ -353,10 +375,13 @@
     "Creating…" : {
 
     },
+    "Crop cover images" : {
+
+    },
     "Current PIN" : {
 
     },
-    "day streak" : {
+    "Customize visible modes" : {
 
     },
     "Decrease interface scale" : {
@@ -440,6 +465,9 @@
     "Dry run" : {
 
     },
+    "Edit" : {
+
+    },
     "Edit name" : {
 
     },
@@ -449,7 +477,16 @@
     "Enable" : {
 
     },
+    "Enter a key, optionally with ctrl+, cmd+, alt+, or shift+. Leave blank to disable." : {
+
+    },
     "Episodes" : {
+
+    },
+    "Exclude from downloads" : {
+
+    },
+    "Exclude from updates" : {
 
     },
     "Expand %@ updates" : {
@@ -473,6 +510,9 @@
     "Filter chapters" : {
 
     },
+    "Filter sources" : {
+
+    },
     "Filtered" : {
 
     },
@@ -494,13 +534,28 @@
     "Folders" : {
 
     },
+    "GitHub" : {
+
+    },
     "Go" : {
 
     },
     "Go to page" : {
 
     },
+    "Hide" : {
+
+    },
+    "Hide %@" : {
+
+    },
     "Hide chapters" : {
+
+    },
+    "Hide from library" : {
+
+    },
+    "Hide groups" : {
 
     },
     "History" : {
@@ -542,6 +597,12 @@
     "Imported titles will be kept. Unfinished matches will be removed." : {
 
     },
+    "Include in downloads" : {
+
+    },
+    "Include in updates" : {
+
+    },
     "Increase interface scale" : {
 
     },
@@ -566,6 +627,9 @@
     "Layout, fit, direction, zoom and image settings can be saved for this manga." : {
 
     },
+    "Leave blank to allow all groups." : {
+
+    },
     "Less" : {
 
     },
@@ -581,6 +645,12 @@
     "Library view" : {
 
     },
+    "Light appearance" : {
+
+    },
+    "Linked titles" : {
+
+    },
     "Lists" : {
 
     },
@@ -588,6 +658,9 @@
 
     },
     "Loading list…" : {
+
+    },
+    "Lock" : {
 
     },
     "M" : {
@@ -608,7 +681,13 @@
     "Manga Settings" : {
 
     },
+    "Match system theme" : {
+
+    },
     "Media" : {
+
+    },
+    "Modes" : {
 
     },
     "Moku" : {
@@ -623,7 +702,19 @@
     "More" : {
 
     },
+    "Move down" : {
+
+    },
     "Move existing files" : {
+
+    },
+    "Move left" : {
+
+    },
+    "Move right" : {
+
+    },
+    "Move up" : {
 
     },
     "Name" : {
@@ -632,16 +723,19 @@
     "Name (optional)" : {
 
     },
+    "Names, separated by commas" : {
+
+    },
     "New folder" : {
 
     },
-    "Next chapter" : {
+    "Next" : {
 
     },
     "Next chapters" : {
 
     },
-    "Next title" : {
+    "Next slide" : {
 
     },
     "No %@ titles yet" : {
@@ -680,6 +774,9 @@
     "No services available" : {
 
     },
+    "No sources installed." : {
+
+    },
     "No sources match these filters." : {
 
     },
@@ -701,6 +798,12 @@
     "OK" : {
 
     },
+    "Only selected groups" : {
+
+    },
+    "Open" : {
+
+    },
     "Open %@" : {
 
     },
@@ -713,9 +816,6 @@
     "Page" : {
 
     },
-    "Page %lld · In progress" : {
-
-    },
     "Page progress" : {
 
     },
@@ -726,6 +826,12 @@
 
     },
     "Password" : {
+
+    },
+    "Per-source overrides" : {
+
+    },
+    "Pin" : {
 
     },
     "PIN" : {
@@ -743,22 +849,28 @@
     "Playback speed" : {
 
     },
+    "Preferred group" : {
+
+    },
     "Preferred source language" : {
 
     },
     "Preset name" : {
 
     },
+    "Preview" : {
+
+    },
     "Preview import" : {
 
     },
-    "Previous title" : {
+    "Previous" : {
+
+    },
+    "Previous slide" : {
 
     },
     "Queue" : {
-
-    },
-    "Read" : {
 
     },
     "Read a title to see it here." : {
@@ -786,6 +898,9 @@
 
     },
     "Refresh chapters" : {
+
+    },
+    "Release groups" : {
 
     },
     "Reload sources" : {
@@ -825,6 +940,9 @@
 
     },
     "Rename repository" : {
+
+    },
+    "Reorder %@" : {
 
     },
     "Require a password" : {
@@ -902,6 +1020,9 @@
     "Saved titles and downloaded files will be kept." : {
 
     },
+    "Scanlators" : {
+
+    },
     "Scroll speed" : {
 
     },
@@ -917,6 +1038,9 @@
     "Search folders" : {
 
     },
+    "Search library" : {
+
+    },
     "Search source" : {
 
     },
@@ -926,10 +1050,25 @@
     "Select chapter" : {
 
     },
+    "Series title" : {
+
+    },
     "Settings" : {
 
     },
+    "Shortcut" : {
+
+    },
+    "Show" : {
+
+    },
+    "Show %@" : {
+
+    },
     "Show chapters" : {
+
+    },
+    "Show in library" : {
 
     },
     "Show less" : {
@@ -944,7 +1083,17 @@
     "Skip" : {
 
     },
-    "Slot %lld" : {
+    "Slide %lld of %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Slide %1$lld of %2$lld"
+          }
+        }
+      }
+    },
+    "Solid interface" : {
 
     },
     "Source" : {
@@ -957,6 +1106,9 @@
 
     },
     "Start a new import" : {
+
+    },
+    "Start reading" : {
 
     },
     "Starting…" : {
@@ -1004,6 +1156,16 @@
     "This source will no longer be available for search." : {
 
     },
+    "Title %lld of %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Title %1$lld of %2$lld"
+          }
+        }
+      }
+    },
     "Title details" : {
 
     },
@@ -1031,19 +1193,19 @@
     "Unlock" : {
 
     },
+    "Unpin" : {
+
+    },
     "Unread only" : {
+
+    },
+    "Up next" : {
 
     },
     "Update" : {
 
     },
     "Update available" : {
-
-    },
-    "Updated —" : {
-
-    },
-    "Updated %@" : {
 
     },
     "Updating library · %lld/%lld" : {
@@ -1062,7 +1224,13 @@
     "Video" : {
 
     },
+    "View" : {
+
+    },
     "View %@" : {
+
+    },
+    "View in Library" : {
 
     },
     "View title" : {
@@ -1084,6 +1252,9 @@
 
     },
     "Your saved titles will be kept." : {
+
+    },
+    "Your sources have no popular titles to show yet." : {
 
     },
     "Zoom" : {

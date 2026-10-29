@@ -6,39 +6,68 @@ import UIKit
 /// thumbnails are shared across Home, search, details and the library.
 actor CoverImagePipeline {
     static let shared = CoverImagePipeline()
-    private let images: NSCache<NSURL, UIImage> = {
-        let cache = NSCache<NSURL, UIImage>()
-        cache.totalCostLimit = 48 * 1024 * 1024
-        return cache
-    }()
-    private var pending: [URL: (UUID, Task<UIImage, Error>)] = [:]
+    private nonisolated static let images = CoverMemoryCache()
+    private struct Flight {
+        let id: UUID
+        let task: Task<UIImage, Error>
+        var consumers: Set<UUID> = []
+    }
+    private var pending: [URL: Flight] = [:]
+
+    nonisolated static func cachedImage(for url: URL?) -> UIImage? {
+        guard let url, let key = BackendAPI.coverURL(url.absoluteString) else { return nil }
+        return images.cache.object(forKey: key as NSURL)
+    }
 
     func image(for url: URL) async throws -> UIImage {
         guard let key = BackendAPI.coverURL(url.absoluteString) else {
             throw EmbeddedSearchError.message("Cover unavailable.")
         }
         try Task.checkCancellation()
-        if let image = images.object(forKey: key as NSURL) { return image }
-        if let (_, task) = pending[key] { return try await task.value }
-        let id = UUID()
-        let task = Task {
-            let data = try await BackendAPI.shared.coverData(for: key)
-            return try Self.thumbnail(data)
+        if let image = Self.images.cache.object(forKey: key as NSURL) { return image }
+        let consumer = UUID()
+        var flight: Flight
+        if let existing = pending[key] {
+            flight = existing
+        } else {
+            flight = Flight(id: UUID(), task: Task {
+                let data = try await BackendAPI.shared.coverData(for: key)
+                try Task.checkCancellation()
+                return try Self.thumbnail(data)
+            })
         }
-        pending[key] = (id, task)
+        flight.consumers.insert(consumer)
+        pending[key] = flight
+        let id = flight.id
+        let task = flight.task
         do {
-            let image = try await task.value
-            if pending[key]?.0 == id {
+            let image = try await withTaskCancellationHandler {
+                try await task.value
+            } onCancel: {
+                Task { await self.cancel(consumer, key: key, id: id) }
+            }
+            if pending[key]?.id == id {
                 if let cg = image.cgImage {
-                    images.setObject(image, forKey: key as NSURL, cost: cg.bytesPerRow * cg.height)
+                    Self.images.cache.setObject(image, forKey: key as NSURL, cost: cg.bytesPerRow * cg.height)
                 }
                 pending[key] = nil
             }
             try Task.checkCancellation()
             return image
         } catch {
-            if pending[key]?.0 == id { pending[key] = nil }
+            if pending[key]?.id == id { pending[key] = nil }
             throw error
+        }
+    }
+
+    private func cancel(_ consumer: UUID, key: URL, id: UUID) {
+        guard var flight = pending[key], flight.id == id else { return }
+        flight.consumers.remove(consumer)
+        if flight.consumers.isEmpty {
+            pending[key] = nil
+            flight.task.cancel()
+        } else {
+            pending[key] = flight
         }
     }
 
@@ -80,8 +109,20 @@ actor CoverImagePipeline {
         }
     }
 
+    func trimMemory() { Self.images.cache.removeAllObjects() }
+
     func clear() {
         pending.removeAll()
-        images.removeAllObjects()
+        Self.images.cache.removeAllObjects()
     }
+}
+
+/// NSCache supports concurrent lookup/eviction. Its decoded images are immutable.
+/// A synchronous hit lets a revisited cell display its cover on its first frame.
+private final class CoverMemoryCache: @unchecked Sendable {
+    let cache: NSCache<NSURL, UIImage> = {
+        let cache = NSCache<NSURL, UIImage>()
+        cache.totalCostLimit = 48 * 1024 * 1024
+        return cache
+    }()
 }

@@ -32,7 +32,7 @@ enum DownloadsSection: String, CaseIterable, Identifiable {
     }
 }
 
-struct DownloadEntry: Identifiable {
+struct DownloadEntry: Identifiable, Equatable, Sendable {
     let id: String
     let titleID: String
     let title: String

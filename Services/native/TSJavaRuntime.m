@@ -40,12 +40,19 @@ static JNIEnv *startVM(NSString *runtimeHome, NSString *classPath, NSString *tem
         [@"-Djava.class.path=" stringByAppendingString:classPath],
         // NIO caches this at JVM initialization; setting it from Kotlin is too late.
         [@"-Djava.io.tmpdir=" stringByAppendingString:temporaryDirectory],
-        @"-Xmx512m", @"-Xss2m", @"-Djava.awt.headless=true",
+        // The interpreter shares the app process with SwiftUI and Go. Keep
+        // background worker sizing independent of the device's CPU count and
+        // bound native NIO buffers separately from the extension heap.
+        @"-Xms16m", @"-Xmx512m", @"-Xss2m",
+        @"-XX:ActiveProcessorCount=2", @"-XX:MaxDirectMemorySize=64m",
+        @"-Dkotlinx.coroutines.io.parallelism=4",
+        @"-Djava.awt.headless=true",
         @"-Djava.net.preferIPv4Stack=true",
         @"-Dio.netty.transport.noNative=true",
         [@"-Djavax.net.ssl.trustStore=" stringByAppendingString:[runtimeHome stringByAppendingPathComponent:@"lib/security/cacerts"]]
     ];
-    JavaVMOption options[9] = {0};
+    JavaVMOption options[strings.count];
+    memset(options, 0, sizeof(options));
     for (NSUInteger i=0;i<strings.count;i++) options[i].optionString=(char *)strings[i].UTF8String;
     JavaVMInitArgs args = {0};
     args.version=JNI_VERSION_1_8; args.nOptions=(jint)strings.count; args.options=options; args.ignoreUnrecognized=JNI_FALSE;

@@ -10,9 +10,7 @@ struct MoreDestinationView: View {
         case .extensions:
             ExtensionsView(search: searchSource)
         case .tracking: TrackingView()
-        default:
-            NavigationPlaceholder(
-                title: destination.rawValue, symbol: destination.symbol)
+        case .about: AboutView()
         }
 
     }

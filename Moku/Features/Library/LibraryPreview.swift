@@ -3,6 +3,7 @@ import SwiftUI
 #if DEBUG
     private struct LibraryPreviewHost: View {
         @State private var mode: ContentMode = .all
+        @State private var home = HomeStore(fileURL: nil)
         @State private var library = LibraryStore(
             directory: FileManager.default.temporaryDirectory
                 .appending(path: "MokuPreviews/\(UUID().uuidString)"))
@@ -11,6 +12,7 @@ import SwiftUI
             NavigationStack {
                 LibraryView(mode: $mode, onBrowse: {}, onSearch: {}, onOpen: { _ in })
                     .environment(library)
+                    .environment(home)
                     .background(NavigationStyle.background)
             }
             .defaultAppStorage(UserDefaults(suiteName: "Moku.Previews")!)

@@ -1,0 +1,40 @@
+Use case: ui-mockup. Generate one high fidelity mobile design review board with THREE full-height iPhone screen mockups side by side, on a charcoal canvas, matching the scale and elegant finish of reference image 2 (the approved Moku Home mobile design). Target 1920x1440 landscape. Reference image 1 is the real Moku desktop Downloads screen: migrate its functionality and design to mobile. Reference 2 is the visual style guide only; do not copy its Home content. No perspective, phone hardware, or shadows around phones. Screen canvases about 402x874pt, readable native text. External small headings above screenshots: "01 / Queue", "02 / History", "03 / Empty". Generate crisp SF Pro-like text and SF Symbols-like icons.
+
+Moku identity: near-black #080808, subtle charcoal #171717 cards, restrained hairline gray borders, white headings, secondary gray text, sage-green #7aaa7a selection/progress, muted red #c47a7a failure indicators. Rounded corners 12-16pt on grouped download rows, almost flat separators between chapter rows. Bold large page title "Downloads". 20pt margins, controls have 44pt touch regions. Compact useful layout, spacious enough to scan, NOT a generic storage dashboard. Artwork appears ONLY as small portrait cover thumbnails. White-haired red-eyed swordsman cover from reference is used for "I’m Not That Kind of Talent". Fantasy cover for "Overgeared"; blue fantasy art for "Monster But Wild". Status bar 9:41 and home indicator on all.
+
+Same BOTTOM NAVBAR on all screens matching approved Home reference: charcoal frosted floating capsule, width320pt height56pt centered above bottom safe area, five equally spaced icon-only buttons ordered house, books.vertical with tiny sage grid badge on its upper right, magnifyingglass, arrow.down.to.line, person.crop.circle. ONLY download icon (fourth) is sage/selected; others gray. No labels, no top extra mode island, no additional floating control above bar. Keep content clear of navbar.
+
+SCREEN 1 ACTIVE QUEUE:
+Title "Downloads", small circular ellipsis button aligned top right.
+Full-width two-part segmented control "Queue 8" and "History 162", Queue selected in dark sage fill with light sage text. Height40pt.
+Below a compact status strip: sage dot + "Downloading"; trailing small pause button with pause icon and label "Pause". Second status line gray "8 chapters · About 3 min left". Thin divider.
+Three SERIES GROUPS, no giant hero images.
+FIRST group expanded, charcoal card with slight sage border: header small portrait cover at left, title over two lines "I’m Not That Kind of Talent", gray "3 chapters", downward chevron at right. Below a flat nested chapter list separated by fine strokes:
+"Chapter 128" + small sage "DOWNLOADING", thin green progress bar about 65% full, gray "26 / 40 pages" left and "65%" right.
+"Chapter 129" + gray "QUEUED" at right; subtext "42 pages".
+"Chapter 130" + gray "QUEUED" at right; subtext "38 pages".
+SECOND group collapsed: small fantasy cover, "Overgeared", gray "3 chapters · Queued", right chevron. No redundant chapter rows visible.
+THIRD group collapsed, subtle muted red outline only: small blue art cover, "Monster But Wild", gray "2 chapters", muted red small "1 failed", right 44pt retry circular-arrow button; a chevron indicates expand. Label retry access with tiny "Retry" if fits.
+At bottom after groups one muted compact text "Auto-retry on" with repeat icon, no giant explanatory copy. Realistic sample data. Avoid download speeds, file sizes or storage gauges on queue because source desktop only guarantees chapter/page progress and ETA.
+
+SCREEN 2 HISTORY:
+Identical Downloads header with ellipsis button.
+Segmented control "Queue 8" and "History 162", History selected.
+Small muted summary "162 chapters · 2 series".
+First expanded group with cover and 2-line title "I’m Not That Kind of Talent", muted line "127 chapters · 1.8 GB", sage check icon + "4 days ago"; downward chevron on right. Under group a connected chapter list indented slightly, matching desktop:
+"Chapter 127" trailing "14 MB", lower gray "4 days ago"
+"Chapter 126" trailing "16 MB", lower gray "4 days ago"
+"Chapter 125" trailing "13 MB", lower gray "4 days ago"
+"Chapter 124" trailing "15 MB", lower gray "4 days ago"
+Use thin dividers, tidy 50-56pt rows, no unnecessary play buttons, no delete buttons on every row, no promise that clearing history deletes files.
+Then second collapsed group cover + "Overgeared" / "35 chapters · 620 MB" / sage check "1 week ago" / right-chevron.
+Leave intentional breathing room before fixed navbar. Scrolling reveals further history.
+
+SCREEN 3 EMPTY QUEUE:
+Identical page header. Ellipsis in muted gray.
+Segmented "Queue 0" selected and "History 0".
+Muted status strip "0 chapters" with pause control disabled/gray.
+Below a single broad subdued empty template panel around 200pt tall, small gray download tray icon, left-aligned medium gray heading "Nothing here yet" and smaller gray "No downloads in queue." It should resemble the honest desktop empty template, not onboarding. Sparse layout with plenty of near-black space below. No green action button, no recommendations, no invented populated rows, no skeleton shimmer/loading indicators, no marketing language, no celebratory icons.
+Same navbar with Downloads active.
+
+Constraints: preserve Queue/History, series grouping, chapter progress, failure retry, and completion metadata from desktop. Do not add categories, search bars, Wi-Fi settings, cloud sync badges, storage charts, counts inconsistent with the groups, or invented features. Three screens consistent type sizes and nav positioning. These are concept screenshots with sample data. Output only the finished board, not explanatory prose.

@@ -140,24 +140,28 @@ struct IconRail<Content: View>: View {
                 .allowsHitTesting(false)
         }
         .overlay(alignment: trailing ? .topTrailing : .topLeading) {
-            VStack(alignment: trailing ? .trailing : .leading, spacing: 0, content: content)
-                .coordinateSpace(name: coordinateSpace)
-                .environment(\.iconRailCoordinateSpace, coordinateSpace)
-                .environment(\.iconRailVisibleRows, visibleRows)
-                .environment(\.iconRailPresented, isPresented)
-                .environment(\.iconRailItemCount, itemCount)
-                .environment(\.iconRailReduceMotion, reduceMotion)
-                .padding(.bottom, 4)
-                .fixedSize(horizontal: true, vertical: true)
-                .frame(height: CGFloat(itemCount) * 44 + 4, alignment: .top)
-                .mask(alignment: .top) {
-                    Rectangle().frame(
-                        height: CGFloat(max(0, visibleRows)) * 44 + (visibleRows > 0 ? 4 : 0))
-                }
-                .offset(y: 44)
-                .padding(.trailing, trailingRailInset)
-                .allowsHitTesting(isPresented)
-                .accessibilityHidden(!isPresented)
+            // Closed menus have no rows to lay out or geometry observers to run.
+            // Keep rows mounted until the closing animation has finished.
+            if isPresented || expanded {
+                VStack(alignment: trailing ? .trailing : .leading, spacing: 0, content: content)
+                    .coordinateSpace(name: coordinateSpace)
+                    .environment(\.iconRailCoordinateSpace, coordinateSpace)
+                    .environment(\.iconRailVisibleRows, visibleRows)
+                    .environment(\.iconRailPresented, isPresented)
+                    .environment(\.iconRailItemCount, itemCount)
+                    .environment(\.iconRailReduceMotion, reduceMotion)
+                    .padding(.bottom, 4)
+                    .fixedSize(horizontal: true, vertical: true)
+                    .frame(height: CGFloat(itemCount) * 44 + 4, alignment: .top)
+                    .mask(alignment: .top) {
+                        Rectangle().frame(
+                            height: CGFloat(max(0, visibleRows)) * 44 + (visibleRows > 0 ? 4 : 0))
+                    }
+                    .offset(y: 44)
+                    .padding(.trailing, trailingRailInset)
+                    .allowsHitTesting(isPresented)
+                    .accessibilityHidden(!isPresented)
+            }
         }
         .task(id: "\(isPresented)-\(reduceMotion)-\(itemCount)") {
             let target = isPresented ? itemCount : -1

@@ -27,7 +27,7 @@ enum LibraryStatus: String, CaseIterable, Identifiable {
     var id: Self { self }
 }
 
-struct LibraryItem: Identifiable {
+struct LibraryItem: Identifiable, Sendable, Equatable {
     let id: String
     let title: String
     let media: ContentMode
@@ -39,6 +39,7 @@ struct LibraryItem: Identifiable {
     var status: LibraryStatus = .ongoing
     var addedAt = Date.distantPast
     var lastRead = Date.distantPast
+    var hasStarted: Bool { readUnits > 0 || lastRead > .distantPast }
     var unread: Int { max(0, totalUnits - readUnits) }
     var isCompleted: Bool { totalUnits > 0 && readUnits >= totalUnits }
 }

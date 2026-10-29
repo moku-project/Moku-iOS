@@ -4,9 +4,11 @@ import Observation
 @MainActor @Observable final class ReaderPreferences {
     private let defaults: UserDefaults
     private let key = "reader.preferences.v1"
+    @ObservationIgnored private var saveTask: Task<Void, Never>?
     var document: ReaderPreferenceDocument {
         didSet {
-            if let data = try? JSONEncoder().encode(document) { defaults.set(data, forKey: key) }
+            scheduleSave()
+
         }
     }
     init(defaults: UserDefaults) {
@@ -16,6 +18,25 @@ import Observation
                 try? JSONDecoder().decode(ReaderPreferenceDocument.self, from: $0)
             } ?? ReaderPreferenceDocument()
     }
+    // Page turns can arrive faster than storage. Encode only the latest snapshot,
+    // off the UI executor, and retain an explicit durability boundary on dismissal.
+    private func scheduleSave() {
+        saveTask?.cancel()
+        let snapshot = document
+        let defaults = defaults
+        let key = key
+        saveTask = Task {
+            do { try await Task.sleep(for: .milliseconds(200)) } catch { return }
+            let data = await Task.detached(priority: .utility) {
+                try? JSONEncoder().encode(snapshot)
+            }.value
+            guard !Task.isCancelled, let data else { return }
+            defaults.set(data, forKey: key)
+        }
+    }
+
+    func flush() async { await saveTask?.value }
+
     func settings(for mediaID: String?) -> MangaReadingSettings {
         mediaID.flatMap { document.overrides[$0] } ?? document.global
     }

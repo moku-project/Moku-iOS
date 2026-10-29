@@ -1,10 +1,12 @@
 import SwiftUI
 
 struct NavigationBar: View {
+    @AppStorage("preferences.modeTabs") private var savedModes = ""
     @Binding var selection: AppTab
     @Binding var mode: ContentMode
     @Binding var isModePickerPresented: Bool
     var isCompact = false
+    @State private var libraryHoldHandled = false
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @AppStorage("preferences.animations") private var animations = true
     private var reduceMotion: Bool { systemReduceMotion || !animations }
@@ -15,7 +17,7 @@ struct NavigationBar: View {
         VStack(spacing: 8) {
             if isModePickerPresented {
                 HStack(spacing: 4) {
-                    ForEach(ContentMode.allCases) { item in
+                    ForEach(ModeTabConfiguration(storage: savedModes).visible) { item in
                         Button {
                             mode = item
                             select(.library)
@@ -62,13 +64,18 @@ struct NavigationBar: View {
                     Group {
                         if tab == .library {
                             Button {
-                                select(.library)
+                                // A recognized hold opens the picker; its release is not a tap.
+                                if libraryHoldHandled { libraryHoldHandled = false }
+                                else { select(.library) }
                             } label: {
                                 tabIcon(tab)
                             }
-                            .highPriorityGesture(
+                            .simultaneousGesture(
                                 LongPressGesture(minimumDuration: 0.3)
-                                    .onEnded { _ in showModePicker() }
+                                    .onEnded { _ in
+                                        libraryHoldHandled = true
+                                        showModePicker()
+                                    }
                             )
                             .accessibilityValue(mode.title)
                             .accessibilityHint("Hold to choose All, Manga, Novels, or Anime")
@@ -107,9 +114,12 @@ struct NavigationBar: View {
                             y: (geometry.size.height - height) / 2
                         )
                         .animation(
-                            reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 0.88),
+                            reduceMotion ? nil : NavigationStyle.selectionAnimation,
                             value: selection
                         )
+                        // Page selection disables animations for immediate navigation.
+                        // Re-enable them only on the moving selection highlight.
+                        .transaction { $0.disablesAnimations = reduceMotion }
                 }
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
@@ -131,6 +141,9 @@ struct NavigationBar: View {
             reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.86),
             value: isCompact
         )
+        .onChange(of: isModePickerPresented) { _, presented in
+            if !presented { libraryHoldHandled = false }
+        }
         .buttonStyle(NavigationPressStyle())
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.24), value: isModePickerPresented)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: mode)

@@ -30,7 +30,7 @@ final class ExtensionsViewModel {
         }.sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
     }
 
-    func load(more: Bool = false) async {
+    func load(more: Bool = false, refreshSections: Bool = true) async {
         generation += 1
         let request = generation
         isLoading = true
@@ -43,10 +43,10 @@ final class ExtensionsViewModel {
         let offset = more ? items.count : 0
         error = nil
         await withTaskGroup(of: SectionResult.self) { group in
-            group.addTask {
-                .repositories(await Self.result { try await repository.repositories() })
+            if refreshSections || !installedLoaded {
+                group.addTask { .repositories(await Self.result { try await repository.repositories() }) }
+                group.addTask { .installed(await Self.result { try await repository.installed() }) }
             }
-            group.addTask { .installed(await Self.result { try await repository.installed() }) }
             group.addTask {
                 .catalog(
                     await Self.result {

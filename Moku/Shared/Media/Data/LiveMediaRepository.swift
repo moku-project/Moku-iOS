@@ -2,6 +2,9 @@ import Foundation
 
 actor LiveMediaRepository: SearchRepository {
     static let shared = LiveMediaRepository()
+    // Home and Details can request the same title during a tab transition.
+    var chaptersSyncedAt: [String: Date] = [:]
+    var chapterRequests: [String: Task<[Chapter], Error>] = [:]
     func sources() async throws -> [SearchSource] {
         let response: Installed = try await BackendAPI.shared.graphql(
             "{ installedExtensions { packageName displayName lang contentType enabled } }",
@@ -69,6 +72,58 @@ actor LiveMediaRepository: SearchRepository {
                 }
             })
         return try batches.flatMap { try $0.get() }
+    }
+
+    func genres(for entry: MediaEntry) async throws -> [String] {
+        try await metadata(for: entry, refresh: false).genres
+    }
+
+    func popular(options: SearchOptions) async throws -> DiscoveryPage {
+        try await discoveryListing(options: options, field: "popularManga")
+    }
+
+    func latest(options: SearchOptions) async throws -> DiscoveryPage {
+        try await discoveryListing(options: options, field: "latestUpdates")
+    }
+
+    private func discoveryListing(options: SearchOptions, field: String) async throws -> DiscoveryPage {
+        let available = try await sources()
+        let selected = available.filter {
+            (options.media == .all || $0.media == options.media)
+                && (options.sourceID == nil || $0.id == options.sourceID)
+                && (options.language == nil || $0.language == "all" || $0.language == options.language)
+        }
+        guard !selected.isEmpty else {
+            return DiscoveryPage(entries: [], message: available.isEmpty
+                ? "Add a source in More → Extensions to discover titles."
+                : "No installed sources match this mode and language.")
+        }
+        let batches: [Result<[MediaEntry], any Error>] = try await concurrentMap(selected, limit: 3) { source in
+            do {
+                struct Response: Decodable, Sendable { let listing: SearchResponse.Page }
+                let response: Response = try await BackendAPI.shared.graphql(
+                    "{ listing: \(field)(extensionId: \(BackendAPI.literal(source.id)), page: 1) { results { id externalId title contentType thumbnailUrl } hasNextPage } }",
+                    cacheFor: 300)
+                return .success(response.listing.results.prefix(12).map {
+                    MediaEntry(id: $0.id, title: $0.title, media: Self.media($0.contentType),
+                        sourceName: source.name, coverURL: BackendAPI.coverURL($0.thumbnailUrl),
+                        extensionID: source.id, externalID: $0.externalId)
+                })
+            } catch is CancellationError { throw CancellationError() }
+            catch { return .failure(error) }
+        }
+        let pages = batches.compactMap { try? $0.get() }
+        var entries: [MediaEntry] = []
+        var seen = Set<String>()
+        // Interleave sources so a single catalog cannot fill the whole shelf.
+        for index in 0..<12 {
+            for page in pages where index < page.count {
+                let entry = page[index]
+                if seen.insert(DiscoveryRanking.key(entry)).inserted { entries.append(entry) }
+            }
+        }
+        return DiscoveryPage(entries: Array(entries.prefix(36)), message: pages.count < batches.count
+            ? "Some sources couldn’t load. Try again to refresh discovery titles." : nil)
     }
 
     private static func media(_ value: String) -> ContentMode {

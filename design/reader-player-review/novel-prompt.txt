@@ -1,0 +1,28 @@
+Use case: ui-mockup
+Asset type: high fidelity Moku iOS novel reader screenshot sheet, three portrait screens.
+Primary request: Adapt actual desktop Novel Settings panel to a mobile right-side hamburger drawer, preserving all desktop typography and reading guide tools.
+Input images: Image 1 desktop novel reader is authoritative for content-first layout, serif text and restrained chrome. Image 2 newly generated Moku mobile manga sheet is authoritative for the new mobile toolbar, RIGHT SIDE drawer geometry, sage styling, and type hierarchy. Reuse its exact visual system. Do not copy manga art into the novel.
+Composition: Three equal edge-to-edge logical 393x852 portrait screenshot rectangles side by side, narrow black gutters, no hardware frames. Small understated labels below "01 · Reading", "02 · Typography", "03 · Reading tools". Readable text, 44pt touch targets, same status/safe areas and home indicators as reference 2.
+Colors: reading page paper #f5f2e9 with dark brown text #2b2622. Toolbars and drawers near-black #111111 frosted material, text #e8e6e0, sage #7aaa7a, subtle outlines #303030, selected background #1e2e1e. Sans UI labels, mono section labels/numbers, Georgia-like serif prose.
+Screen 1: cream paper novel chapter. Compact dark frosted inset top toolbar with X, title "The Last Wayfarer", second line "Chapter 32 ▾", outline bookmark, hamburger icon at far right. Body starts below toolbar with small mono "CHAPTER 32" then title "A road through the rain" in elegant modest serif, followed by these original paragraphs in readable 18pt-equivalent serif with generous 1.7 line height:
+"The rain had stopped before dawn. Beyond the gate, the old road disappeared into a pale ribbon of mist."
+"Mara folded the map along its worn edges and listened. Somewhere in the valley, a bell sounded once."
+"For the first time in many days, the journey ahead felt larger than the one behind her."
+"'We should go,' she said."
+"The light spread slowly across the hills."
+Allow text to naturally continue below viewport; do not decorate prose with cards, images or extra metadata.
+Bottom floating frosted slim progress bar with previous chapter, sage scrubber, next chapter, "50%" readout. No global app tabs.
+Screen 2: same paper novel dimmed behind RIGHT EDGE drawer 86% wide with narrow visible paper strip on left. Fixed header "Novel Settings", subtitle "The Last Wayfarer", close X.
+Visible continuous scroll panel:
+"FONT": three equal segments "Serif" selected sage, "Sans", "Mono".
+Full width select "System font — default" chevron.
+"TEXT": four generously spaced rows with minus/value/plus stepper: "Size" "100%"; "Line height" "1.7"; "Paragraph gap" "1.1"; "Column width" "42".
+"SCROLLING": "Auto scroll" switch ON, followed by "Scroll speed" thin sage slider and value "5".
+"READING GUIDE": "Guide bar" on, "Thickness" stepper showing "3 lines".
+Subtle scrollbar and bottom continuation of section label "ALIGNMENT"; show scrolling rather than overcrowding.
+Screen 3: RIGHT EDGE drawer scrolled down, same pinned header. At top group "READING GUIDE": "Guide bar" on; "Thickness" minus "3 lines" plus. Under this a small inset live preview with three highlighted serif lines to demonstrate guide band; highlight is subtle neutral background, not a fluorescent marker.
+"ALIGNMENT": equal segmented buttons "Left" selected, "Justify".
+"THEME": three equal tiles with small color swatches and exact labels "Paper" selected sage border, "Sepia", "Dark".
+Below divider, "All settings" row chevron. At bottom of this drawer a short quiet helper "Reading theme is separate from app theme."
+Keep generous breathing room after these controls; do not invent additional settings. The lower drawer need not fill every inch.
+Constraints: exact spellings, same Moku desktop appearance, no generic iOS blue, no heavy rounded grouped-settings cards, no AI assistant features, no audiobook or text-to-speech controls. This is a focused reading view.
