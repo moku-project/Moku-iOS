@@ -221,7 +221,11 @@ final class PlayerViewModel {
         do {
             let text = try await repository.subtitle(path: stream.subtitles[index].url)
             guard !Task.isCancelled, subtitleGeneration == token else { return }
-            let parsed = await Task.detached(priority: .userInitiated) { SubtitleCue.parse(text) }.value
+            let parsed = await Task.detached(priority: .userInitiated) {
+                // Fonts carried in the file must be registered before the lines are drawn.
+                SubtitleFonts.register(in: text)
+                return SubtitleCue.parse(text)
+            }.value
             guard !Task.isCancelled, subtitleGeneration == token else { return }
             guard !parsed.isEmpty else {
                 notice = "This subtitle format isn’t supported yet. Try another track."

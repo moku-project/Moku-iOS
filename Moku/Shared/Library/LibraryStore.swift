@@ -217,6 +217,11 @@ final class LibraryStore {
             if old == nil || old?.includeInUpdate != folder.includeInUpdate || old?.includeInDownload != folder.includeInDownload {
                 try await mutate("updateFolderFlags(folderId: \(id), includeInUpdate: \(folder.includeInUpdate ?? true), includeInDownload: \(folder.includeInDownload ?? true)) { id }")
             }
+            // Tsunagu 0.6.0 stores content types per folder, as desktop does; empty means all.
+            if (old?.contentTypes ?? []) != (folder.contentTypes ?? []) {
+                let types = (folder.contentTypes ?? []).map(\.graphQLType).joined(separator: ", ")
+                try await mutate("setFolderContentTypes(folderId: \(id), contentTypes: [\(types)]) { id }")
+            }
             if old == nil || organization.folders.firstIndex(where: { $0.id == folder.id }) != index {
                 try await mutate("reorderFolder(folderId: \(id), sortOrder: \(index)) { id }")
             }

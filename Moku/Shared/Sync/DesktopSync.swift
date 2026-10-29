@@ -418,6 +418,21 @@ import Observation
         phone: Side, desktop: Side, remote: DesktopClient, library: LibraryStore, report: inout Report
     ) async {
         await library.loadOrganization()
+        // Desktop folders, with content types on Tsunagu 0.6.0+ (older desktops lack the field).
+        struct Folders: Decodable, Sendable {
+            struct Folder: Decodable, Sendable { let id: String; let name: String; var contentTypes: [String]? = nil }
+            let folders: [Folder]
+        }
+        let existing: Folders?
+        if let typed: Folders = try? await remote.graphql("{ folders { id name contentTypes } }") {
+            existing = typed
+        } else {
+            existing = try? await remote.graphql("{ folders { id name } }")
+        }
+        let desktopTypes = Dictionary(
+            (existing?.folders ?? []).map { folder in
+                (folder.name.lowercased(), (folder.contentTypes ?? []).compactMap(Self.contentMode))
+            }, uniquingKeysWith: { a, _ in a })
         // Phone: folder name → titles that should be in it (from the desktop).
         var next = library.organization
         var phoneChanged = false
@@ -429,6 +444,7 @@ import Observation
                 } else {
                     var folder = LibraryFolder(name: name)
                     folder.entryIDs = [mine.id]
+                    if let types = desktopTypes[name.lowercased()], !types.isEmpty { folder.contentTypes = types }
                     next.folders.append(folder)
                     phoneChanged = true
                     report.foldersUpdated += 1
@@ -438,8 +454,7 @@ import Observation
         if phoneChanged, !(await library.saveOrganization(next)) { report.failures += 1 }
 
         // Desktop: create missing folders by name, then add membership.
-        struct Folders: Decodable, Sendable { struct Folder: Decodable, Sendable { let id: String; let name: String }; let folders: [Folder] }
-        guard let existing: Folders = try? await remote.graphql("{ folders { id name } }") else { return }
+        guard let existing else { return }
         var ids = Dictionary(existing.folders.map { ($0.name.lowercased(), $0.id) }, uniquingKeysWith: { a, _ in a })
         for (key, mine) in phone.items {
             guard let theirs = desktop.items[key] else { continue }
@@ -449,6 +464,13 @@ import Observation
                         struct Created: Decodable, Sendable { struct Folder: Decodable, Sendable { let id: String }; let createFolder: Folder }
                         let created: Created = try await remote.graphql("mutation { createFolder(name: \(BackendAPI.literal(name))) { id } }")
                         ids[name.lowercased()] = created.createFolder.id
+                        // Carry the phone folder's content types; older desktops ignore this.
+                        if let types = library.organization.folders.first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame })?.contentTypes,
+                           !types.isEmpty {
+                            let list = types.map(\.graphQLType).joined(separator: ", ")
+                            let _: IgnoredGraphQLResult? = try? await remote.graphql(
+                                "mutation { setFolderContentTypes(folderId: \(BackendAPI.literal(created.createFolder.id)), contentTypes: [\(list)]) { id } }")
+                        }
                     }
                     guard let folderID = ids[name.lowercased()] else { continue }
                     let _: IgnoredGraphQLResult = try await remote.graphql(
@@ -456,6 +478,15 @@ import Observation
                     report.foldersUpdated += 1
                 } catch { report.failures += 1 }
             }
+        }
+    }
+
+    nonisolated static func contentMode(_ value: String) -> ContentMode? {
+        switch value {
+        case "MANGA": .manga
+        case "NOVEL": .novels
+        case "ANIME": .anime
+        default: nil
         }
     }
 

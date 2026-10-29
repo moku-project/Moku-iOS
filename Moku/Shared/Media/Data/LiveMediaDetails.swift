@@ -18,6 +18,19 @@ extension LiveMediaRepository {
         return result.resolveMedia
     }
 
+    func chapterCount(_ entry: MediaEntry) async throws -> Int? {
+        guard let extensionID = entry.extensionID, let externalID = entry.externalID else { return nil }
+        struct Response: Decodable, Sendable {
+            struct Media: Decodable, Sendable { let chapterCount: Int }
+            let resolveMedia: Media
+        }
+        // Syncing here also means the chapter list is ready when the title is opened.
+        let result: Response = try await BackendAPI.shared.graphql(
+            "{ resolveMedia(extensionId: \(BackendAPI.literal(extensionID)), externalId: \(BackendAPI.literal(externalID)), syncChapters: true) { chapterCount } }",
+            cacheFor: 600)
+        return result.resolveMedia.chapterCount
+    }
+
     func setSaved(_ saved: Bool, id: String) async throws -> Bool {
         struct Response: Decodable, Sendable {
             struct Media: Decodable, Sendable { let inLibrary: Bool }

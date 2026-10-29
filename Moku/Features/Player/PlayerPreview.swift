@@ -24,16 +24,21 @@
                 return """
                     [Script Info]
                     ScriptType: v4.00+
+                    PlayResX: 1920
+                    PlayResY: 1080
 
                     [V4+ Styles]
-                    Format: Name, Fontname, Fontsize, PrimaryColour, Bold, Italic, Alignment
-                    Style: Default,Arial,48,&H00FFFFFF,0,0,2
-                    Style: Sign,Arial,40,&H0000FFFF,-1,0,8
+                    Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, Bold, Italic, Outline, Alignment
+                    Style: Default,Avenir Next,64,&H00FFFFFF,&H00FFFFFF,&H00000000,0,0,3,2
+                    Style: Sign,Georgia,52,&H0000FFFF,&H0000FFFF,&H00402010,-1,0,2,7
+                    Style: Song,Avenir Next,56,&H0080C0FF,&H00FFFFFF,&H00301000,-1,0,2,9
 
                     [Events]
                     Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
-                    Dialogue: 0,0:00:00.00,0:00:24.00,Sign,,0,0,0,,Northbound platform
-                    Dialogue: 0,0:00:00.00,0:00:24.00,Default,,0,0,0,,{\\i1}A quiet moment{\\i0} before the journey.
+                    Dialogue: 0,0:00:00.00,0:00:24.00,Sign,,0,0,0,,{\\pos(100,120)\\c&H302010&\\bord0\\p1}m 0 0 l 760 0 760 110 0 110{\\p0}
+                    Dialogue: 0,0:00:00.00,0:00:24.00,Sign,,0,0,0,,{\\pos(120,140)\\frz4}Northbound platform
+                    Dialogue: 0,0:00:00.00,0:00:24.00,Default,,0,0,0,,{\\i1\\shad3\\4c&H00804020&}A quiet moment{\\i0} before the journey.
+                    Dialogue: 0,0:00:00.00,0:00:24.00,Song,,0,0,0,,{\\k300}Sing {\\k300}a{\\k1200}long
                     """
             }
             return "WEBVTT\n\n00:00.000 --> 00:24.000\n"

@@ -167,12 +167,20 @@ final class SearchViewModel {
     @ObservationIgnored private var sourceTask: Task<[SearchSource], Error>?
     @ObservationIgnored private var generation = 0
     @ObservationIgnored private let debounce: Duration
+    /// Typed-search results confirmed to have no chapters this search.
+    private(set) var hiddenEmpty = 0
+    @ObservationIgnored private let probe: ContentProbe
+    @ObservationIgnored private var emptyIDs: Set<String> = []
+    @ObservationIgnored private var probedIDs: Set<String> = []
+    @ObservationIgnored private var probeTasks: [Task<Void, Never>] = []
 
     init(
         repository: any SearchRepository, media: ContentMode = .all, language: String? = nil,
-        debounce: Duration = .milliseconds(350), isLibrary: Bool = false
+        debounce: Duration = .milliseconds(350), isLibrary: Bool = false,
+        probe: ContentProbe = .shared
     ) {
         self.isLibrary = isLibrary
+        self.probe = probe
         self.debounce = debounce
         self.repository = repository
         let initial = SearchOptions(media: media, language: language)
@@ -310,6 +318,7 @@ final class SearchViewModel {
     func submit() {
         guard panel == nil, canSubmit else { return }
         requestTask?.cancel()
+        resetProbes()
         generation += 1
         let current = generation
         let request = SearchRequest(
@@ -339,7 +348,8 @@ final class SearchViewModel {
                     }
                 }
                 guard !Task.isCancelled, self.generation == current else { return }
-                self.state = .results(sorted)
+                self.state = .results(sorted.filter { !self.emptyIDs.contains($0.id) })
+                self.probeForContent(sorted, request: request, generation: current)
                 self.lastRequest = request
                 self.canLoadMore = !entries.isEmpty && !self.isLibrary
                 await self.remember(request.query)
@@ -376,6 +386,7 @@ final class SearchViewModel {
 
     func invalidate() {
         requestTask?.cancel()
+        resetProbes()
         generation += 1
         state = .idle
         isSearching = false
@@ -397,6 +408,7 @@ final class SearchViewModel {
             canLoadMore = !fresh.isEmpty
             lastRequest = request
             state = .results(current + (await Self.sorted(fresh, by: request.options.sort)))
+            probeForContent(fresh, request: request, generation: generation)
         } catch is CancellationError {
         } catch {
             guard self.generation == generation else { return }
@@ -408,7 +420,47 @@ final class SearchViewModel {
         guard !Task.isCancelled, self.generation == generation, !entries.isEmpty else { return }
         let sorted = await Self.sorted(entries, by: request.options.sort)
         guard !Task.isCancelled, self.generation == generation else { return }
-        state = .results(sorted)
+        state = .results(sorted.filter { !emptyIDs.contains($0.id) })
+        probeForContent(sorted, request: request, generation: generation)
+    }
+
+    /// Forward fetching for typed searches: each result's chapters are checked in
+    /// the background, and titles confirmed empty at their source are removed.
+    /// Results stay visible while checking, and a failed check keeps the title.
+    private func probeForContent(_ entries: [MediaEntry], request: SearchRequest, generation: Int) {
+        guard request.options.hidesEmpty, !request.query.isEmpty, !isLibrary else { return }
+        let fresh = entries.filter { probedIDs.insert($0.id).inserted }
+        guard !fresh.isEmpty else { return }
+        let probe = probe, repository = repository
+        probeTasks.append(Task { [weak self] in
+            await withTaskGroup(of: (String, ContentProbe.Verdict).self) { group in
+                for entry in fresh {
+                    group.addTask {
+                        (entry.id, await probe.verdict(for: entry) { try await repository.chapterCount($0) })
+                    }
+                }
+                for await (id, verdict) in group where verdict == .empty {
+                    guard let self, !Task.isCancelled, self.generation == generation else { return }
+                    self.hide(id)
+                }
+            }
+        })
+    }
+
+    private func hide(_ id: String) {
+        guard emptyIDs.insert(id).inserted, case .results(let entries) = state else { return }
+        let remaining = entries.filter { $0.id != id }
+        guard remaining.count != entries.count else { return }
+        state = .results(remaining)
+        hiddenEmpty += 1
+    }
+
+    private func resetProbes() {
+        for task in probeTasks { task.cancel() }
+        probeTasks = []
+        probedIDs = []
+        emptyIDs = []
+        hiddenEmpty = 0
     }
 
     /// Library titles carrying the chosen genres: all of them, or any one for "match any".

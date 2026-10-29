@@ -15,6 +15,8 @@ struct SourceBrowseView: View {
     @State private var loading = false
     @State private var error: String?
     @State private var generation = 0
+    /// Typed searches hide titles with no chapters at the source, as in Search.
+    @State private var hiddenEmpty = 0
 
     private let columns = [GridItem(.adaptive(minimum: 104), spacing: 12)]
 
@@ -38,6 +40,10 @@ struct SourceBrowseView: View {
                 }
                 Text(submitted.isEmpty ? "Popular" : "Results for “\(submitted)”")
                     .font(.headline)
+                if hiddenEmpty > 0 {
+                    Text("Hid \(hiddenEmpty) title\(hiddenEmpty == 1 ? "" : "s") with no chapters at the source.")
+                        .font(.footnote).foregroundStyle(GeneralStyle.label)
+                }
                 if let error, items.isEmpty {
                     VStack(spacing: 12) {
                         Text(error).font(.subheadline).foregroundStyle(GeneralStyle.label)
@@ -78,6 +84,21 @@ struct SourceBrowseView: View {
         .task(id: source.packageName) { await load(reset: true) }
     }
 
+    private func hideEmpty(_ entries: [MediaEntry], generation current: Int) async {
+        await withTaskGroup(of: (String, ContentProbe.Verdict).self) { group in
+            for entry in entries {
+                group.addTask {
+                    (entry.id, await ContentProbe.shared.verdict(for: entry) { try await LiveMediaRepository.shared.chapterCount($0) })
+                }
+            }
+            for await (id, verdict) in group where verdict == .empty {
+                guard generation == current, items.contains(where: { $0.id == id }) else { continue }
+                items.removeAll { $0.id == id }
+                hiddenEmpty += 1
+            }
+        }
+    }
+
     private func card(_ item: MediaEntry) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             CoverImage(url: item.coverURL, symbol: item.media.symbol)
@@ -116,6 +137,7 @@ struct SourceBrowseView: View {
         if reset {
             submitted = query.trimmingCharacters(in: .whitespacesAndNewlines)
             page = 1
+            hiddenEmpty = 0
         } else {
             guard hasNext, !loading else { return }
             page += 1
@@ -142,6 +164,7 @@ struct SourceBrowseView: View {
             items = (reset ? [] : items) + fresh.filter { !known.contains($0.id) }
             hasNext = result?.hasNextPage ?? false
             error = nil
+            if !submitted.isEmpty { Task { await hideEmpty(fresh, generation: current) } }
         } catch {
             guard generation == current else { return }
             if !reset { page -= 1 }
