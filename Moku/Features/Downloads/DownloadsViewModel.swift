@@ -4,7 +4,14 @@ import Observation
 /// Download queue and actions backed by the bundled server.
 @MainActor @Observable
 final class DownloadsViewModel {
-    var entries: [DownloadEntry]
+    var entries: [DownloadEntry] {
+        didSet {
+            let ids = Set(entries.lazy.filter { $0.status == .completed }.map(\.titleID))
+            if completedTitleIDs != ids { completedTitleIDs = ids }
+        }
+    }
+    private(set) var completedTitleIDs: Set<String>
+    @ObservationIgnored private let loader = DownloadSnapshotLoader()
     var isPaused = false {
         didSet {
             guard live, !applyingSnapshot, isPaused != oldValue else { return }
@@ -21,6 +28,7 @@ final class DownloadsViewModel {
 
     init(entries: [DownloadEntry] = [], live: Bool = false) {
         self.entries = entries
+        self.completedTitleIDs = Set(entries.lazy.filter { $0.status == .completed }.map(\.titleID))
         self.live = live
     }
     func refresh() async {
@@ -28,38 +36,11 @@ final class DownloadsViewModel {
         refreshing = true
         defer { refreshing = false }
         do {
-            struct ChapterInfo: Decodable, Sendable { let title: String?; let number: Double? }
-            struct Download: Decodable, Sendable {
-                let id: String; let mediaId: String; let chapterId: String
-                let chapter: ChapterInfo; let status: String; let progress: Double
-                let downloadedBytes: Double?; let completedAt: String?
-            }
-            struct Status: Decodable, Sendable { let isRunning: Bool }
-            struct Result: Decodable, Sendable { let downloadQueue: [Download]; let downloaderStatus: Status }
-            let result: Result = try await BackendAPI.shared.graphql("{ downloadQueue { id mediaId chapterId chapter { title number } status progress downloadedBytes completedAt } downloaderStatus { isRunning } }", requiresSourceRuntime: false)
-            var names: [String: String] = [:]
-            for id in Set(result.downloadQueue.map(\.mediaId)) {
-                struct Title: Decodable, Sendable { let title: String }
-                struct Media: Decodable, Sendable { let media: Title? }
-                let media: Media = try await BackendAPI.shared.graphql("{ media(id: \(BackendAPI.literal(id))) { title } }", cacheFor: 60, requiresSourceRuntime: false)
-                names[id] = media.media?.title
-            }
-            entries = result.downloadQueue.map { item in
-                let status: DownloadStatus = switch item.status {
-                case "DOWNLOADING": .downloading
-                case "FAILED": .failed
-                case "DONE": .completed
-                default: .queued
-                }
-                return DownloadEntry(id: item.chapterId, titleID: item.mediaId,
-                    title: names[item.mediaId] ?? "Title \(item.mediaId)",
-                    chapter: item.chapter.title ?? item.chapter.number.map { "Chapter \($0.formatted())" } ?? "Chapter",
-                    status: status, progress: min(1, max(0, item.progress)),
-                    bytes: Int64(max(0, item.downloadedBytes ?? 0)),
-                    completedAt: item.completedAt.flatMap { ISO8601DateFormatter().date(from: $0) })
-            }
+            let snapshot = try await loader.load()
+            try Task.checkCancellation()
+            if entries != snapshot.entries { entries = snapshot.entries }
             applyingSnapshot = true
-            isPaused = !result.downloaderStatus.isRunning
+            isPaused = !snapshot.running
             applyingSnapshot = false
             notice = nil
             if autoRetry {
@@ -68,12 +49,12 @@ final class DownloadsViewModel {
                     retry(entryID: entry.id)
                 }
             }
-        } catch { notice = "Couldn’t refresh downloads. Try again." }
+        } catch { if !Task.isCancelled { notice = "Couldn’t refresh downloads. Try again." } }
     }
-    private func action(_ mutation: String) async {
+    private func action(_ mutation: String, refreshAfter: Bool = true) async {
         do {
             let _: [String: Bool] = try await BackendAPI.shared.graphql("mutation { \(mutation) }", requiresSourceRuntime: false)
-            await refresh()
+            if refreshAfter { await refresh() }
         } catch { notice = "Couldn’t update downloads. Try again." }
     }
 
@@ -104,8 +85,9 @@ final class DownloadsViewModel {
             let targets = entries.filter { ids.contains($0.id) }
             Task {
                 for entry in targets {
-                    await action("dequeueDownload(mediaId: \(BackendAPI.literal(entry.titleID)), chapterId: \(BackendAPI.literal(entry.id)))")
+                    await action("dequeueDownload(mediaId: \(BackendAPI.literal(entry.titleID)), chapterId: \(BackendAPI.literal(entry.id)))", refreshAfter: false)
                 }
+                await refresh()
             }
         } else { entries.removeAll { ids.contains($0.id) } }
     }
@@ -178,5 +160,57 @@ final class DownloadsViewModel {
             }
         #endif
         return DownloadsViewModel(live: !PreviewMode.isEnabled)
+    }
+}
+
+/// Decode and join queue data away from the UI; fetch title names in batches only
+/// when missing or expired, rather than one serial query per title every poll.
+private actor DownloadSnapshotLoader {
+    struct Snapshot: Sendable { let entries: [DownloadEntry]; let running: Bool }
+    private var names: [String: (title: String, expires: Date)] = [:]
+
+    func load() async throws -> Snapshot {
+        struct ChapterInfo: Decodable, Sendable { let title: String?; let number: Double? }
+        struct Download: Decodable, Sendable {
+            let id: String; let mediaId: String; let chapterId: String
+            let chapter: ChapterInfo; let status: String; let progress: Double
+            let downloadedBytes: Double?; let completedAt: String?
+        }
+        struct Status: Decodable, Sendable { let isRunning: Bool }
+        struct Result: Decodable, Sendable { let downloadQueue: [Download]; let downloaderStatus: Status }
+        let result: Result = try await BackendAPI.shared.graphql("{ downloadQueue { id mediaId chapterId chapter { title number } status progress downloadedBytes completedAt } downloaderStatus { isRunning } }", requiresSourceRuntime: false)
+        let ids = Set(result.downloadQueue.map(\.mediaId))
+        names = names.filter { ids.contains($0.key) && $0.value.expires > .now }
+        let missing = ids.filter { names[$0] == nil }.sorted()
+        for offset in stride(from: 0, to: missing.count, by: 40) {
+            try Task.checkCancellation()
+            let batch = Array(missing.dropFirst(offset).prefix(40))
+            let fields = batch.enumerated().map {
+                "m\($0.offset): media(id: \(BackendAPI.literal($0.element))) { title }"
+            }.joined(separator: " ")
+            struct Title: Decodable, Sendable { let title: String }
+            let response: [String: Title?] = try await BackendAPI.shared.graphql(
+                "{ \(fields) }", requiresSourceRuntime: false)
+            for (index, id) in batch.enumerated() {
+                names[id] = ((response["m\(index)"] ?? nil)?.title ?? "Title \(id)", .now.addingTimeInterval(300))
+            }
+        }
+        try Task.checkCancellation()
+        let formatter = ISO8601DateFormatter()
+        let entries = result.downloadQueue.map { item in
+            let status: DownloadStatus = switch item.status {
+            case "DOWNLOADING": .downloading
+            case "FAILED": .failed
+            case "DONE": .completed
+            default: .queued
+            }
+            return DownloadEntry(id: item.chapterId, titleID: item.mediaId,
+                title: names[item.mediaId]?.title ?? "Title \(item.mediaId)",
+                chapter: item.chapter.title ?? item.chapter.number.map { "Chapter \($0.formatted())" } ?? "Chapter",
+                status: status, progress: min(1, max(0, item.progress)),
+                bytes: Int64(max(0, item.downloadedBytes ?? 0)),
+                completedAt: item.completedAt.flatMap { formatter.date(from: $0) })
+        }
+        return Snapshot(entries: entries, running: result.downloaderStatus.isRunning)
     }
 }

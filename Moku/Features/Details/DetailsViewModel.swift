@@ -4,14 +4,21 @@ import Observation
 @MainActor @Observable final class DetailsViewModel {
     let entry: MediaEntry
     private let repository: any DetailsRepository
-    var details: MediaDetails?
+    var details: MediaDetails? {
+        didSet {
+            chapterRevision &+= 1
+            completedCount = details?.chapters.reduce(0) { $0 + ($1.completed ? 1 : 0) } ?? 0
+        }
+    }
+    private(set) var chapterRevision = 0
+    private(set) var completedCount = 0
     var error: String?
     var chapterError: String?
     var loading = true
     private var generation = UUID()
 
     init(
-        entry: MediaEntry, repository: any DetailsRepository = LiveMediaRepository.shared
+        entry: MediaEntry, repository: any DetailsRepository = AppDependencies.detailsRepository
     ) {
         self.entry = entry
         self.repository = repository
@@ -54,7 +61,7 @@ import Observation
         }
         guard !Task.isCancelled, generation == current, let id = details?.id else { return }
         do {
-            let chapters = try await repository.chapters(mediaID: id)
+            let chapters = try await repository.chapters(mediaID: id, refresh: refresh)
             try Task.checkCancellation()
             guard generation == current else { return }
             details?.chapters = chapters

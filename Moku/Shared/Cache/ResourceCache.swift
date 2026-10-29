@@ -103,6 +103,13 @@ actor ResourceCache {
         }
     }
 
+    /// Keep disk data and shared requests so pressure does not trigger duplicate downloads.
+    func trimMemory() {
+        entries.removeAll()
+        order.removeAll()
+        bytes = 0
+    }
+
     /// Invalidation leaves existing consumers running, but future reads start fresh.
     func clear() async {
         entries.removeAll()
@@ -133,6 +140,8 @@ actor ResourceCache {
 private actor ResourceDisk {
     let directory: URL
     let limit: Int
+    private var records: [URL: (size: Int, modified: Date)]?
+    private var totalBytes = 0
     init(directory: URL, limit: Int) {
         self.directory = directory
         self.limit = limit
@@ -149,9 +158,11 @@ private actor ResourceDisk {
             entry.expires > now
         else {
             try? FileManager.default.removeItem(at: url)
+            if let removed = records?.removeValue(forKey: url) { totalBytes -= removed.size }
             return nil
         }
         try? FileManager.default.setAttributes([.modificationDate: now], ofItemAtPath: url.path)
+        if records?[url] != nil { records?[url]?.modified = now }
         return entry
     }
     func write(_ entry: ResourceCache.Entry, key: String) {
@@ -161,31 +172,47 @@ private actor ResourceDisk {
         do {
             try FileManager.default.createDirectory(
                 at: directory, withIntermediateDirectories: true)
-            try data.write(to: file(key), options: .atomic)
+            indexIfNeeded()
+            let url = file(key)
+            try data.write(to: url, options: .atomic)
+            totalBytes -= records?[url]?.size ?? 0
+            records?[url] = (data.count, Date())
+            totalBytes += data.count
             trim()
         } catch {
             // A disposable cache must never prevent playback or browsing.
         }
     }
-    func clear() { try? FileManager.default.removeItem(at: directory) }
+    func clear() {
+        try? FileManager.default.removeItem(at: directory)
+        records = nil
+        totalBytes = 0
+    }
+
+    /// Enumerate once, then account incrementally. Previously every downloaded
+    /// cover scanned and sorted the entire cache directory before being returned.
+    private func indexIfNeeded() {
+        guard records == nil else { return }
+        let files = (try? FileManager.default.contentsOfDirectory(
+            at: directory, includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey])) ?? []
+        var index: [URL: (size: Int, modified: Date)] = [:]
+        for url in files {
+            guard let values = try? url.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey]) else { continue }
+            index[url] = (values.fileSize ?? 0, values.contentModificationDate ?? .distantPast)
+        }
+        totalBytes = index.values.reduce(0) { $0 + $1.size }
+        records = index
+    }
 
     private func trim() {
-        let files =
-            (try? FileManager.default.contentsOfDirectory(
-                at: directory,
-                includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey])) ?? []
-        let rows = files.compactMap { url -> (URL, Int, Date)? in
-            guard
-                let values = try? url.resourceValues(forKeys: [
-                    .fileSizeKey, .contentModificationDateKey,
-                ])
-            else { return nil }
-            return (url, values.fileSize ?? 0, values.contentModificationDate ?? .distantPast)
-        }.sorted { $0.2 < $1.2 }
-        var total = rows.reduce(0) { $0 + $1.1 }
-        for (url, size, _) in rows where total > limit {
-            try? FileManager.default.removeItem(at: url)
-            total -= size
+        guard totalBytes > limit, let records else { return }
+        for (url, record) in records.sorted(by: { $0.value.modified < $1.value.modified }) {
+            guard totalBytes > limit else { break }
+            do {
+                try FileManager.default.removeItem(at: url)
+                self.records?.removeValue(forKey: url)
+                totalBytes -= record.size
+            } catch { }
         }
     }
 }

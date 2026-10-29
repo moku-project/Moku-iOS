@@ -19,7 +19,7 @@ struct GeneralSettingsView: View {
     @State private var serverError: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        LazyVStack(alignment: .leading, spacing: 20) {
             if !serverOnly {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Interface scale")

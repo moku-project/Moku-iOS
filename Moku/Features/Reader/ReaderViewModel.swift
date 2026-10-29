@@ -5,6 +5,8 @@ import Observation
     let details: MediaDetails
     let repository: any ReaderRepository
     let preferences: ReaderPreferences
+    private(set) var activityEntry: HomeEntry
+    @ObservationIgnored private var activityPrepared = false
     var chapterID: String
     var pages: [String] = []
     var page = 1
@@ -16,6 +18,7 @@ import Observation
     var chromeVisible = true
     var landscape = false
     var jumpID = UUID()
+    private var committedProgress: [String: (Double, Bool)] = [:]
     private var pendingProgress: [String: (Double, Bool)] = [:]
     private var progressTask: Task<Void, Never>?
     private var loadedChapterID: String?
@@ -27,6 +30,7 @@ import Observation
         repository: any ReaderRepository = LiveReaderRepository()
     ) {
         self.details = details
+        self.activityEntry = HomeEntry(id: details.id, title: details.title, media: "Manga")
         self.chapterID = chapterID
         self.preferences = preferences
         self.repository = repository
@@ -70,6 +74,21 @@ import Observation
         pages = []
         loadedChapterID = nil
         do {
+            if !activityPrepared {
+                let details = details
+                let prepared = await Task.detached(priority: .userInitiated) {
+                    HomeEntry(id: details.id, title: details.title,
+                              coverURL: BackendAPI.coverURL(details.thumbnailUrl), media: "Manga",
+                              genres: details.genres, unreadCount: details.chapters.filter { !$0.completed }.count,
+                              chapters: details.chapters.map {
+                                  HomeChapter(id: $0.id, title: $0.label, isRead: $0.completed, uploadedAt: $0.uploadedAt)
+                              }, author: details.byline, summary: details.description)
+                }.value
+                try Task.checkCancellation()
+                guard loadGeneration == generation else { return }
+                activityEntry = prepared
+                activityPrepared = true
+            }
             let result = try await repository.pages(chapterID: id)
             try Task.checkCancellation()
             guard chapterID == id, loadGeneration == generation else { return }
@@ -136,8 +155,10 @@ import Observation
     func recordProgress(forceComplete: Bool = false) {
         guard loadedChapterID == chapterID, !pages.isEmpty else { return }
         if behaviour.autoBookmark {
-            preferences.document.positions[details.id] = ReaderPosition(
-                chapterID: chapterID, page: page)
+            let position = ReaderPosition(chapterID: chapterID, page: page)
+            if preferences.document.positions[details.id] != position {
+                preferences.document.positions[details.id] = position
+            }
         }
         let complete =
             forceComplete
@@ -145,14 +166,16 @@ import Observation
                 && behaviour.autoMarkRead)
             || completedChapters.contains(chapterID)
         if complete { completedChapters.insert(chapterID) }
-        pendingProgress[chapterID] = (
-            Double(isStrip ? page : (visiblePages.max() ?? page)) / Double(pages.count), complete
-        )
+        let value = Double(isStrip ? page : (visiblePages.max() ?? page)) / Double(pages.count)
+        if let committed = committedProgress[chapterID], committed.0 == value, committed.1 == complete,
+           pendingProgress[chapterID] == nil { return }
+        pendingProgress[chapterID] = (value, complete)
         startProgressWriter()
     }
     private func startProgressWriter() {
         guard progressTask == nil else { return }
         progressTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(150))
             guard let self else { return }
             while let (id, progress) = pendingProgress.first {
                 pendingProgress.removeValue(forKey: id)
@@ -160,6 +183,7 @@ import Observation
                     try await repository.progress(
                         mediaID: details.id, chapterID: id,
                         value: progress.0, completed: progress.1)
+                    committedProgress[id] = progress
                 } catch {
                     notice = "Progress is saved on this device, but couldn’t sync. Try again."
                 }
@@ -170,6 +194,7 @@ import Observation
     func flush() async {
         recordProgress()
         await progressTask?.value
+        await preferences.flush()
     }
     func download(_ ids: [String]) async {
         guard !ids.isEmpty, !downloadBusy else { return }

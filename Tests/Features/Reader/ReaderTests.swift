@@ -5,7 +5,7 @@ import UIKit
 @testable import Moku
 
 @MainActor struct ReaderTests {
-    @Test func settingsPersistWithOverridesAndPresets() throws {
+    @Test func settingsPersistWithOverridesAndPresets() async throws {
         let suite = "reader-test.\(UUID())"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -19,6 +19,7 @@ import UIKit
         preferences.set(settings, for: "one")
         preferences.savePreset("  Manga  ", mediaID: "one")
         preferences.document.bookmarks["one"] = ReaderPosition(chapterID: "2", page: 6)
+        await preferences.flush()
         let restored = ReaderPreferences(defaults: defaults)
         #expect(restored.settings(for: "one").pageStyle == "double")
         #expect(restored.settings(for: "two").pageStyle == "longstrip")
@@ -26,7 +27,34 @@ import UIKit
         #expect(restored.document.bookmarks["one"]?.page == 6)
         restored.toggleOverride("one")
         #expect(restored.settings(for: "one") == restored.document.global)
+        await restored.flush()
     }
+    @Test func longStripAllocatesOnlyNearbyPageViewsAndStopsWhenHidden() async throws {
+        let suite = "reader-window.\(UUID())"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let preferences = ReaderPreferences(defaults: defaults)
+        let model = ReaderViewModel(details: ReaderPreview.details, chapterID: "11",
+                                    preferences: preferences, repository: RecordingReaderRepository())
+        model.pages = (1...1_000).map { "page/\($0)" }
+        let canvas = ReaderCanvas(model: model, active: false, reduceMotion: true, toggleChrome: {})
+        let coordinator = CanvasCoordinator(canvas)
+        let scroll = CanvasScrollView(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        coordinator.attach(scroll)
+        coordinator.update(canvas)
+        #expect(coordinator.frames.count == 1_000)
+        #expect(coordinator.views.count <= 6)
+        #expect(coordinator.work.isEmpty)
+        model.jump(500)
+        coordinator.update(canvas)
+        #expect(coordinator.views.count <= 7)
+        #expect(coordinator.views[500] != nil)
+        #expect(coordinator.views[1] == nil)
+        #expect(coordinator.work.isEmpty)
+        coordinator.stop()
+        await model.flush()
+    }
+
     @Test func oddSpreadsAndOffsetNeverLosePages() {
         #expect(
             ReaderPagination.groups(count: 5, double: true, offset: false) == [

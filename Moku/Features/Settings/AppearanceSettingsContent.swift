@@ -22,7 +22,8 @@ struct NativeTheme: Codable, Identifiable, Equatable, Sendable {
     ]
     static func custom(_ data: Data) -> [NativeTheme] { (try? JSONDecoder().decode([NativeTheme].self, from: data)) ?? [] }
     static func resolve(_ id: String, custom: Data) -> NativeTheme {
-        (builtins + Self.custom(custom)).first { $0.id == id } ?? builtins[0]
+        if let builtin = builtins.first(where: { $0.id == id }) { return builtin }
+        return Self.custom(custom).first { $0.id == id } ?? builtins[0]
     }
 }
 extension Color {
@@ -47,7 +48,7 @@ struct AppearanceSettingsContent: View {
     @State private var draft: NativeTheme?
     var options: [(String, String)] { (NativeTheme.builtins + NativeTheme.custom(custom)).map { ($0.id, $0.name) } }
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        LazyVStack(alignment: .leading, spacing: 20) {
             GeneralSection("Theme") {
                 GeneralRow("Match system theme", detail: "Follow the device’s light and dark appearance.") {
                     Toggle("Match system theme", isOn: $system).toggleStyle(GeneralToggleStyle())

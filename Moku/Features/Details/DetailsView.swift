@@ -20,6 +20,14 @@ struct DetailsView: View {
     @State private var expanded = false
     @State private var ascending = false
     @State private var chapterQuery = ""
+    @State private var filteredChapters: [Chapter] = []
+    private struct ChapterFilter: Equatable {
+        let revision: Int
+        let preferences: Data
+        let query: String
+        let ascending: Bool
+    }
+    @AppStorage("chapter.displayPreferences") private var chapterPreferences = Data()
     @State private var playingChapter: Chapter?
 
     init(entry: MediaEntry, initialChapterID: String? = nil, back: @escaping () -> Void) {
@@ -45,7 +53,7 @@ struct DetailsView: View {
                 .frame(maxWidth: .infinity)
             }
         }
-        .firstLoadSkeleton("details-\(entry.id)", loading: loading, style: .results)
+        .firstLoadSkeleton("details-\(entry.id)", loading: loading && details == nil, style: .results)
         .background(NavigationStyle.background.ignoresSafeArea())
         .safeAreaInset(edge: .top, spacing: 0) {
             BackHeader(title: "Details", backLabel: "Back", identifier: "details.back", back: back)
@@ -58,6 +66,14 @@ struct DetailsView: View {
             await library.loadOrganization()
             if autoLinkOnOpen { await library.autoLink(entry) }
         }
+        .task(id: ChapterFilter(revision: model.chapterRevision, preferences: chapterPreferences,
+                               query: chapterQuery, ascending: ascending)) {
+            let result = await ChapterPresentation.filtered(
+                details?.chapters ?? [], preferences: chapterPreferences, mediaID: entry.id,
+                query: chapterQuery, ascending: ascending)
+            guard !Task.isCancelled else { return }
+            filteredChapters = result
+        }
         .sheet(item: $linkedEntry) { linked in
             DetailsView(entry: linked) { linkedEntry = nil }
         }
@@ -69,6 +85,7 @@ struct DetailsView: View {
                         chapters: details.chapters, chapterID: chapter.id))
             }
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("search.details")
         .overlay {
             if readerPreferences.document.behaviour.containerized, let chapter = readingChapter,
@@ -146,7 +163,7 @@ struct DetailsView: View {
                 }
                 .disabled(saving)
                 if let details, !details.chapters.isEmpty {
-                    let read = details.chapters.filter(\.completed).count
+                    let read = model.completedCount
                     HStack {
                         Text("\(read) / \(details.chapters.count) read")
                         Spacer()
@@ -181,6 +198,9 @@ struct DetailsView: View {
                     PhosphorIcon("ArrowsClockwise").frame(width: 44, height: 44)
                 }.accessibilityLabel("Refresh chapters").disabled(loading)
             }
+            if let details {
+                ChapterScanlatorMenu(chapters: details.chapters, mediaID: entry.id)
+            }
             TextField("Filter chapters", text: $chapterQuery)
                 .font(.subheadline).padding(12)
                 .background(NavigationStyle.surface, in: RoundedRectangle(cornerRadius: 6))
@@ -193,12 +213,7 @@ struct DetailsView: View {
             if loading && (details?.chapters.isEmpty ?? true) {
                 ContentSkeleton(style: .chapters, count: 6).padding(.vertical, 12)
             } else if let details {
-                let filtered = details.chapters.filter {
-                    chapterQuery.isEmpty || $0.label.localizedCaseInsensitiveContains(chapterQuery)
-                }.sorted {
-                    ascending
-                        ? ($0.number ?? 0) < ($1.number ?? 0) : ($0.number ?? 0) > ($1.number ?? 0)
-                }
+                let filtered = filteredChapters
                 if filtered.isEmpty && model.chapterError == nil {
                     VStack(alignment: .leading, spacing: 12) {
                         if !details.chapters.isEmpty {
@@ -303,6 +318,78 @@ struct DetailsView: View {
         defer { saving = false }
         if !(await library.setSaved(!library.contains(entry), entry: entry)) {
             model.error = library.error ?? "Couldn’t update your library. Try again."
+        }
+    }
+}
+
+struct ChapterScanlatorMenu: View {
+    let chapters: [Chapter]
+    let mediaID: String
+    @AppStorage("chapter.displayPreferences") private var data = Data()
+    @State private var groups: [String] = []
+    @State private var preferences = ChapterDisplayPreferences()
+    private func save(_ value: ChapterDisplayPreferences) {
+        var all = (try? JSONDecoder().decode([String: ChapterDisplayPreferences].self, from: data)) ?? [:]
+        all[mediaID] = value
+        if let encoded = try? JSONEncoder().encode(all) { data = encoded }
+    }
+    var body: some View {
+        Group {
+        if !groups.isEmpty {
+            Menu {
+                Picker("Preferred group", selection: Binding(
+                    get: { preferences.preferred },
+                    set: { var value = preferences; value.preferred = $0; save(value) }
+                )) {
+                    Text("Any group").tag("")
+                    ForEach(groups, id: \.self) { Text($0).tag($0) }
+                }
+                Menu("Release groups") {
+                    ForEach(groups, id: \.self) { group in
+                        Toggle(group, isOn: Binding(
+                            get: { preferences.included.contains(group) },
+                            set: { enabled in
+                                var value = preferences
+                                value.included.removeAll { $0 == group }
+                                if enabled { value.included.append(group) }
+                                save(value)
+                            }))
+                    }
+                }
+                Toggle("Only selected groups", isOn: Binding(
+                    get: { preferences.onlyIncluded },
+                    set: { var value = preferences; value.onlyIncluded = $0; save(value) }))
+                Menu("Hide groups") {
+                    ForEach(groups, id: \.self) { group in
+                        Toggle(group, isOn: Binding(
+                            get: { preferences.excluded.contains(group) },
+                            set: { enabled in
+                                var value = preferences
+                                value.excluded.removeAll { $0 == group }
+                                if enabled { value.excluded.append(group) }
+                                save(value)
+                            }))
+                    }
+                }
+                Button("Reset") { save(ChapterDisplayPreferences()) }
+            } label: {
+                Label("Scanlators", phosphor: "Funnel").font(.caption).frame(minHeight: 44)
+            }
+        }
+        }
+        .task(id: chapters) {
+            let chapters = chapters
+            let result = await Task.detached(priority: .userInitiated) {
+                Array(Set(chapters.compactMap(\.scanlator))).sorted()
+            }.value
+            guard !Task.isCancelled else { return }
+            groups = result
+        }
+        .onChange(of: data, initial: true) { _, value in
+            preferences = ChapterDisplayPreferences.read(value, id: mediaID)
+        }
+        .onChange(of: mediaID) { _, id in
+            preferences = ChapterDisplayPreferences.read(data, id: id)
         }
     }
 }

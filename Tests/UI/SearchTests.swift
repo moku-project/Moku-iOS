@@ -2,6 +2,46 @@ import XCTest
 
 @MainActor
 final class SearchTests: XCTestCase {
+    func testDiscoveryCarouselRotatesWithoutControls() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-testing-search", "--ui-testing-storage", "-mokuStorageTestID", UUID().uuidString]
+        app.launch()
+        app.buttons["tab.browse"].tap()
+        XCTAssertTrue(app.staticTexts["Popular right now"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["search.discovery.page.1"].exists)
+        XCTAssertFalse(app.buttons["search.discovery.pause"].exists)
+        XCTAssertFalse(app.staticTexts["Inspired by the genres you’ve been reading."].exists)
+        XCTAssertTrue(app.staticTexts["Popular right now"].exists)
+        XCTAssertTrue(app.buttons["search.latest.fresh-1"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.staticTexts["Latest updates"].exists)
+        XCTAssertTrue(app.staticTexts["More to explore"].exists)
+        XCTAssertFalse(app.staticTexts["Popular right now"].exists)
+        XCTAssertFalse(app.buttons["search.popular.moon"].exists)
+        screenshot("Search discovery — alternate sections")
+        XCTAssertTrue(app.buttons["search.popular.moon"].waitForExistence(timeout: 15))
+    }
+
+    func testDiscoveryPageHasPopularAndSharedModesWithoutOpeningKeyboard() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-testing-search", "--ui-testing-storage", "-mokuStorageTestID", UUID().uuidString]
+        app.launch()
+        app.buttons["tab.browse"].tap()
+        XCTAssertTrue(app.staticTexts["Popular right now"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["search.popular.moon"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.keyboards.firstMatch.exists)
+        XCTAssertFalse(app.buttons["search.close"].exists)
+        for mode in ["all", "manga", "novels", "anime"] {
+            XCTAssertTrue(app.buttons["search.mode.\(mode)"].exists)
+        }
+        app.buttons["search.mode.novels"].tap()
+        XCTAssertTrue(app.buttons["search.popular.garden"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["search.popular.moon"].exists)
+        app.buttons["tab.library"].tap()
+        app.buttons["tab.browse"].tap()
+        XCTAssertTrue(app.buttons["search.mode.novels"].isSelected)
+        screenshot("Search discovery")
+    }
+
     func testNavigationWithEmbeddedRuntimeStartup() {
         let app = XCUIApplication()
         app.launchArguments = [

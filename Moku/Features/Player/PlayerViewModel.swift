@@ -8,6 +8,8 @@ final class PlayerViewModel {
     let mediaID: String
     let chapters: [Chapter]
     let repository: any PlayerRepository
+    private(set) var activityEntry: HomeEntry
+    @ObservationIgnored private var activityPrepared = false
     var chapterID: String
     var stream: EpisodeStream?
     var sourceIndex: Int?
@@ -33,6 +35,7 @@ final class PlayerViewModel {
     var subtitleBackground = false
     private var generation = UUID()
     private var subtitleGeneration = UUID()
+    @ObservationIgnored private var automaticSubtitleTask: Task<Void, Never>?
     private var lastSave = Date.distantPast
     private var finished = false
     private var loadedChapterID: String?
@@ -50,6 +53,7 @@ final class PlayerViewModel {
         repository: any PlayerRepository = LivePlayerRepository()
     ) {
         self.title = title
+        self.activityEntry = HomeEntry(id: mediaID, title: title, media: "Anime")
         self.mediaID = mediaID
         self.chapters = chapters.sorted { ($0.number ?? 0) < ($1.number ?? 0) }
         self.chapterID = chapterID
@@ -83,11 +87,24 @@ final class PlayerViewModel {
         stream = nil
         sourceIndex = nil
         subtitleIndex = nil
+        automaticSubtitleTask?.cancel()
+        automaticSubtitleTask = nil
         subtitleGeneration = UUID()
         cues = []
         player.pause()
         player.replaceCurrentItem(with: nil)
         do {
+            if !activityPrepared {
+                let chapters = chapters, mediaID = mediaID, title = title
+                let prepared = await Task.detached(priority: .userInitiated) {
+                    HomeEntry(id: mediaID, title: title, media: "Anime",
+                              chapters: chapters.map { HomeChapter(id: $0.id, title: $0.label) })
+                }.value
+                try Task.checkCancellation()
+                guard generation == token else { return }
+                activityEntry = prepared
+                activityPrepared = true
+            }
             let (stream, resume) = try await repository.stream(chapterID: chapterID)
             try Task.checkCancellation()
             guard generation == token else { return }
@@ -97,8 +114,10 @@ final class PlayerViewModel {
             if autoSubtitles, !stream.subtitles.isEmpty {
                 let language = subtitleLanguage.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
                 let index = stream.subtitles.firstIndex { $0.lang.lowercased() == language || (!language.isEmpty && $0.lang.lowercased().hasPrefix(language + "-")) } ?? 0
-                await selectSubtitle(index)
-                guard generation == token else { return }
+                automaticSubtitleTask = Task { [weak self] in
+                    guard let self, self.generation == token, !Task.isCancelled else { return }
+                    await self.selectSubtitle(index)
+                }
             }
             try await replace(path: stream.url, resume: resume, token: token, shouldPlay: autoplay)
             if generation == token { loadedChapterID = requestedChapterID }
@@ -163,8 +182,9 @@ final class PlayerViewModel {
         guard let index, let stream, stream.subtitles.indices.contains(index) else { return }
         do {
             let text = try await repository.subtitle(path: stream.subtitles[index].url)
-            guard subtitleGeneration == token else { return }
-            let parsed = SubtitleCue.parse(text)
+            guard !Task.isCancelled, subtitleGeneration == token else { return }
+            let parsed = await Task.detached(priority: .userInitiated) { SubtitleCue.parse(text) }.value
+            guard !Task.isCancelled, subtitleGeneration == token else { return }
             guard !parsed.isEmpty else {
                 notice = "This subtitle format isn’t supported yet. Try another track."
                 subtitleIndex = nil
@@ -288,6 +308,8 @@ final class PlayerViewModel {
     func stop() {
         generation = UUID()
         subtitleGeneration = UUID()
+        automaticSubtitleTask?.cancel()
+        automaticSubtitleTask = nil
         cancelSeek()
         player.pause()
         playing = false

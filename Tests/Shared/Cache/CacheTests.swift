@@ -1,10 +1,37 @@
 import Foundation
 import Testing
+#if canImport(UIKit)
 import UIKit
+#endif
 
 @testable import Moku
 
 struct CacheTests {
+    @Test func memoryTrimPreservesDiskData() async throws {
+        let directory = URL.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let cache = ResourceCache(memoryLimit: 1024, directory: directory)
+        _ = try await cache.value(for: "cover", lifetime: 60) { Data([1]) }
+        await cache.trimMemory()
+        let persisted = try await cache.value(for: "cover", lifetime: 60) { throw CacheTestError.failed }
+        #expect(persisted == Data([1]))
+    }
+
+    @Test func memoryTrimReleasesEntriesAndPreservesRunningLoads() async throws {
+        let cache = ResourceCache(memoryLimit: 1024)
+        _ = try await cache.value(for: "cached", lifetime: 60) { Data([1]) }
+        let gate = CacheGate()
+        let request = Task { try await cache.value(for: "pending", lifetime: 60) { await gate.load() } }
+        await gate.waitUntilStarted()
+        await cache.trimMemory()
+        let replacement = try await cache.value(for: "cached", lifetime: 60) { Data([2]) }
+        #expect(replacement == Data([2]))
+        let shared = Task { try await cache.value(for: "pending", lifetime: 60) { throw CacheTestError.failed } }
+        await gate.release()
+        #expect(try await request.value == Data([1]))
+        #expect(try await shared.value == Data([1]))
+    }
+
     @Test func expiredDiskResultsReloadAndClearRemovesPersistedResults() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
             UUID().uuidString)
@@ -128,6 +155,7 @@ struct CacheTests {
         } catch CacheTestError.failed {}
     }
 
+    #if canImport(UIKit)
     @MainActor @Test func oversizedArtworkIsDownsampled() async throws {
         let data = UIGraphicsImageRenderer(
             size: CGSize(width: 2000, height: 3000),
@@ -144,6 +172,7 @@ struct CacheTests {
         #expect(image.cgImage?.height == 600)
         #expect(image.cgImage?.width == 400)
     }
+    #endif
 }
 
 private enum CacheTestError: Error { case failed }

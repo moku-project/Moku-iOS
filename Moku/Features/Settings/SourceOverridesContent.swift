@@ -70,6 +70,7 @@ struct SourceOverridesContent: View {
                 _ = try await BackendAPI.shared.api(path: "/api/mobile/source-overrides", method: "PUT", body: JSONEncoder().encode(next))
                 value = next; notice = nil
                 await BackendAPI.shared.clearContentCache()
+                NotificationCenter.default.post(name: .contentVisibilityDidChange, object: nil)
             } catch { notice = "Couldn’t save source overrides." }
         }
     }

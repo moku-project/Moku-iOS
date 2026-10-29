@@ -22,6 +22,30 @@ private actor SearchSpy: SearchRepository {
 
 @MainActor
 struct SearchModelTests {
+    @Test func repeatedDisappearanceKeepsInterruptedSearchResumable() async throws {
+        let spy = SearchSpy(delay: true)
+        let model = SearchViewModel(repository: spy)
+        model.query = "resume"
+        model.submit()
+        for _ in 0..<100 where await spy.requests.isEmpty {
+            try await Task.sleep(for: .milliseconds(2))
+        }
+        model.setActive(false)
+        model.setActive(false)
+        try await Task.sleep(for: .milliseconds(80))
+        #expect(model.state == .idle)
+        model.setActive(true)
+        for _ in 0..<100 where model.state == .loading {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        #expect(await spy.requests.count == 2)
+        guard case .results(let entries) = model.state else { Issue.record("Expected resumed results"); return }
+        #expect(entries.count == 2)
+        model.setActive(false)
+        model.setActive(true)
+        #expect(await spy.requests.count == 2)
+    }
+
     @Test func draftsDoNotSearchAndCancelDoesNotCommit() async {
         let spy = SearchSpy()
         let model = SearchViewModel(repository: spy)
@@ -286,5 +310,131 @@ struct SearchHistoryModelTests {
         #expect(freshModel.recentSearches.map(\.query) == ["Moon"])
         await freshModel.removeHistory()
         #expect(try await history.recent().isEmpty)
+    }
+}
+
+private struct DiscoveryFixture: SearchRepository {
+    var fails = false
+    func sources() async throws -> [SearchSource] { [] }
+    func search(_ request: SearchRequest) async throws -> [MediaEntry] { [] }
+    func popular(options: SearchOptions) async throws -> DiscoveryPage {
+        if fails { throw SearchFailure.notConnected }
+        let entries = [
+            MediaEntry(id: "read", title: "Read", media: .manga, sourceName: "Test", coverURL: nil),
+            MediaEntry(id: "saved", title: "Saved", media: .manga, sourceName: "Test", coverURL: nil),
+            MediaEntry(id: "match", title: "Match", media: .manga, sourceName: "Test", coverURL: nil),
+            MediaEntry(id: "other", title: "Other", media: .novels, sourceName: "Test", coverURL: nil),
+        ]
+        return DiscoveryPage(entries: entries.filter { options.media == .all || options.media == $0.media })
+    }
+    func genres(for entry: MediaEntry) async throws -> [String] {
+        entry.id == "other" ? ["Romance"] : ["Fantasy"]
+    }
+}
+
+@MainActor
+struct DiscoveryTests {
+    @Test func genresAreNormalizedAndCountedOncePerTitle() {
+        let weights = DiscoveryRanking.weights([["Fantasy", " fantasy ", ""], ["FANTASY", "Action"]])
+        #expect(weights == ["fantasy": 2, "action": 1])
+        #expect(DiscoveryRanking.score(["fantasy", "Fantasy", "action"], weights: weights) == 3)
+    }
+
+    @Test func recommendationsUseReadGenresAndExcludeReadAndSavedTitles() async {
+        let repository = DiscoveryFixture()
+        let entries = try! await repository.popular(options: SearchOptions()).entries
+        var read = HomeEntry(entries[0])
+        read.genres = ["Fantasy"]
+        let snapshot = HomeSnapshot(entries: [read], sessions: [
+            HomeSession(entryID: "read", chapterID: "chapter", page: 1, endedAt: .now, minutes: 5, completedUnits: 1)
+        ])
+        let model = SearchViewModel(repository: repository)
+        await model.loadDiscovery(snapshot: snapshot, saved: [entries[1]])
+        #expect(model.recommendations.map(\.id) == ["match"])
+        #expect(model.popular.count == 4)
+        #expect(!model.discoveryLoading)
+    }
+
+    @Test func coldStartKeepsPopularAndModesFilterDiscovery() async {
+        let model = SearchViewModel(repository: DiscoveryFixture())
+        model.selectMode(.novels)
+        await model.loadDiscovery(snapshot: HomeSnapshot(), saved: [])
+        #expect(model.popular.map(\.id) == ["other"])
+        #expect(model.recommendations.isEmpty)
+        #expect(model.recommendationMessage != nil)
+        #expect(model.options.media == .novels)
+    }
+
+    @Test func failuresStopLoadingAndOfferRetry() async {
+        let model = SearchViewModel(repository: DiscoveryFixture(fails: true))
+        await model.loadDiscovery(snapshot: HomeSnapshot(), saved: [])
+        #expect(!model.discoveryLoading)
+        #expect(model.discoveryMessage != nil)
+    }
+}
+
+struct DiscoveryRotationTests {
+    private func title(_ id: Int, name: String? = nil) -> MediaEntry {
+        MediaEntry(id: "\(id)", title: name ?? "Title \(id)", media: .manga, sourceName: "Source", coverURL: nil)
+    }
+
+    @Test func rotationsContainDistinctTitlesAndExcludeSourceDuplicates() {
+        let popular = (1...30).map { title($0) }
+        let latest = (25...50).map { title($0) } + [title(100, name: " title 1 ")]
+        let pairs = DiscoveryRotation.pairs(recommended: [title(1)], popular: popular, latest: latest)
+        #expect(pairs.count == 2)
+        #expect(pairs.map(\.count) == [2, 2])
+        #expect(pairs[1].map(\.title) == ["Latest updates", "More to explore"])
+        let keys = pairs.flatMap { $0 }.flatMap(\.entries).map(DiscoveryRanking.key)
+        #expect(keys.count == Set(keys).count)
+        #expect(pairs[1].allSatisfy { !$0.entries.isEmpty })
+    }
+
+    @Test func sparseCatalogsKeepTheFirstPair() {
+        let pairs = DiscoveryRotation.pairs(recommended: [], popular: [title(1)], latest: [title(1)])
+        #expect(pairs.count == 1)
+        #expect(pairs[0][1].entries.map(\.id) == ["1"])
+    }
+
+    @Test func freshFeedCanSupplyBothExtraShelves() {
+        let pairs = DiscoveryRotation.pairs(recommended: [], popular: [title(1)], latest: [title(2), title(3)])
+        #expect(pairs.count == 2)
+        #expect(pairs[1].map { $0.entries.count } == [1, 1])
+    }
+}
+
+private actor CountingDiscoveryRepository: SearchRepository {
+    private(set) var calls = 0
+    func sources() async throws -> [SearchSource] { [] }
+    func search(_ request: SearchRequest) async throws -> [MediaEntry] { [] }
+    func popular(options: SearchOptions) async throws -> DiscoveryPage {
+        calls += 1
+        return DiscoveryPage(entries: [])
+    }
+}
+
+@MainActor struct DiscoveryRefreshTests {
+    @Test func returningToSearchReusesDiscoveryAndExplicitRetryRefreshes() async {
+        let repository = CountingDiscoveryRepository()
+        let model = SearchViewModel(repository: repository)
+        await model.loadDiscovery(snapshot: HomeSnapshot(), saved: [])
+        await model.loadDiscovery(snapshot: HomeSnapshot(), saved: [])
+        #expect(await repository.calls == 1)
+        await model.loadDiscovery(snapshot: HomeSnapshot(), saved: [], refreshToken: 1)
+        #expect(await repository.calls == 2)
+        model.selectMode(.anime)
+        await model.loadDiscovery(snapshot: HomeSnapshot(), saved: [], refreshToken: 1)
+        #expect(await repository.calls == 3)
+    }
+
+    @Test func cancelledPageDoesNotRequestDiscovery() async {
+        let repository = CountingDiscoveryRepository()
+        let model = SearchViewModel(repository: repository)
+        let task = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            await model.loadDiscovery(snapshot: HomeSnapshot(), saved: [])
+        }
+        await task.value
+        #expect(await repository.calls == 0)
     }
 }

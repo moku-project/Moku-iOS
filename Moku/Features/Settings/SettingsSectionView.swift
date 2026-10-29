@@ -57,7 +57,7 @@ struct SettingsSectionView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            LazyVStack(alignment: .leading, spacing: 20) {
                 switch category {
                 case .general: GeneralSettingsView(openExtensions: openExtensions)
                 case .appearance: AppearanceSettingsContent()
@@ -122,7 +122,9 @@ struct SettingsSectionView: View {
         .task(id: category) {
             notice = nil
             if category == .storage { await refreshUsage() }
-            serverURL = await Backend.shared.currentServerURL()?.absoluteString
+            if category == .devTools {
+                serverURL = await Backend.shared.currentServerURL()?.absoluteString
+            }
             if category == .about {
                 do {
                     struct Result: Decodable, Sendable { struct About: Decodable, Sendable { let version: String }; let about: About }

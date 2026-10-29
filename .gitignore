@@ -24,3 +24,6 @@ __pycache__/
 xcuserdata/
 *.xcuserstate
 DerivedData/
+
+# Locally preserved OpenJDK build trees (multi-GB, rebuilt by ./moku-ios backend jvm).
+/Services/preserved-build-sources/

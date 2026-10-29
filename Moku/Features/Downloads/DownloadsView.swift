@@ -17,6 +17,16 @@ struct DownloadsView: View {
     @AppStorage("downloads.autoRetry") private var autoRetry = false
     private var reduceMotion: Bool { systemReduceMotion || !animations }
 
+    private var emptyDetail: String {
+        if history { return "Finished and removed downloads will appear here." }
+        switch section {
+        case .failed: return "No failed downloads."
+        case .completed: return "Downloaded chapters and episodes appear here for offline reading."
+        case .all, .pending:
+            return "Download chapters or episodes from a title’s page to read and watch offline."
+        }
+    }
+
     var body: some View {
         GeometryReader { geometry in
             VStack(spacing: 8) {
@@ -25,9 +35,12 @@ struct DownloadsView: View {
                     if model.count(section: section, history: history) == 0 {
                         GeometryReader { geometry in
                             ScrollView {
-                                VStack(spacing: 12) {
+                                VStack(spacing: 10) {
                                     Text("Nothing here yet").font(.title2.bold())
+                                    Text(emptyDetail).font(.subheadline).foregroundStyle(.secondary)
                                 }
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 24)
                                 .frame(maxWidth: .infinity)
                                 .frame(minHeight: max(160, geometry.size.height - 120))
                             }.tracksNavigationScroll()

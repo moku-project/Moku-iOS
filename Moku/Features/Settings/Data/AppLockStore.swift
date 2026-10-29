@@ -8,30 +8,58 @@ import SwiftUI
 @MainActor @Observable final class AppLockStore {
     private(set) var enabled = false
     private(set) var locked = false
+    private(set) var loaded = false
     var biometrics: Bool { didSet { defaults.set(biometrics, forKey: "appLock.biometrics") } }
     var notice: String?
     private let defaults: UserDefaults
     private let account: String
     @ObservationIgnored private var window: UIWindow?
     @ObservationIgnored private weak var previousWindow: UIWindow?
+    @ObservationIgnored private var loading: Task<Bool, Never>?
     private struct Credential: Codable { let salt: Data; let digest: Data }
     init(defaults: UserDefaults, scope: String) {
         self.defaults = defaults
         account = SHA256.hash(data: Data(scope.utf8)).map { String(format: "%02x", $0) }.joined()
         biometrics = defaults.bool(forKey: "appLock.biometrics")
-        do { enabled = try credential() != nil } catch { enabled = true }
-        locked = enabled
+        // Fail closed until the asynchronous Keychain lookup completes.
+        enabled = true
+        locked = true
+    }
+    func load() async {
+        guard !loaded else { return }
+        if loading == nil {
+            let account = account
+            loading = Task.detached(priority: .userInitiated) {
+                do { return try Self.credential(account: account) != nil }
+                catch { return true }
+            }
+        }
+        let exists = await loading!.value
+        guard !loaded else { return }
+        enabled = exists
+        locked = exists
+        loaded = true
+        loading = nil
     }
     private var query: [String: Any] {
         [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: "dev.moku.app.lock", kSecAttrAccount as String: account]
     }
     private func credential() throws -> Credential? {
-        var q = query
+        try Self.credential(account: account)
+    }
+    private nonisolated static func credential(account: String) throws -> Credential? {
+        var q: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "dev.moku.app.lock",
+            kSecAttrAccount as String: account,
+        ]
         q[kSecReturnData as String] = true
         q[kSecMatchLimit as String] = kSecMatchLimitOne
         var result: CFTypeRef?
         let status = SecItemCopyMatching(q as CFDictionary, &result)
-        if status == errSecItemNotFound { return nil }
+        // Without keychain access (unsigned Simulator builds) no PIN can ever have been saved;
+        // failing closed here would lock the app with no way to unlock it.
+        if status == errSecItemNotFound || status == errSecMissingEntitlement { return nil }
         guard status == errSecSuccess, let data = result as? Data else { throw LockError.storage }
         return try JSONDecoder().decode(Credential.self, from: data)
     }
@@ -108,7 +136,7 @@ import SwiftUI
         showIfLocked()
     }
     func showIfLocked() {
-        guard locked, window == nil,
+        guard loaded, locked, window == nil,
             let scene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first
         else { return }
         previousWindow = scene.windows.first(where: \.isKeyWindow)

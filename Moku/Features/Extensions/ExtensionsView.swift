@@ -94,7 +94,7 @@ struct ExtensionsView: View {
         ]) {
             do {
                 if !model.query.isEmpty { try await Task.sleep(for: .milliseconds(300)) }
-                await model.load()
+                await model.load(refreshSections: !model.installedLoaded)
             } catch {}
         }
         .onDisappear { dismissTools() }

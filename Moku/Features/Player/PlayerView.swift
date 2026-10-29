@@ -134,9 +134,7 @@ struct PlayerView: View {
             .statusBarHidden(landscape || !controlsVisible)
         }
         .recordActivity(
-            entry: HomeEntry(
-                id: model.mediaID, title: model.title, media: "Anime",
-                chapters: model.chapters.map { HomeChapter(id: $0.id, title: $0.label) }),
+            entry: model.activityEntry,
             chapterID: model.chapterID, position: Int(max(0, model.position)),
             completed: model.duration > 0 && model.position >= model.duration - 1,
             active: model.playing && !model.buffering,
@@ -158,11 +156,7 @@ struct PlayerView: View {
                 model.subtitleBackground = defaultSubtitleBackground
                 appliedDefaults = true
             }
-            let visits = SkeletonVisits.shared
-            let key = "\(skeletonStorage):player-\(model.chapterID):\(visits.generation)"
-            let delay = !reduceMotion && animations && !visits.contains(key)
-            await model.load(minimumLoadingDuration: delay ? .seconds(SkeletonTiming.cycle) : .zero)
-            if !Task.isCancelled && model.error == nil { visits.complete(key) }
+            await model.load()
         }
         .task {
             previousIdleTimer = UIApplication.shared.isIdleTimerDisabled

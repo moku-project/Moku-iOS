@@ -32,15 +32,37 @@ struct AppSessionView: View {
     }
 
     var body: some View {
-        RootView(homeStore: home)
+        Group {
+            if appLock.loaded {
+                RootView(homeStore: home)
+            } else {
+                ContentSkeleton(style: .startup)
+                    .padding(24)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(NavigationStyle.background)
+            }
+        }
             .modifier(GeneralInterfaceBehavior())
             .environment(\.searchHistoryStore, searchHistory)
             .environment(\.skeletonStorageScope, searchHistory.url.path)
             .environment(home).environment(library).environment(readerPreferences).environment(appLock)
             .defaultAppStorage(preferences)
-            .task { appLock.showIfLocked(); await library.load() }
+            .task {
+                await appLock.load()
+                appLock.showIfLocked()
+                await library.load()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
+                Task { await BackendAPI.shared.trimMemory() }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .contentVisibilityDidChange)) { _ in
+                library.invalidateServerVisibility()
+            }
             .onChange(of: scenePhase) { _, phase in
-                if phase == .background { appLock.lock() }
+                if phase == .background {
+                    appLock.lock()
+                    Task { await readerPreferences.flush(); await home.flush() }
+                }
                 if phase == .active { appLock.showIfLocked() }
             }
     }

@@ -6,6 +6,30 @@ struct SearchView: View {
     let close: () -> Void
     var isPage = false
     var isActive = true
+    var readingSnapshot = HomeSnapshot()
+    var savedEntries: [MediaEntry] = []
+    @State private var discoveryRetry = 0
+    @State private var discoverySlide = 0
+    @ScaledMetric(relativeTo: .subheadline) private var shelfTextHeight: CGFloat = 72
+    @ScaledMetric(relativeTo: .title3) private var shelfHeadingHeight: CGFloat = 24
+    @State private var lastInteraction = Date()
+    @GestureState private var interacting = false
+    @State private var pageScrolling = false
+    @State private var shelfScrolling = false
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
+    @AppStorage("preferences.animations") private var animations = true
+    private var autoRotates: Bool {
+        isDiscovery && isActive && scenePhase == .active && model.state == .idle
+            && model.query.isEmpty && model.panel == nil && !isInputFocused && !model.discoveryLoading
+            && !interacting && !pageScrolling && !shelfScrolling
+            && !reduceMotion && !voiceOver && animations && model.discoveryPairs.count > 1
+    }
+    private var isDiscovery: Bool { isPage && !model.isLibrary }
+    private var discoveryKey: String {
+        "\(isActive && !model.canSubmit)-\(model.options.media.rawValue)-\(model.options.language ?? "all")-\(model.options.sourceID ?? "")-\(readingSnapshot.sessions.count)-\(savedEntries.map(\.id).joined(separator: ","))-\(discoveryRetry)"
+    }
     @State private var didFocus = false
     @Environment(\.navigationContentBottomInset) private var bottomInset
     @Environment(\.navigationContentSafeAreaAdjustment) private var safeAreaAdjustment
@@ -21,6 +45,14 @@ struct SearchView: View {
 
     var body: some View {
         VStack(spacing: 16) {
+            if isDiscovery {
+                VStack(spacing: 0) {
+                    PageHeader(title: "Search")
+                    ModeTabs(mode: Binding(get: { model.options.media }, set: { model.selectMode($0) }), prefix: "search") {
+                        isInputFocused = false
+                    }
+                }
+            }
             HStack(spacing: 0) {
                 if !isPage {
                     island("Close search", symbol: "X", id: "search.close", active: false) {
@@ -106,6 +138,7 @@ struct SearchView: View {
                 .contentMargins(
                     .bottom, isPage && !isInputFocused ? indicatorInset : 0, for: .scrollIndicators
                 )
+                .onScrollPhaseChange { _, phase in pageScrolling = phase != .idle }
                 .scrollDismissesKeyboard(.interactively)
                 .safeAreaInset(edge: .bottom, spacing: 12) {
                     if model.panel != nil && !isPage {
@@ -128,19 +161,41 @@ struct SearchView: View {
         .overlay {
             if isPage && isActive && model.panel != nil {
                 Popup(title: "Filters", close: { model.cancelPanel() }, preferredHeight: 600) {
-                    SearchOptionsView(model: model, showsTitle: false)
+                    if let customOptions { customOptions }
+                    else { SearchOptionsView(model: model, showsTitle: false) }
                 } actions: {
                     optionActions
                 }
             }
         }
+        .modifier(OverflowMenuHost())
         .preference(key: ModalPresentedKey.self, value: isPage && isActive && model.panel != nil)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(isPage ? "search.page" : "search.overlay")
         .onChange(of: isActive) { _, active in
+            model.setActive(active)
             if !active { isInputFocused = false }
         }
+        .onDisappear { model.setActive(false) }
+        .onAppear { model.setActive(isActive) }
         .task { await model.loadHistory(historyStore) }
+        .simultaneousGesture(TapGesture().onEnded { lastInteraction = .now })
+        .simultaneousGesture(DragGesture().updating($interacting) { _, touching, _ in
+            touching = true
+        }.onEnded { _ in lastInteraction = .now })
+        .task(id: "\(autoRotates)-\(lastInteraction.timeIntervalSinceReferenceDate)-\(discoverySlide)") {
+            guard autoRotates else { return }
+            do { try await Task.sleep(for: .seconds(10)) } catch { return }
+            guard !Task.isCancelled, autoRotates else { return }
+            discoverySlide = (discoverySlide + 1) % model.discoveryPairs.count
+        }
+        .onChange(of: model.discoveryPairs.count) { _, count in
+            if discoverySlide >= count { discoverySlide = 0 }
+        }
+        .task(id: discoveryKey) {
+            guard isDiscovery, isActive, !model.canSubmit else { return }
+            await model.loadDiscovery(snapshot: readingSnapshot, saved: savedEntries, refreshToken: discoveryRetry)
+        }
         .task(id: model.panel == .filters) {
             // Opening search must not boot the runtime just to populate filter choices.
             guard model.panel == .filters, customOptions == nil else { return }
@@ -153,7 +208,7 @@ struct SearchView: View {
             do { try await Task.sleep(for: .milliseconds(100)) } catch { return }
             guard isActive else { return }
             didFocus = true
-            isInputFocused = model.panel == nil && (!isPage || model.query.isEmpty)
+            isInputFocused = model.panel == nil && !isPage
         }
 
     }
@@ -219,7 +274,8 @@ struct SearchView: View {
     @ViewBuilder private var results: some View {
         switch model.state {
         case .idle:
-            recentSearches
+            if isDiscovery { discovery }
+            else { recentSearches }
         case .loading:
             ContentSkeleton(style: .results)
         case .unavailable:
@@ -284,6 +340,90 @@ struct SearchView: View {
                 }
             }
         }
+    }
+
+    private var discovery: some View {
+        let pairs = model.discoveryPairs
+        return VStack(alignment: .leading, spacing: 16) {
+            ZStack(alignment: .topLeading) {
+                ForEach(pairs.indices, id: \.self) { index in
+                    if discoverySlide == index {
+                    VStack(alignment: .leading, spacing: 24) {
+                        ForEach(pairs[index]) { shelf in
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text(shelf.title).font(.title3.weight(.semibold))
+                                    .accessibilityAddTraits(.isHeader)
+                                if !shelf.entries.isEmpty {
+                                    discoveryShelf(shelf.entries, id: shelf.id)
+                                } else if model.discoveryLoading {
+                                    ContentSkeleton(style: .results, count: 2)
+                                } else if shelf.id == "recommended", let message = model.recommendationMessage {
+                                    Text(message).font(.subheadline).foregroundStyle(.secondary)
+                                } else if shelf.id == "popular", model.discoveryMessage == nil {
+                                    Text("Your sources have no popular titles to show yet.")
+                                        .font(.subheadline).foregroundStyle(.secondary)
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                    .accessibilityElement(children: .contain)
+                    .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
+                    }
+                }
+            }
+            .frame(minHeight: pairs.count > 1 ? 2 * (166 + shelfTextHeight + shelfHeadingHeight + 12) + 24 : 0, alignment: .topLeading)
+            .animation(reduceMotion || !animations ? nil : .easeInOut(duration: 0.5), value: discoverySlide)
+            .clipped()
+            .accessibilityAdjustableAction { direction in
+                guard pairs.count > 1 else { return }
+                lastInteraction = .now
+                discoverySlide = (discoverySlide + (direction == .increment ? 1 : pairs.count - 1)) % pairs.count
+            }
+            CarouselBreadcrumbs(
+                count: pairs.count, selection: discoverySlide, accessibilityPrefix: "search.discovery"
+            ) { index in
+                lastInteraction = .now
+                discoverySlide = index
+            }
+            if let message = model.discoveryMessage {
+                Text(message).font(.subheadline).foregroundStyle(.secondary)
+                Button("Try again") { discoveryRetry += 1 }
+                    .frame(minHeight: 44).accessibilityIdentifier("search.discovery.retry")
+            }
+            if !model.recentSearches.isEmpty { recentSearches }
+        }
+        .padding(.top, 8)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("search.discovery")
+    }
+
+    private func discoveryShelf(_ entries: [MediaEntry], id: String) -> some View {
+        ScrollView(.horizontal) {
+            LazyHStack(alignment: .top, spacing: 14) {
+                ForEach(entries) { entry in
+                    Button {
+                        isInputFocused = false
+                        openEntry(entry)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 8) {
+                            CoverImage(url: entry.coverURL, symbol: entry.media.symbol)
+                                .frame(width: 116, height: 166)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                            Text(entry.title).font(.subheadline.weight(.medium))
+                                .lineLimit(2).multilineTextAlignment(.leading)
+                            Text(entry.media.title).font(.caption).foregroundStyle(.secondary)
+                        }
+                        .frame(width: 116, alignment: .leading)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("search.\(id).\(entry.id)")
+                }
+            }
+        }
+        .scrollIndicators(.hidden)
+        .onScrollPhaseChange { _, phase in shelfScrolling = phase != .idle }
     }
 
     private var recentSearches: some View {

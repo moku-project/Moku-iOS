@@ -4,6 +4,41 @@ import Testing
 @testable import Moku
 
 @MainActor struct LibrarySearchTests {
+    @Test func cachedResultsFollowFiltersAndItemChanges() {
+        let model = LibraryViewModel()
+        model.items = [
+            LibraryItem(id: "a", title: "Alpha", media: .manga),
+            LibraryItem(id: "b", title: "Beta", media: .anime),
+        ]
+        #expect(model.visible(mode: .all).map(\.id) == ["a", "b"])
+        #expect(model.visible(mode: .manga).map(\.id) == ["a"])
+        model.query = "beta"
+        #expect(model.visible(mode: .all).map(\.id) == ["b"])
+        model.query = ""
+        model.ascending = false
+        #expect(model.visible(mode: .all).map(\.id) == ["b", "a"])
+        model.items.removeLast()
+        #expect(model.visible(mode: .all).map(\.id) == ["a"])
+    }
+
+    @Test func readingIncludesAnUnfinishedFirstChapter() {
+        let model = LibraryViewModel()
+        model.items = [
+            LibraryItem(id: "started", title: "Started", media: .manga,
+                        totalUnits: 10, lastRead: .now),
+            LibraryItem(id: "unread", title: "Unread", media: .manga, totalUnits: 10),
+            LibraryItem(id: "finished", title: "Finished", media: .manga,
+                        readUnits: 10, totalUnits: 10, lastRead: .now),
+        ]
+        model.tab = .reading
+        #expect(model.visible(mode: .all).map(\.id) == ["started"])
+        #expect(model.items[0].readUnits == 0)
+        #expect(model.items[0].unread == 10)
+        model.tab = .saved
+        model.startedOnly = true
+        #expect(Set(model.visible(mode: .all).map(\.id)) == ["started", "finished"])
+    }
+
     @Test func searchIsLocalAndSourcesComeOnlyFromSavedTitles() async throws {
         let entries = [
             MediaEntry(

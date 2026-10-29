@@ -39,14 +39,8 @@ struct SearchOptionsView: View {
                     }
                 }
             }
-            section("Media") {
-                ForEach(ContentMode.allCases) { media in
-                    choice(media.title, symbol: media.symbol, selected: model.draft.media == media)
-                    {
-                        model.draft.media = media
-                        model.validateSource()
-                    }
-                }
+            ModeTabs(mode: $model.draft.media, prefix: "search.filters") {
+                model.validateSource()
             }
             if !model.isLibrary {
                 section("Language") {

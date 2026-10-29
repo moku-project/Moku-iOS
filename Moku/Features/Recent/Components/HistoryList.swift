@@ -2,7 +2,7 @@ import SwiftUI
 
 struct HistoryList: View {
     let home: HomeStore
-    let history: [RecentHistoryTitle]
+    let history: [RecentHistoryDay]
     let historySearch: String
     let expanded: Set<String>
     let opening: Bool
@@ -24,19 +24,18 @@ struct HistoryList: View {
                     : "Try another title or chapter.",
                 symbol: "ClockCounterClockwise")
         } else {
-            ForEach(days(history.map { $0.latest.endedAt }), id: \.self) { day in
-                VStack(alignment: .leading, spacing: 28) {
-                    dayHeading(day)
-                    ForEach(
-                        history.filter {
-                            Calendar.current.isDate($0.latest.endedAt, inSameDayAs: day)
+            LazyVStack(alignment: .leading, spacing: 28) {
+                ForEach(history) { day in
+                    Section {
+                        ForEach(day.titles) {
+                            item in
+                            HistoryRow(
+                                item: item, expanded: expanded.contains(item.id), opening: opening,
+                                open: open, toggle: { toggle(item.id) }, showStatistics: showStatistics,
+                                clear: clear)
                         }
-                    ) {
-                        item in
-                        HistoryRow(
-                            item: item, expanded: expanded.contains(item.id), opening: opening,
-                            open: open, toggle: { toggle(item.id) }, showStatistics: showStatistics,
-                            clear: clear)
+                    } header: {
+                        dayHeading(day.id)
                     }
                 }
             }
@@ -49,9 +48,6 @@ struct HistoryList: View {
             Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
         }.multilineTextAlignment(.center).frame(maxWidth: .infinity, minHeight: 280)
             .accessibilityIdentifier("recent.empty")
-    }
-    private func days(_ values: [Date]) -> [Date] {
-        Set(values.map { Calendar.current.startOfDay(for: $0) }).sorted(by: >)
     }
     private func dayHeading(_ date: Date) -> some View {
         HStack {

@@ -15,11 +15,14 @@ final class CanvasCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogniz
     var failed = Set<Int>()
     var paths: [String] = []
     var pageNumbers: [Int] = []
-    var signature = ""
+    var frames: [Int: CGRect] = [:]
+    var lastSettings: MangaReadingSettings?
+    var lastLandscape = false
+    var reportedPage: Int?
     var lastJump: UUID?
     var lastSize = CGSize.zero
     var layingOut = false
-    var timer: Timer?
+    var displayLink: CADisplayLink?
     var autoPaused = false
     var endAdvanced = false
     var lastScrollEnabled = false
@@ -59,7 +62,7 @@ final class CanvasCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogniz
         parent = value
         guard let scroll else { return }
         let model = parent.model
-        let numbers = model.isStrip ? Array(1...model.pages.count) : model.visiblePages
+        let numbers = model.isStrip ? model.pages.indices.map { $0 + 1 } : model.visiblePages
         let changed =
             paths != model.pages || numbers != pageNumbers
             || lastContrast != model.settings.optimizeContrast
@@ -68,8 +71,7 @@ final class CanvasCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogniz
         }
         lastContrast = model.settings.optimizeContrast
         let settings = model.settings
-        let newSignature = "\(settings)-\(model.landscape)"
-        let layoutChanged = signature != newSignature
+        let layoutChanged = lastSettings != settings || lastLandscape != model.landscape
         if changed {
             let animate =
                 !paths.isEmpty && paths == model.pages && !model.isStrip && !parent.reduceMotion
@@ -87,27 +89,8 @@ final class CanvasCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogniz
             }
             paths = model.pages
             pageNumbers = numbers
-            for page in numbers {
-                let view = UIImageView()
-                view.contentMode = .scaleToFill
-                view.image = cache[page]
-                view.isAccessibilityElement = true
-                view.accessibilityLabel = "Page \(page)"
-                canvas.addSubview(view)
-                views[page] = view
-                let skeleton = ReaderPageSkeleton()
-                skeleton.isHidden = cache[page] != nil
-                view.addSubview(skeleton)
-                skeletons[page] = skeleton
-                let label = UILabel()
-                label.text = nil
-                label.isHidden = true
-                label.textAlignment = .center
-                label.textColor = .lightGray
-                label.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
-                view.addSubview(label)
-                labels[page] = label
-            }
+            frames.removeAll(keepingCapacity: true)
+            reportedPage = nil
             layout(anchor: model.page)
             if animate {
                 switch settings.transition {
@@ -127,8 +110,9 @@ final class CanvasCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogniz
             }
         }
         if layoutChanged {
-            signature = newSignature
-            layout(anchor: model.page)
+            lastSettings = settings
+            lastLandscape = model.landscape
+            if !changed { layout(anchor: model.page) }
         }
         scroll.maximumZoomScale = model.behaviour.pinchZoom ? 3 : 1
         scroll.minimumZoomScale = 1
@@ -143,14 +127,13 @@ final class CanvasCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogniz
         let auto = model.behaviour.autoScroll && model.isStrip && parent.active
         if auto && !lastScrollEnabled { autoPaused = false }
         lastScrollEnabled = auto
-        if auto && timer == nil {
-            timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30, repeats: true) {
-                [weak self] _ in
-                MainActor.assumeIsolated { self?.tick() }
-            }
+        if auto && displayLink == nil {
+            let link = CADisplayLink(target: self, selector: #selector(tick(_:)))
+            link.add(to: .main, forMode: .common)
+            displayLink = link
         } else if !auto {
-            timer?.invalidate()
-            timer = nil
+            displayLink?.invalidate()
+            displayLink = nil
         }
         loadWindow()
     }
@@ -159,7 +142,7 @@ final class CanvasCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogniz
         layingOut = true
         defer { layingOut = false }
         let visiblePage = parent.model.page
-        let oldFrame = views[visiblePage]?.frame ?? .zero
+        let oldFrame = frames[visiblePage] ?? .zero
         let oldFraction =
             oldFrame.height > 0 ? (scroll.contentOffset.y - oldFrame.minY) / oldFrame.height : 0
         let viewport = scroll.bounds.size
@@ -184,7 +167,7 @@ final class CanvasCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogniz
             case "screen": width = min(available, viewport.height * ratio)
             case "original":
                 width =
-                    views[page]?.image.map {
+                    cache[page].map {
                         $0.size.width / scroll.traitCollection.displayScale
                     } ?? available
             default: width = available
@@ -196,7 +179,8 @@ final class CanvasCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogniz
                 ? max(0, (viewport.width - width) / 2)
                 : cursor + max(0, (available - width) / 2)
             let y = model.isStrip ? cursor : max(0, (viewport.height - height) / 2)
-            views[page]?.frame = CGRect(x: x, y: y, width: width, height: height)
+            frames[page] = CGRect(x: x, y: y, width: width, height: height)
+            views[page]?.frame = frames[page] ?? .zero
             skeletons[page]?.frame = CGRect(x: 0, y: 0, width: width, height: height)
             labels[page]?.frame = CGRect(x: 0, y: 0, width: width, height: min(height, 200))
             if model.isStrip {
@@ -208,13 +192,13 @@ final class CanvasCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogniz
         }
         canvas.frame.size = CGSize(
             width: model.isStrip
-                ? max(viewport.width, views.values.map { $0.frame.maxX }.max() ?? 0)
+                ? max(viewport.width, frames.values.map(\.maxX).max() ?? 0)
                 : max(viewport.width, cursor),
             height: model.isStrip ? max(viewport.height, cursor) : maxHeight)
         scroll.contentSize = canvas.frame.size
         if let anchor {
             jump(anchor)
-        } else if parent.model.isStrip, let frame = views[visiblePage]?.frame {
+        } else if parent.model.isStrip, let frame = frames[visiblePage] {
             scroll.contentOffset.y = max(
                 0,
                 min(
@@ -225,34 +209,65 @@ final class CanvasCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogniz
     }
     func jump(_ page: Int) {
         guard let scroll else { return }
-        let y = parent.model.isStrip ? views[page]?.frame.minY ?? 0 : 0
+        let y = parent.model.isStrip ? frames[page]?.minY ?? 0 : 0
         scroll.setContentOffset(
             CGPoint(x: 0, y: max(0, min(y, scroll.contentSize.height - scroll.bounds.height))),
             animated: false)
     }
     func loadWindow() {
         guard let scroll, !paths.isEmpty else { return }
-        let rect = CGRect(origin: scroll.contentOffset, size: scroll.bounds.size)
-        let visible = pageNumbers.filter { views[$0]?.frame.intersects(rect) == true }
+        let rect = scroll.convert(scroll.bounds, to: canvas)
+        let visible: [Int]
+        if parent.model.isStrip {
+            let start = firstPageIndex(below: rect.minY)
+            visible = Array(pageNumbers.dropFirst(start).prefix { (frames[$0]?.minY ?? .infinity) < rect.maxY })
+        } else {
+            visible = pageNumbers.filter { frames[$0]?.intersects(rect) == true }
+        }
+        guard let first = visible.min(), let last = visible.max() else { return }
+        let ahead = max(0, min(12, parent.model.behaviour.preloadPages))
+        let keep = Set(max(1, first - 1)...min(paths.count, last + ahead))
+        cache = cache.filter { keep.contains($0.key) }
+        for page in Array(work.keys) where !keep.contains(page) {
+            work.removeValue(forKey: page)?.cancel()
+        }
+        // Keep UIKit views bounded too. Long chapters previously allocated an
+        // image view, animated skeleton and label for every page before opening.
+        let displayed = parent.model.isStrip ? keep : keep.intersection(pageNumbers)
+        for page in Array(views.keys) where !displayed.contains(page) {
+            skeletons.removeValue(forKey: page)?.setAnimating(false)
+            labels.removeValue(forKey: page)
+            views.removeValue(forKey: page)?.removeFromSuperview()
+        }
+        for page in displayed where views[page] == nil {
+            let view = UIImageView(frame: frames[page] ?? .zero)
+            view.contentMode = .scaleToFill
+            view.image = cache[page]
+            view.isAccessibilityElement = true
+            view.accessibilityLabel = "Page \(page)"
+            canvas.addSubview(view)
+            views[page] = view
+            let skeleton = ReaderPageSkeleton(frame: view.bounds)
+            view.addSubview(skeleton)
+            skeletons[page] = skeleton
+            let label = UILabel(frame: CGRect(x: 0, y: 0, width: view.bounds.width, height: min(view.bounds.height, 200)))
+            label.textAlignment = .center
+            label.textColor = .lightGray
+            label.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
+            label.text = failed.contains(page) ? "Page \(page) unavailable. Tap to retry." : nil
+            label.isHidden = !failed.contains(page)
+            view.addSubview(label)
+            labels[page] = label
+        }
         for (page, skeleton) in skeletons {
             let pending = cache[page] == nil && !failed.contains(page)
             skeleton.isHidden = !pending
-            skeleton.setAnimating(
-                pending && visible.contains(page) && parent.active && !parent.reduceMotion)
+            skeleton.setAnimating(pending && visible.contains(page) && parent.active && !parent.reduceMotion)
         }
-        guard let first = visible.min(), let last = visible.max() else { return }
-        let ahead = parent.model.behaviour.preloadPages
-        let keep = Set(
-            (1...paths.count).filter { $0 >= max(1, first - 1) && $0 <= last + ahead })
-        cache = cache.filter { keep.contains($0.key) }
-        for (page, task) in work where !keep.contains(page) {
-            task.cancel()
-            work.removeValue(forKey: page)
-        }
-        for (page, view) in views where !keep.contains(page) {
-            view.image = nil
-            labels[page]?.isHidden = false
-            work.removeValue(forKey: page)?.cancel()
+        guard parent.active else {
+            for task in work.values { task.cancel() }
+            work.removeAll()
+            return
         }
         // At most three transfers at once, including prefetch.
         for page in keep.sorted()
@@ -300,16 +315,32 @@ final class CanvasCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogniz
             }
         }
     }
+    private func firstPageIndex(below y: CGFloat) -> Int {
+        var lower = 0, upper = pageNumbers.count
+        while lower < upper {
+            let middle = (lower + upper) / 2
+            if (frames[pageNumbers[middle]]?.maxY ?? 0) <= y { lower = middle + 1 }
+            else { upper = middle }
+        }
+        return lower
+    }
+
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
         guard !layingOut, parent.model.isStrip else { return }
-        let y = scrollView.contentOffset.y + min(100, scrollView.bounds.height / 3)
-        if let page = pageNumbers.first(where: { (views[$0]?.frame.maxY ?? 0) > y }) {
+        let visibleRect = scrollView.convert(scrollView.bounds, to: canvas)
+        let y = visibleRect.minY + min(100, visibleRect.height / 3)
+        let index = firstPageIndex(below: y)
+        if pageNumbers.indices.contains(index) {
+            let page = pageNumbers[index]
             let model = parent.model
-            guard page != model.page else { return }
-            let chapterID = model.chapterID
-            // Delegate callbacks can occur during SwiftUI updates.
-            Task { @MainActor [weak model] in
-                if model?.chapterID == chapterID { model?.visiblePageChanged(page) }
+            if page != reportedPage {
+                reportedPage = page
+                let chapterID = model.chapterID
+                // Delegate callbacks can occur during SwiftUI updates.
+                Task { @MainActor [weak self, weak model] in
+                    guard self?.reportedPage == page, model?.chapterID == chapterID else { return }
+                    model?.visiblePageChanged(page)
+                }
             }
         }
         loadWindow()
@@ -354,19 +385,19 @@ final class CanvasCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogniz
             (gesture.direction == .left) != (parent.model.settings.readingDirection == "rtl")
         parent.model.navigate(forward: forward)
     }
-    func tick() {
+    @objc func tick(_ link: CADisplayLink) {
         guard !autoPaused, let scroll, !scroll.isDragging, !scroll.isDecelerating else {
             return
         }
         let maxY = max(0, scroll.contentSize.height - scroll.bounds.height)
         scroll.contentOffset.y = min(
-            maxY, scroll.contentOffset.y + parent.model.behaviour.autoScrollSpeed / 6)
+            maxY, scroll.contentOffset.y + parent.model.behaviour.autoScrollSpeed * 5 * min(0.1, link.targetTimestamp - link.timestamp))
         reachedEnd()
     }
     func stop() {
         for skeleton in skeletons.values { skeleton.setAnimating(false) }
-        timer?.invalidate()
-        timer = nil
+        displayLink?.invalidate()
+        displayLink = nil
         for task in work.values { task.cancel() }
         work.removeAll()
         scroll?.didLayout = nil

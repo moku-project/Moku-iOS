@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Equal side columns keep every page title centered.
 struct PageHeader: View {
+    @AppStorage("preferences.modeTabs") private var savedModes = ""
     let title: String
     var showsDivider = false
     var modeSymbol: String? = nil
@@ -61,14 +62,14 @@ struct PageHeader: View {
                 IconRail(
                     title: modeLabel ?? title,
                     symbol: modeSymbol, isPresented: isModePresented,
-                    itemCount: ContentMode.allCases.filter { $0.title != modeLabel }.count,
+                    itemCount: ModeTabConfiguration(storage: savedModes).visible.filter { $0.title != modeLabel }.count,
                     reduceMotion: reduceMotion || !animations,
                     labelFont: .system(size: 15, weight: .medium),
                     iconSize: 18, iconColor: NavigationStyle.accent,
                     instantTitleChange: true,
                     toggle: onMode
                 ) {
-                    ForEach(ContentMode.allCases.filter { $0.title != modeLabel }) { choice in
+                    ForEach(ModeTabConfiguration(storage: savedModes).visible.filter { $0.title != modeLabel }) { choice in
                         IconRailRow(title: choice.title, symbol: choice.symbol, selected: false) {
                             selectMode?(choice)
                         }

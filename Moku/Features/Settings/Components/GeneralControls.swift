@@ -27,7 +27,7 @@ struct GeneralSection<Content: View>: View {
     }
 }
 struct GeneralRow<Control: View>: View {
-    @State private var availableWidth: CGFloat = 400
+    @State private var compact = false
     let title: String
     let detail: String
     @ViewBuilder let control: () -> Control
@@ -48,7 +48,7 @@ struct GeneralRow<Control: View>: View {
     }
     var body: some View {
         Group {
-            if availableWidth >= 300 {
+            if !compact {
                 HStack(spacing: 16) {
                     label.frame(maxWidth: .infinity, alignment: .leading)
                     control().fixedSize(horizontal: true, vertical: false)
@@ -63,10 +63,10 @@ struct GeneralRow<Control: View>: View {
                 }
             }
         }.frame(minHeight: 44).padding(.vertical, 14)
-            .onGeometryChange(for: CGFloat.self) {
-                $0.size.width
+            .onGeometryChange(for: Bool.self) {
+                $0.size.width < 300
             } action: {
-                availableWidth = $0
+                compact = $0
             }
     }
 }

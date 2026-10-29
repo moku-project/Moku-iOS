@@ -9,14 +9,18 @@ struct LibrarySearchRepository: SearchRepository {
     }
 
     func sources() async throws -> [SearchSource] {
-        var seen: Set<String> = []
-        return entries.compactMap { entry in
+        var order: [String] = []
+        var first: [String: MediaEntry] = [:]
+        var media: [String: Set<ContentMode>] = [:]
+        for entry in entries {
             let id = sourceID(entry)
-            guard seen.insert(id).inserted else { return nil }
-            let media = Set(entries.filter { sourceID($0) == id }.map(\.media))
-            return SearchSource(
-                id: id, name: entry.sourceName, language: "all",
-                media: media.count == 1 ? entry.media : .all, isPinned: false)
+            if first[id] == nil { first[id] = entry; order.append(id) }
+            media[id, default: []].insert(entry.media)
+        }
+        return order.compactMap { id in
+            guard let entry = first[id] else { return nil }
+            return SearchSource(id: id, name: entry.sourceName, language: "all",
+                                media: media[id]?.count == 1 ? entry.media : .all, isPinned: false)
         }
     }
 
@@ -33,12 +37,13 @@ struct LibrarySearchRepository: SearchRepository {
 /// Reads the same filtered, ordered Library snapshot used by the page.
 @MainActor
 final class ScopedLibrarySearchRepository: SearchRepository {
-    let snapshot: @MainActor () -> [MediaEntry]
-    init(snapshot: @escaping @MainActor () -> [MediaEntry]) { self.snapshot = snapshot }
+    let snapshot: @MainActor () async -> [MediaEntry]
+    init(snapshot: @escaping @MainActor () async -> [MediaEntry]) { self.snapshot = snapshot }
     func sources() async throws -> [SearchSource] { [] }
-    func search(_ request: SearchRequest) async throws -> [MediaEntry] {
+    nonisolated func search(_ request: SearchRequest) async throws -> [MediaEntry] {
+        let entries = await snapshot()
         try Task.checkCancellation()
-        return snapshot().filter {
+        return entries.filter {
             request.query.isEmpty || $0.title.localizedStandardContains(request.query)
         }
     }

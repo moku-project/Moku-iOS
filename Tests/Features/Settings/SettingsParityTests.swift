@@ -57,11 +57,13 @@ import Testing
         #expect(throws: (any Error).self) { try foreign.validatedValues() }
     }
 
-    @Test func appLockPersistsPinAndLimitsWrongAttempts() throws {
+    @Test func appLockPersistsPinAndLimitsWrongAttempts() async throws {
         let suite = "lock-parity-\(UUID())"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
         let lock = AppLockStore(defaults: defaults, scope: suite)
+        #expect(lock.locked && !lock.loaded)
+        await lock.load()
         #expect(!lock.enabled)
         try lock.configure(pin: "123456", currentPIN: "")
         defer {
@@ -69,6 +71,7 @@ import Testing
             try? lock.disable(pin: "123456")
         }
         let restored = AppLockStore(defaults: defaults, scope: suite)
+        await restored.load()
         #expect(restored.enabled && restored.locked)
         for _ in 0..<5 { restored.unlock(pin: "654321") }
         restored.unlock(pin: "123456")
@@ -77,5 +80,7 @@ import Testing
         restored.unlock(pin: "123456")
         #expect(!restored.locked)
         #expect(defaults.integer(forKey: "appLock.attempts") == 0)
+        await restored.load()
+        #expect(!restored.locked)
     }
 }

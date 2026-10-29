@@ -4,6 +4,22 @@ import Testing
 @testable import Moku
 
 @MainActor struct BackendStartupTests {
+    @Test func cancelledRequestDoesNotStartServices() async {
+        let backend = Backend()
+        let request = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            do {
+                _ = try await backend.connection(manualStart: true)
+                Issue.record("A cancelled request started the backend")
+            } catch is CancellationError {
+            } catch {
+                Issue.record("Expected cancellation before startup: \(error)")
+            }
+        }
+        await request.value
+        #expect(await backend.currentServerURL() == nil)
+    }
+
     @Test func catalogIsAvailableBeforeSourceRuntimeAndAfterFailedAttachment() async throws {
         let directory = URL.temporaryDirectory.appending(path: "MokuStartupTests/\(UUID())")
         let backend = BackendController()

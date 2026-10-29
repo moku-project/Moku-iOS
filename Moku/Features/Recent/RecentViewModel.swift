@@ -62,11 +62,16 @@ import Observation
             done += 1
         }
         guard !Task.isCancelled else { return false }
-        updates = result.sorted {
-            let left = $0.chapter.date ?? .distantPast
-            let right = $1.chapter.date ?? .distantPast
-            return left == right ? $0.id > $1.id : left > right
-        }
+        let collected = result
+        let sorted = await Task.detached(priority: .userInitiated) {
+            collected.sorted {
+                let left = $0.chapter.date ?? .distantPast
+                let right = $1.chapter.date ?? .distantPast
+                return left == right ? $0.id > $1.id : left > right
+            }
+        }.value
+        guard !Task.isCancelled else { return false }
+        updates = sorted
         if !failedTitles.isEmpty {
             error =
                 "Couldn’t update \(failedTitles.count) title(s): \(failedTitles.joined(separator: ", "))."
@@ -104,20 +109,24 @@ import Observation
 
     func entry(id: String) async throws -> MediaEntry { try await repository.entry(id: id) }
 
-    static func history(_ snapshot: HomeSnapshot, query: String, mode: ContentMode)
+    nonisolated static func history(_ snapshot: HomeSnapshot, query: String, mode: ContentMode)
         -> [RecentHistoryTitle]
     {
         let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
         let entries = Dictionary(
             snapshot.entries.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
+        var matchingChapters: [String: Set<String>] = [:]
+        if !query.isEmpty {
+            for entry in snapshot.entries {
+                matchingChapters[entry.id] = Set(entry.chapters.filter { $0.title.localizedStandardContains(query) }.map(\.id))
+            }
+        }
         let sessions = snapshot.sessions.filter { session in
             guard let entry = entries[session.entryID],
                 mode == .all || entry.media.lowercased() == mode.rawValue
             else { return false }
             return query.isEmpty || entry.title.localizedStandardContains(query)
-                || (entry.chapters.first { $0.id == session.chapterID }?.title
-                    .localizedStandardContains(
-                        query) ?? false)
+                || matchingChapters[entry.id]?.contains(session.chapterID) == true
         }
         return Dictionary(grouping: sessions, by: \.entryID).compactMap { id, values in
             guard let entry = entries[id] else { return nil }
