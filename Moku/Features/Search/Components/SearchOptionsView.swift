@@ -45,6 +45,11 @@ struct SearchOptionsView: View {
                 model.validateSource()
             }
             if !model.isLibrary {
+                section("Results") {
+                    choice("Hide titles with no chapters", symbol: "Funnel", selected: model.draft.hidesEmpty) {
+                        model.draft.hidesEmpty.toggle()
+                    }
+                }
                 section("Language") {
                     choice("All languages", symbol: "Globe", selected: model.draft.language == nil)
                     {

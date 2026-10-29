@@ -209,7 +209,9 @@ final class LiveSearchTests: XCTestCase {
         let install = app.buttons["extensions.install.eu.kanade.tachiyomi.extension.all.mangadex"]
         XCTAssertTrue(install.waitForExistence(timeout: 30))
         install.tap()
-        XCTAssertTrue(app.buttons["Manage MangaDex"].waitForExistence(timeout: 120))
+        // The page is disabled while the install runs; "Manage MangaDex" exists throughout.
+        expectation(for: NSPredicate(format: "enabled == true"), evaluatedWith: app.buttons["extensions.section"])
+        waitForExpectations(timeout: 180)
         app.buttons["extensions.section"].tap()
         app.buttons["extensions.view.Installed"].tap()
         let source = app.buttons["extensions.search.eu.kanade.tachiyomi.extension.all.mangadex"]
@@ -240,28 +242,57 @@ final class LiveSearchTests: XCTestCase {
         settingsCapture.lifetime = .keepAlways
         add(settingsCapture)
         app.buttons["Done"].tap()
-        source.tap()
 
+        // Forward fetching: MangaDex lists Rent-A-Girlfriend, but its chapters were
+        // removed, so a typed search should hide it once its chapters are checked.
+        app.buttons["tab.browse"].tap()
         let input = app.textFields["search.input"]
-        XCTAssertTrue(input.waitForExistence(timeout: 5))
+        XCTAssertTrue(input.waitForExistence(timeout: 10))
         input.tap()
         input.typeText("Rent a Girlfriend")
         input.typeText("\n")
-        XCTAssertTrue(app.staticTexts["Rent-A-Girlfriend"].waitForExistence(timeout: 180))
-        let capture = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        capture.name = "Live MangaDex search"
-        capture.lifetime = .keepAlways
-        add(capture)
+        let results = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'search.result.'"))
+        XCTAssertTrue(results.firstMatch.waitForExistence(timeout: 180))
+        print("LIVE before:", results.allElementsBoundByIndex.map(\.label))
+        capture("Live MangaDex search, first results")
+        let hidden = app.staticTexts["search.hiddenEmpty"]
+        XCTAssertTrue(hidden.waitForExistence(timeout: 120), "No empty titles were hidden")
+        Thread.sleep(forTimeInterval: 5)
+        print("LIVE hidden note:", hidden.label)
+        print("LIVE after:", results.allElementsBoundByIndex.map(\.label))
+        capture("Live MangaDex search, empty titles hidden")
+        // Every title still listed must open with chapters.
+        let kept = results.allElementsBoundByIndex.map(\.identifier)
+        for id in kept {
+            let row = app.buttons[id]
+            guard row.exists else { continue }
+            let title = row.label
+            row.tap()
+            XCTAssertTrue(app.buttons["details.back"].waitForExistence(timeout: 30))
+            // "Start reading" / "Continue" only appears when the title has chapters.
+            let chapter = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Start' OR label BEGINSWITH 'Continue' OR label BEGINSWITH 'Read again'")).firstMatch
+            let opened = chapter.waitForExistence(timeout: 60)
+            print("LIVE kept:", title, "chapters shown:", opened, "empty notice:", app.otherElements["details.emptyChapters"].exists || app.staticTexts["details.emptyChapters"].exists)
+            XCTAssertTrue(opened, "\(title) was kept but shows no chapters")
+            capture("Live kept title: \(title)")
+            app.buttons["details.back"].tap()
+            XCTAssertTrue(input.waitForExistence(timeout: 10))
+        }
         app.buttons["tab.more"].tap()
         app.buttons["more.category.Extensions"].tap()
         XCTAssertTrue(app.buttons["Manage MangaDex"].waitForExistence(timeout: 15))
         source.swipeLeft()
         app.buttons["Uninstall"].tap()
         app.alerts.buttons["Uninstall"].tap()
+        // Uninstalled: the Installed list is empty again.
         XCTAssertTrue(app.buttons["extensions.browse"].waitForExistence(timeout: 10))
-        app.buttons["extensions.browse"].tap()
-        app.buttons["Manage MangaDex"].tap()
-        XCTAssertTrue(install.waitForExistence(timeout: 30))
 
+    }
+
+    private func capture(_ name: String) {
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 }

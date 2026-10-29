@@ -29,17 +29,23 @@ alternate titles (no data reaches that UI), and its "latest fetched" sort is a
 no-op. Those rows are now marked as such.
 
 **Still open:**
-- **Embedded server version:** the desktop bundles Tsunagu 0.6.0
-  (`nix/versions.nix`); the iOS app embeds `vendor/Tsunagu` on branch
-  `ios-on-v0.6.0` (0.6.0 plus the iOS commits). The embedded server now serves
-  PDF chapters (`pdfSource`, `/pdf`) and folder content types; the app still
-  needs a PDFKit page source and to move folder content types onto the server.
+- **ASS subtitles:** drawn natively from the script's styles (font, size scaled
+  to the picture, weight, slant, colours, outline, alignment, `\pos`). Desktop
+  uses libass. iOS also draws fades, moves, karaoke, `\t` transforms of size,
+  colour, border and transparency, fonts embedded in the file, vector shapes,
+  rotation in 2D and 3D, scaling, rectangle and drawing clips, blur and drop
+  shadows. Remaining differences: `\t` only animates size, colour, border and
+  transparency; clips apply to positioned lines; outlines, blur and shadows
+  are capped at a few points, so very heavy styling looks lighter than libass.
 - **Desktop side of phone sync:** the switch and Bonjour advertising are on the
   `Moku` branch `testflight-ready`. The whole desktop crate passes
   `cargo +1.95.0 check` with no warnings (2026-10-29, Tsunagu 0.6.0 built
   locally as the bundled resource; a placeholder `dist` stood in for the web
-  frontend, whose packages aren't installed). The desktop app itself hasn't
-  been launched and paired with a phone.
+  frontend, whose packages aren't installed). Every pairing and sync request
+  the phone sends was replayed against a local Tsunagu 0.6.0 (the desktop's
+  server): password required, login and 401s behave, and all 11 queries and
+  mutations pass schema validation. The desktop app itself hasn't been
+  launched and paired with a phone.
 - **Localisation:** English only, same as desktop.
 
 **How it was verified:**
@@ -166,7 +172,7 @@ between the two servers, so the phone keeps working offline.
 | Bar position, tap to toggle, containerised | ✅ | ✅ | – | Settings import accepts left/right (fixed) |
 | Bookmarks, auto-bookmark, resume banner | ✅ | ✅ | P2 | "Bookmark at page N" fades after 2.5 s |
 | Preload pages, next-chapter prefetch | ✅ | ✅ | P2 | Near the end, the next chapter's page list and first pages load in the background |
-| PDF chapters | ✅ | ❌ | P2 | The embedded server (0.6.0) serves `pdfSource` and `/pdf`; the reader needs a PDFKit page source |
+| PDF chapters | ✅ | ✅ | P2 | `PDFPageSource`: `pdfpage` paths download `/content/{m}/{c}/pdf` once and PDFKit draws each page (rotation kept, ≤ 1600 px wide) |
 | Webtoon image quality | ✅ | ✅ | P0 | Decode bounds the short side and pixel count |
 | Keyboard shortcuts | ✅ | ✅ | – | Hardware keyboard |
 
@@ -190,7 +196,7 @@ between the two servers, so the phone keeps working offline.
 | Double-tap left/right to seek | ✅ | ✅ | P1 | |
 | Skip intro / outro / recap (server skip timestamps) | ✅ | ✅ | P1 | |
 | Preferred source per series | ✅ | ✅ | P2 | Remembered by source label |
-| ASS subtitles | ✅ | 🟡 | P2 | Parsed natively: bold, italic, colour and top/middle/bottom placement. Desktop uses libass, so fonts, outlines and animated signs still differ |
+| ASS subtitles | ✅ | 🟡 | P2 | Native renderer: style font (when iOS has it), size against the picture with a readable floor, bold, italic, primary and outline colours, border width, left/centre/right, top/middle/bottom, `\pos`, `\fad`/`\move`, `\k` karaoke, `\t` (size, colour, border, alpha), `\alpha`, and `[Fonts]` embedded fonts, all against the player clock. `\p` shapes, `\frz`, `\fscx`/`\fscy`, rectangle `\clip`/`\iclip` on positioned lines. `\frx`/`\fry`, drawing clips, `\blur`/`\be`, `\shad` with `\4c`. Differences: `\t` covers size, colour, border and alpha only; heavy borders, blur and shadows are capped |
 | Subtitle style persisted | ✅ | ✅ | P1 | Style and picked language remembered |
 | Volume control | ✅ | ➖ | – | Hardware buttons |
 | Stream info | ✅ | ✅ | P2 | Player options: resolution and source |
@@ -255,7 +261,7 @@ between the two servers, so the phone keeps working offline.
 | Storage: usage, format, directories, backups, Mihon import/export | ✅ | ✅ | – | |
 | Storage limit warning | ✅ | ✅ | P2 | Download guard above; the limit itself only colours usage bars on desktop |
 | Reset: reading stats, settings | ✅ | ✅ | P2 | Stats come from history: Library → Clear reading history; Storage → Reset preferences |
-| Folders (content types per folder) | ✅ | ✅ | P2 | Folders › Manage › Show for. Still kept on the phone; the embedded 0.6.0 server stores `contentTypes` (`setFolderContentTypes`), so this can move to the server |
+| Folders (content types per folder) | ✅ | ✅ | P2 | Folders › Manage › Show for. Saved to the server with `setFolderContentTypes`, and carried both ways by desktop sync |
 | Content level, rules, source overrides | ✅ | ✅ | – | |
 | Server settings | ✅ | ✅ | – | |
 | Auth: server password, app lock | ✅ | ✅ | – | |

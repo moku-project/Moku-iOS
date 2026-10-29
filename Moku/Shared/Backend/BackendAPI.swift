@@ -187,6 +187,20 @@ actor BackendAPI {
         return data
     }
 
+    /// A chapter's PDF file (`/content/{media}/{chapter}/pdf`), for PDF-backed chapters.
+    func readerDocumentData(path: String) async throws -> Data {
+        let connection = try await backend.connection()
+        let request = try connection.contentRequest(path: path)
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200,
+            http.mimeType == "application/pdf", !data.isEmpty
+        else {
+            throw EmbeddedSearchError.message("Couldn’t open this PDF chapter. Try again.")
+        }
+        try Task.checkCancellation()
+        return data
+    }
+
     func trimMemory() async {
         await queries.trimMemory()
         await progressQueries.trimMemory()

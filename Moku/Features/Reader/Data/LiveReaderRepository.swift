@@ -17,7 +17,12 @@ struct LiveReaderRepository: ReaderRepository {
         return pages
     }
     func image(path: String) async throws -> Data {
-        try await BackendAPI.shared.readerPageData(path: path)
+        if PDFPageSource.parse(path) != nil {
+            return try await PDFPageSource.shared.image(path: path) {
+                try await BackendAPI.shared.readerDocumentData(path: $0)
+            }
+        }
+        return try await BackendAPI.shared.readerPageData(path: path)
     }
     func progress(mediaID: String, chapterID: String, value: Double, completed: Bool) async throws {
         struct Response: Decodable, Sendable {

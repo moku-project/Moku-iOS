@@ -76,19 +76,39 @@ import XCTest
         waitForExpectations(timeout: 6)
     }
 
+    func testReaderOpensPDFChapter() {
+        XCUIDevice.shared.orientation = .portrait
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-testing-reader", "--ui-testing-reader-pdf"]
+        app.launch()
+        let page = app.buttons["reader.page"]
+        XCTAssertTrue(page.waitForExistence(timeout: 10))
+        XCTAssertTrue(page.label.contains("/ 3"), page.label)
+        XCTAssertFalse(app.staticTexts["Page 1 unavailable. Tap to retry."].waitForExistence(timeout: 3))
+        capture("Reader PDF chapter")
+    }
+
     func testPlayerShowsStyledASSSubtitles() {
         XCUIDevice.shared.orientation = .portrait
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-testing-player"]
+        // Start paused at 100%, so the controls stay up and sizes are predictable.
+        app.launchArguments = ["--ui-testing-player", "-player.autoplay", "NO", "-player.subtitleScale", "1"]
         app.launch()
         XCTAssertTrue(app.buttons["player.subtitles"].waitForExistence(timeout: 10))
+        // Like the player tests: wait until the episode has loaded before opening menus.
+        expectation(for: NSPredicate(format: "enabled == true"), evaluatedWith: app.buttons["player.play"])
+        waitForExpectations(timeout: 10)
         app.buttons["player.subtitles"].tap()
+        XCTAssertTrue(app.buttons["Signs (ASS)"].waitForExistence(timeout: 3))
         app.buttons["Signs (ASS)"].tap()
         XCTAssertTrue(app.staticTexts["Northbound platform"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["A quiet moment before the journey."].exists)
         let sign = app.staticTexts["Northbound platform"].frame
         let line = app.staticTexts["A quiet moment before the journey."].frame
         XCTAssertLessThan(sign.midY, line.midY, "The {\\an8} sign belongs above the dialogue")
+        // Karaoke lines read as one line of text.
+        XCTAssertTrue(app.staticTexts["Sing along"].exists)
+        app.buttons["player.panel.close"].tap()
         capture("Player ASS subtitles")
     }
 

@@ -37,25 +37,229 @@ struct PlayerView: View {
     private let accent = Color(red: 122 / 255, green: 170 / 255, blue: 122 / 255)
     private typealias Panel = PlayerMenu.Kind
 
-    /// Cues sharing a screen position, each in its own ASS weight, slant and colour.
-    @ViewBuilder private func captionGroup(_ position: SubtitleCue.Position, landscape: Bool) -> some View {
-        let cues = model.captions.filter { $0.position == position }
+    /// Cues sharing a screen position, each in its own ASS style.
+    @ViewBuilder private func captionGroup(_ position: SubtitleCue.Position, landscape: Bool, picture: CGFloat, time: Double) -> some View {
+        let cues = model.captions.filter { $0.position == position && $0.anchor == nil }
         if !cues.isEmpty {
             VStack(spacing: 2) {
                 ForEach(Array(cues.enumerated()), id: \.offset) { _, cue in
-                    Text(cue.text)
-                        .font(.system(size: (landscape ? 18 : 16) * model.subtitleScale, weight: cue.bold ? .bold : .regular))
-                        .italic(cue.italic)
-                        .multilineTextAlignment(.center)
-                        .foregroundStyle(cue.color.map { value in
-                            Color(red: Double((value >> 16) & 0xFF) / 255, green: Double((value >> 8) & 0xFF) / 255,
-                                  blue: Double(value & 0xFF) / 255)
-                        } ?? .white)
+                    caption(cue, landscape: landscape, picture: picture, time: time)
+                        .opacity(cue.opacity(at: time))
+                        .frame(maxWidth: .infinity, alignment: Self.alignment(cue.horizontal))
                 }
             }
+        }
+    }
+
+    /// `\pos` cues, pinned to their point in the picture by their `\an` corner.
+    private func anchoredCaptions(in size: CGSize, landscape: Bool, time: Double) -> some View {
+        let picture = Self.pictureRect(in: size)
+        return ZStack(alignment: .topLeading) {
+            ForEach(Array(model.captions.enumerated()), id: \.offset) { _, cue in
+                if let anchor = cue.anchor(at: time) {
+                    caption(cue, landscape: landscape, picture: picture.height, time: time)
+                        .opacity(cue.opacity(at: time))
+                        .fixedSize()
+                        .frame(width: 0, height: 0, alignment: Self.corner(cue))
+                        .position(x: picture.minX + anchor.x * picture.width, y: picture.minY + anchor.y * picture.height)
+                        .mask { Self.clipMask(cue, picture: picture, size: size) }
+                }
+            }
+        }
+        .frame(width: size.width, height: size.height)
+    }
+
+    /// Text or a `\p` shape, then `\fscx`/`\fscy` and `\frz` around the `\an` corner.
+    private func caption(_ cue: SubtitleCue, landscape: Bool, picture: CGFloat, time: Double) -> some View {
+        let corner = Self.unitPoint(Self.corner(cue))
+        return Group {
+            if cue.shape.isEmpty {
+                textCaption(cue, landscape: landscape, picture: picture, time: time)
+            } else {
+                shapeCaption(cue, picture: picture, time: time)
+            }
+        }
+        .blur(radius: min(3, CGFloat(cue.blur) * picture))
+        .scaleEffect(x: cue.scaleX, y: cue.scaleY, anchor: corner)
+        // \frx / \fry tilt in 3D; ASS turns counter-clockwise for positive \frz, SwiftUI clockwise.
+        .rotation3DEffect(.degrees(cue.rotationX), axis: (x: 1, y: 0, z: 0), anchor: corner)
+        .rotation3DEffect(.degrees(-cue.rotationY), axis: (x: 0, y: 1, z: 0), anchor: corner)
+        .rotationEffect(.degrees(-cue.rotation), anchor: corner)
+    }
+
+    /// A vector drawing, filled with the primary colour and bordered like text.
+    private func shapeCaption(_ cue: SubtitleCue, picture: CGFloat, time: Double) -> some View {
+        let size = CGSize(width: picture * 16 / 9, height: picture)
+        var path = Path()
+        for command in cue.shape {
+            func scaled(_ point: CGPoint) -> CGPoint { CGPoint(x: point.x * size.width, y: point.y * size.height) }
+            switch command {
+            case .move(let point): path.move(to: scaled(point))
+            case .line(let point): path.addLine(to: scaled(point))
+            case .curve(let one, let two, let end): path.addCurve(to: scaled(end), control1: scaled(one), control2: scaled(two))
+            case .close: path.closeSubpath()
+            }
+        }
+        let bounds = path.boundingRect
+        let placed = path.offsetBy(dx: -bounds.minX, dy: -bounds.minY)
+        let width = CGFloat(cue.outlineWidth(at: time)) * picture
+        return ZStack {
+            placed.fill(cue.color(at: time).map(Self.color) ?? .white)
+            if let outline = cue.outline, width > 0 {
+                placed.stroke(Self.color(outline), lineWidth: min(4, width))
+            }
+        }
+        .frame(width: max(1, bounds.width), height: max(1, bounds.height))
+        .opacity(cue.alpha(at: time))
+        .accessibilityHidden(true)
+    }
+
+    /// `\clip` keeps the inside of its rectangle; `\iclip` keeps the outside.
+    @ViewBuilder static func clipMask(_ cue: SubtitleCue, picture: CGRect, size: CGSize) -> some View {
+        if !cue.clipShape.isEmpty {
+            // A drawing clip, in picture coordinates.
+            Path { path in
+                if cue.clipInverted { path.addRect(CGRect(origin: .zero, size: size)) }
+                func scaled(_ point: CGPoint) -> CGPoint {
+                    CGPoint(x: picture.minX + point.x * picture.width, y: picture.minY + point.y * picture.height)
+                }
+                for command in cue.clipShape {
+                    switch command {
+                    case .move(let point): path.move(to: scaled(point))
+                    case .line(let point): path.addLine(to: scaled(point))
+                    case .curve(let one, let two, let end): path.addCurve(to: scaled(end), control1: scaled(one), control2: scaled(two))
+                    case .close: path.closeSubpath()
+                    }
+                }
+                path.closeSubpath()
+            }
+            .fill(style: FillStyle(eoFill: true))
+        } else if let clip = cue.clip {
+            let rect = CGRect(
+                x: picture.minX + clip.minX * picture.width, y: picture.minY + clip.minY * picture.height,
+                width: clip.width * picture.width, height: clip.height * picture.height)
+            Path { path in
+                if cue.clipInverted { path.addRect(CGRect(origin: .zero, size: size)) }
+                path.addRect(rect)
+            }
+            .fill(style: FillStyle(eoFill: true))
+        } else {
+            Rectangle()
+        }
+    }
+
+    private static func unitPoint(_ alignment: Alignment) -> UnitPoint {
+        switch alignment {
+        case .topLeading: .topLeading
+        case .top: .top
+        case .topTrailing: .topTrailing
+        case .leading: .leading
+        case .trailing: .trailing
+        case .bottomLeading: .bottomLeading
+        case .bottom: .bottom
+        case .bottomTrailing: .bottomTrailing
+        default: .center
+        }
+    }
+
+    private func textCaption(_ cue: SubtitleCue, landscape: Bool, picture: CGFloat, time: Double) -> some View {
+        // libass sizes text against the picture height; plain cues keep the app's size.
+        // A small portrait picture would make script sizes unreadable, so they have a floor.
+        let points = (cue.size(at: time).map { min(64, max(landscape ? 16 : 14, CGFloat($0) * picture)) } ?? (landscape ? 18 : 16))
+            * model.subtitleScale
+        // Style fonts by name or family, including fonts embedded in the file.
+        let font = cue.fontName.flatMap { SubtitleFonts.font(named: $0, size: points) }.map { Font($0 as CTFont) }
+            ?? .system(size: points)
+        let primary = cue.color(at: time).map(Self.color) ?? .white
+        // Karaoke: sung syllables take the primary colour, the rest the secondary.
+        let words = cue.karaoke.isEmpty
+            ? Text(cue.text).foregroundStyle(primary)
+            : cue.karaoke.indices.reduce(Text("")) { line, index in
+                line + Text(cue.karaoke[index].text)
+                    .foregroundStyle(cue.sung(index, at: time) ? primary : cue.secondary.map(Self.color) ?? Color(white: 0.6))
+            }
+        let text = words.font(font).fontWeight(cue.bold ? .bold : .regular).italic(cue.italic)
+            .multilineTextAlignment(Self.textAlignment(cue.horizontal))
+        let width = min(4, max(1, CGFloat(cue.outlineWidth(at: time)) * picture))
+        // A border from four stacked zero-blur shadows, close to libass's outline.
+        // Shadows add no extra text, so VoiceOver reads each line once.
+        let border = cue.outline.map(Self.color) ?? .clear
+        return text
+            .opacity(cue.alpha(at: time))
+            .shadow(color: border, radius: 0, x: width, y: 0)
+            .shadow(color: border, radius: 0, x: -width, y: 0)
+            .shadow(color: border, radius: 0, x: 0, y: width)
+            .shadow(color: border, radius: 0, x: 0, y: -width)
             .padding(.horizontal, 8).padding(.vertical, 3)
             .background(model.subtitleBackground ? Color.black.opacity(0.75) : .clear)
-            .shadow(color: .black, radius: 2, y: 1)
+            // \shad: a hard drop shadow of the bordered text; plain cues keep a soft one.
+            .shadow(
+                color: cue.shadowDepth > 0 ? Self.color(cue.shadowColor ?? 0) : cue.outline == nil ? .black : .clear,
+                radius: cue.shadowDepth > 0 ? 0 : 2,
+                x: cue.shadowDepth > 0 ? min(4, CGFloat(cue.shadowDepth) * picture) : 0,
+                y: cue.shadowDepth > 0 ? min(4, CGFloat(cue.shadowDepth) * picture) : 1)
+    }
+
+    private func captionLayer(size: CGSize, landscape: Bool, time: Double) -> some View {
+        let picture = Self.pictureRect(in: size).height
+        return ZStack {
+        anchoredCaptions(in: size, landscape: landscape, time: time)
+        VStack(spacing: 0) {
+            captionGroup(.top, landscape: landscape, picture: picture, time: time)
+                .padding(.top, controlsVisible ? (landscape ? 66 : 110) : 24)
+            Spacer()
+            captionGroup(.middle, landscape: landscape, picture: picture, time: time)
+            Spacer()
+            captionGroup(.bottom, landscape: landscape, picture: picture, time: time)
+                .padding(
+                    .bottom,
+                    max(size.height * model.subtitleHeight / 100, controlsVisible ? (landscape ? 66 : 128) : 16))
+        }
+        .padding(.horizontal, 24)
+        }
+        .frame(width: size.width, height: size.height)
+        .allowsHitTesting(false)
+    }
+
+    /// The 16:9 picture as the player fits it in the view.
+    static func pictureRect(in size: CGSize) -> CGRect {
+        let width = min(size.width, size.height * 16 / 9)
+        let height = width * 9 / 16
+        return CGRect(x: (size.width - width) / 2, y: (size.height - height) / 2, width: width, height: height)
+    }
+
+    private static func color(_ value: UInt32) -> Color {
+        Color(red: Double((value >> 16) & 0xFF) / 255, green: Double((value >> 8) & 0xFF) / 255, blue: Double(value & 0xFF) / 255)
+    }
+
+    private static func alignment(_ horizontal: SubtitleCue.Horizontal) -> Alignment {
+        switch horizontal {
+        case .left: .leading
+        case .center: .center
+        case .right: .trailing
+        }
+    }
+
+    private static func textAlignment(_ horizontal: SubtitleCue.Horizontal) -> TextAlignment {
+        switch horizontal {
+        case .left: .leading
+        case .center: .center
+        case .right: .trailing
+        }
+    }
+
+    /// The corner or edge of the text that sits on the `\pos` point (numpad `\an`).
+    private static func corner(_ cue: SubtitleCue) -> Alignment {
+        switch (cue.position, cue.horizontal) {
+        case (.top, .left): .topLeading
+        case (.top, .center): .top
+        case (.top, .right): .topTrailing
+        case (.middle, .left): .leading
+        case (.middle, .center): .center
+        case (.middle, .right): .trailing
+        case (.bottom, .left): .bottomLeading
+        case (.bottom, .center): .bottom
+        case (.bottom, .right): .bottomTrailing
         }
     }
 
@@ -98,21 +302,15 @@ struct PlayerView: View {
                     .id(flash.id)
                 }
                 if !model.captions.isEmpty {
-                    VStack(spacing: 0) {
-                        captionGroup(.top, landscape: landscape)
-                            .padding(.top, controlsVisible ? (landscape ? 66 : 110) : 24)
-                        Spacer()
-                        captionGroup(.middle, landscape: landscape)
-                        Spacer()
-                        captionGroup(.bottom, landscape: landscape)
-                            .padding(
-                                .bottom,
-                                max(
-                                    geometry.size.height * model.subtitleHeight / 100,
-                                    controlsVisible ? (landscape ? 66 : 128) : 16))
+                    if model.captions.contains(where: \.isAnimated) {
+                        // \fad and \move need the player clock every frame, not the polled position.
+                        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !model.playing)) { _ in
+                            let clock = model.player.currentTime().seconds
+                            captionLayer(size: geometry.size, landscape: landscape, time: clock.isFinite ? clock : model.position)
+                        }
+                    } else {
+                        captionLayer(size: geometry.size, landscape: landscape, time: model.position)
                     }
-                    .padding(.horizontal, 24)
-                    .allowsHitTesting(false)
                 }
                 if model.loading {
                     ContentSkeleton(style: .player)

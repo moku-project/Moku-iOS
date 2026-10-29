@@ -24,10 +24,17 @@
             })
     }
     struct PreviewReaderRepository: ReaderRepository {
+        /// `--ui-testing-reader-pdf`: pages are PDF pages, drawn by PDFPageSource
+        /// from a generated three-page file, exactly as for a PDF-backed chapter.
+        var pdf = ProcessInfo.processInfo.arguments.contains("--ui-testing-reader-pdf")
         func pages(chapterID: String) async throws -> [String] {
-            (1...12).map { "fixture/\(chapterID)/\($0)" }
+            if pdf { return (1...3).map { "/content/1/\(chapterID)/pdfpage/\($0)" } }
+            return (1...12).map { "fixture/\(chapterID)/\($0)" }
         }
         func image(path: String) async throws -> Data {
+            if PDFPageSource.parse(path) != nil {
+                return try await PDFPageSource.shared.image(path: path) { _ in await Self.pdfFixture() }
+            }
             try Task.checkCancellation()
             return await MainActor.run {
                 let page = path.split(separator: "/").last.map(String.init) ?? "1"
@@ -66,6 +73,21 @@
                     }
                     "Deterministic reader fixture".draw(
                         at: CGPoint(x: 32, y: 1030), withAttributes: attributes)
+                }
+            }
+        }
+        @MainActor static func pdfFixture() -> Data {
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 36, weight: .semibold), .foregroundColor: UIColor.darkGray,
+            ]
+            return UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 600, height: 840)).pdfData { context in
+                for page in 1...3 {
+                    // Page 2 is landscape, like a two-page spread in a scanned PDF.
+                    let bounds = page == 2 ? CGRect(x: 0, y: 0, width: 840, height: 600) : CGRect(x: 0, y: 0, width: 600, height: 840)
+                    context.beginPage(withBounds: bounds, pageInfo: [:])
+                    UIColor(white: 0.85, alpha: 1).setFill()
+                    context.fill(bounds.insetBy(dx: 30, dy: 30))
+                    "PDF page \(page)".draw(at: CGPoint(x: 60, y: 60), withAttributes: attributes)
                 }
             }
         }

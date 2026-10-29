@@ -111,6 +111,12 @@ struct SearchView: View {
                             if let message = model.searchMessage {
                                 Text(message).font(.footnote).foregroundStyle(.secondary)
                             }
+                            if model.hiddenEmpty > 0 {
+                                Text("Hid \(model.hiddenEmpty) title\(model.hiddenEmpty == 1 ? "" : "s") with no chapters at the source.")
+                                    .font(.footnote).foregroundStyle(.secondary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .accessibilityIdentifier("search.hiddenEmpty")
+                            }
                             if let error = model.historyError {
                                 Text(error).font(.footnote).foregroundStyle(.secondary)
                             }

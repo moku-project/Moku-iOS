@@ -39,6 +39,9 @@ struct SearchOptions: Equatable, Sendable {
     var statuses: Set<Status> = []
     var match: Match = .all
     var sort: Sort = .sourceOrder
+    /// Typed searches drop results whose source has no chapters (for example
+    /// licensed MangaDex titles). Not counted as a filter: it's the default.
+    var hidesEmpty = true
 
     var filterCount: Int {
         (method == .keyword ? 0 : 1) + (media == .all ? 0 : 1)
