@@ -8,11 +8,7 @@ import UIKit
 @main
 struct MokuApp: App {
     @Environment(\.scenePhase) private var scenePhase
-    init() {
-        // Stop at content boundaries so rebound motion cannot resize navigation.
-        UIScrollView.appearance().bounces = false
-    }
-
+    init() { BackgroundWork.register() }
     var body: some Scene {
         WindowGroup {
             Group {

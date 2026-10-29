@@ -56,7 +56,7 @@ struct CreateFolderView: View {
             .padding(24)
         }
         .tint(NavigationStyle.accent)
-        .preferredColorScheme(.dark)
+        .themedColorScheme()
         .onAppear { folderNameFocused.wrappedValue = true }
         .onDisappear { folderNameFocused.wrappedValue = false }
 

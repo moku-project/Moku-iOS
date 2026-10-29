@@ -1,10 +1,10 @@
 import SwiftUI
 
 enum GeneralStyle {
-    @MainActor static var border: Color { Color(themeHex: AppTheme.shared.palette.border) }
-    @MainActor static var faint: Color { Color(themeHex: AppTheme.shared.palette.muted) }
-    @MainActor static var label: Color { Color(themeHex: AppTheme.shared.palette.secondary) }
-    @MainActor static var text: Color { Color(themeHex: AppTheme.shared.palette.text) }
+    @MainActor static var border: Color { AppTheme.shared.colors.border }
+    @MainActor static var faint: Color { AppTheme.shared.colors.muted }
+    @MainActor static var label: Color { AppTheme.shared.colors.secondary }
+    @MainActor static var text: Color { AppTheme.shared.colors.text }
     @MainActor static var divider: some View { Rectangle().fill(border).frame(height: 1) }
 }
 struct GeneralSection<Content: View>: View {
@@ -75,10 +75,10 @@ struct GeneralToggleStyle: ToggleStyle {
         Button {
             configuration.isOn.toggle()
         } label: {
-            Capsule().fill(configuration.isOn ? NavigationStyle.accent : Color(white: 23 / 255))
+            Capsule().fill(configuration.isOn ? NavigationStyle.accent : NavigationStyle.surface)
                 .overlay(
                     Capsule().strokeBorder(
-                        configuration.isOn ? NavigationStyle.accent : Color(white: 62 / 255))
+                        configuration.isOn ? NavigationStyle.accent : GeneralStyle.border)
                 )
                 .overlay(alignment: configuration.isOn ? .trailing : .leading) {
                     Circle().fill(configuration.isOn ? .white : GeneralStyle.faint)

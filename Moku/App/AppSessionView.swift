@@ -31,6 +31,24 @@ struct AppSessionView: View {
             initialValue: LibraryStore(directory: storage.directory, synchronizeWithServer: !PreviewMode.isEnabled))
     }
 
+    /// Paired desktops sync on open; the short delay keeps launch responsive.
+    private func syncWithDesktop() {
+        guard preferences.object(forKey: "sync.automatic") as? Bool ?? true, !PreviewMode.isEnabled else { return }
+        Task {
+            try? await Task.sleep(for: .seconds(3))
+            await DesktopSync.shared.syncIfDue(library: library)
+        }
+    }
+
+    /// Desktop "Update library on app open": the server checks every saved series.
+    private func updateLibraryOnOpen() {
+        guard preferences.bool(forKey: "automation.updateOnOpen"), !PreviewMode.isEnabled else { return }
+        Task {
+            try? await Task.sleep(for: .seconds(5))
+            let _: IgnoredGraphQLResult? = try? await BackendAPI.shared.graphql("mutation { startLibraryUpdate }")
+        }
+    }
+
     var body: some View {
         Group {
             if appLock.loaded {
@@ -51,6 +69,8 @@ struct AppSessionView: View {
                 await appLock.load()
                 appLock.showIfLocked()
                 await library.load()
+                syncWithDesktop()
+                updateLibraryOnOpen()
             }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
                 Task { await BackendAPI.shared.trimMemory() }
@@ -60,10 +80,14 @@ struct AppSessionView: View {
             }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .background {
+                    BackgroundWork.didEnterBackground(defaults: preferences)
                     appLock.lock()
                     Task { await readerPreferences.flush(); await home.flush() }
                 }
-                if phase == .active { appLock.showIfLocked() }
+                if phase == .active {
+                    appLock.showIfLocked()
+                    syncWithDesktop()
+                }
             }
     }
 }

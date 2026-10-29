@@ -29,6 +29,12 @@ struct HomeActivityView: View {
 
                 }
                 heatmap
+                if let day = selectedDay {
+                    let count = statistics.daily[day, default: 0]
+                    Text("\(day.formatted(date: .abbreviated, time: .omitted)) · \(count) chapter\(count == 1 ? "" : "s") or episode\(count == 1 ? "" : "s")")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .accessibilityIdentifier("home.heatmap.selection")
+                }
                 HStack(spacing: 5) {
                     Spacer()
                     Text("Less")
@@ -102,44 +108,35 @@ struct HomeActivityView: View {
                 }
             }.padding(.top, 20).accessibilityHidden(true)
             ScrollView(.horizontal) {
-                HStack(spacing: 4) {
+                // Lazy columns and plain cells: a year is 364 views, so no per-cell
+                // buttons or popovers; one readout shows the selected day.
+                let days = (0..<(weeks * 7)).map { calendar.date(byAdding: .day, value: $0, to: start)! }
+                LazyHStack(spacing: 4) {
                     ForEach(0..<weeks, id: \.self) { week in
                         VStack(spacing: 4) {
-                            let first = calendar.date(byAdding: .day, value: week * 7, to: start)!
-                            let previous = calendar.date(byAdding: .day, value: -7, to: first)!
-                            Text(week == 0 || calendar.component(.month, from: first) != calendar.component(.month, from: previous)
-                                 ? first.formatted(.dateTime.month(.abbreviated)) : "")
+                            let first = days[week * 7]
+                            let newMonth = week == 0 || calendar.component(.month, from: first) != calendar.component(.month, from: days[week * 7 - 7])
+                            Text(newMonth ? first.formatted(.dateTime.month(.abbreviated)) : "")
                                 .font(.system(size: 9)).foregroundStyle(.secondary)
                                 .fixedSize().frame(width: cellSize, height: 16, alignment: .leading)
                                 .accessibilityHidden(true)
                             ForEach(0..<7, id: \.self) { day in
-                                let date = calendar.date(
-                                    byAdding: .day, value: week * 7 + day, to: start)!
+                                let date = days[week * 7 + day]
                                 let count = statistics.daily[date, default: 0]
-                                Button { selectedDay = date } label: {
-                                    RoundedRectangle(cornerRadius: 3)
+                                RoundedRectangle(cornerRadius: 3)
                                     .fill(heatColor(count == 0 ? 0 : min(4, 1 + count / 3)))
                                     .frame(width: cellSize, height: cellSize)
                                     .opacity(date > today ? 0.3 : 1)
                                     .overlay {
-                                        if date == today {
+                                        if date == today || date == selectedDay {
                                             RoundedRectangle(cornerRadius: 3).strokeBorder(
-                                                NavigationStyle.accent.opacity(0.7), lineWidth: 1)
+                                                NavigationStyle.accent.opacity(date == selectedDay ? 1 : 0.7), lineWidth: 1)
                                         }
                                     }
-                                }
-                                .buttonStyle(.plain)
-                                .disabled(date > today)
-                                .accessibilityLabel("\(date.formatted(date: .abbreviated, time: .omitted)): \(count) chapters or episodes")
-                                .popover(isPresented: Binding(
-                                    get: { selectedDay == date },
-                                    set: { if !$0 && selectedDay == date { selectedDay = nil } }
-                                )) {
-                                    VStack(spacing: 6) {
-                                        Text(date.formatted(date: .abbreviated, time: .omitted)).font(.caption)
-                                        Text("\(count) chapters / episodes").font(.subheadline.weight(.medium))
-                                    }.padding().presentationCompactAdaptation(.popover)
-                                }
+                                    .contentShape(Rectangle())
+                                    .onTapGesture { if date <= today { selectedDay = selectedDay == date ? nil : date } }
+                                    .accessibilityElement()
+                                    .accessibilityLabel("\(date.formatted(date: .abbreviated, time: .omitted)): \(count) chapters or episodes")
                             }
                         }
                     }
@@ -155,12 +152,12 @@ struct HomeActivityView: View {
     }
 
     private func heatColor(_ level: Int) -> Color {
-        level == 0 ? Color.white.opacity(0.07) : NavigationStyle.accent.opacity(Double(level) / 4)
+        level == 0 ? GeneralStyle.border.opacity(0.6) : NavigationStyle.accent.opacity(Double(level) / 4)
     }
 
     private func stat(_ value: String, _ label: String, _ symbol: String) -> some View {
         HStack(alignment: .top, spacing: 10) {
-            PhosphorIcon(symbol).font(.subheadline).foregroundStyle(.secondary)
+            PhosphorIcon(symbol, size: 15).foregroundStyle(.secondary)
                 .frame(width: 22, height: 28)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 4) {

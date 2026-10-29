@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Open, readable settings sections using the app’s native navigation and controls.
 struct GeneralSettingsView: View {
+    @AppStorage("preferences.startTab") private var startTab = AppTab.library.rawValue
     let openExtensions: () -> Void
     var serverOnly = false
     @AppStorage("preferences.interfaceScale") private var scale = 100.0
@@ -106,6 +107,14 @@ struct GeneralSettingsView: View {
                 }
             }
             if !serverOnly {
+                GeneralSection("Startup") {
+                    GeneralRow("Default view", detail: "The tab Moku opens to.") {
+                        ChoicePicker(
+                            title: "", selection: $startTab,
+                            options: AppTab.allCases.filter { $0 != .more }.map { ($0.rawValue, $0.title) }
+                        ).font(.system(size: 14))
+                    }
+                }
                 GeneralSection("Inactivity") {
                     GeneralRow(
                         "Idle screen timeout",

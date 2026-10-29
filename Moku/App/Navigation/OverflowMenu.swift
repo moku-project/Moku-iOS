@@ -129,7 +129,7 @@ private struct OverflowMenuPanel: View {
                 }
                 .scrollBounceBehavior(.basedOnSize)
                 .frame(width: width, height: height)
-                .background(Color(white: 0.085), in: RoundedRectangle(cornerRadius: 16))
+                .background(NavigationStyle.surface, in: RoundedRectangle(cornerRadius: 16))
                 .clipShape(RoundedRectangle(cornerRadius: 16))
                 .overlay {
                     RoundedRectangle(cornerRadius: 16).strokeBorder(

@@ -68,7 +68,7 @@ struct ExtensionFilters: View {
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) { Button("Done") { close() } }
                 }
-        }.tint(NavigationStyle.accent).preferredColorScheme(.dark)
+        }.tint(NavigationStyle.accent).themedColorScheme()
 
     }
 }

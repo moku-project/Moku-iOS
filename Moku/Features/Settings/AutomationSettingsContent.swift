@@ -71,7 +71,8 @@ struct AutomationSettingsContent: View {
     @State private var model = AutomationPreferences()
     @State private var reset = false
     @Environment(LibraryStore.self) private var library
-    @State private var mediaID = "0"
+    @State private var mediaID: String
+    init(initialMediaID: String = "0") { _mediaID = State(initialValue: initialMediaID) }
     @State private var scanlators = ""
     @State private var editingScanlators = false
     func policy<Value>(_ key: WritableKeyPath<DownloadPolicy, Value>) -> Binding<Value> {
@@ -86,8 +87,22 @@ struct AutomationSettingsContent: View {
             Task { await model.saveControls(next) }
         })
     }
+    @AppStorage("automation.updateOnOpen") private var updateOnOpen = false
+    @AppStorage("automation.backgroundUpdates") private var backgroundUpdates = false
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
+            GeneralSection("Library updates") {
+                GeneralRow("Update library on app open", detail: "Check every saved series for new chapters when Moku starts. Results appear in Recent → Updates.") {
+                    Toggle("Update library on app open", isOn: $updateOnOpen).toggleStyle(GeneralToggleStyle())
+                }
+                GeneralStyle.divider
+                GeneralRow("Update in the background", detail: "iOS runs this while your iPhone is idle on a network, and Moku notifies you about new chapters.") {
+                    Toggle("Update in the background", isOn: Binding(get: { backgroundUpdates }, set: { value in
+                        backgroundUpdates = value
+                        if value { Task { _ = await BackgroundWork.requestNotificationPermission() } }
+                    })).toggleStyle(GeneralToggleStyle())
+                }
+            }
             GeneralSection("Behaviour") {
                 row("Enable automation", detail: "Run rules while Moku is active.", value: controls(\.enabled))
                 GeneralStyle.divider

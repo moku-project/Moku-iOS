@@ -21,6 +21,12 @@ struct PlayerView: View {
     @AppStorage("player.manualControls") private var manualControls = false
     @AppStorage("player.compactControls") private var compactControls = false
     @AppStorage("player.qualityScaling") private var qualityScaling = false
+    @AppStorage("player.backgroundAudio") private var backgroundAudio = true
+    @State private var pictureInPicture = PictureInPicture()
+    @State private var nowPlaying = NowPlaying()
+    @State private var backgrounded = false
+    @State private var seekFlash: SeekFlash?
+    private struct SeekFlash: Equatable { let seconds: Int; let leading: Bool; let id = UUID() }
     @State private var appliedDefaults = false
     @State private var controlsVisible = true
     @State private var panel: Panel?
@@ -36,17 +42,39 @@ struct PlayerView: View {
             let landscape = geometry.size.width > geometry.size.height
             ZStack {
                 Color.black.ignoresSafeArea()
-                PlayerSurface(player: model.player, qualityScaling: qualityScaling).ignoresSafeArea()
+                PlayerSurface(
+                    player: model.player, qualityScaling: qualityScaling,
+                    detached: backgrounded && !pictureInPicture.isActive,
+                    pictureInPicture: pictureInPicture
+                ).ignoresSafeArea()
                     .contentShape(Rectangle())
-                    .onTapGesture(count: manualControls ? 2 : 1) {
-                        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.18)) {
-                            controlsVisible.toggle()
-                            panel = nil
-                            lastInteraction = Date()
-                        }
-                    }
+                    // Double-tap the edges to seek like other players; the centre
+                    // toggles bars in manual mode and play/pause otherwise.
+                    .gesture(
+                        SpatialTapGesture(count: 2).onEnded { value in
+                            doubleTap(at: value.location.x, width: geometry.size.width)
+                        }.exclusively(before: TapGesture(count: 1).onEnded {
+                            if !manualControls { toggleControls() }
+                        }))
                     .accessibilityLabel("Video")
                     .accessibilityAction(named: "Show playback controls") { reveal() }
+                    .accessibilityAction(named: "Back 10 seconds") { model.seek(model.position - 10) }
+                    .accessibilityAction(named: "Forward 10 seconds") { model.seek(model.position + 10) }
+                if let flash = seekFlash {
+                    HStack {
+                        if !flash.leading { Spacer() }
+                        Label(flash.leading ? "−\(flash.seconds)s" : "+\(flash.seconds)s",
+                              phosphor: flash.leading ? "ArrowCounterClockwise" : "ArrowClockwise")
+                            .font(.system(size: 15, weight: .semibold))
+                            .padding(.horizontal, 16).padding(.vertical, 10)
+                            .background(.black.opacity(0.55), in: Capsule())
+                            .padding(.horizontal, geometry.size.width * 0.12)
+                        if flash.leading { Spacer() }
+                    }
+                    .transition(.opacity)
+                    .allowsHitTesting(false)
+                    .id(flash.id)
+                }
                 if !model.caption.isEmpty {
                     VStack {
                         Spacer()
@@ -84,13 +112,34 @@ struct PlayerView: View {
                             .frame(minHeight: 44).tint(accent)
                     }.padding(20).frame(maxWidth: 340).playerPanel()
                 }
+                if let marker = model.activeSkip, model.error == nil {
+                    VStack {
+                        Spacer()
+                        HStack {
+                            Spacer()
+                            Button { model.skip(marker) } label: {
+                                Label(marker.label, phosphor: "SkipForward")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .padding(.horizontal, 16).frame(minHeight: 44)
+                                    .background(.black.opacity(0.7), in: Capsule())
+                                    .overlay(Capsule().strokeBorder(.white.opacity(0.25)))
+                            }
+                            .accessibilityIdentifier("player.skip")
+                        }
+                        .padding(.trailing, 16)
+                        .padding(.bottom, controlsVisible ? (landscape ? 76 : 140) : 28)
+                    }
+                    .transition(.opacity)
+                }
                 if controlsVisible || model.error != nil {
                     VStack(spacing: 8) {
                         PlayerControls(
                             model: model, landscape: landscape, headerOnly: true,
                             scrubbing: $scrubbing, scrubPosition: $scrubPosition,
                             toggle: toggle, reveal: reveal, changeEpisode: changeEpisode,
-                            dismiss: { dismiss() })
+                            dismiss: { dismiss() },
+                            pictureInPicture: PictureInPicture.isSupported && pictureInPicture.isPossible
+                                ? { pictureInPicture.toggle() } : nil)
                         if let panel {
                             HStack {
                                 Spacer(minLength: 0)
@@ -163,8 +212,16 @@ struct PlayerView: View {
             UIApplication.shared.isIdleTimerDisabled = true
             try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback)
             try? AVAudioSession.sharedInstance().setActive(true)
+            nowPlaying.attach(
+                toggle: { model.togglePlayback() },
+                seek: { model.seek($0) },
+                skip: { model.seek(model.position + $0) },
+                episode: { changeEpisode(model.index + $0) })
             while !Task.isCancelled {
                 if !scrubbing { await model.tick() }
+                nowPlaying.update(
+                    title: model.title, episode: model.episodeLabel, position: model.position,
+                    duration: model.duration, rate: model.speed, playing: model.playing)
                 if !manualControls && model.playing && !model.buffering && panel == nil && !scrubbing && !voiceOver
                     && Date().timeIntervalSince(lastInteraction) > 4
                 {
@@ -177,21 +234,48 @@ struct PlayerView: View {
         }
         .onReceive(
             NotificationCenter.default.publisher(for: AVAudioSession.interruptionNotification)
-        ) { _ in
+        ) { note in
+            let type = (note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt)
+                .flatMap(AVAudioSession.InterruptionType.init)
+            if type == .ended {
+                let options = (note.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt)
+                    .map(AVAudioSession.InterruptionOptions.init) ?? []
+                if options.contains(.shouldResume), !model.playing { model.togglePlayback() }
+                return
+            }
             model.player.pause()
             model.playing = false
             reveal()
         }
         .onChange(of: scenePhase) { _, phase in
-            model.isActive = phase == .active
-            if phase != .active {
-                model.player.pause()
-                model.playing = false
-                reveal()
+            switch phase {
+            case .active:
+                backgrounded = false
+                model.isActive = true
+            case .background:
                 model.saveSnapshot()
+                // Keep playing with the screen off or in another app (audio, or PiP).
+                if (backgroundAudio || pictureInPicture.isActive) && model.playing {
+                    backgrounded = true
+                } else {
+                    model.isActive = false
+                    model.player.pause()
+                    model.playing = false
+                    reveal()
+                }
+            default:
+                break
             }
         }
+        // Remember what the viewer picks, like desktop does.
+        .onChange(of: model.subtitleScale) { _, value in defaultSubtitleScale = value }
+        .onChange(of: model.subtitleHeight) { _, value in defaultSubtitleHeight = value }
+        .onChange(of: model.subtitleBackground) { _, value in defaultSubtitleBackground = value }
+        .onChange(of: model.subtitleIndex) { _, index in
+            if let index, let track = model.stream?.subtitles[safe: index] { subtitleLanguage = track.lang }
+        }
         .onDisappear {
+            nowPlaying.detach()
             UIApplication.shared.isIdleTimerDisabled = previousIdleTimer
             model.stop()
             model.saveSnapshot()
@@ -206,10 +290,34 @@ struct PlayerView: View {
         case .subtitles: rows = 4 + max(1, model.stream?.subtitles.count ?? 0)
         case .episodes: rows = model.chapters.count
         case .speed: rows = 6
-        case .more: rows = 2 + (model.stream?.sources.count ?? 0) + 1
+        case .more: rows = 2 + (model.stream?.sources.count ?? 0) + 3
         }
         return CGFloat(rows * 44 + 56)
     }
+    private func toggleControls() {
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.18)) {
+            controlsVisible.toggle()
+            panel = nil
+            lastInteraction = Date()
+        }
+    }
+
+    private func doubleTap(at x: CGFloat, width: CGFloat) {
+        let zone = width > 0 ? x / width : 0.5
+        guard zone < 0.35 || zone > 0.65 else {
+            if manualControls { toggleControls() } else { model.togglePlayback() }
+            return
+        }
+        let back = zone < 0.35
+        model.seek(model.position + (back ? -10 : 10))
+        let flash = SeekFlash(seconds: 10, leading: back)
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.15)) { seekFlash = flash }
+        Task {
+            try? await Task.sleep(for: .milliseconds(700))
+            if seekFlash == flash { withAnimation(reduceMotion ? nil : .easeOut(duration: 0.25)) { seekFlash = nil } }
+        }
+    }
+
     private func toggle(_ value: Panel) {
         panel = panel == value ? nil : value
         reveal()

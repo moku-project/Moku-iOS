@@ -59,6 +59,48 @@ final class DownloadsViewModel {
     }
 
 
+    /// Queued or failed chapters leave the queue; finished ones delete their files.
+    func remove(_ targets: [DownloadEntry]) {
+        Task {
+            var failed = false
+            for entry in targets {
+                do {
+                    if entry.status == .completed {
+                        let _: IgnoredGraphQLResult = try await BackendAPI.shared.graphql(
+                            "mutation { deleteDownload(mediaId: \(BackendAPI.literal(entry.titleID)), chapterIds: [\(BackendAPI.literal(entry.id))]) }",
+                            requiresSourceRuntime: false)
+                    } else {
+                        let _: IgnoredGraphQLResult = try await BackendAPI.shared.graphql(
+                            "mutation { dequeueDownload(mediaId: \(BackendAPI.literal(entry.titleID)), chapterId: \(BackendAPI.literal(entry.id))) }",
+                            requiresSourceRuntime: false)
+                    }
+                } catch { failed = true }
+            }
+            await refresh()
+            Toaster.shared.show(
+                failed ? "Some downloads couldn’t be removed" : targets.count == 1 ? "Download removed" : "Removed \(targets.count) downloads",
+                kind: failed ? .error : .success)
+        }
+    }
+
+    /// Desktop "Move series to top / bottom": reorders each queued chapter of a title.
+    func move(titleID: String, toTop: Bool) {
+        let queue = entries.filter { $0.status == .queued || $0.status == .downloading }
+        let mine = queue.filter { $0.titleID == titleID }
+        guard !mine.isEmpty else { return }
+        Task {
+            do {
+                for (offset, entry) in mine.enumerated() {
+                    let position = toTop ? offset : queue.count - mine.count + offset
+                    let _: IgnoredGraphQLResult = try await BackendAPI.shared.graphql(
+                        "mutation { reorderDownload(mediaId: \(BackendAPI.literal(titleID)), chapterId: \(BackendAPI.literal(entry.id)), position: \(position)) }",
+                        requiresSourceRuntime: false)
+                }
+                await refresh()
+            } catch { Toaster.shared.show("Couldn’t reorder the queue", kind: .error) }
+        }
+    }
+
     func count(history: Bool) -> Int {
         entries.filter { ($0.status == .completed) == history }.count
     }
@@ -167,7 +209,7 @@ final class DownloadsViewModel {
 /// when missing or expired, rather than one serial query per title every poll.
 private actor DownloadSnapshotLoader {
     struct Snapshot: Sendable { let entries: [DownloadEntry]; let running: Bool }
-    private var names: [String: (title: String, expires: Date)] = [:]
+    private var names: [String: (title: String, cover: URL?, expires: Date)] = [:]
 
     func load() async throws -> Snapshot {
         struct ChapterInfo: Decodable, Sendable { let title: String?; let number: Double? }
@@ -186,13 +228,14 @@ private actor DownloadSnapshotLoader {
             try Task.checkCancellation()
             let batch = Array(missing.dropFirst(offset).prefix(40))
             let fields = batch.enumerated().map {
-                "m\($0.offset): media(id: \(BackendAPI.literal($0.element))) { title }"
+                "m\($0.offset): media(id: \(BackendAPI.literal($0.element))) { title thumbnailUrl }"
             }.joined(separator: " ")
-            struct Title: Decodable, Sendable { let title: String }
+            struct Title: Decodable, Sendable { let title: String; let thumbnailUrl: String? }
             let response: [String: Title?] = try await BackendAPI.shared.graphql(
                 "{ \(fields) }", requiresSourceRuntime: false)
             for (index, id) in batch.enumerated() {
-                names[id] = ((response["m\(index)"] ?? nil)?.title ?? "Title \(id)", .now.addingTimeInterval(300))
+                let media = response["m\(index)"] ?? nil
+                names[id] = (media?.title ?? "Title \(id)", BackendAPI.coverURL(media?.thumbnailUrl), .now.addingTimeInterval(300))
             }
         }
         try Task.checkCancellation()
@@ -209,7 +252,8 @@ private actor DownloadSnapshotLoader {
                 chapter: item.chapter.title ?? item.chapter.number.map { "Chapter \($0.formatted())" } ?? "Chapter",
                 status: status, progress: min(1, max(0, item.progress)),
                 bytes: Int64(max(0, item.downloadedBytes ?? 0)),
-                completedAt: item.completedAt.flatMap { formatter.date(from: $0) })
+                completedAt: item.completedAt.flatMap { formatter.date(from: $0) },
+                coverURL: names[item.mediaId]?.cover)
         }
         return Snapshot(entries: entries, running: result.downloaderStatus.isRunning)
     }

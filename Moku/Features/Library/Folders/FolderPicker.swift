@@ -93,7 +93,7 @@ struct FolderPicker: View {
             }
         }
         .tint(NavigationStyle.accent)
-        .preferredColorScheme(.dark)
+        .themedColorScheme()
 
     }
 }

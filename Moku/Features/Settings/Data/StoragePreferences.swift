@@ -93,7 +93,7 @@ struct SettingsArchive: Codable, Sendable {
                     && ["width", "height", "screen", "original"].contains($0.fitMode)
                     && ["ltr", "rtl"].contains($0.readingDirection)
                     && $0.readerZoom.isFinite && (0.1...1).contains($0.readerZoom)
-                    && ["top", "bottom"].contains($0.barPosition)
+                    && ["top", "bottom", "left", "right"].contains($0.barPosition)
                 }), (0...10).contains(document.behaviour.preloadPages),
                     document.behaviour.autoScrollSpeed.isFinite,
                     (1...30).contains(document.behaviour.autoScrollSpeed),

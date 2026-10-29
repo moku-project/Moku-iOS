@@ -13,7 +13,7 @@ final class PlayerViewModel {
     var chapterID: String
     var stream: EpisodeStream?
     var sourceIndex: Int?
-    var position = 0.0
+    var position = 0.0 { didSet { if position != oldValue { updateCaption() } } }
     var duration = 0.0
     var speed: Float = 1
     var playing = false
@@ -29,7 +29,15 @@ final class PlayerViewModel {
     var notice: String?
     var muted = false
     var subtitleIndex: Int?
-    var cues: [SubtitleCue] = []
+    var cues: [SubtitleCue] = [] { didSet { updateCaption() } }
+    /// Stored, not computed: the view re-renders four times a second while playing.
+    private(set) var caption = ""
+    private(set) var skipMarkers: [SkipMarker] = []
+    @ObservationIgnored private var skipLookup: String?
+    /// The marker under the playhead, offered as a Skip button until its last second.
+    var activeSkip: SkipMarker? {
+        skipMarkers.first { $0.start <= position && position < $0.end - 1 }
+    }
     var subtitleScale = 1.0
     var subtitleHeight = 9.0
     var subtitleBackground = false
@@ -65,9 +73,14 @@ final class PlayerViewModel {
         guard chapters.indices.contains(index) else { return "Episode" }
         return "Ep. \(chapters[index].number?.formatted() ?? String(index + 1))"
     }
-    var caption: String {
-        cues.filter { $0.start <= position && position < $0.end }.map(\.text).joined(
-            separator: "\n")
+    private func updateCaption() {
+        let next = cues.lazy.filter { $0.start <= self.position && self.position < $0.end }
+            .map(\.text).joined(separator: "\n")
+        if next != caption { caption = next }
+    }
+
+    func skip(_ marker: SkipMarker) {
+        seek(min(duration, marker.end))
     }
 
     func load(minimumLoadingDuration: Duration = .zero) async {
@@ -91,6 +104,8 @@ final class PlayerViewModel {
         automaticSubtitleTask = nil
         subtitleGeneration = UUID()
         cues = []
+        skipMarkers = []
+        skipLookup = nil
         player.pause()
         player.replaceCurrentItem(with: nil)
         do {
@@ -119,7 +134,13 @@ final class PlayerViewModel {
                     await self.selectSubtitle(index)
                 }
             }
-            try await replace(path: stream.url, resume: resume, token: token, shouldPlay: autoplay)
+            if let label = preferredSources[mediaID],
+                let index = stream.sources.firstIndex(where: { $0.label == label }) {
+                try await replace(path: stream.sources[index].url, resume: resume, token: token, shouldPlay: autoplay)
+                if generation == token { sourceIndex = index }
+            } else {
+                try await replace(path: stream.url, resume: resume, token: token, shouldPlay: autoplay)
+            }
             if generation == token { loadedChapterID = requestedChapterID }
         } catch is CancellationError {
         } catch {
@@ -152,8 +173,22 @@ final class PlayerViewModel {
         }
     }
 
+    var streamInfo: String {
+        let size = player.currentItem?.presentationSize ?? .zero
+        let resolution = size.height > 0 ? "\(Int(size.width))×\(Int(size.height))" : "Resolution unknown"
+        let source = sourceIndex.flatMap { stream?.sources[safe: $0]?.label } ?? "Default source"
+        return "\(resolution) · \(source)"
+    }
+
+    /// Desktop remembers the picked source per series (`preferredVideoSource`).
+    private var preferredSources: [String: String] {
+        get { (UserDefaults.standard.dictionary(forKey: "player.preferredSources") as? [String: String]) ?? [:] }
+        set { UserDefaults.standard.set(newValue, forKey: "player.preferredSources") }
+    }
+
     func changeSource(_ index: Int) async {
         guard let stream, stream.sources.indices.contains(index) else { return }
+        preferredSources[mediaID] = stream.sources[index].label
         let token = UUID()
         generation = token
         let resume = position
@@ -263,6 +298,15 @@ final class PlayerViewModel {
         }
         let total = item.duration.seconds
         if total.isFinite, total > 0 { duration = total }
+        if duration > 0, skipLookup != chapterID, loadedChapterID == chapterID {
+            let id = chapterID, length = Int(duration * 1000), repository = repository
+            skipLookup = id
+            Task { [weak self] in
+                let markers = (try? await repository.skipMarkers(chapterID: id, lengthMs: length)) ?? []
+                guard let self, self.chapterID == id else { return }
+                self.skipMarkers = markers
+            }
+        }
         if resumePosition > 0, item.status == .readyToPlay, duration > 0 {
             seek(resumePosition < duration - 2 ? resumePosition : 0)
             resumePosition = 0

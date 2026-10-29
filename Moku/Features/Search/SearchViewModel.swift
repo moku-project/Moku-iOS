@@ -150,6 +150,9 @@ final class SearchViewModel {
     var draft: SearchOptions
     private(set) var panel: Panel?
     private(set) var state: State = .idle
+    private(set) var loadingMore = false
+    private(set) var canLoadMore = false
+    @ObservationIgnored private var lastRequest: SearchRequest?
     private(set) var isSearching = false
     private(set) var searchMessage: String?
     private(set) var sources: [SearchSource] = []
@@ -179,7 +182,7 @@ final class SearchViewModel {
 
     var canSubmit: Bool {
         !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            || (options.method == .tags && !options.genres.isEmpty)
+            || !options.genres.isEmpty || !options.statuses.subtracting([.any]).isEmpty
     }
 
     var canApply: Bool { draft.method != .source || draft.sourceID != nil }
@@ -315,6 +318,7 @@ final class SearchViewModel {
         state = .loading
         isSearching = true
         searchMessage = nil
+        canLoadMore = false
         requestTask = Task { [weak self, repository] in
             defer {
                 if let self, self.generation == current { self.isSearching = false }
@@ -327,6 +331,8 @@ final class SearchViewModel {
                 let sorted = await Self.sorted(entries, by: request.options.sort)
                 guard !Task.isCancelled, self.generation == current else { return }
                 self.state = .results(sorted)
+                self.lastRequest = request
+                self.canLoadMore = !entries.isEmpty && !self.isLibrary
                 await self.remember(request.query)
             } catch is CancellationError {
             } catch {
@@ -365,6 +371,28 @@ final class SearchViewModel {
         state = .idle
         isSearching = false
         searchMessage = nil
+    }
+
+    /// Next page from every source that answered, appended without duplicates.
+    func loadMore() async {
+        guard var request = lastRequest, !loadingMore, case .results(let current) = state else { return }
+        request.page += 1
+        loadingMore = true
+        defer { loadingMore = false }
+        let generation = generation
+        do {
+            let more = try await repository.search(request)
+            guard self.generation == generation else { return }
+            let known = Set(current.map(\.id))
+            let fresh = more.filter { !known.contains($0.id) }
+            canLoadMore = !fresh.isEmpty
+            lastRequest = request
+            state = .results(current + (await Self.sorted(fresh, by: request.options.sort)))
+        } catch is CancellationError {
+        } catch {
+            guard self.generation == generation else { return }
+            Toaster.shared.show("Couldn’t load more results", detail: "Check your connection and try again.", kind: .error)
+        }
     }
 
     private func receive(_ entries: [MediaEntry], request: SearchRequest, generation: Int) async {

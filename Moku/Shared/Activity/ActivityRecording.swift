@@ -8,6 +8,7 @@ import SwiftUI
     private var seconds: TimeInterval = 0
     private var previousTime: Date?
     private var wasActive = false
+    private var lastPersisted: Date?
 
     func sample(
         home: HomeStore, entry: HomeEntry, chapterID: String, position: Int,
@@ -18,6 +19,7 @@ import SwiftUI
             session?.endedAt = now
         }
         previousTime = now
+        let activeChanged = wasActive != (active && valid)
         wasActive = active && valid
         if session?.chapterID != chapterID || session?.entryID != entry.id {
             persist(home: home, now: now)
@@ -29,6 +31,7 @@ import SwiftUI
             return
         }
         self.entry = entry
+        let isNew = session == nil
         if session == nil {
             guard active else { return }
             session = HomeSession(
@@ -37,8 +40,13 @@ import SwiftUI
         }
         session?.page = position
         let units = max(session?.completedUnits ?? 0, completed ? 1 : 0)
+        let completedChanged = units != session?.completedUnits
         session?.completedUnits = units
-        persist(home: home, now: now)
+        // Positions change every page or second; writing Home activity that often
+        // re-renders every screen observing it. The modifier's 5 s tick flushes the rest.
+        if isNew || completedChanged || activeChanged || lastPersisted.map({ now.timeIntervalSince($0) >= 5 }) ?? true {
+            persist(home: home, now: now)
+        }
     }
 
     func stop(home: HomeStore, now: Date = .now) {
@@ -58,6 +66,7 @@ import SwiftUI
         // Paused sessions don't continually jump to the top of Recent.
         if wasActive { session.endedAt = now }
         self.session = session
+        lastPersisted = now
         home.record(session, entry: entry)
     }
 }

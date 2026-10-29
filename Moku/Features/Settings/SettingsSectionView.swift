@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct SettingsSectionView: View {
+    @AppStorage("onboarding.completed") private var onboarded = true
     let category: SettingsCategory
     @Environment(\.dismiss) private var dismiss
 
@@ -33,6 +34,7 @@ struct SettingsSectionView: View {
     @AppStorage("player.manualControls") private var manualControls = false
     @AppStorage("player.compactControls") private var compactControls = false
     @AppStorage("player.qualityScaling") private var qualityScaling = false
+    @AppStorage("player.backgroundAudio") private var backgroundAudio = true
     @AppStorage("player.autoplay") private var playerAutoplay = true
     @AppStorage("player.speed") private var playerSpeed = 1.0
     @AppStorage("player.subtitleScale") private var subtitleScale = 1.0
@@ -43,7 +45,6 @@ struct SettingsSectionView: View {
     @State private var serverVersion: String?
     @State private var serverURL: String?
     @State private var confirmation: Action?
-    @State private var usage: StorageUsage?
     @State private var working = false
     @State private var notice: String?
     private let storage = SettingsStorage()
@@ -67,6 +68,7 @@ struct SettingsSectionView: View {
                 case .about: about
                 case .player: player
                 case .automation: AutomationSettingsContent()
+                case .sync: SyncSettingsContent()
                 case .tracking: EmptyView()  // Hosted by TrackingSettingsDestination.
                 case .performance: performance
                 case .keybinds: KeybindsSettingsContent()
@@ -121,7 +123,6 @@ struct SettingsSectionView: View {
         }
         .task(id: category) {
             notice = nil
-            if category == .storage { await refreshUsage() }
             if category == .devTools {
                 serverURL = await Backend.shared.currentServerURL()?.absoluteString
             }
@@ -199,7 +200,7 @@ struct SettingsSectionView: View {
             GeneralStyle.divider
             GeneralRow("Release notes", detail: "") { Link("View", destination: URL(string: "https://github.com/moku-project/Moku-iOS/releases")!).buttonStyle(GeneralTextButtonStyle()) }
             GeneralStyle.divider
-            GeneralRow("Report an issue", detail: "") { Link("Open", destination: URL(string: "https://github.com/moku-project/Moku-iOS/issues")!).buttonStyle(GeneralTextButtonStyle()) }
+            GeneralRow("Report an issue", detail: "") { Link("Open", destination: IssueReport.url).buttonStyle(GeneralTextButtonStyle()) }
 
         }
     }
@@ -251,6 +252,11 @@ struct SettingsSectionView: View {
                 toggle(
                     "Subtitle background", detail: "Show a background behind subtitle text.",
                     value: $subtitleBackground)
+            }
+            GeneralSection("Background") {
+                toggle("Keep playing in the background",
+                       detail: "Audio continues when you lock the screen or switch apps. Picture in Picture starts when you go home.",
+                       value: $backgroundAudio)
             }
             GeneralSection("Rendering") {
                 toggle("High-quality scaling", detail: "Use trilinear video scaling.", value: $qualityScaling)
@@ -310,8 +316,13 @@ struct SettingsSectionView: View {
                     Button("Lock") { appLock.lock() }.buttonStyle(GeneralTextButtonStyle()).disabled(!appLock.enabled)
                 }
                 GeneralStyle.divider
-                GeneralRow("Notice", detail: "Test an in-app notice.") {
-                    Button("Show") { notice = "Test notice." }.buttonStyle(GeneralTextButtonStyle())
+                GeneralRow("Toast", detail: "Show a test toast.") {
+                    Button("Show") { Toaster.shared.show("Test toast", detail: "Toasts confirm actions without blocking.") }
+                        .buttonStyle(GeneralTextButtonStyle())
+                }
+                GeneralStyle.divider
+                GeneralRow("Onboarding", detail: "Show the welcome screens again.") {
+                    Button("Replay") { onboarded = false }.buttonStyle(GeneralTextButtonStyle())
                 }
             }
             GeneralSection("Runtime") {
@@ -385,11 +396,6 @@ struct SettingsSectionView: View {
     private func bytes(_ value: Int64) -> String {
         ByteCountFormatter.string(fromByteCount: value, countStyle: .file)
     }
-    private func refreshUsage() async {
-        do { usage = try await storage.usage() } catch {
-            notice = "Couldn’t measure storage. Try again."
-        }
-    }
     private func perform(_ action: Action) async {
         working = true
         defer { working = false }
@@ -402,7 +408,6 @@ struct SettingsSectionView: View {
                 await BackendAPI.shared.clearContentCache()
                 SkeletonVisits.shared.clear()
                 try await storage.clearCovers()
-                await refreshUsage()
                 notice = "Cache cleared."
             } catch { notice = "Couldn’t clear all cached content. Try again." }
         case .reset:

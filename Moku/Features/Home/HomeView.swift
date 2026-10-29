@@ -188,7 +188,7 @@ struct HomeView: View {
                         Button("Done") { presentation = nil }
                     }.padding()
                 }
-        }.preferredColorScheme(.dark)
+        }.themedColorScheme()
     }
 
     private func pinSheet(slot: Int) -> some View {
@@ -230,7 +230,7 @@ struct HomeView: View {
                     Button("Cancel") { presentation = nil }
                 }
             }
-        }.preferredColorScheme(.dark)
+        }.themedColorScheme()
     }
 
     private func refreshBreakdown() async {

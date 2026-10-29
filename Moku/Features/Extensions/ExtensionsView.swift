@@ -26,6 +26,9 @@ struct ExtensionsView: View {
     @State private var deleting: ExtensionRepositoryInfo?
     @State private var renaming: ExtensionRepositoryInfo?
     @State private var rename = ""
+    @State private var installingURL = false
+    @State private var externalURL = ""
+    private var updatable: [SourceExtension] { model.installed.filter { $0.needsUpdate == true } }
     @Environment(\.navigationContentBottomInset) private var bottomInset
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @AppStorage("preferences.animations") private var animations = true
@@ -160,8 +163,34 @@ struct ExtensionsView: View {
                 }
             }
         }
+        .alert("Install from URL", isPresented: $installingURL) {
+            TextField("https://…/extension.apk", text: $externalURL)
+                .textInputAutocapitalization(.never).autocorrectionDisabled().keyboardType(.URL)
+            Button("Cancel", role: .cancel) {}
+            Button("Install") {
+                let url = externalURL.trimmingCharacters(in: .whitespacesAndNewlines)
+                Task {
+                    if await model.perform({ try await $0.installExternal(url: url) }) {
+                        Toaster.shared.show("Extension installed")
+                    }
+                }
+            }
+        } message: {
+            Text("Only install extensions from sources you trust. They run on this device with network access.")
+        }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("extensions.page")
+    }
+
+    private func updateAll() {
+        let packages = updatable.map(\.packageName)
+        Task {
+            if await model.perform({ repository in
+                for package in packages { try await repository.extensionAction(.updateExtension, package: package) }
+            }) {
+                Toaster.shared.show(packages.count == 1 ? "Extension updated" : "\(packages.count) extensions updated")
+            }
+        }
     }
 
     private var viewControls: some View {
@@ -359,6 +388,16 @@ struct ExtensionsView: View {
             .init(title: "Add", symbol: "Plus") {
                 dismissTools()
                 isAdding = true
+            },
+            .init(title: updatable.isEmpty ? "Up to date" : "Update all (\(updatable.count))",
+                  symbol: "ArrowsClockwise", isEnabled: !updatable.isEmpty) {
+                dismissTools()
+                updateAll()
+            },
+            .init(title: "Install from URL", symbol: "DownloadSimple") {
+                dismissTools()
+                externalURL = ""
+                installingURL = true
             },
         ]
     }

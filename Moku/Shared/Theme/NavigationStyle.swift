@@ -5,7 +5,22 @@ import SwiftUI
 final class AppTheme {
     static let shared = AppTheme()
     var name = "midnight"
-    var palette = NativeTheme.builtins[0]
+    var palette = NativeTheme.builtins[0] { didSet { if palette != oldValue { colors = Colors(palette) } } }
+    /// Parsed once per palette change; every view reads these many times per frame.
+    private(set) var colors = Colors(NativeTheme.builtins[0])
+
+    struct Colors {
+        let background, surface, accent, border, muted, secondary, text: Color
+        init(_ palette: NativeTheme) {
+            background = Color(themeHex: palette.background)
+            surface = Color(themeHex: palette.surface)
+            accent = Color(themeHex: palette.accent)
+            border = Color(themeHex: palette.border)
+            muted = Color(themeHex: palette.muted)
+            secondary = Color(themeHex: palette.secondary)
+            text = Color(themeHex: palette.text)
+        }
+    }
 }
 
 enum NavigationStyle {
@@ -21,9 +36,9 @@ enum NavigationStyle {
     static let compactNavigationHeight: CGFloat = 46
     static let navigationIndicatorSpacing: CGFloat = 2
 
-    @MainActor static var background: Color { Color(themeHex: AppTheme.shared.palette.background) }
-    @MainActor static var surface: Color { Color(themeHex: AppTheme.shared.palette.surface) }
-    @MainActor static var accent: Color { Color(themeHex: AppTheme.shared.palette.accent) }
+    @MainActor static var background: Color { AppTheme.shared.colors.background }
+    @MainActor static var surface: Color { AppTheme.shared.colors.surface }
+    @MainActor static var accent: Color { AppTheme.shared.colors.accent }
 
 }
 
@@ -49,5 +64,19 @@ struct FloatingSurface: ViewModifier {
                     .strokeBorder(.white.opacity(0.12), lineWidth: 0.5)
             }
             .shadow(color: .black.opacity(0.25), radius: 12, y: 4)
+    }
+}
+
+extension View {
+    /// Sheets and popups follow the app theme instead of forcing dark, so the
+    /// light themes don't show dark panels with light text.
+    func themedColorScheme() -> some View {
+        modifier(ThemedColorScheme())
+    }
+}
+
+private struct ThemedColorScheme: ViewModifier {
+    func body(content: Content) -> some View {
+        content.preferredColorScheme(AppTheme.shared.palette.isLight ? .light : .dark)
     }
 }

@@ -72,6 +72,13 @@ struct SearchOptionsView: View {
                     ) {
                         model.draft.sourceID = source.id
                     }
+                    .contextMenu {
+                        Button(source.isPinned ? "Unpin source" : "Pin source",
+                               phosphor: source.isPinned ? "PushPinSlash" : "PushPin") {
+                            SourcePins.toggle(source.id)
+                            Task { await model.loadSources() }
+                        }
+                    }
                 }
             }
             .firstLoadSkeleton(
@@ -88,7 +95,9 @@ struct SearchOptionsView: View {
             }
             if !model.isLibrary {
                 TextField("Find a genre", text: $genreQuery)
-                    .textFieldStyle(.roundedBorder)
+                    .font(.subheadline)
+                    .padding(.horizontal, 12).padding(.vertical, 10)
+                    .background(NavigationStyle.surface, in: RoundedRectangle(cornerRadius: 8))
                     .autocorrectionDisabled()
                     .accessibilityLabel("Find a genre")
                 section("Genres") {

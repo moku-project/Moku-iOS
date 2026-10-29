@@ -47,6 +47,7 @@ struct LibraryView: View {
     @State private var panel: Panel?
     @State private var menuLevel: RadialMenuLevel = .closed
     @State private var foldersPresented = false
+    @State private var removeSelectionConfirmed = false
     @State private var importPresented = false
     @State private var importHelpPresented = false
     @State private var newFolderPresented = false
@@ -110,16 +111,7 @@ struct LibraryView: View {
                     } else {
                         ScrollView {
                             VStack(alignment: .leading, spacing: 14) {
-                                if model.selecting {
-                                    HStack {
-                                        Text("\(model.selected.count) selected").font(.subheadline)
-                                        Spacer()
-                                        Button("Done") {
-                                            model.selecting = false
-                                            model.selected.removeAll()
-                                        }
-                                    }
-                                }
+                                if model.selecting { selectionBar }
                                 let allEntries = visibleItems
                                 let pageSize = min(200, max(12, renderLimit))
                                 let entries = Array(allEntries.dropFirst(pageIndex * pageSize).prefix(pageSize))
@@ -359,6 +351,67 @@ struct LibraryView: View {
         .accessibilityIdentifier("library.empty")
     }
 
+    private var selectionBar: some View {
+        let ids = model.selected
+        let chosen = library.entries.filter { ids.contains($0.id) }
+        return HStack(spacing: 6) {
+            Text("\(ids.count) selected").font(.subheadline.weight(.semibold))
+            Button(ids.count == visibleItems.count ? "None" : "All") {
+                model.selected = ids.count == visibleItems.count ? [] : Set(visibleItems.map(\.id))
+            }
+            .font(.subheadline).frame(minHeight: 44)
+            Spacer()
+            Group {
+                Menu {
+                    ForEach(library.organization.folders) { folder in
+                        Button(folder.name) {
+                            Task { await LibraryActions.move(ids, to: folder.id, library: library, model: model) }
+                        }
+                    }
+                    if model.folder != nil {
+                        Button("Remove from this folder", role: .destructive) {
+                            Task { await LibraryActions.move(ids, to: nil, library: library, model: model) }
+                        }
+                    }
+                } label: {
+                    PhosphorIcon("FolderSimple").frame(width: 44, height: 44)
+                }
+                .accessibilityLabel("Move to folder")
+                Button {
+                    Task { await LibraryActions.refresh(chosen, model: model) }
+                } label: { PhosphorIcon("ArrowsClockwise").frame(width: 44, height: 44) }
+                .accessibilityLabel("Refresh selected")
+                Button(role: .destructive) {
+                    removeSelectionConfirmed = true
+                } label: { PhosphorIcon("Trash").frame(width: 44, height: 44) }
+                .accessibilityLabel("Remove selected from library")
+            }
+            .disabled(ids.isEmpty)
+            Button("Done") {
+                model.selecting = false
+                model.selected.removeAll()
+            }
+            .font(.subheadline.weight(.semibold)).frame(minHeight: 44)
+        }
+        .padding(.horizontal, 12)
+        .background(NavigationStyle.surface, in: RoundedRectangle(cornerRadius: 12))
+        .confirmationDialog(
+            "Remove \(ids.count) titles from your library?", isPresented: $removeSelectionConfirmed,
+            titleVisibility: .visible
+        ) {
+            Button("Remove", role: .destructive) {
+                Task {
+                    await LibraryActions.remove(chosen, library: library, model: model)
+                    model.selecting = false
+                }
+            }
+        } message: {
+            Text("You can add them back from Search at any time.")
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("library.selectionBar")
+    }
+
     private var radialActions: [RadialAction] {
         switch menuLevel {
         case .closed: []
@@ -368,6 +421,10 @@ struct LibraryView: View {
                     openLibrarySearch(options: false)
                 },
                 .init(title: "Add", symbol: "Plus") { menuLevel = .add },
+                .init(title: "Update", symbol: "ArrowsClockwise") {
+                    dismissTools()
+                    Task { await updateLibrary() }
+                },
                 .init(title: "Sort", symbol: "SortAscending") { openLibrarySearch(options: true) },
                 .init(title: "Filter", symbol: "Funnel") { openLibrarySearch(options: true) },
             ]
@@ -381,6 +438,33 @@ struct LibraryView: View {
                     newFolderPresented = true
                 },
             ]
+        }
+    }
+
+    /// Desktop "Update every series in the library": runs on the server, which
+    /// skips folders excluded from updates; results land in Recent → Updates.
+    private func updateLibrary() async {
+        let repository = LiveRecentRepository()
+        Toaster.shared.show("Updating library", detail: "New chapters will appear in Recent → Updates.", kind: .info)
+        do {
+            try await repository.startLibraryUpdate()
+            try await Task.sleep(for: .seconds(1))
+            var status = try await repository.libraryUpdateStatus()
+            while status.running {
+                try await Task.sleep(for: .seconds(2))
+                status = try await repository.libraryUpdateStatus()
+            }
+            let count = status.newChapterCount
+            if !status.failedTitles.isEmpty {
+                Toaster.shared.show("\(status.failedTitles.count) series failed to update", detail: status.failedTitles.prefix(3).joined(separator: ", "), kind: .error)
+            } else {
+                Toaster.shared.show(count == 0 ? "Nothing new" : "Library update complete",
+                                    detail: count == 0 ? nil : "\(count) new chapter\(count == 1 ? "" : "s") or episode\(count == 1 ? "" : "s").")
+            }
+            await loadStats()
+        } catch is CancellationError {
+        } catch {
+            Toaster.shared.show("Update failed", detail: "Check your connection and try again.", kind: .error)
         }
     }
 
@@ -432,6 +516,10 @@ struct LibraryView: View {
                     totalUnits: progress?.chapterCount ?? saved?.chapters.count ?? 0,
                     downloaded: downloaded.contains(entry.id) || (progress?.downloadedCount ?? 0) > 0,
                     bookmarked: starred.contains(entry.id),
+                    status: LibraryStatus(source: progress?.status),
+                    addedAt: progress?.addedAt.flatMap(Self.date) ?? .distantPast,
+                    latestUpload: progress?.latestChapter?.uploadedAt.flatMap(Self.date) ?? .distantPast,
+                    tracked: !(progress?.trackLinks ?? []).isEmpty,
                     lastRead: lastRead[entry.id] ?? .distantPast))
             }
             return items
@@ -455,15 +543,24 @@ struct LibraryView: View {
     }
 
     private struct LibraryStats: Decodable, Sendable {
+        struct Latest: Decodable, Sendable { let uploadedAt: String? }
         let id: String; let chapterCount: Int; let unreadCount: Int; let downloadedCount: Int
+        let status: String?; let addedAt: String?; let latestChapter: Latest?
+        struct Link: Decodable, Sendable { let id: String }
+        let trackLinks: [Link]?
     }
+    private nonisolated static func date(_ value: String) -> Date? {
+        (try? Date(value, strategy: .iso8601))
+            ?? (try? Date(value, strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true)))
+    }
+
     private func loadStats(ifStale: Bool = false) async {
         guard !Task.isCancelled else { return }
         if ifStale, let statsLoadedAt, Date.now.timeIntervalSince(statsLoadedAt) < 30 { return }
         guard !PreviewMode.isEnabled, library.entries.contains(where: { Int64($0.id) != nil }) else { return }
         do {
             struct Result: Decodable, Sendable { struct Page: Decodable, Sendable { let items: [LibraryStats] }; let library: Page }
-            let result: Result = try await BackendAPI.shared.graphql("{ library(limit: 10000) { items { id chapterCount unreadCount downloadedCount } } }", requiresSourceRuntime: false)
+            let result: Result = try await BackendAPI.shared.graphql("{ library(limit: 10000) { items { id chapterCount unreadCount downloadedCount status addedAt latestChapter { uploadedAt } trackLinks { id } } } }", requiresSourceRuntime: false)
             try Task.checkCancellation()
             statsLoadedAt = .now
             backendStats = Dictionary(result.library.items.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
@@ -479,6 +576,7 @@ struct LibraryView: View {
         target.startedOnly = source.startedOnly
         target.downloadedOnly = source.downloadedOnly
         target.bookmarkedOnly = source.bookmarkedOnly
+        target.trackedOnly = source.trackedOnly
         target.status = source.status
     }
 

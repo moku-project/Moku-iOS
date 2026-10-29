@@ -19,6 +19,7 @@ final class CanvasCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogniz
     var lastSettings: MangaReadingSettings?
     var lastLandscape = false
     var reportedPage: Int?
+    private var scrolledWindow: ClosedRange<Int>?
     var lastJump: UUID?
     var lastSize = CGSize.zero
     var layingOut = false
@@ -33,6 +34,8 @@ final class CanvasCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogniz
         scroll.delegate = self
         scroll.backgroundColor = .black
         scroll.contentInsetAdjustmentBehavior = .never
+        // Page turns are driven by gestures; rubber-banding would shift the page.
+        scroll.bounces = false
         scroll.showsHorizontalScrollIndicator = false
         scroll.showsVerticalScrollIndicator = false
         scroll.addSubview(canvas)
@@ -138,6 +141,7 @@ final class CanvasCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogniz
         loadWindow()
     }
     func layout(anchor: Int?) {
+        scrolledWindow = nil
         guard !layingOut, let scroll, scroll.bounds.width > 0 else { return }
         layingOut = true
         defer { layingOut = false }
@@ -343,6 +347,12 @@ final class CanvasCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogniz
                 }
             }
         }
+        // loadWindow walks the cache and every page view; only rerun it when the
+        // visible range moves to another page, not on every scrolled frame.
+        let first = firstPageIndex(below: visibleRect.minY)
+        let window = first...max(first, firstPageIndex(below: visibleRect.maxY))
+        guard window != scrolledWindow else { return }
+        scrolledWindow = window
         loadWindow()
     }
     func scrollViewWillBeginDragging(_ scrollView: UIScrollView) { autoPaused = true }
