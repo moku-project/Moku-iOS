@@ -134,6 +134,24 @@ final class LibraryStore {
         _ = await saveOrganization(next)
     }
 
+    /// Desktop "Series link": links or unlinks two titles as the same series,
+    /// in both directions.
+    func setLinked(_ id: String, _ other: String, linked: Bool) async {
+        await loadOrganization()
+        guard id != other else { return }
+        var next = organization
+        var links = next.linkedTitles ?? [:]
+        if linked {
+            links[id, default: []].insert(other)
+            links[other, default: []].insert(id)
+        } else {
+            links[id]?.remove(other)
+            links[other]?.remove(id)
+        }
+        next.linkedTitles = links.filter { !$0.value.isEmpty }
+        _ = await saveOrganization(next)
+    }
+
     func linkedEntries(for id: String) -> [MediaEntry] {
         let ids = organization.linkedTitles?[id] ?? []
         return entries.filter { ids.contains($0.id) }

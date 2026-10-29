@@ -47,7 +47,7 @@ import XCTest
         for name in [
             "General", "Appearance", "Reader", "Player", "Library", "Automation", "Tracking",
             "Performance", "Keybinds", "Storage", "Folders", "Content", "Server", "Auth", "About",
-            "Dev Tools",
+            "Dev tools",
         ] {
             let row = app.buttons["settings.category.\(name)"]
             for _ in 0..<4 {
@@ -139,7 +139,12 @@ import XCTest
         app.launchArguments = ["--ui-testing-storage", "-mokuStorageTestID", UUID().uuidString]
         app.launch()
         app.buttons["Downloads"].tap()
+        // History lives in the view switcher; open it, then pick History.
+        XCTAssertTrue(app.buttons["downloads.activeView"].waitForExistence(timeout: 5))
+        app.buttons["downloads.activeView"].tap()
+        XCTAssertTrue(app.buttons["downloads.history"].waitForExistence(timeout: 3))
         app.buttons["downloads.history"].tap()
+        XCTAssertEqual(app.buttons["downloads.activeView"].value as? String, "History")
         app.buttons["Settings"].firstMatch.tap()
         let back = app.buttons["account.back"]
         XCTAssertTrue(back.waitForExistence(timeout: 3))
@@ -149,13 +154,13 @@ import XCTest
                 .allElementsBoundByIndex.contains { $0.isHittable })
         capture("Settings spacious index")
         back.tap()
-        XCTAssertTrue(app.buttons["downloads.history"].isSelected)
+        XCTAssertEqual(app.buttons["downloads.activeView"].value as? String, "History")
         XCTAssertFalse(app.buttons["header.profile"].exists)
         app.buttons["Settings"].firstMatch.tap()
         app.buttons["settings.category.General"].tap()
         app.buttons["settings.back"].tap()
         back.tap()
-        XCTAssertTrue(app.buttons["downloads.history"].isSelected)
+        XCTAssertEqual(app.buttons["downloads.activeView"].value as? String, "History")
     }
 
     private func openSettings(_ app: XCUIApplication) {

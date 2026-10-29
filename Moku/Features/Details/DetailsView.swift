@@ -34,7 +34,7 @@ struct DetailsView: View {
     @State private var playingChapter: Chapter?
     @State private var selecting = false
     @State private var manageSheet: ManageSheet?
-    private enum ManageSheet: String, Identifiable { case tracking, migrate, automation; var id: Self { self } }
+    private enum ManageSheet: String, Identifiable { case tracking, migrate, automation, metadata, cover, link; var id: Self { self } }
     @State private var selected: Set<String> = []
 
     init(entry: MediaEntry, initialChapterID: String? = nil, back: @escaping () -> Void) {
@@ -114,6 +114,16 @@ struct DetailsView: View {
                         // The old entry is gone; show the series on its new source.
                         library.invalidateServerVisibility()
                         linkedEntry = moved
+                    }
+                case .cover:
+                    CoverPickerSheet(entry: entry, sourceCover: details.thumbnailUrl) {
+                        Task { await model.load(refresh: true) }
+                    }
+                case .link:
+                    SeriesLinkSheet(entry: entry)
+                case .metadata:
+                    MetadataSheet(mediaID: details.id, title: details.title, media: entry.media) {
+                        Task { await model.load(refresh: true) }
                     }
                 case .automation:
                     NavigationStack {
@@ -235,7 +245,7 @@ struct DetailsView: View {
                     Task { await toggleLibrary() }
                 } label: {
                     Label(
-                        isSaved ? "In Library" : "Add to Library",
+                        isSaved ? "In library" : "Add to library",
                         phosphor: isSaved ? "Bookmark.fill" : "Bookmark"
                     )
                     .font(.subheadline)
@@ -350,7 +360,7 @@ struct DetailsView: View {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(chapter.label).font(.subheadline)
                                         .foregroundStyle(chapter.completed && !selecting ? .secondary : .primary)
-                                    let caption = [chapter.scanlator, chapter.uploadedDate].compactMap { $0 }.joined(separator: " · ")
+                                    let caption = [resumeLabel(chapter), chapter.scanlator, chapter.uploadedDate].compactMap { $0 }.joined(separator: " · ")
                                     if !caption.isEmpty {
                                         Text(caption).font(.caption).foregroundStyle(.secondary)
                                     }
@@ -378,18 +388,13 @@ struct DetailsView: View {
         Menu {
             Button("Tracking", phosphor: "Broadcast") { manageSheet = .tracking }
             Button("Switch source", phosphor: "ArrowsLeftRight") { manageSheet = .migrate }
+            Button("Metadata match", phosphor: "MagnifyingGlass") { manageSheet = .metadata }
             if isSaved {
                 Button("Automation", phosphor: "Robot") { manageSheet = .automation }
             }
-            Button("Refresh cover", phosphor: "Image") {
-                Task {
-                    let _: IgnoredGraphQLResult? = try? await BackendAPI.shared.graphql(
-                        "mutation { refetchMediaCover(mediaId: \(BackendAPI.literal(details.id))) { id } }")
-                    await BackendAPI.shared.clearCoverCache()
-                    await model.load(refresh: true)
-                    Toaster.shared.show("Cover refreshed")
-                }
-            }
+            Button("Cover image", phosphor: "Image") { manageSheet = .cover }
+            let links = library.linkedEntries(for: entry.id).count
+            Button(links > 0 ? "Series link (\(links))" : "Series link", phosphor: "Link") { manageSheet = .link }
             let downloaded = details.chapters.filter(\.downloaded).map(\.id)
             if !downloaded.isEmpty {
                 Button("Delete downloads (\(downloaded.count))", phosphor: "Trash", role: .destructive) {
@@ -403,6 +408,20 @@ struct DetailsView: View {
         }
         .accessibilityLabel("Manage")
         .accessibilityIdentifier("details.manage")
+    }
+
+    /// Desktop chapter rows show where an unfinished chapter stopped.
+    private func resumeLabel(_ chapter: Chapter) -> String? {
+        guard !chapter.completed, let progress = chapter.readingProgress else { return nil }
+        if entry.media == .anime, let seconds = progress.positionSeconds, seconds >= 5 {
+            return "Stopped at \(Duration.seconds(seconds).formatted(.time(pattern: seconds >= 3600 ? .hourMinuteSecond : .minuteSecond)))"
+        }
+        if entry.media != .anime, entry.media != .novels,
+           let position = readerPreferences.document.positions[entry.id], position.chapterID == chapter.id, position.page > 1 {
+            return "Page \(position.page)"
+        }
+        guard progress.progress > 0.01, progress.progress < 0.97 else { return nil }
+        return "\(Int(progress.progress * 100))% read"
     }
 
     private func open(_ chapter: Chapter) {

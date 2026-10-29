@@ -77,7 +77,7 @@ struct AppearanceSettingsContent: View {
                                 if darkTheme == item.id { darkTheme = "midnight" }
                                 if lightTheme == item.id { lightTheme = "light" }
                             }
-                        } label: { Text("Manage").font(.system(size: 14)).frame(minHeight: 44).foregroundStyle(GeneralStyle.text) }
+                        } label: { Text("Manage").font(.subheadline).frame(minHeight: 44).foregroundStyle(GeneralStyle.text) }
                     }
                     GeneralStyle.divider
                 }
@@ -116,7 +116,7 @@ struct AppearanceSettingsContent: View {
     private func saveThemes(_ value: [NativeTheme]) { if let data = try? JSONEncoder().encode(value) { custom = data } }
     private func choice(_ title: String, value: Binding<String>) -> some View {
         GeneralRow(title, detail: "") {
-            ChoicePicker(title: "", selection: value, options: options).font(.system(size: 14))
+            ChoicePicker(title: "", selection: value, options: options).font(.subheadline)
                 .accessibilityIdentifier("settings.picker.\(title)").accessibilityValue(value.wrappedValue)
         }
     }

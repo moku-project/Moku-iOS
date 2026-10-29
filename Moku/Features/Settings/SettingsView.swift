@@ -4,17 +4,16 @@ struct SettingsView: View {
     let backLabel: String
     let back: () -> Void
     @ScaledMetric(relativeTo: .body) private var rowTextSize = 17.5
-    @ScaledMetric(relativeTo: .body) private var rowIconSize = 21.25
     let openExtensions: () -> Void
 
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
-                ForEach(SettingsCategory.allCases, id: \.self) { section in
+                ForEach(SettingsCategory.visible, id: \.self) { section in
                     NavigationLink(value: section) {
                         HStack(spacing: 8) {
-                            PhosphorIcon(section.symbol).iconSize(rowIconSize)
-                                .foregroundStyle(.secondary).frame(width: 30)
+                            PhosphorIcon(section.symbol, size: 21.25)
+                                .foregroundStyle(.secondary).frame(minWidth: 30)
                             Text(section.rawValue).font(.system(size: rowTextSize))
                             Spacer(minLength: 12)
                             PhosphorIcon("CaretRight").iconSize(13.75)

@@ -33,7 +33,9 @@ struct RadialMenu: View {
     @State private var flyingOffset = CGSize.zero
     @State private var haptic = false
 
-    var body: some View {
+    var body: some View { chrome.dynamicTypeSize(...DynamicTypeSize.xxLarge) }
+    // Navigation chrome stops growing at the largest standard size; content keeps scaling.
+    @ViewBuilder private var chrome: some View {
         // Every orbit is an overlay, so it cannot change the FAB's layout or hit frame.
         Button {
             haptic.toggle()

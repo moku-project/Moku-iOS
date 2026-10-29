@@ -18,6 +18,7 @@ struct ExtensionsView: View {
     @State private var menuLevel: RadialMenuLevel = .closed
     @State private var toolSheet: ToolSheet?
     @State private var settingsSource: SourceExtension?
+    @State private var librarySource: SourceExtension?
     @State private var model = ExtensionsViewModel(repository: AppDependencies.extensionRepository)
     @State private var isAdding = false
     @State private var repositoryName = ""
@@ -32,7 +33,6 @@ struct ExtensionsView: View {
     @Environment(\.navigationContentBottomInset) private var bottomInset
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @AppStorage("preferences.animations") private var animations = true
-    @ScaledMetric(relativeTo: .body) private var rowIconSize = 22
     @ScaledMetric(relativeTo: .body) private var logoSize = 64
     private var reduceMotion: Bool { systemReduceMotion || !animations }
     private var visibleRepositories: [ExtensionRepositoryInfo] {
@@ -114,6 +114,7 @@ struct ExtensionsView: View {
         .sheet(item: $settingsSource) {
             SourceSettingsView(source: $0, repository: AppDependencies.extensionRepository)
         }
+        .sheet(item: $librarySource) { ExtensionLibrarySheet(source: $0) }
         .alert(
             "Uninstall \(removing?.displayName ?? "extension")?",
             isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } })
@@ -193,7 +194,9 @@ struct ExtensionsView: View {
         }
     }
 
-    private var viewControls: some View {
+    private var viewControls: some View { viewControlsContent.dynamicTypeSize(...DynamicTypeSize.xxLarge) }
+    // Navigation chrome stops growing at the largest standard size; content keeps scaling.
+    @ViewBuilder private var viewControlsContent: some View {
         HStack(spacing: 12) {
             IconRail(
                 title: section.rawValue, symbol: section.symbol,
@@ -262,14 +265,13 @@ struct ExtensionsView: View {
                 } label: {
                     Text("+ Add repository").font(.subheadline.weight(.medium))
                         .foregroundStyle(NavigationStyle.accent).frame(minHeight: 44)
-                }.buttonStyle(.plain).accessibilityIdentifier(
-                    "extensions.AddRepositoryView(model: model, repositoryName: $repositoryName, repositoryURL: $repositoryURL, isAdding: $isAdding)"
-                )
+                }.buttonStyle(.plain).accessibilityIdentifier("extensions.addRepository")
                 .listRowBackground(Color.clear).listRowSeparator(.hidden)
             } else {
                 ForEach(section == .installed ? model.visibleInstalled : model.items) { item in
                     ExtensionRow(
                         item: item, search: search, configure: { settingsSource = $0 },
+                        openLibrary: { librarySource = $0 },
                         change: change
                     )
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
@@ -369,7 +371,7 @@ struct ExtensionsView: View {
                     renaming = repo
                 }
             } label: {
-                PhosphorIcon("DotsThree").iconSize(rowIconSize)
+                PhosphorIcon("DotsThree", size: 22)
                     .foregroundStyle(.secondary).frame(width: 44, height: 44)
             }.accessibilityLabel("Manage \(repo.title)")
         }.padding(.vertical, 4)

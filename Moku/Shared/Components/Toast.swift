@@ -100,7 +100,7 @@ private struct ToastCard: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
-            PhosphorIcon(icon).foregroundStyle(tint).font(.system(size: 15))
+            PhosphorIcon(icon).foregroundStyle(tint).font(.subheadline)
             VStack(alignment: .leading, spacing: 2) {
                 Text(toast.title).font(.subheadline.weight(.semibold))
                 if let detail = toast.detail {

@@ -41,7 +41,7 @@ struct IconRail<Content: View>: View {
     let reduceMotion: Bool
     var labelFont: Font = .subheadline.weight(.medium)
     var iconSize: CGFloat = 22
-    var iconColor: Color = .white
+    var iconColor: Color = GeneralStyle.text
     var instantTitleChange = false
     var iconOnly = false
     var trailing = false
@@ -102,7 +102,7 @@ struct IconRail<Content: View>: View {
                 reduceMotion || !expanded ? nil : .easeOut(duration: IconRailMotion.stepDuration),
                 value: expanded
             )
-            .foregroundStyle(.white)
+            .foregroundStyle(GeneralStyle.text)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -112,8 +112,8 @@ struct IconRail<Content: View>: View {
         .overlay(alignment: trailing ? .trailing : .leading) {
             if iconOnly {
                 Text(title)
-                    .font(.system(size: 17, weight: .medium))
-                    .foregroundStyle(.white)
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(GeneralStyle.text)
                     .fixedSize()
                     .padding(trailing ? .trailing : .leading, 56 + trailingRailInset)
                     .offset(x: reduceMotion || expanded ? 0 : (trailing ? 36 : -36))
@@ -240,7 +240,7 @@ struct IconRailRow: View {
     }
     private var rowIcon: some View {
         PhosphorIcon(symbol).iconSize(22)
-            .foregroundStyle(selected ? Color.white : Color.white.opacity(0.55))
+            .foregroundStyle(selected ? GeneralStyle.text : GeneralStyle.text.opacity(0.55))
             .frame(width: 36, height: 36)
             .background {
                 if selected {
@@ -252,9 +252,9 @@ struct IconRailRow: View {
     }
 
     private var rowLabel: some View {
-        Text(title).font(.system(size: 17, weight: selected ? .medium : .regular))
-            .foregroundStyle(selected ? Color.white : Color.white.opacity(0.55))
-            .shadow(color: .black.opacity(0.8), radius: 3, y: 1)
+        Text(title).font(.body.weight(selected ? .medium : .regular))
+            .foregroundStyle(selected ? GeneralStyle.text : GeneralStyle.text.opacity(0.55))
+            .shadow(color: AppTheme.shared.palette.isLight ? .clear : .black.opacity(0.8), radius: 3, y: 1)
             .padding(iconOnRight ? .leading : .trailing, 8)
             .offset(
                 x: reduceMotion || revealed

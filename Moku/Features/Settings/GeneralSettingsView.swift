@@ -24,11 +24,11 @@ struct GeneralSettingsView: View {
             if !serverOnly {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Interface scale")
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(.title3.weight(.semibold))
                         .foregroundStyle(GeneralStyle.text)
                         .accessibilityAddTraits(.isHeader)
                     Text("Adjust the size of the app. Reader zoom is separate.")
-                        .font(.system(size: 13)).foregroundStyle(GeneralStyle.faint)
+                        .font(.footnote).foregroundStyle(GeneralStyle.faint)
                         .fixedSize(horizontal: false, vertical: true)
                     HStack(spacing: 8) {
                         Button {
@@ -41,7 +41,7 @@ struct GeneralSettingsView: View {
                         .accessibilityLabel("Decrease interface scale")
                         .accessibilityIdentifier("settings.general.scale.decrease")
                         Text("\(Int(GeneralPreferences.clampedScale(scale)))%")
-                            .font(.system(size: 18, weight: .medium)).monospacedDigit()
+                            .font(.title3.weight(.medium)).monospacedDigit()
                             .foregroundStyle(GeneralStyle.text)
                             .frame(minWidth: 54)
                             .accessibilityIdentifier("settings.general.scaleValue")
@@ -69,12 +69,11 @@ struct GeneralSettingsView: View {
                 }
             }
             GeneralSection("Server") {
-                GeneralRow("Server URL", detail: "Address of the bundled server on this device.") {
-                    Text(serverURL ?? "On this iPhone")
-                        .font(.system(size: 14)).foregroundStyle(GeneralStyle.text).textSelection(
-                            .enabled
-                        )
-                        .multilineTextAlignment(.trailing).frame(maxWidth: 130)
+                // The loopback address changes every launch and is private to the app,
+                // so show what it means rather than the URL.
+                GeneralRow("Bundled server", detail: "Runs privately on this device. Sources and downloads go through it.") {
+                    Text(serverURL == nil ? "Not started" : "Running")
+                        .font(.subheadline).foregroundStyle(serverURL == nil ? GeneralStyle.label : NavigationStyle.accent)
                 }
                 GeneralStyle.divider
                 GeneralRow(
@@ -112,7 +111,7 @@ struct GeneralSettingsView: View {
                         ChoicePicker(
                             title: "", selection: $startTab,
                             options: AppTab.allCases.filter { $0 != .more }.map { ($0.rawValue, $0.title) }
-                        ).font(.system(size: 14))
+                        ).font(.subheadline)
                     }
                 }
                 GeneralSection("Inactivity") {
@@ -127,7 +126,7 @@ struct GeneralSettingsView: View {
                                 ($0, GeneralPreferences.timeoutLabel($0))
                             }
                         )
-                        .font(.system(size: 14))
+                        .font(.subheadline)
                         .accessibilityLabel("Idle screen timeout")
                         .accessibilityValue(GeneralPreferences.timeoutLabel(idleTimeout))
                         .accessibilityIdentifier("settings.general.idleTimeout")
@@ -157,7 +156,7 @@ struct GeneralSettingsView: View {
                                 set: { language = $0 }),
                             options: GeneralPreferences.languageOptions(including: language)
                         )
-                        .font(.system(size: 14)).frame(maxWidth: 160)
+                        .font(.subheadline).frame(maxWidth: 160)
                         .accessibilityLabel("Preferred source language")
                         .accessibilityIdentifier("settings.general.language")
                     }

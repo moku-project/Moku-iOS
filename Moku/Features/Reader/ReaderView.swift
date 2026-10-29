@@ -69,6 +69,26 @@ struct ReaderView: View {
                         }.padding(12)
                     }
                 }
+                if let resumed = model.resumedPage, model.page == resumed, model.chromeVisible, !model.drawerOpen {
+                    VStack {
+                        Spacer()
+                        Button { model.resumedPage = nil } label: {
+                            Label("Bookmark at page \(resumed)", phosphor: "Bookmark")
+                                .font(.footnote.weight(.medium))
+                                .padding(.horizontal, 14).padding(.vertical, 10)
+                                .modifier(ReaderSurface())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Dismisses this notice")
+                        .accessibilityIdentifier("reader.resumed")
+                        .padding(.bottom, model.settings.barPosition == "top" ? 120 : 32)
+                    }
+                    .transition(.opacity)
+                    .task(id: resumed) {
+                        try? await Task.sleep(for: .seconds(2.5))
+                        withAnimation(motion ? .easeOut(duration: 0.4) : nil) { model.resumedPage = nil }
+                    }
+                }
                 if model.drawerOpen {
                     Color.black.opacity(0.42).ignoresSafeArea()
                         .onTapGesture { drawer(false) }
@@ -188,11 +208,11 @@ struct ReaderView: View {
                 pickerOpen = true
             } label: {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(model.details.title).font(.system(size: 14, weight: .medium)).lineLimit(1)
+                    Text(model.details.title).font(.subheadline.weight(.medium)).lineLimit(1)
                     HStack(spacing: 5) {
                         Text(model.chapter?.label ?? "Chapter").lineLimit(1)
                         PhosphorIcon("CaretDown", size: 11)
-                    }.font(.system(size: 12)).foregroundStyle(.secondary)
+                    }.font(.caption).foregroundStyle(.secondary)
                 }.frame(maxWidth: .infinity, minHeight: 48, alignment: .leading).padding(
                     .leading, 12)
             }.accessibilityLabel("Select chapter").accessibilityIdentifier("reader.chapters")
@@ -212,7 +232,7 @@ struct ReaderView: View {
                 pageEntryOpen = true
             } label: {
                 Text("\(model.page) / \(model.pages.count)").font(
-                    .system(size: 12, design: .monospaced)
+                    .caption.monospacedDigit()
                 )
                 .frame(minHeight: 36)
             }.accessibilityIdentifier("reader.page")
@@ -255,7 +275,7 @@ struct ReaderView: View {
                 model.changeChapter(forward: true)
             }
             Spacer(minLength: 0)
-            Text("\(model.page)").font(.system(size: 12, design: .monospaced))
+            Text("\(model.page)").font(.caption.monospacedDigit())
             icon("ArrowLeft", label: "Previous", id: "reader.previous", weight: "light") {
                 model.navigate(forward: false)
             }

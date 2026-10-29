@@ -11,9 +11,12 @@ import XCTest
         let source = app.buttons["extensions.search.fixture"]
         XCTAssertTrue(source.waitForExistence(timeout: 3))
         source.tap()
-        XCTAssertTrue(app.textFields["search.input"].waitForExistence(timeout: 3))
-        app.textFields["search.input"].tap()
-        app.textFields["search.input"].typeText("\n")
+        // A source opens its own page: popular titles and a search inside the source.
+        XCTAssertTrue(app.textFields["source.search"].waitForExistence(timeout: 5))
+        app.textFields["source.search"].tap()
+        app.textFields["source.search"].typeText("\n")
+        app.buttons["source.back"].tap()
+        XCTAssertTrue(app.textFields["search.input"].waitForExistence(timeout: 5))
         app.buttons["tab.more"].tap()
         app.buttons["more.category.Extensions"].tap()
         app.buttons["Manage Test source"].tap()

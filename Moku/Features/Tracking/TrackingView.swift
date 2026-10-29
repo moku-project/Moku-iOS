@@ -150,7 +150,7 @@ struct TrackingView: View {
                                     }
                                 } label: {
                                     Text(tracker.isLoggedIn ? "Manage" : "Connect")
-                                        .font(.system(size: 14)).foregroundStyle(GeneralStyle.text)
+                                        .font(.subheadline).foregroundStyle(GeneralStyle.text)
                                         .frame(minHeight: 44)
                                 }.accessibilityLabel("Actions for \(tracker.name)")
                             }

@@ -17,6 +17,8 @@ struct AboutView: View {
         Notice(name: "Phosphor Icons", license: "MIT License"),
     ]
 
+    @State private var reportOpen = false
+
     private var version: String {
         let info = Bundle.main.infoDictionary
         let short = info?["CFBundleShortVersionString"] as? String ?? "–"
@@ -47,8 +49,14 @@ struct AboutView: View {
                 GeneralSection("Project") {
                     link("GitHub", detail: "moku-project/Moku-iOS",
                         url: "https://github.com/moku-project/Moku-iOS")
-                    link("Report an issue", detail: "Opens a GitHub issue with your app and iOS version filled in",
-                        url: IssueReport.url.absoluteString)
+                    Button { reportOpen = true } label: {
+                        GeneralRow("Report an issue", detail: "Bug or feature request, with the settings you choose") {
+                            PhosphorIcon("CaretRight", size: 12).foregroundStyle(GeneralStyle.faint)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .sheet(isPresented: $reportOpen) { BugReportSheet() }
                     link("Website", detail: "moku-project.github.io",
                         url: "https://moku-project.github.io/")
                     link("Discord", detail: "Join the community",
@@ -78,7 +86,7 @@ struct AboutView: View {
         Link(destination: URL(string: url)!) {
             GeneralRow(title, detail: detail) {
                 Image(systemName: "arrow.up.right")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.caption.weight(.medium))
                     .foregroundStyle(GeneralStyle.faint)
             }
             .contentShape(Rectangle())
@@ -93,31 +101,3 @@ struct AboutView: View {
         AboutView().preferredColorScheme(.dark)
     }
 #endif
-
-/// Desktop BugReporter, trimmed for iOS: a prefilled GitHub issue carrying only
-/// the app build, iOS version and device model. No settings or library data.
-enum IssueReport {
-    @MainActor static var url: URL {
-        let info = Bundle.main.infoDictionary
-        let version = "\(info?["CFBundleShortVersionString"] as? String ?? "?") (\(info?["CFBundleVersion"] as? String ?? "?"))"
-        var system = utsname()
-        uname(&system)
-        let model = withUnsafeBytes(of: &system.machine) { String(decoding: $0.prefix { $0 != 0 }, as: UTF8.self) }
-        let body = """
-        **What happened**
-
-
-        **Steps to reproduce**
-        1.
-
-        **Expected**
-
-
-        ---
-        Moku for iOS \(version) · iOS \(UIDevice.current.systemVersion) · \(model)
-        """
-        var parts = URLComponents(string: "https://github.com/moku-project/Moku-iOS/issues/new")!
-        parts.queryItems = [URLQueryItem(name: "body", value: body)]
-        return parts.url!
-    }
-}

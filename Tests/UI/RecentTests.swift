@@ -86,7 +86,8 @@ import XCTest
         app.buttons["tab.more"].tap()
         app.buttons["more.category.Tracking"].tap()
         XCTAssertTrue(app.staticTexts["Connected"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Coming soon"].exists)
+        // Trackers the server can't sign in to are hidden rather than shown as "Coming soon".
+        XCTAssertFalse(app.staticTexts["Coming soon"].exists)
         capture("Tracking services")
         app.buttons["tracking.fab"].tap()
         XCTAssertTrue(app.buttons["tracking.action.Import list"].waitForExistence(timeout: 3))

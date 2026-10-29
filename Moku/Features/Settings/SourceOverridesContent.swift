@@ -24,7 +24,7 @@ struct SourceOverridesContent: View {
                 GeneralStyle.divider
                 TextField("Filter sources", text: $filter).generalInput()
                 ForEach(sources.filter { filter.isEmpty || $0.displayName.localizedCaseInsensitiveContains(filter) }) { source in
-                    GeneralRow(source.displayName, detail: source.lang.uppercased()) {
+                    GeneralRow(source.displayName, detail: GeneralPreferences.languageName(GeneralPreferences.canonicalLanguage(source.lang))) {
                         ChoicePicker(title: "", selection: Binding(get: { decision(source.id) }, set: { choice in
                             guard let id = Int64(source.id) else { return }
                             var next = value
@@ -33,11 +33,11 @@ struct SourceOverridesContent: View {
                             if choice == "allow" { next.allowed?.append(id) }
                             if choice == "block" { next.blocked?.append(id) }
                             save(next)
-                        }), options: [("default", "Default"), ("allow", "Allow"), ("block", "Block")]).font(.system(size: 14))
+                        }), options: [("default", "Default"), ("allow", "Allow"), ("block", "Block")]).font(.subheadline)
                     }.disabled(busy)
                     GeneralStyle.divider
                 }
-                if sources.isEmpty { Text("No sources installed.").font(.system(size: 13)).foregroundStyle(GeneralStyle.faint).padding(.vertical, 14) }
+                if sources.isEmpty { Text("No sources installed.").font(.footnote).foregroundStyle(GeneralStyle.faint).padding(.vertical, 14) }
             }
             if let notice {
                 GeneralRow(notice, detail: "") { Button("Retry") { Task { await load() } }.buttonStyle(GeneralTextButtonStyle()) }

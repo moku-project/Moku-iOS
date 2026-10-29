@@ -124,7 +124,7 @@ struct MokuLinksModal: View {
                         Image(asset).renderingMode(.original).resizable().scaledToFit()
                     } else {
                         PhosphorIcon("Globe", size: 24)
-                            .foregroundStyle(.white)
+                            .foregroundStyle(GeneralStyle.text)
                     }
                 }
                 .frame(width: 26, height: 26)
@@ -136,7 +136,7 @@ struct MokuLinksModal: View {
                         .foregroundStyle(.white.opacity(0.5))
                 }.frame(maxWidth: .infinity, alignment: .leading)
                 Image(systemName: "arrow.up.right")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.caption.weight(.medium))
                     .foregroundStyle(.white.opacity(0.35))
             }
             .padding(16).frame(minHeight: 64)

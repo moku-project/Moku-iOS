@@ -143,12 +143,16 @@ struct DownloadsView: View {
         model.entries.contains { $0.status == .downloading } ? "Downloading" : "Waiting"
     }
 
-    private var viewSelector: some View {
+    private var viewSelector: some View { viewSelectorContent.dynamicTypeSize(...DynamicTypeSize.xxLarge) }
+    // Navigation chrome stops growing at the largest standard size; content keeps scaling.
+    @ViewBuilder private var viewSelectorContent: some View {
         HStack {
             IconRail(
                 title: history ? "History" : "Queue",
                 symbol: history ? "ClockCounterClockwise" : "DownloadSimple",
                 isPresented: viewPresented, itemCount: 1, reduceMotion: reduceMotion,
+                // On the toggle only: on the whole rail these labels spread onto the rows.
+                controlIdentifier: "downloads.activeView", controlLabel: "Downloads view",
                 toggle: {
                     menuLevel = .closed
                     typePresented = false
@@ -165,17 +169,16 @@ struct DownloadsView: View {
                     expanded = []
                     dismissTools()
                 }
+                .accessibilityIdentifier(history ? "downloads.queue" : "downloads.history")
             }
-            .accessibilityLabel("Downloads view")
-            .accessibilityValue(history ? "History" : "Queue")
             .pillBackdrop(typePresented)
-            .accessibilityIdentifier("downloads.activeView")
             Spacer(minLength: 8)
             IconRail(
                 title: section.rawValue, symbol: section.symbol,
                 isPresented: typePresented, itemCount: DownloadsSection.allCases.count - 1,
                 reduceMotion: reduceMotion,
                 iconOnly: true, trailing: true,
+                controlIdentifier: "downloads.status", controlLabel: "Download status",
                 toggle: {
                     menuLevel = .closed
                     viewPresented = false
@@ -186,10 +189,7 @@ struct DownloadsView: View {
                     downloadViewRow(choice)
                 }
             }
-            .accessibilityLabel("Download status")
-            .accessibilityValue(section.rawValue)
             .pillBackdrop(viewPresented)
-            .accessibilityIdentifier("downloads.status")
         }
         .accessibilityAction(.escape) { dismissTools() }
         .padding(.horizontal, NavigationStyle.pagePadding).padding(.top, 4)

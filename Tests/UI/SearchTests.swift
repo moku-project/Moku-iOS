@@ -100,7 +100,7 @@ final class SearchTests: XCTestCase {
 
     func testGlobalBrowseDoesNotInheritNovelLibraryMode() {
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-testing-search", "-contentMode", "novels"]
+        app.launchArguments = ["--ui-testing-search", "-contentMode", "novels", "--ui-testing-storage", "-mokuStorageTestID", UUID().uuidString]
         app.launch()
         app.buttons["tab.browse"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         let input = app.textFields["search.input"]
@@ -114,7 +114,7 @@ final class SearchTests: XCTestCase {
 
     func testDebouncedSearchPanelsAndTopBar() {
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-testing-search", "-contentMode", "all"]
+        app.launchArguments = ["--ui-testing-search", "-contentMode", "all", "--ui-testing-storage", "-mokuStorageTestID", UUID().uuidString]
         app.launch()
         app.buttons["tab.browse"].tap()
         let input = app.textFields["search.input"]

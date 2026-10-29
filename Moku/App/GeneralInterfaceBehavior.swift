@@ -38,8 +38,8 @@ struct GeneralInterfaceBehavior: ViewModifier {
                     idle.recordActivity()
                 } label: {
                     VStack(spacing: 16) {
-                        Text("Moku").font(.system(size: 46, weight: .light))
-                        Text("Tap to continue").font(.system(size: 13)).foregroundStyle(.secondary)
+                        Text("Moku").font(.largeTitle.weight(.light))
+                        Text("Tap to continue").font(.footnote).foregroundStyle(.secondary)
                     }.foregroundStyle(.primary)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(NavigationStyle.background.ignoresSafeArea())

@@ -4,12 +4,17 @@ import SwiftUI
 struct PhosphorIcon: View {
     let name: String
     let weight: String
-    @ScaledMetric private var size: CGFloat
+    private let base: CGFloat
+    @ScaledMetric private var scaled: CGFloat
+    /// Icons follow Dynamic Type, but stop at 1.6× so accessibility sizes enlarge
+    /// text without icons overrunning their rows.
+    private var size: CGFloat { min(scaled, base * 1.6) }
 
     init(_ name: String, size: CGFloat = 18, weight: String = "regular") {
         self.name = name.replacingOccurrences(of: ".fill", with: "")
         self.weight = name.hasSuffix(".fill") ? "fill" : weight
-        _size = ScaledMetric(wrappedValue: size)
+        base = size
+        _scaled = ScaledMetric(wrappedValue: size)
     }
     var body: some View {
         Image(name + "-" + weight).renderingMode(.template).resizable()

@@ -61,7 +61,8 @@ import Testing
         let suite = "lock-parity-\(UUID())"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
-        let lock = AppLockStore(defaults: defaults, scope: suite)
+        let vault = MemoryAppLockVault()
+        let lock = AppLockStore(defaults: defaults, scope: suite, vault: vault)
         #expect(lock.locked && !lock.loaded)
         await lock.load()
         #expect(!lock.enabled)
@@ -70,17 +71,27 @@ import Testing
             defaults.removeObject(forKey: "appLock.retryAt")
             try? lock.disable(pin: "123456")
         }
-        let restored = AppLockStore(defaults: defaults, scope: suite)
+        let restored = AppLockStore(defaults: defaults, scope: suite, vault: vault)
         await restored.load()
         #expect(restored.enabled && restored.locked)
-        for _ in 0..<5 { restored.unlock(pin: "654321") }
-        restored.unlock(pin: "123456")
+        for _ in 0..<5 { await restored.unlock(pin: "654321") }
+        await restored.unlock(pin: "123456")
         #expect(restored.locked)
         defaults.set(Date().timeIntervalSince1970 - 1, forKey: "appLock.retryAt")
-        restored.unlock(pin: "123456")
+        await restored.unlock(pin: "123456")
         #expect(!restored.locked)
         #expect(defaults.integer(forKey: "appLock.attempts") == 0)
         await restored.load()
         #expect(!restored.locked)
     }
+}
+
+/// Unsigned simulator test hosts have no Keychain entitlement, so the lock's
+/// storage is exercised in memory; KeychainAppLockVault is the shipping path.
+final class MemoryAppLockVault: AppLockVault, @unchecked Sendable {
+    private let lock = NSLock()
+    private var items: [String: Data] = [:]
+    func read(account: String) throws -> Data? { lock.withLock { items[account] } }
+    func write(_ data: Data, account: String) throws { lock.withLock { items[account] = data } }
+    func delete(account: String) throws { _ = lock.withLock { items.removeValue(forKey: account) } }
 }

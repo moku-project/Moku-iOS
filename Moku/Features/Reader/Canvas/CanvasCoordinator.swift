@@ -286,10 +286,10 @@ final class CanvasCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogniz
                 continue
             }
             let path = paths[page - 1]
-            let repository = parent.model.repository
+            let model = parent.model
             work[page] = Task { [weak self] in
                 do {
-                    let data = try await repository.image(path: path)
+                    let data = try await model.image(path: path)
                     let image = try await PageDecoder.shared.decode(
                         data, contrast: self?.parent.model.settings.optimizeContrast ?? false)
                     try Task.checkCancellation()

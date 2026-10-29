@@ -15,7 +15,7 @@ struct LibraryView: View {
     @AppStorage("library.disableAutoComplete") private var disableAutoComplete = false
     @AppStorage("library.defaultTab") private var defaultTab = "Saved"
     @AppStorage("preferences.renderLimit") private var renderLimit = 48
-    @State private var pageIndex = 0
+    @State private var revealedPages = 1
     @State private var visibleItems: [LibraryItem] = []
     @State private var statsLoadedAt: Date?
     @State private var didConfigure = false
@@ -114,7 +114,7 @@ struct LibraryView: View {
                                 if model.selecting { selectionBar }
                                 let allEntries = visibleItems
                                 let pageSize = min(200, max(12, renderLimit))
-                                let entries = Array(allEntries.dropFirst(pageIndex * pageSize).prefix(pageSize))
+                                let entries = Array(allEntries.prefix(revealedPages * pageSize))
                                 if entries.isEmpty {
                                     VStack(spacing: 12) {
                                         Text(
@@ -155,14 +155,13 @@ struct LibraryView: View {
                                         }
                                     }
                                 }
-                                if allEntries.count > pageSize {
-                                    HStack {
-                                        Button("Previous") { pageIndex = max(0, pageIndex - 1) }.disabled(pageIndex == 0)
-                                        Spacer()
-                                        Text("\(pageIndex + 1) / \((allEntries.count + pageSize - 1) / pageSize)").font(.system(size: 14)).monospacedDigit()
-                                        Spacer()
-                                        Button("Next") { pageIndex += 1 }.disabled((pageIndex + 1) * pageSize >= allEntries.count)
-                                    }.buttonStyle(GeneralTextButtonStyle())
+                                if allEntries.count > entries.count {
+                                    // Infinite scroll: reveal the next page as the end comes into view.
+                                    ProgressView()
+                                        .frame(maxWidth: .infinity, minHeight: 44)
+                                        .onAppear { revealedPages += 1 }
+                                        .id(revealedPages)
+                                        .accessibilityLabel("Loading more titles")
                                 }
                             }
                             .padding(.horizontal, NavigationStyle.pagePadding).padding(.top, 4)
@@ -241,10 +240,10 @@ struct LibraryView: View {
             let revision = model.resultsRevision
             let result = await model.prepareVisible(mode: mode)
             guard !Task.isCancelled, revision == model.resultsRevision else { return }
-            if visibleItems.map(\.id) != result.map(\.id) { pageIndex = 0 }
+            if visibleItems.map(\.id) != result.map(\.id) { revealedPages = 1 }
             if visibleItems != result { visibleItems = result }
         }
-        .onChange(of: renderLimit) { _, _ in pageIndex = 0 }
+        .onChange(of: renderLimit) { _, _ in revealedPages = 1 }
         .onChange(of: library.serverVisibleIDs) { _, _ in syncItems() }
         .onChange(of: home.snapshotRevision) { _, _ in syncItems() }
         .onChange(of: downloadedIDs) { _, _ in syncItems() }
@@ -252,6 +251,10 @@ struct LibraryView: View {
         .onChange(of: library.organization.folders, initial: true) { _, folders in
             model.folderEntryIDs = Set(folders.flatMap(\.entryIDs))
             if let id = model.folder?.id { model.folder = folders.first { $0.id == id } }
+        }
+        .onChange(of: mode) { _, mode in
+            // A folder limited to other content types has no tab in this mode.
+            if let folder = model.folder, !folder.shows(in: mode) { model.folder = nil }
         }
         .task(id: isActive ? Array(library.entries.prefix(12).compactMap(\.coverURL)) : []) {
             guard isActive else { return }
@@ -262,7 +265,14 @@ struct LibraryView: View {
             await library.load()
             await library.loadOrganization()
             if !didConfigure {
-                model.tab = LibraryTab(rawValue: defaultTab) ?? .saved
+                if defaultTab.hasPrefix("folder:"),
+                   let folder = library.organization.folders.first(where: { "folder:\($0.id.uuidString)" == defaultTab }) {
+                    // A folder chosen as the default view opens inside Saved, as when picked by hand.
+                    model.tab = .saved
+                    model.folder = folder
+                } else {
+                    model.tab = LibraryTab(rawValue: defaultTab) ?? .saved
+                }
                 didConfigure = true
             }
             syncItems()
@@ -276,7 +286,7 @@ struct LibraryView: View {
         .modifier(
             LibraryFolders(
                 foldersPresented: $foldersPresented, newFolderPresented: $newFolderPresented,
-                model: model, selectSaved: { selectView(.saved) })
+                model: model, mode: mode, selectSaved: { selectView(.saved) })
         )
         .overlay {
             if let search {
@@ -333,6 +343,10 @@ struct LibraryView: View {
         VStack(spacing: 0) {
             Text("Nothing here yet")
                 .font(.title2.bold())
+                .padding(.bottom, 10)
+            Text("Save titles from Search, import files in Settings → Storage, or sync with Moku on your computer.")
+                .font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                .frame(maxWidth: 320)
                 .padding(.bottom, 10)
             Button(action: onBrowse) {
                 Text("Browse titles")

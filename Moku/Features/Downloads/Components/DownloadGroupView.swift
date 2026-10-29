@@ -110,6 +110,12 @@ struct DownloadGroupView: View {
                 if entry.status == .failed {
                     Button("Retry", phosphor: "ArrowClockwise") { model.retry(entryID: entry.id) }
                 }
+                if entry.status == .queued {
+                    Button("Move to top", phosphor: "ArrowLineUp") { model.move(entryID: entry.id, to: .top) }
+                    Button("Move up", phosphor: "ArrowUp") { model.move(entryID: entry.id, to: .up) }
+                    Button("Move down", phosphor: "ArrowDown") { model.move(entryID: entry.id, to: .down) }
+                    Button("Move to bottom", phosphor: "ArrowLineDown") { model.move(entryID: entry.id, to: .bottom) }
+                }
                 Button(entry.status == .completed ? "Delete download" : "Remove from queue",
                        phosphor: "Trash", role: .destructive) { model.remove([entry]) }
             }
@@ -120,7 +126,7 @@ struct DownloadGroupView: View {
     {
         Button(action: action) {
             Label(title, phosphor: "ArrowClockwise")
-                .font(.system(size: 11, weight: .medium))
+                .font(.caption2.weight(.medium))
                 .padding(.horizontal, 8).padding(.vertical, 5)
                 .background(.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 5))
                 .overlay {

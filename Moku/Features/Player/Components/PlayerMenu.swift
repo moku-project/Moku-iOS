@@ -13,7 +13,7 @@ struct PlayerMenu: View {
         ScrollView {
             VStack(spacing: 0) {
                 HStack {
-                    Text(panelTitle(panel)).font(.system(size: 10, design: .monospaced)).tracking(1)
+                    Text(panelTitle(panel)).font(.subheadline.weight(.semibold))
                     Spacer()
                     icon("X", label: "Close menu", id: "player.panel.close") {
                         close()
@@ -47,7 +47,7 @@ struct PlayerMenu: View {
                         "Position", value: $model.subtitleHeight, step: 3, bounds: 0...45,
                         label: "\(Int(model.subtitleHeight))%")
                     Toggle("Background", isOn: $model.subtitleBackground)
-                        .font(.system(size: 13)).padding(.horizontal, 12).frame(minHeight: 44)
+                        .font(.footnote).padding(.horizontal, 12).frame(minHeight: 44)
                 case .episodes:
                     ForEach(Array(model.chapters.enumerated()), id: \.element.id) {
                         index, chapter in
@@ -74,9 +74,8 @@ struct PlayerMenu: View {
                         reveal()
                     }
                     if let stream = model.stream, !stream.sources.isEmpty {
-                        Text("SOURCE").font(.system(size: 10, design: .monospaced)).foregroundStyle(
-                            .secondary
-                        )
+                        Text("Source").font(.footnote.weight(.semibold)).foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(12)
                         ForEach(Array(stream.sources.enumerated()), id: \.offset) { index, source in
                             row(source.label, selected: model.sourceIndex == index) {
@@ -87,10 +86,12 @@ struct PlayerMenu: View {
                         }
                     }
                     // Desktop "Stream info".
-                    Text("STREAM").font(.system(size: 10, design: .monospaced)).foregroundStyle(.secondary)
+                    Text("Stream").font(.footnote.weight(.semibold)).foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(12)
-                    Text(model.streamInfo).font(.system(size: 12, design: .monospaced))
+                    Text(model.streamInfo).font(.footnote.monospacedDigit())
                         .foregroundStyle(.secondary).padding(.horizontal, 12).padding(.bottom, 8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .accessibilityLabel("Stream: \(model.streamInfo)")
                 }
             }.padding(4)
@@ -107,7 +108,7 @@ struct PlayerMenu: View {
             icon("Minus", label: "Decrease \(title)") {
                 value.wrappedValue = max(bounds.lowerBound, value.wrappedValue - step)
             }
-            Text(label).font(.system(size: 11, design: .monospaced)).frame(minWidth: 38)
+            Text(label).font(.caption2.monospacedDigit()).frame(minWidth: 38)
             icon("Plus", label: "Increase \(title)") {
                 value.wrappedValue = min(bounds.upperBound, value.wrappedValue + step)
             }
@@ -142,10 +143,10 @@ struct PlayerMenu: View {
     }
     private func panelTitle(_ panel: Kind) -> String {
         switch panel {
-        case .subtitles: "SUBTITLES"
-        case .episodes: "EPISODES"
-        case .speed: "PLAYBACK SPEED"
-        case .more: "PLAYER OPTIONS"
+        case .subtitles: "Subtitles"
+        case .episodes: "Episodes"
+        case .speed: "Playback speed"
+        case .more: "Player options"
         }
     }
 

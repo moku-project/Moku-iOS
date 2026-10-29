@@ -14,4 +14,13 @@ enum ContentMode: String, CaseIterable, Identifiable, Sendable, Codable {
         case .anime: "FilmSlate"
         }
     }
+
+    /// The server's `ContentType` enum value.
+    var graphQLType: String {
+        switch self {
+        case .anime: "ANIME"
+        case .novels: "NOVEL"
+        default: "MANGA"
+        }
+    }
 }

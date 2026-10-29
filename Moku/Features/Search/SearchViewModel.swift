@@ -248,7 +248,7 @@ final class SearchViewModel {
                     : "No sources installed. Open Extensions from the More menu to add one.") : nil
         } catch is CancellationError {
         } catch SearchFailure.notConnected {
-            sourceMessage = "Sources are not available yet."
+            sourceMessage = "Sources couldn’t load. Try again in a moment."
         } catch {
             sourceMessage =
                 (error as? EmbeddedSearchError)?.errorDescription
@@ -328,7 +328,16 @@ final class SearchViewModel {
                     await self?.receive(entries, request: request, generation: current)
                 }
                 guard let self, !Task.isCancelled, self.generation == current else { return }
-                let sorted = await Self.sorted(entries, by: request.options.sort)
+                var sorted = await Self.sorted(entries, by: request.options.sort)
+                // Desktop genre drill: matching library titles come first.
+                if !request.options.genres.isEmpty {
+                    let saved = await Self.libraryMatches(request.options)
+                    let ids = Set(saved.map(\.id))
+                    let keys = Set(saved.compactMap { item in item.externalID.map { "\(item.extensionID ?? ""):\($0)" } })
+                    sorted = saved + sorted.filter {
+                        !ids.contains($0.id) && !keys.contains("\($0.extensionID ?? ""):\($0.externalID ?? "-")")
+                    }
+                }
                 guard !Task.isCancelled, self.generation == current else { return }
                 self.state = .results(sorted)
                 self.lastRequest = request
@@ -400,6 +409,40 @@ final class SearchViewModel {
         let sorted = await Self.sorted(entries, by: request.options.sort)
         guard !Task.isCancelled, self.generation == generation else { return }
         state = .results(sorted)
+    }
+
+    /// Library titles carrying the chosen genres: all of them, or any one for "match any".
+    nonisolated static func libraryMatches(_ options: SearchOptions) async -> [MediaEntry] {
+        struct Response: Decodable, Sendable {
+            struct Page: Decodable, Sendable {
+                struct Item: Decodable, Sendable {
+                    let id: String
+                    let title: String
+                    let contentType: String
+                    let sourceName: String
+                    let thumbnailUrl: String?
+                    let extensionId: String?
+                    let externalId: String
+                    let genres: [String]
+                }
+                let items: [Item]
+            }
+            let library: Page
+        }
+        let type = options.media == .all ? "" : "contentType: \(options.media.graphQLType)"
+        guard let response: Response = try? await BackendAPI.shared.graphql(
+            "{ library(filter: { \(type) }, limit: 1000) { items { id title contentType sourceName thumbnailUrl extensionId externalId genres } } }",
+            cacheFor: 30, requiresSourceRuntime: false) else { return [] }
+        let wanted = Set(options.genres.map { $0.lowercased() })
+        return response.library.items.filter { item in
+            let genres = Set(item.genres.map { $0.lowercased() })
+            return options.match == .all ? wanted.isSubset(of: genres) : !wanted.isDisjoint(with: genres)
+        }.map {
+            MediaEntry(id: $0.id, title: $0.title,
+                       media: $0.contentType == "ANIME" ? .anime : $0.contentType == "NOVEL" ? .novels : .manga,
+                       sourceName: $0.sourceName, coverURL: BackendAPI.coverURL($0.thumbnailUrl),
+                       extensionID: $0.extensionId, externalID: $0.externalId)
+        }
     }
 
     private nonisolated static func sorted(_ entries: [MediaEntry], by sort: SearchOptions.Sort)

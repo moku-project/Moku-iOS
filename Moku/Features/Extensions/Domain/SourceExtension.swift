@@ -23,7 +23,7 @@ struct SourceExtension: Decodable, Identifiable, Sendable {
     var iconUrl: String? = nil
     var iconURL: URL? { BackendAPI.coverURL(iconUrl) }
     var subtitle: String {
-        "\(lang.uppercased()) · \(contentType.capitalized) · v\(installedVersion ?? version)"
+        "\(GeneralPreferences.languageName(GeneralPreferences.canonicalLanguage(lang))) · \(contentType.capitalized) · v\(installedVersion ?? version)"
     }
     var media: ContentMode {
         switch contentType {

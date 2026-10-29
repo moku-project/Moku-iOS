@@ -101,6 +101,31 @@ final class DownloadsViewModel {
         }
     }
 
+    enum Placement { case top, up, down, bottom }
+
+    /// Desktop "Move up / down / to top / to bottom" for one queued chapter.
+    func move(entryID: String, to placement: Placement) {
+        let queue = entries.filter { $0.status == .queued || $0.status == .downloading }
+        guard let index = queue.firstIndex(where: { $0.id == entryID }) else { return }
+        let target: Int
+        switch placement {
+        case .top: target = 0
+        case .up: target = max(0, index - 1)
+        case .down: target = min(queue.count - 1, index + 1)
+        case .bottom: target = queue.count - 1
+        }
+        guard target != index else { return }
+        let entry = queue[index]
+        Task {
+            do {
+                let _: IgnoredGraphQLResult = try await BackendAPI.shared.graphql(
+                    "mutation { reorderDownload(mediaId: \(BackendAPI.literal(entry.titleID)), chapterId: \(BackendAPI.literal(entry.id)), position: \(target)) }",
+                    requiresSourceRuntime: false)
+                await refresh()
+            } catch { Toaster.shared.show("Couldn’t reorder the queue", kind: .error) }
+        }
+    }
+
     func count(history: Bool) -> Int {
         entries.filter { ($0.status == .completed) == history }.count
     }

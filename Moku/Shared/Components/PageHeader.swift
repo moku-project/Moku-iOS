@@ -21,7 +21,9 @@ struct PageHeader: View {
     // Pass unscaled artwork sizes; PhosphorIcon applies Dynamic Type once.
     private var headerIconSize: CGFloat { headerWidth >= 400 ? 24 : 20.4 }
 
-    var body: some View {
+    var body: some View { chrome0.dynamicTypeSize(...DynamicTypeSize.xxLarge) }
+    // Navigation chrome stops growing at the largest standard size; content keeps scaling.
+    @ViewBuilder private var chrome0: some View {
         VStack(spacing: 0) {
             HStack(spacing: 4) {
                 Button(action: openMokuLinks) {
@@ -64,7 +66,7 @@ struct PageHeader: View {
                     symbol: modeSymbol, isPresented: isModePresented,
                     itemCount: ModeTabConfiguration(storage: savedModes).visible.filter { $0.title != modeLabel }.count,
                     reduceMotion: reduceMotion || !animations,
-                    labelFont: .system(size: 15, weight: .medium),
+                    labelFont: .subheadline.weight(.medium),
                     iconSize: 18, iconColor: NavigationStyle.accent,
                     instantTitleChange: true,
                     toggle: onMode
@@ -92,8 +94,10 @@ struct PageHeader: View {
 }
 
 struct HeaderDivider: View {
-    var body: some View {
-        Rectangle().fill(.white.opacity(0.14)).frame(height: 0.5)
+    var body: some View { chrome1.dynamicTypeSize(...DynamicTypeSize.xxLarge) }
+    // Navigation chrome stops growing at the largest standard size; content keeps scaling.
+    @ViewBuilder private var chrome1: some View {
+        Rectangle().fill(GeneralStyle.border).frame(height: 0.5)
             .accessibilityHidden(true)
     }
 }
@@ -107,7 +111,9 @@ struct BackHeader: View {
     @ScaledMetric(relativeTo: .body) private var titleSize = 18.7
     @State private var headerWidth: CGFloat = 390
 
-    var body: some View {
+    var body: some View { chrome2.dynamicTypeSize(...DynamicTypeSize.xxLarge) }
+    // Navigation chrome stops growing at the largest standard size; content keeps scaling.
+    @ViewBuilder private var chrome2: some View {
         HStack(spacing: 4) {
             Button(action: back) {
                 PhosphorIcon("CaretLeft").iconSize(headerWidth >= 400 ? 17 : 14.5)

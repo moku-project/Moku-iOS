@@ -75,6 +75,7 @@ import Observation
             let _: IgnoredGraphQLResult = try await BackendAPI.shared.graphql(
                 "mutation { markChaptersRead(mediaId: \(BackendAPI.literal(mediaID)), chapterIds: [\(ids.map(BackendAPI.literal).joined(separator: ","))], read: \(read)) { id } }",
                 requiresSourceRuntime: false)
+            if read { await pushTrackerProgress(mediaID: mediaID, chapters: updated.chapters) }
         } catch {
             if var restored = details {
                 restored.chapters = previous
@@ -84,8 +85,31 @@ import Observation
         }
     }
 
+    /// Desktop pushTrackerProgress: after marking read on the series page, raise
+    /// each linked tracker to the highest read chapter number. The server also
+    /// syncs in the background; this makes the tracker update immediate.
+    private func pushTrackerProgress(mediaID: String, chapters: [Chapter]) async {
+        guard let highest = chapters.filter(\.completed).compactMap(\.number).max() else { return }
+        struct Response: Decodable, Sendable {
+            struct Media: Decodable, Sendable {
+                struct Link: Decodable, Sendable { let id: String; let lastChapterRead: Double }
+                let trackLinks: [Link]
+            }
+            let media: Media?
+        }
+        guard let response: Response = try? await BackendAPI.shared.graphql(
+            "{ media(id: \(BackendAPI.literal(mediaID))) { trackLinks { id lastChapterRead } } }",
+            requiresSourceRuntime: false) else { return }
+        for link in response.media?.trackLinks ?? [] where highest > link.lastChapterRead {
+            let _: IgnoredGraphQLResult? = try? await BackendAPI.shared.graphql(
+                "mutation { updateTrack(linkId: \(BackendAPI.literal(link.id)), lastChapterRead: \(highest)) { id } }",
+                requiresSourceRuntime: false)
+        }
+    }
+
     func download(_ ids: [String]) async {
         guard let mediaID = details?.id, !ids.isEmpty else { return }
+        guard await StorageGuard.allow(count: ids.count, media: entry.media) else { return }
         do {
             struct Queued: Decodable, Sendable { struct Item: Decodable, Sendable { let id: String }; let enqueueDownload: [Item] }
             let _: Queued = try await BackendAPI.shared.graphql(

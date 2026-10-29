@@ -98,7 +98,7 @@ final class AcceptanceFixtures {
   let runner: Runner
   let root: URL
   let origin: String
-  var sandbox: URL { runner.path("vendor/Tsunagu/sandbox/build/libs/sandbox-0.1.0-all.jar") }
+  var sandbox: URL { runner.path("vendor/Tsunagu/sandbox/build/libs/sandbox-0.6.0-all.jar") }
   var jdk: URL { runner.path("Services/.build/toolchains/jdk-21.0.12.1+1/Contents/Home/bin") }
   var classes: URL { root.appendingPathComponent("classes") }
   init(_ runner: Runner, _ website: FixtureWebsite) {

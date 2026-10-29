@@ -13,7 +13,9 @@ struct NavigationBar: View {
 
     @Environment(\.verticalSizeClass) private var verticalSizeClass
 
-    var body: some View {
+    var body: some View { chrome.dynamicTypeSize(...DynamicTypeSize.xxLarge) }
+    // Navigation chrome stops growing at the largest standard size; content keeps scaling.
+    @ViewBuilder private var chrome: some View {
         VStack(spacing: 8) {
             if isModePickerPresented {
                 HStack(spacing: 4) {
@@ -168,7 +170,7 @@ struct NavigationBar: View {
             weight: selection == tab
                 ? (tab == .browse || tab == .downloads ? "bold" : "fill") : "light"
         )
-        .foregroundStyle(.white)
+        .foregroundStyle(GeneralStyle.text)
         .frame(width: 44, height: 44)
         .frame(maxWidth: .infinity)
         .frame(

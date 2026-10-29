@@ -28,7 +28,7 @@ struct ReaderSettingsView: View {
         Group {
             if settingsPage { pageContent } else { inlineContent }
         }
-        .font(.system(size: 14)).buttonStyle(.plain).tint(NavigationStyle.accent)
+        .font(.subheadline).buttonStyle(.plain).tint(NavigationStyle.accent)
         .alert(editingPreset == nil ? "Save preset" : "Rename preset", isPresented: $naming) {
             TextField("Preset name", text: $presetName)
             Button("Cancel", role: .cancel) {}
@@ -66,7 +66,7 @@ struct ReaderSettingsView: View {
                             ReaderSlider(value: behaviour(\.autoScrollSpeed), in: 1...30, step: 1)
                                 .accessibilityLabel("Scroll speed")
                             Text("\(Int(preferences.document.behaviour.autoScrollSpeed))")
-                                .monospaced()
+                                .monospacedDigit()
                         }.frame(minHeight: 44)
                     }
                 }
@@ -110,7 +110,7 @@ struct ReaderSettingsView: View {
                     }
                 }
                 HStack {
-                    Text("\(Int((settings.readerZoom * 100).rounded()))%").monospaced()
+                    Text("\(Int((settings.readerZoom * 100).rounded()))%").monospacedDigit()
                     Spacer()
                     Button("Reset") { setting(\.readerZoom).wrappedValue = 1 }.frame(minHeight: 44)
                 }
@@ -146,9 +146,9 @@ struct ReaderSettingsView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(preset.name)
                                 Text(
-                                    "\(preset.settings.pageStyle) · \(preset.settings.fitMode) · \(preset.settings.readingDirection.uppercased())"
+                                    "\(preset.settings.pageStyle) · \(preset.settings.fitMode) · \(preset.settings.readingDirection == "rtl" ? "Right to left" : "Left to right")"
                                 )
-                                .font(.system(.caption2, design: .monospaced)).foregroundStyle(
+                                .font(.caption2).foregroundStyle(
                                     .secondary)
                             }.frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                         }
@@ -234,7 +234,7 @@ struct ReaderSettingsView: View {
                         GeneralRow("Scroll speed", detail: "") {
                             Stepper(value: behaviour(\.autoScrollSpeed), in: 1...30, step: 1) {
                                 Text("\(Int(preferences.document.behaviour.autoScrollSpeed))")
-                            }.frame(width: 150).font(.system(size: 14)).accessibilityLabel(
+                            }.frame(width: 150).font(.subheadline).accessibilityLabel(
                                 "Scroll speed")
                         }
                     }
@@ -248,7 +248,7 @@ struct ReaderSettingsView: View {
                                 0.1, settings.readerZoom - 0.05)
                         }
                         Text("\(Int((settings.readerZoom * 100).rounded()))%").font(
-                            .system(size: 14)
+                            .subheadline
                         )
                         .monospacedDigit()
                         iconButton("Plus", label: "Zoom in") {
@@ -275,7 +275,7 @@ struct ReaderSettingsView: View {
                         title: "", selection: behaviour(\.preloadPages),
                         options: (0...10).map { ($0, String($0)) }
                     )
-                    .font(.system(size: 14)).accessibilityLabel("Pages to preload")
+                    .font(.subheadline).accessibilityLabel("Pages to preload")
                 }
             }
             GeneralSection("Controls") {
@@ -311,7 +311,7 @@ struct ReaderSettingsView: View {
                                 preferences.document.presets.removeAll { $0.id == preset.id }
                             }
                         } label: {
-                            Text("Manage").font(.system(size: 14)).foregroundStyle(
+                            Text("Manage").font(.subheadline).foregroundStyle(
                                 GeneralStyle.text
                             ).frame(
                                 minHeight: 44)
@@ -326,7 +326,7 @@ struct ReaderSettingsView: View {
     ) -> some View {
         GeneralRow(title, detail: "") {
             ChoicePicker(title: "", selection: selection, options: options)
-                .font(.system(size: 14)).accessibilityLabel(title)
+                .font(.subheadline).accessibilityLabel(title)
         }
     }
     private func pageToggle(_ title: String, _ selection: Binding<Bool>) -> some View {
@@ -338,8 +338,8 @@ struct ReaderSettingsView: View {
         -> some View
     {
         VStack(alignment: .leading, spacing: 10) {
-            Text(title.uppercased()).font(.system(.caption, design: .monospaced))
-                .tracking(1).foregroundStyle(.secondary)
+            Text(title).font(.footnote.weight(.semibold)).foregroundStyle(.secondary)
+                .accessibilityAddTraits(.isHeader)
             content()
         }
     }
@@ -366,7 +366,7 @@ struct ReaderSettingsView: View {
                 if let icon {
                     PhosphorIcon(icon, size: 20, weight: tile && selected ? "fill" : "light")
                 }
-                Text(title).font(.system(size: 11, design: .monospaced)).fixedSize(
+                Text(title).font(.caption).fixedSize(
                     horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, minHeight: tile ? 62 : 44)

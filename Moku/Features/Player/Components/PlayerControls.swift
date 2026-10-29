@@ -48,7 +48,7 @@ struct PlayerControls: View {
                             HStack(spacing: 4) {
                                 Text(model.episodeLabel)
                                 PhosphorIcon("CaretDown", size: 11)
-                            }.foregroundStyle(.secondary).font(.system(size: 12))
+                            }.foregroundStyle(.secondary).font(.caption)
                         }.frame(minHeight: 44)
                     }.accessibilityLabel("Choose episode").accessibilityIdentifier(
                         "player.episodes")
@@ -68,7 +68,7 @@ struct PlayerControls: View {
                 HStack(spacing: 5) {
                     PhosphorIcon("ClosedCaptioning", size: 17)
                     if landscape {
-                        Text(subtitleLabel).font(.system(size: 12, design: .monospaced)).lineLimit(
+                        Text(subtitleLabel).font(.caption.monospacedDigit()).lineLimit(
                             1)
                     }
                 }.frame(minWidth: 44, minHeight: 44).padding(.horizontal, landscape ? 8 : 0)
@@ -98,7 +98,7 @@ struct PlayerControls: View {
                     Text(PlayerViewModel.time(scrubbing ? scrubPosition : model.position))
                     Spacer()
                     Text(PlayerViewModel.time(model.duration))
-                }.font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
+                }.font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
                     .padding(.horizontal, 8)
             }
             HStack(spacing: 0) {
@@ -125,7 +125,7 @@ struct PlayerControls: View {
                     Text(
                         "\(PlayerViewModel.time(scrubbing ? scrubPosition : model.position)) / \(PlayerViewModel.time(model.duration))"
                     )
-                    .font(.system(size: 10, design: .monospaced)).foregroundStyle(.secondary)
+                    .font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
                     .fixedSize().padding(.horizontal, 6)
                 } else {
                     Spacer()
@@ -133,7 +133,7 @@ struct PlayerControls: View {
                 Button {
                     toggle(.speed)
                 } label: {
-                    Text("\(model.speed.formatted())×").font(.system(size: 12, design: .monospaced))
+                    Text("\(model.speed.formatted())×").font(.caption.monospacedDigit())
                         .frame(minWidth: 44, minHeight: 44)
                 }.accessibilityLabel("Playback speed").accessibilityValue(
                     "\(model.speed.formatted()) times"

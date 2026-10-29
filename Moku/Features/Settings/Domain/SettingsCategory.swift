@@ -17,7 +17,16 @@ enum SettingsCategory: String, CaseIterable, Hashable {
     case server = "Server"
     case auth = "Auth"
     case about = "About"
-    case devTools = "Dev Tools"
+    case devTools = "Dev tools"
+
+    /// Dev tools ship only in debug builds.
+    static var visible: [SettingsCategory] {
+        #if DEBUG
+            allCases
+        #else
+            allCases.filter { $0 != .devTools }
+        #endif
+    }
 
     var symbol: String {
         switch self {
