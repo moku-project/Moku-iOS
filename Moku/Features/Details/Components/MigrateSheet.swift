@@ -42,7 +42,7 @@ struct MigrateSheet: View {
                     Picker("Move to", selection: $source) {
                         Text("Choose a source").tag(Source?.none)
                         ForEach(sources) { item in
-                            Text("\(item.displayName) · \(item.lang.uppercased())").tag(Source?.some(item))
+                            Text("\(item.displayName) · \(GeneralPreferences.languageName(GeneralPreferences.canonicalLanguage(item.lang)))").tag(Source?.some(item))
                         }
                     }
                 }
@@ -76,6 +76,7 @@ struct MigrateSheet: View {
                 }
                 if let error { Section { Text(error).foregroundStyle(.orange) } }
             }
+            .textCase(nil)
             .scrollContentBackground(.hidden)
             .background(NavigationStyle.background.ignoresSafeArea())
             .navigationTitle("Switch source")

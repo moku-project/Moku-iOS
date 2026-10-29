@@ -5,6 +5,46 @@ import Observation
 import Security
 import SwiftUI
 
+/// Where the PIN credential lives. The app uses the Keychain; tests inject an
+/// in-memory vault because unsigned simulator test hosts have no Keychain entitlement.
+protocol AppLockVault: Sendable {
+    /// `nil` when nothing has been saved.
+    func read(account: String) throws -> Data?
+    func write(_ data: Data, account: String) throws
+    func delete(account: String) throws
+}
+
+struct KeychainAppLockVault: AppLockVault {
+    private func query(_ account: String) -> [String: Any] {
+        [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: "dev.moku.app.lock", kSecAttrAccount as String: account]
+    }
+    func read(account: String) throws -> Data? {
+        var q = query(account)
+        q[kSecReturnData as String] = true
+        q[kSecMatchLimit as String] = kSecMatchLimitOne
+        var result: CFTypeRef?
+        let status = SecItemCopyMatching(q as CFDictionary, &result)
+        // Without keychain access (unsigned Simulator builds) no PIN can ever have been saved;
+        // failing closed here would lock the app with no way to unlock it.
+        if status == errSecItemNotFound || status == errSecMissingEntitlement { return nil }
+        guard status == errSecSuccess, let data = result as? Data else { throw AppLockStore.LockError.storage }
+        return data
+    }
+    func write(_ data: Data, account: String) throws {
+        let update = SecItemUpdate(query(account) as CFDictionary, [kSecValueData as String: data] as CFDictionary)
+        if update == errSecItemNotFound {
+            var q = query(account)
+            q[kSecValueData as String] = data
+            q[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+            guard SecItemAdd(q as CFDictionary, nil) == errSecSuccess else { throw AppLockStore.LockError.storage }
+        } else if update != errSecSuccess { throw AppLockStore.LockError.storage }
+    }
+    func delete(account: String) throws {
+        let status = SecItemDelete(query(account) as CFDictionary)
+        guard status == errSecSuccess || status == errSecItemNotFound else { throw AppLockStore.LockError.storage }
+    }
+}
+
 @MainActor @Observable final class AppLockStore {
     private(set) var enabled = false
     private(set) var locked = false
@@ -13,12 +53,14 @@ import SwiftUI
     var notice: String?
     private let defaults: UserDefaults
     private let account: String
+    private let vault: any AppLockVault
     @ObservationIgnored private var window: UIWindow?
     @ObservationIgnored private weak var previousWindow: UIWindow?
     @ObservationIgnored private var loading: Task<Bool, Never>?
     private struct Credential: Codable { let salt: Data; let digest: Data }
-    init(defaults: UserDefaults, scope: String) {
+    init(defaults: UserDefaults, scope: String, vault: any AppLockVault = KeychainAppLockVault()) {
         self.defaults = defaults
+        self.vault = vault
         account = SHA256.hash(data: Data(scope.utf8)).map { String(format: "%02x", $0) }.joined()
         biometrics = defaults.bool(forKey: "appLock.biometrics")
         // Fail closed until the asynchronous Keychain lookup completes.
@@ -28,9 +70,9 @@ import SwiftUI
     func load() async {
         guard !loaded else { return }
         if loading == nil {
-            let account = account
+            let account = account, vault = vault
             loading = Task.detached(priority: .userInitiated) {
-                do { return try Self.credential(account: account) != nil }
+                do { return try vault.read(account: account) != nil }
                 catch { return true }
             }
         }
@@ -41,27 +83,8 @@ import SwiftUI
         loaded = true
         loading = nil
     }
-    private var query: [String: Any] {
-        [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: "dev.moku.app.lock", kSecAttrAccount as String: account]
-    }
     private func credential() throws -> Credential? {
-        try Self.credential(account: account)
-    }
-    private nonisolated static func credential(account: String) throws -> Credential? {
-        var q: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "dev.moku.app.lock",
-            kSecAttrAccount as String: account,
-        ]
-        q[kSecReturnData as String] = true
-        q[kSecMatchLimit as String] = kSecMatchLimitOne
-        var result: CFTypeRef?
-        let status = SecItemCopyMatching(q as CFDictionary, &result)
-        // Without keychain access (unsigned Simulator builds) no PIN can ever have been saved;
-        // failing closed here would lock the app with no way to unlock it.
-        if status == errSecItemNotFound || status == errSecMissingEntitlement { return nil }
-        guard status == errSecSuccess, let data = result as? Data else { throw LockError.storage }
-        return try JSONDecoder().decode(Credential.self, from: data)
+        try vault.read(account: account).map { try JSONDecoder().decode(Credential.self, from: $0) }
     }
     private func digest(_ pin: String, salt: Data) throws -> Data { try Self.digest(pin, salt: salt) }
     /// 100k PBKDF2 rounds take a noticeable moment; unlocking runs this off the main actor.
@@ -83,20 +106,13 @@ import SwiftUI
         let status = salt.withUnsafeMutableBytes { SecRandomCopyBytes(kSecRandomDefault, 32, $0.baseAddress!) }
         guard status == errSecSuccess else { throw LockError.storage }
         let data = try JSONEncoder().encode(Credential(salt: salt, digest: digest(pin, salt: salt)))
-        let update = SecItemUpdate(query as CFDictionary, [kSecValueData as String: data] as CFDictionary)
-        if update == errSecItemNotFound {
-            var q = query
-            q[kSecValueData as String] = data
-            q[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-            guard SecItemAdd(q as CFDictionary, nil) == errSecSuccess else { throw LockError.storage }
-        } else if update != errSecSuccess { throw LockError.storage }
+        try vault.write(data, account: account)
         enabled = true
         notice = nil
     }
     func disable(pin: String) throws {
         guard verify(pin) else { throw LockError.wrongPIN }
-        let status = SecItemDelete(query as CFDictionary)
-        guard status == errSecSuccess || status == errSecItemNotFound else { throw LockError.storage }
+        try vault.delete(account: account)
         enabled = false
         unlock()
     }
@@ -122,18 +138,17 @@ import SwiftUI
         notice = "Incorrect PIN."
         return false
     }
-    func unlock(pin: String) {
+    /// Hashes off the main actor; returns once the attempt is recorded.
+    func unlock(pin: String) async {
         if Date().timeIntervalSince1970 < defaults.double(forKey: "appLock.retryAt") {
             notice = "Too many attempts. Try again in a minute."
             return
         }
         guard !pin.isEmpty, let value = try? credential() else { return }
         let salt = value.salt
-        Task {
-            let hash = await Task.detached(priority: .userInitiated) { try? Self.digest(pin, salt: salt) }.value
-            guard let hash else { return }
-            if record(hash: hash, expected: value.digest) { unlock() }
-        }
+        let hash = await Task.detached(priority: .userInitiated) { try? Self.digest(pin, salt: salt) }.value
+        guard let hash else { return }
+        if record(hash: hash, expected: value.digest) { unlock() }
     }
     func authenticate() async {
         guard biometrics, enabled, locked else { return }
@@ -232,7 +247,8 @@ private struct AppLockGate: View {
 
     private func unlock() {
         guard !pin.isEmpty else { return }
-        model.unlock(pin: pin)
+        let entered = pin
         pin = ""
+        Task { await model.unlock(pin: entered) }
     }
 }

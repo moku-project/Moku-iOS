@@ -320,6 +320,7 @@ private struct RootTabPage: View, Equatable {
                     model.draft.genres = [genre]
                     model.apply()
                     navigation.globalSearchModel = model
+                    navigation.browseSource = nil
                     navigation.select(.browse, language: sourceLanguage)
                 },
                 onOpenLibraryTitle: { entry in
@@ -342,7 +343,12 @@ private struct RootTabPage: View, Equatable {
                 onSearch: { navigation.select(.browse, language: sourceLanguage) },
                 onOpen: { navigation.detailEntry = $0 })
         case .browse:
-            if let model = navigation.globalSearchModel {
+            if let source = navigation.browseSource {
+                SourceBrowseView(
+                    source: source, openEntry: { navigation.detailEntry = $0 },
+                    close: { navigation.browseSource = nil })
+                .id(source.packageName)
+            } else if let model = navigation.globalSearchModel {
                 SearchView(
                     model: model, openEntry: { navigation.detailEntry = $0 }, close: {},
                     isPage: true, isActive: activity.isActive,
@@ -364,12 +370,7 @@ private struct RootTabPage: View, Equatable {
                 MoreDestinationView(
                     destination: destination, mode: $mode,
                     searchSource: { source in
-                        let model = SearchViewModel(
-                            repository: AppDependencies.searchRepository, media: source.media)
-                        model.draft.sourceID = source.packageName
-                        model.draft.method = .source
-                        model.apply()
-                        navigation.globalSearchModel = model
+                        navigation.browseSource = source
                         navigation.select(.browse, language: sourceLanguage)
                     }
                 )
@@ -403,6 +404,8 @@ private enum AccountPage: String, Hashable {
     var morePath: [MoreDestination] = []
     var isModePickerPresented = false
     var globalSearchModel: SearchViewModel?
+    /// A source opened from Extensions: Browse shows its own page until closed.
+    var browseSource: SourceExtension?
     let tabs = TabActivityStore()
 
     var accountPage: AccountPage? {

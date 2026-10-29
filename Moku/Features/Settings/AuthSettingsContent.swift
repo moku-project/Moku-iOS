@@ -55,7 +55,7 @@ struct AuthSettingsContent: View {
                     }
                 }
             }
-            if let notice { Text(notice).font(.system(size: 13)).foregroundStyle(GeneralStyle.faint) }
+            if let notice { Text(notice).font(.footnote).foregroundStyle(GeneralStyle.faint) }
         }.task { await load() }
             .confirmationDialog("Remove the server password?", isPresented: $removePassword, titleVisibility: .visible) {
                 Button("Remove password", role: .destructive) { Task { await disablePassword() } }

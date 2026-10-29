@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ServerSettingsContent: View {
     @State private var model = ServerPreferences()
+    @State private var logOpen = false
     let openExtensions: () -> Void
     private let groups: [(String, [String])] = [
         ("Cloudflare", ["cloudflare_solver_mode", "cloudflare_solver_url"]),
@@ -15,6 +16,13 @@ struct ServerSettingsContent: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             GeneralSettingsView(openExtensions: openExtensions, serverOnly: true)
+            GeneralSection("Logs") {
+                GeneralRow("Server log", detail: "Recent output from the bundled server, for troubleshooting sources.") {
+                    Button("View") { logOpen = true }
+                        .buttonStyle(GeneralTextButtonStyle())
+                        .accessibilityIdentifier("server.log.open")
+                }
+            }
             if model.loading && model.values.isEmpty { ProgressView().frame(maxWidth: .infinity, minHeight: 44) }
             ForEach(groups, id: \.0) { title, keys in
                 let rows = model.values.filter { $0.editable && keys.contains($0.key) }
@@ -51,7 +59,9 @@ struct ServerSettingsContent: View {
                     Button("Retry") { Task { await model.load() } }.buttonStyle(GeneralTextButtonStyle())
                 }
             }
-        }.task { await model.load() }
+        }
+        .task { await model.load() }
+        .sheet(isPresented: $logOpen) { ServerLogView() }
     }
 }
 
@@ -62,7 +72,7 @@ struct ServerPreferenceRow: View {
     var body: some View {
         GeneralRow(setting.label, detail: setting.description) {
             if !setting.editable {
-                Text(setting.value.isEmpty ? "—" : setting.value).font(.system(size: 14))
+                Text(setting.value.isEmpty ? "—" : setting.value).font(.subheadline)
                     .foregroundStyle(GeneralStyle.text).multilineTextAlignment(.trailing)
                     .frame(maxWidth: 150).fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
             } else if setting.type == "BOOL" {
@@ -72,7 +82,7 @@ struct ServerPreferenceRow: View {
             } else if !setting.choices.isEmpty {
                 ChoicePicker(title: "", selection: Binding(get: { setting.value }, set: { value in
                     Task { await model.save(setting, value: value) }
-                }), options: setting.choices).font(.system(size: 14)).accessibilityLabel(setting.label)
+                }), options: setting.choices).font(.subheadline).accessibilityLabel(setting.label)
             } else {
                 VStack(alignment: .trailing, spacing: 0) {
                     Group {
@@ -105,7 +115,7 @@ struct ContentSettingsContent: View {
                 if let value = server.values.first(where: { $0.key == "content_filter_level" }) {
                     ServerPreferenceRow(setting: value, model: server)
                 } else if server.loading { ProgressView().frame(minHeight: 44) }
-                if let notice = server.notice { Text(notice).font(.system(size: 13)).foregroundStyle(GeneralStyle.faint) }
+                if let notice = server.notice { Text(notice).font(.footnote).foregroundStyle(GeneralStyle.faint) }
             }
             GeneralSection("Add rule") {
                 GeneralRow("Category", detail: "") { TextField("Category", text: $category).generalInput().frame(width: 150) }
@@ -113,15 +123,15 @@ struct ContentSettingsContent: View {
                 GeneralRow("Keyword", detail: "") { TextField("Keyword", text: $keyword).generalInput().frame(width: 150) }
                 GeneralStyle.divider
                 GeneralRow("Field", detail: "") {
-                    ChoicePicker(title: "", selection: $field, options: ["GENRE", "TAG", "TITLE", "DESCRIPTION"].map { ($0, $0.capitalized) }).font(.system(size: 14))
+                    ChoicePicker(title: "", selection: $field, options: ["GENRE", "TAG", "TITLE", "DESCRIPTION"].map { ($0, $0.capitalized) }).font(.subheadline)
                 }
                 GeneralStyle.divider
                 GeneralRow("Block level", detail: "") {
-                    ChoicePicker(title: "", selection: $level, options: [("MODERATE", "Moderate"), ("STRICT", "Strict")]).font(.system(size: 14))
+                    ChoicePicker(title: "", selection: $level, options: [("MODERATE", "Moderate"), ("STRICT", "Strict")]).font(.subheadline)
                 }
                 GeneralStyle.divider
                 GeneralRow("Minimum weight", detail: "Tag weight from 0 to 100.") {
-                    ChoicePicker(title: "", selection: $weight, options: stride(from: 0, through: 100, by: 10).map { ($0, String($0)) }).font(.system(size: 14))
+                    ChoicePicker(title: "", selection: $weight, options: stride(from: 0, through: 100, by: 10).map { ($0, String($0)) }).font(.subheadline)
                 }
                 GeneralRow("Content rule", detail: "") {
                     Button("Add") { Task {
@@ -145,7 +155,7 @@ struct ContentSettingsContent: View {
                     Button("Reset") { confirmingReset = true }.buttonStyle(GeneralTextButtonStyle())
                 }
             }.disabled(model.busy)
-            if let notice = model.notice { Text(notice).font(.system(size: 13)).foregroundStyle(GeneralStyle.faint) }
+            if let notice = model.notice { Text(notice).font(.footnote).foregroundStyle(GeneralStyle.faint) }
         }.task { await server.load(); await model.load() }
             .confirmationDialog("Reset content rules?", isPresented: $confirmingReset, titleVisibility: .visible) {
                 Button("Reset rules", role: .destructive) { Task { await model.change("resetContentFilterRules") } }

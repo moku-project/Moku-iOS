@@ -17,6 +17,8 @@ import Observation
     private var savedProgress: [String: (Double, Bool)] = [:]
     private var saveTask: Task<Void, Never>?
     private var generation = UUID()
+    /// A bookmark jump: where the next load scrolls, instead of synced progress.
+    private var pendingResume: Double?
 
     init(details: MediaDetails, chapterID: String, preferences: Data) {
         self.details = details
@@ -59,7 +61,8 @@ import Observation
             guard generation == current else { return }
             document = parsed
             // A finished chapter reopens at the top rather than at its last line.
-            resumeAt = resume.map { $0 >= 0.97 ? 0 : $0 }
+            resumeAt = pendingResume ?? resume.map { $0 >= 0.97 ? 0 : $0 }
+            pendingResume = nil
             loading = false
             Task { try? await BackendAPI.shared.chapterOpened(mediaID: details.id, chapterID: id) }
         } catch {
@@ -76,6 +79,16 @@ import Observation
         guard chapter.id != chapterID else { return }
         flush()
         chapterID = chapter.id
+    }
+
+    /// Opens a bookmark: scrolls within this chapter, or loads its chapter there.
+    func open(_ bookmark: NovelBookmark) {
+        if bookmark.chapterID == chapterID {
+            resumeAt = bookmark.fraction
+        } else if let chapter = chapters.first(where: { $0.id == bookmark.chapterID }) {
+            pendingResume = bookmark.fraction
+            open(chapter)
+        }
     }
 
     /// Moving to the next chapter counts the current one as read, like desktop.
@@ -130,5 +143,18 @@ import Observation
             "{ chapter(id: \(BackendAPI.literal(chapterID))) { readingProgress { progress } } }",
             requiresSourceRuntime: false)
         return response?.chapter?.readingProgress?.progress
+    }
+}
+
+/// Desktop's novel bookmark: one saved spot per series, separate from progress.
+struct NovelBookmark: Codable, Equatable, Sendable {
+    var chapterID: String
+    var fraction: Double
+
+    static func all(_ data: Data) -> [String: NovelBookmark] {
+        (try? JSONDecoder().decode([String: NovelBookmark].self, from: data)) ?? [:]
+    }
+    static func encode(_ value: [String: NovelBookmark]) -> Data {
+        (try? JSONEncoder().encode(value)) ?? Data()
     }
 }

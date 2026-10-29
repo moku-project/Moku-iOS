@@ -15,6 +15,13 @@ struct NovelReaderView: View {
     @AppStorage("novel.paragraphGap") private var paragraphGap = 0.9
     @AppStorage("novel.width") private var width = 70.0
     @AppStorage("novel.paged") private var paged = false
+    @AppStorage("novel.justified") private var justified = false
+    @AppStorage("novel.autoScrollSpeed.v2") private var autoScrollSpeed = 5.0
+    @AppStorage("novel.guide") private var guide = false
+    @AppStorage("novel.guideLines") private var guideLines = 3
+    @State private var autoScrollPausedUntil = ContinuousClock.now
+    @AppStorage("novel.bookmarks") private var bookmarkData = Data()
+    @State private var autoScrolling = false
 
     @State private var chromeVisible = true
     @State private var settingsOpen = false
@@ -39,6 +46,7 @@ struct NovelReaderView: View {
         ZStack {
             theme.background.ignoresSafeArea()
             content
+            if guide && model.ready { readingGuide.allowsHitTesting(false) }
             if chromeVisible { chrome.transition(.opacity) }
         }
         .foregroundStyle(theme.text)
@@ -49,6 +57,14 @@ struct NovelReaderView: View {
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: chromeVisible)
         .preference(key: GeneralMediaPresentedKey.self, value: true)
         .task(id: model.chapterID) { await model.load() }
+        .task(id: autoScrolling) { await runAutoScroll() }
+        .onChange(of: model.chapterID) { _, _ in autoScrolling = false }
+        .onChange(of: model.resumeAt) { _, resume in
+            // Bookmark jumps inside the open chapter: layout is already known.
+            guard let resume, geometry.content > geometry.viewport else { return }
+            model.didResume()
+            position.scrollTo(y: max(0, CGFloat(resume) * (geometry.content - geometry.viewport)))
+        }
         .onChange(of: scenePhase) { _, phase in if phase != .active { model.flush() } }
         .onDisappear { model.flush() }
         .recordActivity(
@@ -95,6 +111,12 @@ struct NovelReaderView: View {
                     model.scrolled(to: metrics.fraction)
                 }
             }
+            .onScrollPhaseChange { _, phase in
+                // Like desktop, touching the text pauses auto scroll for a moment.
+                if phase == .interacting || phase == .tracking {
+                    autoScrollPausedUntil = .now + .seconds(2.5)
+                }
+            }
             // On the scroll view itself, so taps never steal the scroll pan.
             .onTapGesture { location in tap(at: location.x) }
             .id(model.chapterID)
@@ -122,12 +144,18 @@ struct NovelReaderView: View {
     @ViewBuilder private func blockView(_ block: NovelDocument.Block) -> some View {
         switch block {
         case .paragraph(let text):
-            Text(text)
-                .font(fontFor(size: bodySize))
-                .lineSpacing(bodySize * (lineHeight - 1))
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.bottom, bodySize * paragraphGap)
-                .textSelection(.enabled)
+            if justified {
+                NovelParagraph(text: text, font: font, size: bodySize,
+                               lineSpacing: bodySize * (lineHeight - 1), color: theme.text)
+                    .padding(.bottom, bodySize * paragraphGap)
+            } else {
+                Text(text)
+                    .font(fontFor(size: bodySize))
+                    .lineSpacing(bodySize * (lineHeight - 1))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.bottom, bodySize * paragraphGap)
+                    .textSelection(.enabled)
+            }
         case .heading(let text):
             Text(text)
                 .font(fontFor(size: bodySize * 1.2, weight: .semibold))
@@ -168,6 +196,60 @@ struct NovelReaderView: View {
 
     private func toggleChrome() { chromeVisible.toggle() }
 
+    private var bookmark: NovelBookmark? { NovelBookmark.all(bookmarkData)[model.details.id] }
+    private var bookmarkedHere: Bool {
+        guard let bookmark, bookmark.chapterID == model.chapterID else { return false }
+        return abs(bookmark.fraction - model.progress) < 0.02
+    }
+
+    private func toggleBookmark() {
+        var all = NovelBookmark.all(bookmarkData)
+        if bookmarkedHere {
+            all.removeValue(forKey: model.details.id)
+            Toaster.shared.show("Bookmark removed", kind: .info)
+        } else {
+            all[model.details.id] = NovelBookmark(chapterID: model.chapterID, fraction: model.progress)
+            Toaster.shared.show("Bookmarked", detail: "\(model.chapter?.label ?? "This chapter") · \(Int(model.progress * 100))%")
+        }
+        bookmarkData = NovelBookmark.encode(all)
+    }
+
+    /// Desktop reading guide: a tinted band across the middle of the screen,
+    /// one to eight lines tall, to keep your place while reading.
+    private var readingGuide: some View {
+        let height = bodySize * lineHeight * CGFloat(guideLines) + 4
+        return Rectangle()
+            .fill(theme.text.opacity(0.08))
+            .overlay(alignment: .top) { Rectangle().fill(theme.text.opacity(0.22)).frame(height: 1) }
+            .overlay(alignment: .bottom) { Rectangle().fill(theme.text.opacity(0.22)).frame(height: 1) }
+            .frame(height: height)
+            .frame(maxHeight: .infinity)
+            .ignoresSafeArea()
+            .accessibilityHidden(true)
+    }
+
+    /// Desktop auto scroll: a steady glide, from 1 (slow) to 30 (fast). Any tap
+    /// that shows the bars pauses it; it stops at the end of the chapter.
+    private func runAutoScroll() async {
+        guard autoScrolling else { return }
+        chromeVisible = false
+        let clock = ContinuousClock()
+        var last = clock.now
+        while autoScrolling, !Task.isCancelled {
+            try? await Task.sleep(for: .milliseconds(16))
+            let now = clock.now
+            let elapsed = (now - last) / .seconds(1)
+            last = now
+            let end = max(0, geometry.content - geometry.viewport)
+            guard geometry.offset < end - 1 else {
+                autoScrolling = false
+                break
+            }
+            if chromeVisible || settingsOpen || chaptersOpen || now < autoScrollPausedUntil { continue }
+            position.scrollTo(y: min(end, geometry.offset + CGFloat(autoScrollSpeed * 30 * elapsed)))
+        }
+    }
+
     /// Paged mode turns by a screen minus two lines, so no line is skipped.
     private func turn(_ direction: CGFloat) {
         let step = max(100, geometry.viewport - bodySize * lineHeight * 2)
@@ -189,6 +271,10 @@ struct NovelReaderView: View {
                     Text(model.chapter?.label ?? "").font(.caption).foregroundStyle(theme.secondary).lineLimit(1)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                iconButton(bookmarkedHere ? "Bookmark.fill" : "Bookmark",
+                           label: bookmarkedHere ? "Remove bookmark" : "Bookmark this spot") { toggleBookmark() }
+                    .foregroundStyle(bookmarkedHere ? NavigationStyle.accent : theme.text)
+                    .accessibilityIdentifier("novel.bookmark")
                 iconButton("ListBullets", label: "Chapters") { chaptersOpen = true }
                 iconButton("Sliders", label: "Reader settings") { settingsOpen = true }
                     .accessibilityIdentifier("novel.settings")
@@ -204,6 +290,11 @@ struct NovelReaderView: View {
                     .accessibilityValue("\(Int(model.progress * 100)) percent")
                 Text("\(Int(model.progress * 100))%").font(.caption.monospacedDigit())
                     .foregroundStyle(theme.secondary).frame(width: 40)
+                iconButton(autoScrolling ? "Pause" : "Play", label: autoScrolling ? "Pause auto scroll" : "Auto scroll") {
+                    autoScrolling.toggle()
+                    if autoScrolling { chromeVisible = false }
+                }
+                .accessibilityIdentifier("novel.autoScroll")
                 iconButton("CaretRight", label: "Next chapter") { model.advance() }
                     .disabled(model.next == nil)
             }
@@ -249,8 +340,24 @@ struct NovelReaderView: View {
                     stepper("Paragraph gap", value: $paragraphGap, range: 0.3...2.2, step: 0.1, format: { $0.formatted(.number.precision(.fractionLength(1))) })
                     stepper("Column width", value: $width, range: 30...160, step: 5, format: { "\(Int($0))" })
                 }
+                Section("Layout") {
+                    Toggle("Justify text", isOn: $justified)
+                }
                 Section("Behaviour") {
                     Toggle("Tap edges to turn pages", isOn: $paged)
+                    stepper("Auto scroll speed", value: $autoScrollSpeed, range: 1...30, step: 1, format: { "\(Int($0))" })
+                }
+                Section("Reading guide") {
+                    Toggle("Guide bar", isOn: $guide)
+                    if guide {
+                        Stepper(value: $guideLines, in: 1...8) {
+                            HStack {
+                                Text("Thickness")
+                                Spacer()
+                                Text("\(guideLines) line\(guideLines == 1 ? "" : "s")").foregroundStyle(.secondary).monospacedDigit()
+                            }
+                        }
+                    }
                 }
                 Section {
                     Text("The quick brown fox jumps over the lazy dog. Typography changes apply as you go.")
@@ -260,6 +367,7 @@ struct NovelReaderView: View {
                         .listRowBackground(theme.background)
                 } header: { Text("Preview") }
             }
+            .textCase(nil)
             .navigationTitle("Reader settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { settingsOpen = false } } }
@@ -283,7 +391,27 @@ struct NovelReaderView: View {
     private var chapterList: some View {
         NavigationStack {
             ScrollViewReader { proxy in
-                List(model.chapters) { chapter in
+                List {
+                    if let bookmark, let marked = model.chapters.first(where: { $0.id == bookmark.chapterID }) {
+                        Section {
+                            Button {
+                                model.open(bookmark)
+                                chaptersOpen = false
+                            } label: {
+                                Label {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Go to bookmark")
+                                        Text("\(marked.label) · \(Int(bookmark.fraction * 100))%")
+                                            .font(.caption).foregroundStyle(.secondary)
+                                    }
+                                } icon: { PhosphorIcon("Bookmark.fill").foregroundStyle(NavigationStyle.accent) }
+                                .frame(minHeight: 44)
+                            }
+                            .accessibilityIdentifier("novel.gotoBookmark")
+                        }
+                    }
+                    Section {
+                    ForEach(model.chapters) { chapter in
                     Button {
                         model.open(chapter)
                         chaptersOpen = false
@@ -298,6 +426,8 @@ struct NovelReaderView: View {
                         .frame(minHeight: 44)
                     }
                     .id(chapter.id)
+                    }
+                    }
                 }
                 .onAppear { proxy.scrollTo(model.chapterID, anchor: .center) }
             }

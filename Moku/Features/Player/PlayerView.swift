@@ -37,6 +37,28 @@ struct PlayerView: View {
     private let accent = Color(red: 122 / 255, green: 170 / 255, blue: 122 / 255)
     private typealias Panel = PlayerMenu.Kind
 
+    /// Cues sharing a screen position, each in its own ASS weight, slant and colour.
+    @ViewBuilder private func captionGroup(_ position: SubtitleCue.Position, landscape: Bool) -> some View {
+        let cues = model.captions.filter { $0.position == position }
+        if !cues.isEmpty {
+            VStack(spacing: 2) {
+                ForEach(Array(cues.enumerated()), id: \.offset) { _, cue in
+                    Text(cue.text)
+                        .font(.system(size: (landscape ? 18 : 16) * model.subtitleScale, weight: cue.bold ? .bold : .regular))
+                        .italic(cue.italic)
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(cue.color.map { value in
+                            Color(red: Double((value >> 16) & 0xFF) / 255, green: Double((value >> 8) & 0xFF) / 255,
+                                  blue: Double(value & 0xFF) / 255)
+                        } ?? .white)
+                }
+            }
+            .padding(.horizontal, 8).padding(.vertical, 3)
+            .background(model.subtitleBackground ? Color.black.opacity(0.75) : .clear)
+            .shadow(color: .black, radius: 2, y: 1)
+        }
+    }
+
     var body: some View {
         GeometryReader { geometry in
             let landscape = geometry.size.width > geometry.size.height
@@ -65,7 +87,7 @@ struct PlayerView: View {
                         if !flash.leading { Spacer() }
                         Label(flash.leading ? "−\(flash.seconds)s" : "+\(flash.seconds)s",
                               phosphor: flash.leading ? "ArrowCounterClockwise" : "ArrowClockwise")
-                            .font(.system(size: 15, weight: .semibold))
+                            .font(.subheadline.weight(.semibold))
                             .padding(.horizontal, 16).padding(.vertical, 10)
                             .background(.black.opacity(0.55), in: Capsule())
                             .padding(.horizontal, geometry.size.width * 0.12)
@@ -75,25 +97,22 @@ struct PlayerView: View {
                     .allowsHitTesting(false)
                     .id(flash.id)
                 }
-                if !model.caption.isEmpty {
-                    VStack {
+                if !model.captions.isEmpty {
+                    VStack(spacing: 0) {
+                        captionGroup(.top, landscape: landscape)
+                            .padding(.top, controlsVisible ? (landscape ? 66 : 110) : 24)
                         Spacer()
-                        Text(model.caption)
-                            .font(.system(size: (landscape ? 18 : 16) * model.subtitleScale))
-                            .multilineTextAlignment(.center)
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 8).padding(.vertical, 3)
-                            .background(
-                                model.subtitleBackground ? Color.black.opacity(0.75) : .clear
-                            )
-                            .shadow(color: .black, radius: 2, y: 1)
-                            .padding(.horizontal, 24)
+                        captionGroup(.middle, landscape: landscape)
+                        Spacer()
+                        captionGroup(.bottom, landscape: landscape)
                             .padding(
                                 .bottom,
                                 max(
                                     geometry.size.height * model.subtitleHeight / 100,
                                     controlsVisible ? (landscape ? 66 : 128) : 16))
-                    }.allowsHitTesting(false)
+                    }
+                    .padding(.horizontal, 24)
+                    .allowsHitTesting(false)
                 }
                 if model.loading {
                     ContentSkeleton(style: .player)
@@ -119,7 +138,7 @@ struct PlayerView: View {
                             Spacer()
                             Button { model.skip(marker) } label: {
                                 Label(marker.label, phosphor: "SkipForward")
-                                    .font(.system(size: 14, weight: .semibold))
+                                    .font(.subheadline.weight(.semibold))
                                     .padding(.horizontal, 16).frame(minHeight: 44)
                                     .background(.black.opacity(0.7), in: Capsule())
                                     .overlay(Capsule().strokeBorder(.white.opacity(0.25)))
@@ -176,7 +195,7 @@ struct PlayerView: View {
                 }
             }
             .foregroundStyle(Color(white: 0.86))
-            .font(.system(size: 13))
+            .font(.footnote)
             .tint(accent)
             .buttonStyle(.plain)
             .preferredColorScheme(.dark)

@@ -19,41 +19,36 @@ feature with its iOS status.
 The **Plan / where** column names the iOS file or approach. Rows flip to ✅ in the same commit as
 their fix.
 
-## Where it stands (2026-10-28)
+## Where it stands (2026-10-29)
 
-Every P0 row is at parity. Every P1 row is either at parity or partial, and
-the partial ones are listed below. What remains is P2 polish, plus three items that need
-work outside the iOS app.
+Every desktop feature that the shared server supports is on iOS. The final pass
+compared each remaining row against the desktop code (`../Moku`, branch
+`testflight-ready`). It found that several "missing" rows were never desktop
+features: desktop has no QR pairing, no in-app Cloudflare browser, never shows
+alternate titles (no data reaches that UI), and its "latest fetched" sort is a
+no-op. Those rows are now marked as such.
 
-**Remaining, by size:**
-- **Needs a Tsunagu change:**
-  - In-app Cloudflare verification: the API doesn't expose a source's base URL.
-  - Pushing progress to trackers automatically after marking chapters read.
-  - Alternate titles: the schema has none.
-- **Needs the desktop app built and run:** the Phone sync toggle and Bonjour advertising
-  (`Moku` branch `testflight-ready`). Their std-only Rust parts were compiled and run on
-  their own; `cargo check` of the whole app needs rustc ≥ 1.90 (this Mac has 1.88).
-- **P2 polish:**
-  - library: infinite scroll, latest-fetched sort;
-  - details and novels: resume page in chapter rows, cover picker,
-    a separate novel bookmark, justified text, reading guide;
-  - reader: PDF chapters, resume banner, next-chapter prefetch;
-  - search: per-source browse page, per-extension library and bulk migration;
-  - folders: content types per folder;
-  - settings: storage-limit dialog, server log viewer;
-  - player: ASS styling; MyAnimeList (also missing on desktop);
-  - QR pairing; localisation.
+**Still open:**
+- **Embedded server version:** the desktop bundles Tsunagu 0.6.0
+  (`nix/versions.nix`); the iOS app embeds `vendor/Tsunagu` on branch
+  `ios-on-v0.6.0` (0.6.0 plus the iOS commits). The embedded server now serves
+  PDF chapters (`pdfSource`, `/pdf`) and folder content types; the app still
+  needs a PDFKit page source and to move folder content types onto the server.
+- **Desktop side of phone sync:** the switch and Bonjour advertising are on the
+  `Moku` branch `testflight-ready`. The whole desktop crate passes
+  `cargo +1.95.0 check` with no warnings (2026-10-29, Tsunagu 0.6.0 built
+  locally as the bundled resource; a placeholder `dist` stood in for the web
+  frontend, whose packages aren't installed). The desktop app itself hasn't
+  been launched and paired with a phone.
+- **Localisation:** English only, same as desktop.
 
 **How it was verified:**
-- **Unit tests:** 126, all passing except the keychain-only app-lock test in unsigned
-  simulator builds.
-- **Simulator, real MangaDex:** genre search, Details controls, mark read/unread,
-  onboarding, the Sync screen, the fixture player (subtitles, AirPlay, autoplay next).
-- **Desktop sync:** end to end against a Tsunagu server on this Mac (pairing, adds,
-  progress both ways, folders, removal, content-filtered titles).
-- **Not run:** a real novel source, real anime sources, PiP on a device, background
-  tasks (BGTaskScheduler doesn't fire on its own in the simulator), Bonjour discovery
-  between two machines.
+- **Unit tests:** all passing, including the keychain app-lock test (vault injection).
+- **Builds:** Debug simulator build after each batch of changes.
+- **Not run:** a real novel source, real anime sources, ASS files from real
+  sources, PiP on a device, background tasks (BGTaskScheduler doesn't fire on
+  its own in the simulator), Bonjour between two machines, and the new screens
+  in this pass (the owner checks those visually).
 
 ## 0. Desktop sync (new on both sides)
 
@@ -64,8 +59,8 @@ between the two servers, so the phone keeps working offline.
 
 | Feature | Desktop | iOS | Pri | Plan / where |
 | --- | --- | --- | --- | --- |
-| Let other devices reach the desktop server (LAN bind + required password) | ✅ | – | P1 | Desktop: Settings › General › Server › "Allow devices on your network" restarts Tsunagu on `0.0.0.0:6007`, requires a server password, and shows the LAN URL and a pairing QR code |
-| Pair a phone with a desktop (URL + password → session token) | – | ✅ | P1 | iOS: Settings › Sync › Connect to desktop (scan QR or type URL), `POST /api/auth/login`, token kept in the Keychain |
+| Let other devices reach the desktop server (LAN bind + required password) | ✅ | – | P1 | Desktop: Settings › Auth › Phone sync › "Allow devices on your network" restarts Tsunagu on `0.0.0.0:6007`, requires a server password, and shows the LAN address |
+| Pair a phone with a desktop (URL + password → session token) | – | ✅ | P1 | iOS: Settings › Sync › pick a discovered desktop or type its address, `POST /api/auth/login`, token kept in the Keychain. Desktop shows the address as text (no QR) |
 | Two-way library sync (saved titles, matched by extension package + external ID) | – | ✅ | P1 | `Shared/Sync/DesktopSync.swift`: 3-way merge against the last-synced snapshot, so removals carry over |
 | Two-way read progress (chapter `externalId`, newest `updatedAt` wins) | – | ✅ | P1 | Same engine, via `readingProgress` / `updateReadingProgress` |
 | Folders and folder membership (matched by name) | – | ✅ | P1 | Same engine |
@@ -79,10 +74,10 @@ between the two servers, so the phone keeps working offline.
 | Main navigation (Home, Library, Browse, Downloads, Recent, Extensions) | ✅ | ✅ | – | Tab bar plus More |
 | Global content-type filter All / Manga / Novels / Anime | ✅ | ✅ | – | Mode tabs |
 | Toast notifications (success / error / info / download) | ✅ | ✅ | P1 | `Shared/Components/Toast.swift`; replace one-off `.alert` notices |
-| Splash and boot progress, error log, retry | ✅ | 🟡 | P2 | Skeleton plus error and retry exist; no log |
+| Splash and boot progress, error log, retry | ✅ | ✅ | P2 | Skeleton, error and retry; the server log is in Settings › Server |
 | "What's new" changelog after an update | ✅ | ✅ | P2 | Bundled notes (`WhatsNew.releases`), shown once after an update |
 | Onboarding welcome and tour | ✅ | ✅ | P0 | First-run flow: what Moku is, add a repository, install a source, Local files |
-| Server log viewer | ✅ | ❌ | P2 | Settings › Dev Tools › Server log |
+| Server log viewer | ✅ | ✅ | P2 | Settings › Server › Logs: stdout/stderr teed to a 1 MB file; filter, copy, share, clear |
 | Idle screen (animated covers) | ✅ | ✅ | – | |
 | App lock PIN plus OS biometrics | ✅ | ✅ | P2 | Face ID prompts on lock; themed lock screen; PIN hashed off the main actor |
 | Interface scale | ✅ | ✅ | – | |
@@ -106,10 +101,10 @@ between the two servers, so the phone keeps working offline.
 | Feature | Desktop | iOS | Pri | Plan / where |
 | --- | --- | --- | --- | --- |
 | Saved / Downloaded / folder tabs | ✅ | ✅ | – | |
-| Reading / Completed views reachable from the page | – | 🟡 | P2 | Only via Settings default view |
-| Reorder and hide tabs, default folder | ✅ | 🟡 | P2 | Hide and reorder are in Settings › Folders |
+| Reading / Completed views reachable from the page | – | ✨ | – | Desktop has no Reading view; Completed is a folder there |
+| Reorder and hide tabs, default folder | ✅ | ✅ | P2 | Hide and reorder in Settings › Folders; any folder can be the default library view |
 | Sort: A–Z, unread, total, recently added, recently read | ✅ | ✅ | P0 | `addedAt` read from the server |
-| Sort: latest fetched chapter, latest uploaded chapter | ✅ | 🟡 | P2 | Latest upload added; latest fetched not yet |
+| Sort: latest fetched chapter, latest uploaded chapter | 🟡 | ✅ | P2 | Latest upload. Desktop's latest fetched never gets data (no-op), so it isn't ported |
 | Filters: unread, started, downloaded, bookmarked | ✅ | ✅ | – | |
 | Status filter (ongoing, completed, …) | ✅ | ✅ | P0 | Server status mapped to filters |
 | Show tracked only | ✅ | ✅ | P2 | Library filter → Tracked |
@@ -117,7 +112,7 @@ between the two servers, so the phone keeps working offline.
 | Update entire library, with progress and result | ✅ | ✅ | P1 | Library tools → Update and Recent → Updates use the server update |
 | Multi-select and bulk actions (move to folder, remove from folder, remove from library) | ✅ | ✅ | P1 | Long-press → Select; selection bar |
 | Card menu: folders, add/remove library, refresh, delete downloads | ✅ | ✅ | P1 | |
-| Infinite scroll | ✅ | 🟡 | P2 | Paged with Previous/Next |
+| Infinite scroll | ✅ | ✅ | P2 | Reveals the next page as the end scrolls into view |
 | Empty and error states | ✅ | ✅ | – | |
 
 ## 4. Browse / Search
@@ -125,14 +120,14 @@ between the two servers, so the phone keeps working offline.
 | Feature | Desktop | iOS | Pri | Plan / where |
 | --- | --- | --- | --- | --- |
 | Keyword search across sources, grouped by source | ✅ | ✅ | – | |
-| Language filter, preferred language | ✅ | 🟡 | P1 | Preferred language is applied when Search opens |
+| Language filter, preferred language | ✅ | ✅ | P1 | Applied when Search opens and marked “Preferred” in the language list |
 | Popular when the query is empty | ✅ | ✅ | – | iOS adds recommended, latest and explore shelves ✨ |
 | Load more / infinite results | ✅ | ✅ | P1 | Load more button |
 | Tags tab: genres + status, AND/OR, using source filter options | ✅ | ✅ | P0 | Port of `buildGenreFilterInputs`, plus status selects |
-| Genre drill page (library + sources) | ✅ | 🟡 | P0 | Genre chips run a source genre search; library matches not merged |
-| Sources tab: per-source browse (popular, in-source search, load more) | ✅ | 🟡 | P1 | "Search by source" exists; add a source page with pagination |
+| Genre drill page (library + sources) | ✅ | ✅ | P0 | Library titles with the genres come first, then source results without duplicates |
+| Sources tab: per-source browse (popular, in-source search, load more) | ✅ | ✅ | P1 | `SourceBrowseView`, opened from Extensions; Saved badges |
 | Pin sources | ✅ | ✅ | P2 | Long-press a source in filters |
-| Local Source entry | ✅ | 🟡 | P2 | Import exists in Settings › Storage |
+| Local Source entry | ✅ | ✅ | P2 | Import, rescan and Local titles (delete) in Settings › Storage |
 | NSFW / content-level hiding | ✅ | ✅ | – | Server-side |
 | Quick preview modal | ✅ | ➖ | – | iOS opens Details directly; long-press preview ✨ later |
 
@@ -141,7 +136,7 @@ between the two servers, so the phone keeps working offline.
 | Feature | Desktop | iOS | Pri | Plan / where |
 | --- | --- | --- | --- | --- |
 | Header, status, source, genres, description, add to library | ✅ | ✅ | – | |
-| Alternate titles | ✅ | ❌ | P2 | Needs Tsunagu: the schema has no alternate titles |
+| Alternate titles | ➖ | ➖ | – | Desktop has the UI but no data reaches it; the schema has no field |
 | Primary button: Start / Continue · Ch X / Read again | ✅ | ✅ | P1 | |
 | Chapter sort: source order, number, upload date, asc/desc | ✅ | ✅ | P1 | |
 | Jump to chapter / filter | ✅ | ✅ | – | |
@@ -149,15 +144,15 @@ between the two servers, so the phone keeps working offline.
 | Mark read / unread, mark above/below | ✅ | ✅ | P0 | Chapter menu: mark read/unread, mark previous read/unread |
 | Multi-select chapters → download / delete / mark read / unread | ✅ | ✅ | P1 | |
 | Download menu: next 5/10/25, unread, all, custom range, delete all | ✅ | ✅ | P1 | No custom range; use selection instead |
-| Chapter row: resume page, read and downloaded icons | ✅ | 🟡 | P2 | Read, downloaded and upload date; no resume page |
+| Chapter row: resume page, read and downloaded icons | ✅ | ✅ | P2 | "Page N", "N% read" or "Stopped at m:ss" |
 | Switch source (migrate) | ✅ | ✅ | P1 | Details → Manage |
-| Series link | ✅ | 🟡 | P2 | Auto-link exists; manual link UI missing |
-| Cover picker / refetch cover | ✅ | 🟡 | P2 | Refresh cover; no picker |
-| Metadata match (AniList) | ✅ | ❌ | P2 | `searchMetadata`, `applyMetadataMatch` |
+| Series link | ✅ | ✅ | P2 | Manage › Series link: search, suggestions (≥ 65% similar), unlink |
+| Cover picker / refetch cover | ✅ | ✅ | P2 | Manage › Cover image: source, linked and similar titles, AniList; re-download |
+| Metadata match (AniList) | ✅ | ✅ | P2 | Manage › Metadata match: search, use, refresh, unlink |
 | Per-series automation panel | ✅ | ✅ | P1 | Details → Manage → Automation |
 | Per-series tracking panel (status, progress, score, sync) | ✅ | ✅ | P1 | Details → Manage → Tracking |
-| Tracker push after marking read | ✅ | 🟡 | P1 | Manual “Sync from tracker” only |
-| Open source page | ✅ | 🟡 | P2 | MangaDex only; generalise |
+| Tracker push after marking read | ✅ | ✅ | P1 | The server syncs on every mark-read; Details also raises linked trackers at once, like desktop |
+| Open source page | ➖ | ✨ | – | Desktop's link reads `realUrl`, which the server never sends; iOS links MangaDex titles |
 | Novel chapters open a reader | ✅ | ✅ | P0 | §7 |
 
 ## 6. Manga reader
@@ -169,9 +164,9 @@ between the two servers, so the phone keeps working offline.
 | Page gap, contrast, offset spreads | ✅ | ✅ | – | |
 | Per-manga settings, presets | ✅ | ✅ | – | |
 | Bar position, tap to toggle, containerised | ✅ | ✅ | – | Settings import accepts left/right (fixed) |
-| Bookmarks, auto-bookmark, resume banner | ✅ | 🟡 | P2 | No resume banner |
-| Preload pages, next-chapter prefetch | ✅ | 🟡 | P2 | No next-chapter prefetch |
-| PDF chapters | ✅ | ❌ | P2 | PDFKit |
+| Bookmarks, auto-bookmark, resume banner | ✅ | ✅ | P2 | "Bookmark at page N" fades after 2.5 s |
+| Preload pages, next-chapter prefetch | ✅ | ✅ | P2 | Near the end, the next chapter's page list and first pages load in the background |
+| PDF chapters | ✅ | ❌ | P2 | The embedded server (0.6.0) serves `pdfSource` and `/pdf`; the reader needs a PDFKit page source |
 | Webtoon image quality | ✅ | ✅ | P0 | Decode bounds the short side and pixel count |
 | Keyboard shortcuts | ✅ | ✅ | – | Hardware keyboard |
 
@@ -181,10 +176,10 @@ between the two servers, so the phone keeps working offline.
 | --- | --- | --- | --- | --- |
 | Novel reader (HTML / text), continuous scroll | ✅ | ✅ | P0 | `Features/NovelReader`; not yet run against a real LNReader source |
 | Paged mode | ✅ | ✅ | P1 | Tap edges to turn a screen |
-| Font, size, line height, paragraph gap, width, alignment | ✅ | 🟡 | P1 | All but justified alignment |
+| Font, size, line height, paragraph gap, width, alignment | ✅ | ✅ | P1 | Justify uses a UIKit paragraph with light hyphenation |
 | Paper / sepia / dark themes | ✅ | ✅ | P1 | Plus black |
-| Progress save and resume, bookmark | ✅ | 🟡 | P0 | Synced progress and resume; no separate bookmark |
-| Reading guide, auto scroll | ✅ | ❌ | P2 | |
+| Progress save and resume, bookmark | ✅ | ✅ | P0 | Plus one manual bookmark per series, "Go to bookmark" in Chapters |
+| Reading guide, auto scroll | ✅ | ✅ | P2 | Guide bar 1–8 lines; auto scroll speed 1–30, pauses 2.5 s on touch |
 
 ## 8. Anime player
 
@@ -195,7 +190,7 @@ between the two servers, so the phone keeps working offline.
 | Double-tap left/right to seek | ✅ | ✅ | P1 | |
 | Skip intro / outro / recap (server skip timestamps) | ✅ | ✅ | P1 | |
 | Preferred source per series | ✅ | ✅ | P2 | Remembered by source label |
-| ASS subtitles | ✅ | 🟡 | P2 | ASS → plain-cue fallback |
+| ASS subtitles | ✅ | 🟡 | P2 | Parsed natively: bold, italic, colour and top/middle/bottom placement. Desktop uses libass, so fonts, outlines and animated signs still differ |
 | Subtitle style persisted | ✅ | ✅ | P1 | Style and picked language remembered |
 | Volume control | ✅ | ➖ | – | Hardware buttons |
 | Stream info | ✅ | ✅ | P2 | Player options: resolution and source |
@@ -209,9 +204,9 @@ between the two servers, so the phone keeps working offline.
 | Queue and history, grouped by series | ✅ | ✅ | – | |
 | Pause/resume, clear, retry all, auto-retry | ✅ | ✅ | – | |
 | Remove single item / series | ✅ | ✅ | P1 | Long-press a chapter or series |
-| Reorder (move up/down/top/bottom) | ✅ | 🟡 | P2 | Series to top/bottom |
+| Reorder (move up/down/top/bottom) | ✅ | ✅ | P2 | Series and single chapters |
 | Series covers in groups | ✅ | ✅ | P2 | |
-| Storage warning dialog | ✅ | 🟡 | P2 | Inline text only |
+| Storage warning dialog | ✅ | ✅ | P2 | "Low disk space" when queued downloads would pass 95% of free space |
 | Download toasts | ✅ | ✅ | P1 | |
 | Continue downloading in background | n/a | ✅ | P1 | ✨ Background task plus BGProcessingTask |
 
@@ -233,16 +228,16 @@ between the two servers, so the phone keeps working offline.
 | Install from URL | ✅ | ✅ | P2 | |
 | Repositories add / remove / refresh / rename | ✅ | ✅ | – | |
 | Source settings | ✅ | ✅ | – | |
-| Per-extension library, bulk source migration | ✅ | ❌ | P2 | |
-| Local Source library management | ✅ | 🟡 | P2 | Import only |
-| Cloudflare challenge (managed solver) | ✅ | 🟡 | P1 | Clear "behind Cloudflare" error and external solver setting. The in-app browser (`SourceVerificationBrowser`) needs Tsunagu to expose a source's base URL first |
+| Per-extension library, bulk source migration | ✅ | ✅ | P2 | Extensions › ⋯ › Library and migration: match, review, move |
+| Local Source library management | ✅ | ✅ | P2 | Settings › Storage › Local titles |
+| Cloudflare challenge (managed solver) | ✅ | ✅ | P1 | Desktop also relies only on the server's FlareSolverr settings; iOS has the same settings and error. No in-app browser on either |
 
 ## 12. Tracking
 
 | Feature | Desktop | iOS | Pri | Plan / where |
 | --- | --- | --- | --- | --- |
 | Tracker list, OAuth connect, disconnect | ✅ | ✅ | – | |
-| MyAnimeList | 🟡 | 🟡 | – | "Coming soon" on both |
+| MyAnimeList | 🟡 | 🟡 | – | Not signable on either; hidden on iOS |
 | Import from AniList (setup, match, dry run, resume) | ✅ | ✅ | – | |
 | Per-title tracking | ✅ | ✅ | P1 | §5 |
 
@@ -258,14 +253,14 @@ between the two servers, so the phone keeps working offline.
 | Automation: update library on app open | ✅ | ✅ | P1 | Plus background updates with notifications ✨ |
 | Performance: items per page, cache stats, clear cache | ✅ | ✅ | – | |
 | Storage: usage, format, directories, backups, Mihon import/export | ✅ | ✅ | – | |
-| Storage limit warning | ✅ | 🟡 | P2 | |
+| Storage limit warning | ✅ | ✅ | P2 | Download guard above; the limit itself only colours usage bars on desktop |
 | Reset: reading stats, settings | ✅ | ✅ | P2 | Stats come from history: Library → Clear reading history; Storage → Reset preferences |
-| Folders (content types per folder) | ✅ | 🟡 | P2 | Content types missing |
+| Folders (content types per folder) | ✅ | ✅ | P2 | Folders › Manage › Show for. Still kept on the phone; the embedded 0.6.0 server stores `contentTypes` (`setFolderContentTypes`), so this can move to the server |
 | Content level, rules, source overrides | ✅ | ✅ | – | |
 | Server settings | ✅ | ✅ | – | |
 | Auth: server password, app lock | ✅ | ✅ | – | |
 | About: versions, release notes, links | ✅ | ✅ | – | |
-| Bug reporter (prefilled GitHub issue, redacted settings) | ✅ | 🟡 | P2 | Prefilled issue with app/iOS/device; no settings attached |
+| Bug reporter (prefilled GitHub issue, redacted settings) | ✅ | ✅ | P2 | Bug or feature, chosen settings groups, secrets always left out; open or copy |
 | Dev tools | ✅ | ✅ | – | |
 
 ## 14. Production readiness (iOS)

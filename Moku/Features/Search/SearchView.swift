@@ -129,6 +129,9 @@ struct SearchView: View {
                         alignment: .top
                     )
                     .padding(.horizontal, 16)
+                    // The page-level hide doesn't reach into the scroll view's
+                    // content; without this, VoiceOver reads results under Filters.
+                    .accessibilityHidden(isPage && model.panel != nil)
                 }
                 .contentMargins(
                     .bottom,
@@ -279,7 +282,7 @@ struct SearchView: View {
         case .loading:
             ContentSkeleton(style: .results)
         case .unavailable:
-            message("Search is not available yet.", symbol: "MagnifyingGlass")
+            message("Search couldn’t start. Try again in a moment.", symbol: "MagnifyingGlass")
         case .failed(let description):
             VStack {
                 message(description, symbol: "WifiSlash")

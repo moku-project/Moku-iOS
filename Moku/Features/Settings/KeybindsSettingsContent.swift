@@ -91,7 +91,7 @@ struct KeybindsSettingsContent: View {
                     Button("Reset") { data = Data(); play = " "; previous = "["; next = "]" }.buttonStyle(GeneralTextButtonStyle())
                 }
             }
-            if let notice { Text(notice).font(.system(size: 13)).foregroundStyle(GeneralStyle.faint) }
+            if let notice { Text(notice).font(.footnote).foregroundStyle(GeneralStyle.faint) }
         }.alert(selected?.title ?? "Shortcut", isPresented: Binding(get: { selected != nil }, set: { if !$0 { selected = nil } })) {
             TextField("Shortcut", text: $draft).textInputAutocapitalization(.never).autocorrectionDisabled()
             Button("Cancel", role: .cancel) {}
@@ -107,7 +107,7 @@ struct KeybindsSettingsContent: View {
     }
     private func choice(_ title: String, value: Binding<String>, options: [(String, String)]) -> some View {
         GeneralRow(title, detail: "") {
-            ChoicePicker(title: "", selection: value, options: options).font(.system(size: 14))
+            ChoicePicker(title: "", selection: value, options: options).font(.subheadline)
                 .accessibilityIdentifier("settings.picker.\(title)").accessibilityValue(value.wrappedValue)
         }
     }

@@ -127,15 +127,24 @@ struct SyncSettingsContent: View {
                         .onSubmit { Task { await connect() } }
                         .accessibilityIdentifier("sync.password")
                 }
-                GeneralRow("", detail: notice ?? "") {
-                    if pairing {
-                        ProgressView()
-                    } else {
-                        Button("Connect") { Task { await connect() } }
-                            .buttonStyle(GeneralTextButtonStyle())
-                            .disabled(address.isEmpty || password.isEmpty)
-                            .accessibilityIdentifier("sync.connect")
+                Button { Task { await connect() } } label: {
+                    Group {
+                        if pairing { ProgressView().tint(NavigationStyle.background) } else { Text("Connect") }
                     }
+                    .font(.headline)
+                    .foregroundStyle(NavigationStyle.background)
+                    .frame(maxWidth: .infinity, minHeight: 48)
+                    .background(NavigationStyle.accent.opacity(address.isEmpty || password.isEmpty ? 0.4 : 1),
+                                in: RoundedRectangle(cornerRadius: 10))
+                }
+                .buttonStyle(.plain)
+                .disabled(pairing || address.isEmpty || password.isEmpty)
+                .padding(.top, 12)
+                .accessibilityIdentifier("sync.connect")
+                if let notice {
+                    Text(notice).font(.footnote).foregroundStyle(.orange)
+                        .padding(.top, 8).padding(.bottom, 4)
+                        .accessibilityIdentifier("sync.error")
                 }
             }
         }

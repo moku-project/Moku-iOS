@@ -23,7 +23,7 @@ struct Dropdown<Content: View>: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 if showsTitle {
-                    Text(title).font(.system(size: 13, weight: .medium))
+                    Text(title).font(.footnote.weight(.medium))
                         .foregroundStyle(.secondary).padding(.horizontal, 10).padding(.vertical, 10)
                     Divider().padding(.horizontal, 2).padding(.bottom, 4)
                 }
@@ -52,7 +52,7 @@ struct MenuSection: View {
     let title: String
     init(_ title: String) { self.title = title }
     var body: some View {
-        Text(title).font(.system(size: 12, weight: .medium))
+        Text(title).font(.caption.weight(.medium))
             .foregroundStyle(.secondary)
             .padding(.horizontal, 8).padding(.top, 8).padding(.bottom, 6)
     }

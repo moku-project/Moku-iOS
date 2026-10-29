@@ -11,6 +11,7 @@
                     subtitles: [
                         .init(lang: "English", url: "english"),
                         .init(lang: "Español", url: "spanish"),
+                        .init(lang: "Signs (ASS)", url: "signs"),
                     ]), 8
             )
         }
@@ -19,7 +20,23 @@
             return URLRequest(url: url)
         }
         func subtitle(path: String) async throws -> String {
-            "WEBVTT\n\n00:00.000 --> 00:24.000\n"
+            if path == "signs" {
+                return """
+                    [Script Info]
+                    ScriptType: v4.00+
+
+                    [V4+ Styles]
+                    Format: Name, Fontname, Fontsize, PrimaryColour, Bold, Italic, Alignment
+                    Style: Default,Arial,48,&H00FFFFFF,0,0,2
+                    Style: Sign,Arial,40,&H0000FFFF,-1,0,8
+
+                    [Events]
+                    Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+                    Dialogue: 0,0:00:00.00,0:00:24.00,Sign,,0,0,0,,Northbound platform
+                    Dialogue: 0,0:00:00.00,0:00:24.00,Default,,0,0,0,,{\\i1}A quiet moment{\\i0} before the journey.
+                    """
+            }
+            return "WEBVTT\n\n00:00.000 --> 00:24.000\n"
                 + (path == "english"
                     ? "A quiet moment before the journey." : "Un momento de calma antes del viaje.")
         }

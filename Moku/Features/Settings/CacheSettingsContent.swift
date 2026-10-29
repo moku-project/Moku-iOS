@@ -11,19 +11,19 @@ struct CacheSettingsContent: View {
     @State private var expanded = false
     var body: some View {
         GeneralSection("Cache") {
-            GeneralRow("Entries", detail: "Stored cover and search results.") { Text("\(files.count)").font(.system(size: 14)) }
+            GeneralRow("Entries", detail: "Stored cover and search results.") { Text("\(files.count)").font(.subheadline) }
             GeneralStyle.divider
-            GeneralRow("Size", detail: "") { Text(ByteCountFormatter.string(fromByteCount: files.reduce(0) { $0 + $1.bytes }, countStyle: .file)).font(.system(size: 14)) }
+            GeneralRow("Size", detail: "") { Text(ByteCountFormatter.string(fromByteCount: files.reduce(0) { $0 + $1.bytes }, countStyle: .file)).font(.subheadline) }
             if let oldest = files.first, let newest = files.last {
                 GeneralStyle.divider
-                GeneralRow("Oldest access", detail: "") { Text(oldest.modified, style: .date).font(.system(size: 14)) }
+                GeneralRow("Oldest access", detail: "") { Text(oldest.modified, style: .date).font(.subheadline) }
                 GeneralStyle.divider
-                GeneralRow("Newest access", detail: "") { Text(newest.modified, style: .date).font(.system(size: 14)) }
+                GeneralRow("Newest access", detail: "") { Text(newest.modified, style: .date).font(.subheadline) }
             }
             GeneralStyle.divider
             GeneralRow("Stored keys", detail: "") { Button(expanded ? "Hide" : "Show") { expanded.toggle() }.buttonStyle(GeneralTextButtonStyle()) }
             if expanded {
-                ForEach(files.prefix(100)) { file in Text(file.id).font(.system(size: 11, design: .monospaced)).foregroundStyle(GeneralStyle.faint).textSelection(.enabled).lineLimit(2) }
+                ForEach(files.prefix(100)) { file in Text(file.id).font(.caption2.monospacedDigit()).foregroundStyle(GeneralStyle.faint).textSelection(.enabled).lineLimit(2) }
             }
             GeneralStyle.divider
             GeneralRow("Cache", detail: "Remove cached covers and search results.") {

@@ -43,7 +43,7 @@ public final class Workflow {
           "vendor/Tsunagu/sandbox/src", "vendor/Tsunagu/sandbox/build.gradle.kts",
           "vendor/Tsunagu/sandbox/settings.gradle.kts", "vendor/Tsunagu/proto",
           "Tools/CLI/Sources/CLICore/NativeBuild.swift", "Tools/CLI/Sources/CLICore/Support.swift",
-        ], outputs: ["vendor/Tsunagu/sandbox/build/libs/sandbox-0.1.0-all.jar"],
+        ], outputs: ["vendor/Tsunagu/sandbox/build/libs/sandbox-0.6.0-all.jar"],
         force: force && ["all", "sandbox"].contains(task)
       ) { try native.sandbox() }
     }
@@ -56,7 +56,7 @@ public final class Workflow {
           "Tools/CLI/Sources/CLICore/NativeBuild.swift", "Tools/CLI/Sources/CLICore/Support.swift",
           "Services/.build/Tsunagu.xcframework/\(slice)/Tsunagu.framework",
           "Services/.build/openjdk-local/\(platform)",
-          "vendor/Tsunagu/sandbox/build/libs/sandbox-0.1.0-all.jar",
+          "vendor/Tsunagu/sandbox/build/libs/sandbox-0.6.0-all.jar",
         ],
         outputs: [
           "Services/.build/native-\(platform)/libtsunagu.a",
@@ -161,7 +161,7 @@ public final class Workflow {
     }
     let platform = sdk == "iphoneos" ? "device" : "simulator"
     let runtime = runner.path("Services/.build/openjdk-local/\(platform)/lib")
-    let sandbox = runner.path("vendor/Tsunagu/sandbox/build/libs/sandbox-0.1.0-all.jar")
+    let sandbox = runner.path("vendor/Tsunagu/sandbox/build/libs/sandbox-0.6.0-all.jar")
     for path in [
       runtime, sandbox, runner.path("Services/.build/native-\(platform)/libtsunagu.a"),
       runner.path("Services/.build/native-\(platform)/libtsmedia.a"),

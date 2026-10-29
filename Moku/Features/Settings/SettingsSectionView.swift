@@ -20,6 +20,7 @@ struct SettingsSectionView: View {
     @AppStorage("library.hideCompletedInSaved") private var hideCompletedInSaved = false
     @AppStorage("library.disableAutoComplete") private var disableAutoComplete = false
     @AppStorage("library.defaultTab") private var defaultLibraryTab = "Saved"
+    @Environment(LibraryStore.self) private var libraryStore
     @AppStorage("library.autoLinkOnOpen") private var autoLinkOnOpen = false
     @AppStorage("library.layout") private var libraryLayout = ""
     @AppStorage("preferences.chapterAscending") private var chapterAscending = false
@@ -45,6 +46,7 @@ struct SettingsSectionView: View {
     @State private var serverVersion: String?
     @State private var serverURL: String?
     @State private var confirmation: Action?
+    @State private var reportOpen = false
     @State private var working = false
     @State private var notice: String?
     private let storage = SettingsStorage()
@@ -80,7 +82,7 @@ struct SettingsSectionView: View {
 
                 }
                 if let notice {
-                    Text(notice).font(.system(size: 13)).foregroundStyle(GeneralStyle.faint)
+                    Text(notice).font(.footnote).foregroundStyle(GeneralStyle.faint)
                 }
 
             }
@@ -95,7 +97,7 @@ struct SettingsSectionView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             BackHeader(title: category.rawValue, backLabel: "Back to Settings") { dismiss() }
         }
-        .font(.system(size: 13))
+        .font(.footnote)
         .confirmationDialog(
             confirmation?.rawValue ?? "",
             isPresented: Binding(
@@ -165,7 +167,8 @@ struct SettingsSectionView: View {
                 GeneralStyle.divider
                 toggle("Hide completed in Saved", detail: "Exclude finished titles from the Saved view.", value: $hideCompletedInSaved)
                 GeneralStyle.divider
-                picker("Default library view", detail: "Open this view when Library starts.", selection: $defaultLibraryTab, values: LibraryTab.allCases.map { ($0.rawValue, $0.rawValue) })
+                picker("Default library view", detail: "Open this view when Library starts.", selection: $defaultLibraryTab, values: LibraryTab.allCases.map { ($0.rawValue, $0.rawValue) }
+                    + libraryStore.organization.folders.map { ("folder:\($0.id.uuidString)", $0.name) })
             }
             GeneralSection("Series") {
                 toggle("Auto-link on open", detail: "Group saved titles with matching names.", value: $autoLinkOnOpen)
@@ -200,7 +203,10 @@ struct SettingsSectionView: View {
             GeneralStyle.divider
             GeneralRow("Release notes", detail: "") { Link("View", destination: URL(string: "https://github.com/moku-project/Moku-iOS/releases")!).buttonStyle(GeneralTextButtonStyle()) }
             GeneralStyle.divider
-            GeneralRow("Report an issue", detail: "") { Link("Open", destination: IssueReport.url).buttonStyle(GeneralTextButtonStyle()) }
+            GeneralRow("Report an issue", detail: "Bug or feature request, with the settings you choose.") {
+                Button("Open") { reportOpen = true }.buttonStyle(GeneralTextButtonStyle())
+                    .sheet(isPresented: $reportOpen) { BugReportSheet() }
+            }
 
         }
     }
@@ -223,7 +229,7 @@ struct SettingsSectionView: View {
                         title: "", selection: $playerSpeed,
                         options: [0.75, 1, 1.25, 1.5, 1.75, 2].map { ($0, "\($0.formatted())×") }
                     )
-                    .font(.system(size: 14)).accessibilityLabel("Playback speed")
+                    .font(.subheadline).accessibilityLabel("Playback speed")
                 }
             }
             GeneralSection("Subtitles") {
@@ -238,7 +244,7 @@ struct SettingsSectionView: View {
                         title: "", selection: $subtitleScale,
                         options: [0.75, 1, 1.25, 1.5, 2].map { ($0, "\(Int($0 * 100))%") }
                     )
-                    .font(.system(size: 14)).accessibilityLabel("Subtitle text size")
+                    .font(.subheadline).accessibilityLabel("Subtitle text size")
                 }
                 GeneralStyle.divider
                 GeneralRow("Bottom offset", detail: "Distance from the bottom of the video.") {
@@ -246,7 +252,7 @@ struct SettingsSectionView: View {
                         title: "", selection: $subtitleHeight,
                         options: [3.0, 6, 9, 12, 15, 20].map { ($0, "\(Int($0))%") }
                     )
-                    .font(.system(size: 14)).accessibilityLabel("Subtitle bottom offset")
+                    .font(.subheadline).accessibilityLabel("Subtitle bottom offset")
                 }
                 GeneralStyle.divider
                 toggle(
@@ -276,7 +282,7 @@ struct SettingsSectionView: View {
         Group {
             GeneralSection("Library") {
                 GeneralRow("Titles per page", detail: "Limit the number of library cards rendered at once.") {
-                    ChoicePicker(title: "", selection: $renderLimit, options: [12, 24, 48, 96, 144, 200].map { ($0, String($0)) }).font(.system(size: 14))
+                    ChoicePicker(title: "", selection: $renderLimit, options: [12, 24, 48, 96, 144, 200].map { ($0, String($0)) }).font(.subheadline)
                 }
             }
             CacheSettingsContent()
@@ -289,7 +295,7 @@ struct SettingsSectionView: View {
                             set: { readerPreferences.document.behaviour.preloadPages = $0 }),
                         options: (0...10).map { ($0, String($0)) }
                     )
-                    .font(.system(size: 14)).accessibilityLabel("Pages to preload")
+                    .font(.subheadline).accessibilityLabel("Pages to preload")
                 }
             }
             GeneralSection("Interface") {
@@ -364,7 +370,7 @@ struct SettingsSectionView: View {
     ) -> some View {
         GeneralRow(title, detail: detail) {
             ChoicePicker(title: "", selection: selection, options: values)
-                .font(.system(size: 14))
+                .font(.subheadline)
                 .accessibilityLabel(title).accessibilityValue(selection.wrappedValue)
                 .accessibilityIdentifier("settings.picker.\(title)")
         }
@@ -375,7 +381,7 @@ struct SettingsSectionView: View {
                 SkeletonBlock(width: 72, height: 14).skeletonMotion(
                     "Storage usage is being calculated")
             } else {
-                Text(value).font(.system(size: 14)).foregroundStyle(GeneralStyle.text)
+                Text(value).font(.subheadline).foregroundStyle(GeneralStyle.text)
                     .multilineTextAlignment(.trailing).frame(maxWidth: 160)
             }
         }
@@ -458,7 +464,7 @@ private struct SettingsFoldersContent: View {
             }
             ForEach(library.organization.folders) { folder in
                 GeneralStyle.divider
-                GeneralRow(folder.name, detail: "\(folder.entryIDs.count) titles") {
+                GeneralRow(folder.name, detail: folderDetail(folder)) {
                     OverflowMenu {
                         Button("Rename") {
                             editing = folder
@@ -468,17 +474,31 @@ private struct SettingsFoldersContent: View {
                         Button(folder.hidden == true ? "Show in library" : "Hide from library") { update(folder) { $0.hidden = !($0.hidden ?? false) } }
                         Button(folder.includeInUpdate == false ? "Include in updates" : "Exclude from updates") { update(folder) { $0.includeInUpdate = !($0.includeInUpdate ?? true) } }
                         Button(folder.includeInDownload == false ? "Include in downloads" : "Exclude from downloads") { update(folder) { $0.includeInDownload = !($0.includeInDownload ?? true) } }
+                        Menu("Show for") {
+                            ForEach([ContentMode.manga, .novels, .anime]) { type in
+                                let on = folder.contentTypes?.contains(type) == true
+                                Button {
+                                    update(folder) { value in
+                                        var types = value.contentTypes ?? []
+                                        if on { types.removeAll { $0 == type } } else { types.append(type) }
+                                        value.contentTypes = types.isEmpty ? nil : types
+                                    }
+                                } label: {
+                                    if on { Label(type.title, systemImage: "checkmark") } else { Text(type.title) }
+                                }
+                            }
+                        }
                         Button("Move up") { move(folder, offset: -1) }.disabled(library.organization.folders.first?.id == folder.id)
                         Button("Move down") { move(folder, offset: 1) }.disabled(library.organization.folders.last?.id == folder.id)
                         Button("Delete", role: .destructive) { deleting = folder }
                     } label: {
-                        Text("Manage").font(.system(size: 14)).foregroundStyle(GeneralStyle.text)
+                        Text("Manage").font(.subheadline).foregroundStyle(GeneralStyle.text)
                             .frame(minHeight: 44)
                     }.accessibilityLabel("Manage \(folder.name)")
                 }
             }
             if let error {
-                Text(error).font(.system(size: 13)).foregroundStyle(GeneralStyle.faint).padding(
+                Text(error).font(.footnote).foregroundStyle(GeneralStyle.faint).padding(
                     .vertical, 14)
             }
         }
@@ -514,6 +534,12 @@ private struct SettingsFoldersContent: View {
             Text("Titles will remain in your library.")
         }
     }
+    private func folderDetail(_ folder: LibraryFolder) -> String {
+        let count = "\(folder.entryIDs.count) title\(folder.entryIDs.count == 1 ? "" : "s")"
+        guard let types = folder.contentTypes, !types.isEmpty else { return count }
+        return "\(count) · \(types.map(\.title).joined(separator: ", ")) only"
+    }
+
     private func update(_ folder: LibraryFolder, change: @escaping (inout LibraryFolder) -> Void) {
         Task {
             saving = true

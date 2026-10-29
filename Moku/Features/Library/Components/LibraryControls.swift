@@ -16,7 +16,9 @@ struct LibraryControls: View {
 
     var body: some View { viewControls }
 
-    private var viewControls: some View {
+    private var viewControls: some View { viewControlsContent.dynamicTypeSize(...DynamicTypeSize.xxLarge) }
+    // Navigation chrome stops growing at the largest standard size; content keeps scaling.
+    @ViewBuilder private var viewControlsContent: some View {
         HStack(spacing: 0) {
             IconRail(
                 title: model.folder?.name ?? model.tab.rawValue,
@@ -78,7 +80,7 @@ struct LibraryControls: View {
             HStack {
                 Spacer()
                 Button("Clear all") { model.clearFilters() }.font(
-                    .system(size: 12)
+                    .caption
                 ).foregroundStyle(.secondary)
             }.padding(.horizontal, 10)
             MenuSection("Content")

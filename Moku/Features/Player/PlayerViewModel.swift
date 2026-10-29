@@ -32,6 +32,8 @@ final class PlayerViewModel {
     var cues: [SubtitleCue] = [] { didSet { updateCaption() } }
     /// Stored, not computed: the view re-renders four times a second while playing.
     private(set) var caption = ""
+    /// The cues on screen now, with their ASS styling.
+    private(set) var captions: [SubtitleCue] = []
     private(set) var skipMarkers: [SkipMarker] = []
     @ObservationIgnored private var skipLookup: String?
     /// The marker under the playhead, offered as a Skip button until its last second.
@@ -74,9 +76,10 @@ final class PlayerViewModel {
         return "Ep. \(chapters[index].number?.formatted() ?? String(index + 1))"
     }
     private func updateCaption() {
-        let next = cues.lazy.filter { $0.start <= self.position && self.position < $0.end }
-            .map(\.text).joined(separator: "\n")
+        let active = cues.filter { $0.start <= self.position && self.position < $0.end }
+        let next = active.map(\.text).joined(separator: "\n")
         if next != caption { caption = next }
+        if active != captions { captions = active }
     }
 
     func skip(_ marker: SkipMarker) {

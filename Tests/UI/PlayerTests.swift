@@ -5,7 +5,8 @@ final class PlayerUITests: XCTestCase {
     override func setUp() { continueAfterFailure = false }
     func testPlaybackPortraitLandscapeAndMenus() {
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-testing-player"]
+        // Saved player settings outlive each launch and win over the fixture: start paused at 100%.
+        app.launchArguments = ["--ui-testing-player", "-player.autoplay", "NO", "-player.subtitleScale", "1"]
         XCUIDevice.shared.orientation = .portrait
         defer { XCUIDevice.shared.orientation = .portrait }
         app.launch()
@@ -61,6 +62,7 @@ final class PlayerUITests: XCTestCase {
         app.launchArguments = [
             "--ui-testing-player", "--ui-testing-player-streaming",
             "--ui-testing-player-signals", "--ui-testing-isolated-backend",
+            "-player.autoplay", "NO", "-player.subtitleScale", "1",
         ]
         XCUIDevice.shared.orientation = .portrait
         defer { XCUIDevice.shared.orientation = .portrait }

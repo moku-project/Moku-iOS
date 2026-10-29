@@ -82,7 +82,8 @@ import Observation
         guard !loading else { return }
         loading = true
         defer { loading = false }
-        do { services = try await repository.services() } catch {
+        // Trackers the server can't sign in to yet (MyAnimeList) are hidden, not shown as "coming soon".
+        do { services = try await repository.services().filter { !$0.comingSoon } } catch {
             notice = "Couldn’t load tracking services. Try Refresh."
         }
     }

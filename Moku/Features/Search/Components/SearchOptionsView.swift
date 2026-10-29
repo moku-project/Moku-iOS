@@ -15,6 +15,8 @@ struct SearchOptionsView: View {
         genres.filter { genreQuery.isEmpty || $0.localizedCaseInsensitiveContains(genreQuery) }
     }
 
+    @AppStorage("preferences.language") private var preferredLanguage = "all"
+
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             if showsTitle { Text("Filters").font(.title2.bold()) }
@@ -50,9 +52,10 @@ struct SearchOptionsView: View {
                         model.validateSource()
                     }
                     ForEach(model.languages, id: \.self) { language in
+                        // Desktop marks the preferred source language with a star.
                         choice(
-                            Locale.current.localizedString(forLanguageCode: language)
-                                ?? language,
+                            (Locale.current.localizedString(forLanguageCode: language) ?? language)
+                                + (language == preferredLanguage ? " · Preferred" : ""),
                             symbol: "Translate", selected: model.draft.language == language
                         ) {
                             model.draft.language = language

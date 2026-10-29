@@ -16,7 +16,7 @@ struct GeneralSection<Content: View>: View {
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(title).font(.system(size: 18, weight: .semibold))
+            Text(title).font(.title3.weight(.semibold))
                 .foregroundStyle(GeneralStyle.text)
                 .padding(.bottom, 8)
                 .accessibilityAddTraits(.isHeader)
@@ -28,6 +28,7 @@ struct GeneralSection<Content: View>: View {
 }
 struct GeneralRow<Control: View>: View {
     @State private var compact = false
+    @Environment(\.dynamicTypeSize) private var typeSize
     let title: String
     let detail: String
     @ViewBuilder let control: () -> Control
@@ -38,17 +39,18 @@ struct GeneralRow<Control: View>: View {
     }
     private var label: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.system(size: 15)).foregroundStyle(GeneralStyle.label)
+            Text(title).font(.subheadline).foregroundStyle(GeneralStyle.label)
                 .fixedSize(horizontal: false, vertical: true)
             if !detail.isEmpty {
-                Text(detail).font(.system(size: 13)).foregroundStyle(GeneralStyle.faint)
+                Text(detail).font(.footnote).foregroundStyle(GeneralStyle.faint)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
     var body: some View {
         Group {
-            if !compact {
+            // Stack the control under the label when narrow or at accessibility text sizes.
+            if !compact && !typeSize.isAccessibilitySize {
                 HStack(spacing: 16) {
                     label.frame(maxWidth: .infinity, alignment: .leading)
                     control().fixedSize(horizontal: true, vertical: false)
@@ -93,7 +95,7 @@ struct GeneralToggleStyle: ToggleStyle {
 }
 struct GeneralButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label.font(.system(size: 14)).foregroundStyle(GeneralStyle.text)
+        configuration.label.font(.subheadline).foregroundStyle(GeneralStyle.text)
             .padding(.horizontal, 14).padding(.vertical, 10)
             .background(Color(white: configuration.isPressed ? 23 / 255 : 13 / 255))
             .clipShape(RoundedRectangle(cornerRadius: 5))
@@ -103,7 +105,7 @@ struct GeneralButtonStyle: ButtonStyle {
 }
 extension View {
     func generalInput() -> some View {
-        self.font(.system(size: 14)).foregroundStyle(GeneralStyle.text)
+        self.font(.subheadline).foregroundStyle(GeneralStyle.text)
             .padding(.vertical, 10).padding(.horizontal, 8)
             .background(NavigationStyle.surface)
             .clipShape(RoundedRectangle(cornerRadius: 5))
@@ -113,7 +115,7 @@ extension View {
 
 struct GeneralTextButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label.font(.system(size: 14)).foregroundStyle(GeneralStyle.text)
+        configuration.label.font(.subheadline).foregroundStyle(GeneralStyle.text)
             .opacity(configuration.isPressed ? 0.6 : 1)
             .frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
     }

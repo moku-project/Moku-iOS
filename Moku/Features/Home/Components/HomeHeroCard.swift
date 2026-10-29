@@ -61,28 +61,26 @@ struct HomeHeroCard: View {
                     }
 
                 } else {
-                    VStack(alignment: .leading, spacing: 0) {
-                        ZStack {
-                            PhosphorIcon("BookOpenText").iconSize(40)
-                                .foregroundStyle(.gray.opacity(0.5))
+                    VStack(spacing: 10) {
+                        PhosphorIcon("BookOpenText", size: 34).foregroundStyle(NavigationStyle.accent)
+                            .accessibilityHidden(true)
+                        Text("Nothing here yet").font(.headline)
+                        Text(
+                            slot.id == 0
+                                ? "Read a title to see it here."
+                                : "Pin a title or keep reading to fill this slot."
+                        )
+                        .font(.subheadline).foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        if slot.id > 0 {
+                            Button("Pin a title", action: onPin).font(.subheadline.weight(.medium))
+                                .frame(minHeight: 44)
                         }
-                        .frame(maxHeight: .infinity)
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("Nothing here yet").font(.title3.weight(.medium)).foregroundStyle(
-                                .secondary)
-                            Text(
-                                slot.id == 0
-                                    ? "Read a title to see it here."
-                                    : "Pin a title or keep reading to fill this slot."
-                            )
-                            .font(.subheadline).foregroundStyle(.secondary)
-                            if slot.id > 0 {
-                                Button("Pin a title", action: onPin).frame(minHeight: 44)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.vertical, 16)
                     }
+                    .padding(24)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(NavigationStyle.surface.opacity(0.6), in: RoundedRectangle(cornerRadius: 16))
+                    .padding(.vertical, 8)
                 }
             }
             .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
@@ -163,7 +161,7 @@ struct HomeHeroCard: View {
                     .disabled(onResume == nil || isOpening)
                     .accessibilityHint(
                         onResume == nil
-                            ? "Reading is not available yet"
+                            ? "This title can’t be opened right now"
                             : "Continue from your saved position")
                 } else {
                     Button("View title") { onDetails(entry) }.buttonStyle(

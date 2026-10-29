@@ -11,6 +11,7 @@ struct SettingsExportDocument: FileDocument {
 
 struct StorageSettingsContent: View {
     @Environment(AppDataStore.self) private var appData
+    @State private var localLibraryOpen = false
     @Environment(LibraryStore.self) private var library
     @Environment(ReaderPreferences.self) private var reader
     @State private var model = StoragePreferences()
@@ -69,10 +70,10 @@ struct StorageSettingsContent: View {
             }
             GeneralSection("Storage limit") {
                 GeneralRow("Warn at", detail: "0 disables the storage warning.") {
-                    ChoicePicker(title: "", selection: $limitGB, options: [0, 1, 2, 5, 10, 20, 50, 100].map { ($0, $0 == 0 ? "Off" : "\($0) GB") }).font(.system(size: 14))
+                    ChoicePicker(title: "", selection: $limitGB, options: [0, 1, 2, 5, 10, 20, 50, 100].map { ($0, $0 == 0 ? "Off" : "\($0) GB") }).font(.subheadline)
                 }
                 if let info = model.info, limitGB > 0, info.usedBytes >= Double(limitGB) * 1_073_741_824 {
-                    Text("Storage limit reached.").font(.system(size: 13)).foregroundStyle(GeneralStyle.faint).padding(.vertical, 14)
+                    Text("Storage limit reached.").font(.footnote).foregroundStyle(GeneralStyle.faint).padding(.vertical, 14)
                 }
             }
             GeneralSection("Directories") {
@@ -89,9 +90,14 @@ struct StorageSettingsContent: View {
                 GeneralRow("Local source", detail: "Scan imported local manga, novels, and video.") {
                     Button("Rescan") { Task { await model.run("rescanLocalMedia { id }") } }.buttonStyle(GeneralTextButtonStyle())
                 }
+                GeneralStyle.divider
+                GeneralRow("Local titles", detail: "See and delete imported series.") {
+                    Button("Manage") { localLibraryOpen = true }.buttonStyle(GeneralTextButtonStyle())
+                        .sheet(isPresented: $localLibraryOpen) { LocalLibrarySheet() }
+                }
             }
             GeneralSection("Local files") {
-                GeneralRow("Media type", detail: "") { ChoicePicker(title: "", selection: $localKind, options: [("manga", "Manga"), ("novels", "Novels"), ("anime", "Anime")]).font(.system(size: 14)) }
+                GeneralRow("Media type", detail: "") { ChoicePicker(title: "", selection: $localKind, options: [("manga", "Manga"), ("novels", "Novels"), ("anime", "Anime")]).font(.subheadline) }
                 GeneralStyle.divider
                 GeneralRow("Series", detail: "") { TextField("Series title", text: $localSeries).generalInput().frame(width: 150) }
                 GeneralStyle.divider
@@ -128,7 +134,7 @@ struct StorageSettingsContent: View {
                                 Button("Import library") { confirmation = .importBackup(backup.name) }
                             }
                             Button("Delete", role: .destructive) { confirmation = .deleteBackup(backup.name) }
-                        } label: { Text("Manage").font(.system(size: 14)).foregroundStyle(GeneralStyle.text).frame(minHeight: 44) }
+                        } label: { Text("Manage").font(.subheadline).foregroundStyle(GeneralStyle.text).frame(minHeight: 44) }
                     }
                 }
                 GeneralStyle.divider
@@ -151,7 +157,7 @@ struct StorageSettingsContent: View {
                     Button("Reset") { confirmation = .resetPreferences }.buttonStyle(GeneralTextButtonStyle())
                 }
             }
-            if let notice = model.notice { Text(notice).font(.system(size: 13)).foregroundStyle(GeneralStyle.faint) }
+            if let notice = model.notice { Text(notice).font(.footnote).foregroundStyle(GeneralStyle.faint) }
         }.disabled(model.busy || server.saving)
             .task { await model.load(); await server.load() }
             .fileExporter(isPresented: $exporting, document: document, contentType: exportName.hasSuffix(".json") ? .json : .data, defaultFilename: exportName) { result in
@@ -183,7 +189,7 @@ struct StorageSettingsContent: View {
         }
     }
     private func value(_ title: String, _ value: String) -> some View {
-        GeneralRow(title, detail: "") { Text(value).font(.system(size: 14)).foregroundStyle(GeneralStyle.text).multilineTextAlignment(.trailing).frame(maxWidth: 160).fixedSize(horizontal: false, vertical: true) }
+        GeneralRow(title, detail: "") { Text(value).font(.subheadline).foregroundStyle(GeneralStyle.text).multilineTextAlignment(.trailing).frame(maxWidth: 160).fixedSize(horizontal: false, vertical: true) }
     }
     private func bytes(_ value: Double) -> String { ByteCountFormatter.string(fromByteCount: Int64(max(0, min(value, Double(Int64.max / 2)))), countStyle: .file) }
     private func exportSettings() {

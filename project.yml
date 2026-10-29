@@ -67,7 +67,7 @@ targets:
           - $(SRCROOT)/Services/.build/openjdk-local/$(MOKU_BACKEND_PLATFORM)/lib
           - $(SRCROOT)/Services/.build/native-$(MOKU_BACKEND_PLATFORM)/libtsunagu.a
           - $(SRCROOT)/Services/.build/native-$(MOKU_BACKEND_PLATFORM)/libtsmedia.a
-          - $(SRCROOT)/vendor/Tsunagu/sandbox/build/libs/sandbox-0.1.0-all.jar
+          - $(SRCROOT)/vendor/Tsunagu/sandbox/build/libs/sandbox-0.6.0-all.jar
           - $(SRCROOT)/Services/.build/ffmpeg/$(MOKU_BACKEND_PLATFORM)/COPYING.LGPLv2.1
           - $(SRCROOT)/Services/.build/ffmpeg/$(MOKU_BACKEND_PLATFORM)/LICENSE.md
           - $(SRCROOT)/Services/THIRD_PARTY_MEDIA.md

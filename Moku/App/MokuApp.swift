@@ -8,7 +8,10 @@ import UIKit
 @main
 struct MokuApp: App {
     @Environment(\.scenePhase) private var scenePhase
-    init() { BackgroundWork.register() }
+    init() {
+        ServerLog.shared.start()
+        BackgroundWork.register()
+    }
     var body: some Scene {
         WindowGroup {
             Group {

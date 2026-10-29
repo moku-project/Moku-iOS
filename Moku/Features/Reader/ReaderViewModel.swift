@@ -18,12 +18,19 @@ import Observation
     var chromeVisible = true
     var landscape = false
     var jumpID = UUID()
+    /// Desktop resume banner: the saved page this chapter reopened at.
+    var resumedPage: Int?
     private var committedProgress: [String: (Double, Bool)] = [:]
     private var pendingProgress: [String: (Double, Bool)] = [:]
     private var progressTask: Task<Void, Never>?
     private var loadedChapterID: String?
     private var completedChapters = Set<String>()
     private var loadGeneration = UUID()
+    /// The next chapter's first pages, fetched near the end of this one so the
+    /// chapter turn shows pages at once instead of a skeleton.
+    @ObservationIgnored private var prefetched: [String: Data] = [:]
+    @ObservationIgnored private var prefetchedChapter: String?
+    @ObservationIgnored private var prefetchTask: Task<Void, Never>?
 
     init(
         details: MediaDetails, chapterID: String, preferences: ReaderPreferences,
@@ -93,8 +100,10 @@ import Observation
             try Task.checkCancellation()
             guard chapterID == id, loadGeneration == generation else { return }
             pages = result
+            prefetched = prefetched.filter { result.contains($0.key) }
             let saved = preferences.document.positions[details.id]
             page = saved?.chapterID == id ? min(max(saved?.page ?? 1, 1), result.count) : 1
+            resumedPage = page > 1 ? page : nil
             loadedChapterID = id
             loading = false
             jumpID = UUID()
@@ -110,6 +119,29 @@ import Observation
             guard chapterID == id, loadGeneration == generation else { return }
             self.error = error.localizedDescription
             loading = false
+        }
+    }
+    func image(path: String) async throws -> Data {
+        if let data = prefetched.removeValue(forKey: path) { return data }
+        return try await repository.image(path: path)
+    }
+    private func prefetchNextChapter() {
+        let index = chapterIndex + 1
+        let ahead = min(6, behaviour.preloadPages)
+        guard ahead > 0, details.chapters.indices.contains(index), !pages.isEmpty else { return }
+        let reached = isStrip ? page : (visiblePages.max() ?? page)
+        guard pages.count - reached < max(2, behaviour.preloadPages) else { return }
+        let next = details.chapters[index].id
+        guard prefetchTask == nil, prefetchedChapter != next else { return }
+        prefetchedChapter = next
+        let repository = repository
+        prefetchTask = Task { [weak self] in
+            defer { self?.prefetchTask = nil }
+            guard let paths = try? await repository.pages(chapterID: next) else { return }
+            for path in paths.prefix(ahead) {
+                guard !Task.isCancelled, let self, self.prefetchedChapter == next else { return }
+                if let data = try? await repository.image(path: path) { self.prefetched[path] = data }
+            }
         }
     }
     func jump(_ value: Int) {
@@ -140,6 +172,11 @@ import Observation
     func selectChapter(_ id: String, markRead: Bool = false) {
         guard id != chapterID else { return }
         recordProgress(forceComplete: markRead)
+        if prefetchedChapter != id {
+            prefetchTask?.cancel()
+            prefetchedChapter = nil
+            prefetched.removeAll()
+        }
         chapterID = id
         loading = true
         page = 1
@@ -154,6 +191,7 @@ import Observation
     }
     func recordProgress(forceComplete: Bool = false) {
         guard loadedChapterID == chapterID, !pages.isEmpty else { return }
+        prefetchNextChapter()
         if behaviour.autoBookmark {
             let position = ReaderPosition(chapterID: chapterID, page: page)
             if preferences.document.positions[details.id] != position {
@@ -198,6 +236,7 @@ import Observation
     }
     func download(_ ids: [String]) async {
         guard !ids.isEmpty, !downloadBusy else { return }
+        guard await StorageGuard.allow(count: ids.count, media: .manga) else { return }
         downloadBusy = true
         defer { downloadBusy = false }
         do {

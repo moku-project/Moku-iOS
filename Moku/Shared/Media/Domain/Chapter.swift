@@ -9,6 +9,12 @@ struct Chapter: Decodable, Sendable, Identifiable, Equatable {
     var downloaded: Bool
     var uploadedAt: String? = nil
     var sourceOrder: Int? = nil
+    /// Where reading or watching stopped; nil when the chapter was never opened.
+    var readingProgress: Progress? = nil
+    struct Progress: Decodable, Sendable, Equatable {
+        let progress: Double
+        var positionSeconds: Double? = nil
+    }
     var label: String { title ?? number.map { "Chapter \($0.formatted())" } ?? "Chapter" }
     var uploadedDate: String? {
         guard let uploadedAt, let date = Self.parse(uploadedAt) else { return nil }

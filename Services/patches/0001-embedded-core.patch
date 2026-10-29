@@ -1,30 +1,25 @@
 diff --git a/backend/go.mod b/backend/go.mod
-index 6f29e83..f486bdd 100644
+index b026dab..6c59f8e 100644
 --- a/backend/go.mod
 +++ b/backend/go.mod
-@@ -8,6 +8,7 @@ require (
- 	github.com/vektah/gqlparser/v2 v2.5.36
+@@ -11,6 +11,7 @@ require (
+ 	github.com/vektah/gqlparser/v2 v2.5.62
  	github.com/vikstrous/dataloadgen v0.0.10
- 	golang.org/x/crypto v0.54.0
-+	golang.org/x/image v0.43.0
- 	golang.org/x/net v0.57.0
- 	golang.org/x/sync v0.22.0
- 	golang.org/x/sys v0.47.0
-diff --git a/backend/go.sum b/backend/go.sum
-index e1a50ed..1c34b4f 100644
---- a/backend/go.sum
-+++ b/backend/go.sum
-@@ -52,6 +52,8 @@ go.yaml.in/yaml/v3 v3.0.4 h1:tfq32ie2Jv2UxXFdLJdh3jXuOzWiL1fo0bu/FbuKpbc=
- go.yaml.in/yaml/v3 v3.0.4/go.mod h1:DhzuOOF2ATzADvBadXxruRBLzYTpT36CKvDb3+aBEFg=
- golang.org/x/crypto v0.54.0 h1:YLIA59K4fiNzHzjnZt2tUJQjQtUWfWbeHBqKtk3eScw=
- golang.org/x/crypto v0.54.0/go.mod h1:KWL8ny2AZdGR2cWmzeHrp2azQPGogOv+HeQaVEXC2dk=
-+golang.org/x/image v0.43.0 h1:FLxcP4ec2350nTfOC8ysKtqYSIFbk/QGjw1ZHNP4tsY=
-+golang.org/x/image v0.43.0/go.mod h1:rrpelvGFt+kLPAjPM4HeWPgrl0FtafueU//e5N0qk/Q=
- golang.org/x/mod v0.38.0 h1:MECBjubtXD7yj4HrhIUcywNaGeNVUdfVnxmPajOk4yk=
- golang.org/x/mod v0.38.0/go.mod h1:V6Xz0pq8TQ3dGqVQ1FVHuelZpAL0uNhSkk9ogYP3c40=
- golang.org/x/net v0.57.0 h1:K5+3DljvIuDG9/Jv9rvyMywYNFCQ9RSUY6OOTTkT+tE=
+ 	golang.org/x/crypto v0.58.0
++	golang.org/x/image v0.47.0
+ 	golang.org/x/net v0.61.0
+ 	golang.org/x/sync v0.24.0
+ 	golang.org/x/sys v0.49.0
+@@ -48,7 +49,6 @@ require (
+ 	go.opentelemetry.io/otel/trace v1.47.0 // indirect
+ 	go.yaml.in/yaml/v3 v3.0.5 // indirect
+ 	go4.org v0.0.0-20260112195520-a5071408f32f // indirect
+-	golang.org/x/image v0.47.0 // indirect
+ 	golang.org/x/mod v0.41.0 // indirect
+ 	golang.org/x/text v0.43.0 // indirect
+ 	golang.org/x/tools v0.51.0 // indirect
 diff --git a/backend/internal/api/graph/convert.go b/backend/internal/api/graph/convert.go
-index e1e7d88..0fdf935 100644
+index 40fbe44..05c1640 100644
 --- a/backend/internal/api/graph/convert.go
 +++ b/backend/internal/api/graph/convert.go
 @@ -4,7 +4,6 @@ import (
@@ -35,15 +30,15 @@ index e1e7d88..0fdf935 100644
  	"fmt"
  	"log"
  	"net/url"
-@@ -21,6 +20,7 @@ import (
- 	"tsunagu/backend/internal/db/sqlcgen"
+@@ -23,6 +22,7 @@ import (
  	"tsunagu/backend/internal/flaresolverr"
+ 	"tsunagu/backend/internal/localsource"
  	"tsunagu/backend/internal/metadata"
 +	"tsunagu/backend/internal/proxyheader"
  	sandboxv1 "tsunagu/backend/internal/sandbox/gen/sandbox/v1"
  	"tsunagu/backend/internal/tracker"
  )
-@@ -412,9 +412,7 @@ func proxyResourceURL(route, mediaID, chapterID, absURL string, headers map[stri
+@@ -414,9 +414,7 @@ func proxyResourceURL(route, mediaID, chapterID, absURL string, headers map[stri
  	q := url.Values{}
  	q.Set("u", base64.RawURLEncoding.EncodeToString([]byte(absURL)))
  	if len(headers) > 0 {
@@ -54,7 +49,7 @@ index e1e7d88..0fdf935 100644
  	}
  	return fmt.Sprintf("/content/%s/%s/%s?%s", mediaID, chapterID, route, q.Encode())
  }
-@@ -801,9 +799,14 @@ func toProtoFilterNodes(ins []*model.FilterInput) []*sandboxv1.FilterNode {
+@@ -838,9 +836,14 @@ func toProtoFilterNodes(ins []*model.FilterInput) []*sandboxv1.FilterNode {
  }
  
  func (r *Resolver) toSearchResponse(ctx context.Context, ext sqlcgen.Extension, resp *sandboxv1.SearchResponse) (*model.SearchResponse, error) {
@@ -70,19 +65,42 @@ index e1e7d88..0fdf935 100644
  			continue
  		}
  		row, err := r.Q.UpsertMediaBare(ctx, sqlcgen.UpsertMediaBareParams{
+diff --git a/backend/internal/api/graph/convert_subs_test.go b/backend/internal/api/graph/convert_subs_test.go
+index 840ad64..c299f96 100644
+--- a/backend/internal/api/graph/convert_subs_test.go
++++ b/backend/internal/api/graph/convert_subs_test.go
+@@ -1,11 +1,10 @@
+ package graph
+ 
+ import (
+-	"encoding/base64"
+-	"encoding/json"
+ 	"net/url"
+ 	"testing"
+ 
++	"tsunagu/backend/internal/proxyheader"
+ 	sandboxv1 "tsunagu/backend/internal/sandbox/gen/sandbox/v1"
+ )
+ 
+@@ -19,12 +18,8 @@ func subHeadersOf(t *testing.T, proxyURL string) map[string]string {
+ 	if h == "" {
+ 		return nil
+ 	}
+-	raw, err := base64.RawURLEncoding.DecodeString(h)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+ 	var m map[string]string
+-	if err := json.Unmarshal(raw, &m); err != nil {
++	if err := proxyheader.Decode(h, &m); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	return m
 diff --git a/backend/internal/api/graph/resolver.go b/backend/internal/api/graph/resolver.go
-index 897b422..10104c5 100644
+index 530cf08..38b35cc 100644
 --- a/backend/internal/api/graph/resolver.go
 +++ b/backend/internal/api/graph/resolver.go
-@@ -9,6 +9,7 @@ import (
- 
- 	"tsunagu/backend/internal/api/graph/model"
- 	"tsunagu/backend/internal/auth"
-+	"tsunagu/backend/internal/automation"
- 	"tsunagu/backend/internal/config"
- 	"tsunagu/backend/internal/contentfilter"
- 	"tsunagu/backend/internal/db/sqlcgen"
-@@ -24,23 +25,25 @@ import (
+@@ -25,24 +25,26 @@ import (
  )
  
  type Resolver struct {
@@ -98,12 +116,13 @@ index 897b422..10104c5 100644
 -	Fs        *flaresolverr.Manager
 -	Cfg       *config.Store
 -	Cf        *contentfilter.Manager
+-	Au        *automation.Manager
 -	Am        *auth.Manager
 -	MediaDir  string
 -	Name      string
 -	Version   string
 -	BuildTime string
-+	Policies          *automation.Manager
++	Policies          *automation.PolicyManager
 +	ClearMemoryImages func()
 +	Sy                *syncpkg.Syncer
 +	Sc                *sandbox.SupervisedClient
@@ -117,6 +136,7 @@ index 897b422..10104c5 100644
 +	Fs                *flaresolverr.Manager
 +	Cfg               *config.Store
 +	Cf                *contentfilter.Manager
++	Au                *automation.Manager
 +	Am                *auth.Manager
 +	MediaDir          string
 +	Name              string
@@ -125,7 +145,7 @@ index 897b422..10104c5 100644
  
  	storageInfoMu      sync.Mutex
  	storageInfoCache   *model.StorageInfo
-@@ -79,3 +82,8 @@ func (r *mutationResolver) refreshMediaFull(ctx context.Context, c *sandbox.Clie
+@@ -81,3 +83,8 @@ func (r *mutationResolver) refreshMediaFull(ctx context.Context, c *sandbox.Clie
  	}
  	return entry, nil
  }
@@ -135,7 +155,7 @@ index 897b422..10104c5 100644
 +	r.Sy.Work.Go(func() { fn(r.Sy.Work.Context) })
 +}
 diff --git a/backend/internal/api/graph/schema.resolvers.go b/backend/internal/api/graph/schema.resolvers.go
-index 0d9da06..690f050 100644
+index 1f2d079..ba01156 100644
 --- a/backend/internal/api/graph/schema.resolvers.go
 +++ b/backend/internal/api/graph/schema.resolvers.go
 @@ -8,6 +8,7 @@ package graph
@@ -146,29 +166,41 @@ index 0d9da06..690f050 100644
  	"fmt"
  	"os"
  	"path/filepath"
-@@ -440,19 +441,14 @@ func (r *mutationResolver) MarkChaptersRead(ctx context.Context, mediaID string,
- 		if err != nil {
+@@ -449,10 +450,6 @@ func (r *mutationResolver) MarkChaptersRead(ctx context.Context, mediaID string,
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	progress := 1.0
+-	if !read {
+-		progress = 0.0
+-	}
+ 	marked := make([]int64, 0, len(chapterIds))
+ 	results := make([]*model.ReadingProgress, 0, len(chapterIds))
+ 	for _, chapterID := range chapterIds {
+@@ -461,12 +458,7 @@ func (r *mutationResolver) MarkChaptersRead(ctx context.Context, mediaID string,
  			return nil, err
  		}
+ 		marked = append(marked, chID)
 -		row, err := r.Q.UpsertReadingProgress(ctx, sqlcgen.UpsertReadingProgressParams{
 -			MediaID:   mID,
 -			ChapterID: chID,
 -			Completed: read,
 -			Progress:  progress,
 -		})
-+		row, err := r.Sy.RecordProgress(ctx, mID, chID, progress, read, nil, nil)
++		row, err := r.Sy.SetReadState(ctx, mID, chID, read)
  		if err != nil {
  			return nil, err
  		}
- 		results = append(results, toReadingProgress(row))
+@@ -474,7 +466,7 @@ func (r *mutationResolver) MarkChaptersRead(ctx context.Context, mediaID string,
  	}
+ 	r.afterChaptersMarked(mID, marked, read)
  	if read {
 -		go r.Tk.SyncMediaProgress(context.Background(), mID)
 +		r.background(func(ctx context.Context) { r.Tk.SyncMediaProgress(ctx, mID) })
  	}
  	return results, nil
  }
-@@ -564,7 +560,7 @@ func (r *mutationResolver) ResetContentFilterRules(ctx context.Context) (bool, e
+@@ -586,7 +578,7 @@ func (r *mutationResolver) ResetContentFilterRules(ctx context.Context) (bool, e
  }
  
  func (r *mutationResolver) RecomputeContentFilter(ctx context.Context) (bool, error) {
@@ -177,7 +209,7 @@ index 0d9da06..690f050 100644
  	return true, nil
  }
  
-@@ -601,7 +597,25 @@ func (r *mutationResolver) SetSourcePreference(ctx context.Context, extensionID
+@@ -623,7 +615,25 @@ func (r *mutationResolver) SetSourcePreference(ctx context.Context, extensionID
  	return toSourcePreferences(resp.GetPreferences()), nil
  }
  
@@ -204,7 +236,7 @@ index 0d9da06..690f050 100644
  	ext, err := r.Sy.InstallExtension(ctx, packageName)
  	if err != nil {
  		return nil, err
-@@ -619,6 +633,9 @@ func (r *mutationResolver) InstallExtension(ctx context.Context, packageName str
+@@ -641,6 +651,9 @@ func (r *mutationResolver) InstallExtension(ctx context.Context, packageName str
  	if err != nil {
  		return nil, err
  	}
@@ -214,7 +246,7 @@ index 0d9da06..690f050 100644
  	ext = r.persistSupportsLatest(ctx, ext, loaded)
  	return toExtension(ext, r.MediaDir), nil
  }
-@@ -681,7 +698,11 @@ func (r *mutationResolver) SetInLibrary(ctx context.Context, mediaID string, inL
+@@ -704,7 +717,11 @@ func (r *mutationResolver) SetInLibrary(ctx context.Context, mediaID string, inL
  		return nil, err
  	}
  	var c *sandbox.Client
@@ -227,7 +259,7 @@ index 0d9da06..690f050 100644
  		c, err = r.Sc.Ensure(ctx)
  		if err != nil {
  			return nil, err
-@@ -724,9 +745,9 @@ func (r *mutationResolver) MigrateMedia(ctx context.Context, fromMediaID string,
+@@ -747,9 +764,9 @@ func (r *mutationResolver) MigrateMedia(ctx context.Context, fromMediaID string,
  	}
  
  	if r.Md != nil {
@@ -239,25 +271,25 @@ index 0d9da06..690f050 100644
  
  	return toMedia(m, r.MediaDir), nil
  }
-@@ -769,7 +790,7 @@ func (r *mutationResolver) UpdateReadingProgress(ctx context.Context, mediaID st
- 		return nil, err
+@@ -793,7 +810,7 @@ func (r *mutationResolver) UpdateReadingProgress(ctx context.Context, mediaID st
  	}
  	if comp {
+ 		r.afterChaptersMarked(mID, []int64{chID}, true)
 -		go r.Tk.SyncMediaProgress(context.Background(), mID)
 +		r.background(func(ctx context.Context) { r.Tk.SyncMediaProgress(ctx, mID) })
  	}
  	return toReadingProgress(prog), nil
  }
-@@ -787,7 +808,7 @@ func (r *mutationResolver) MarkChapterRead(ctx context.Context, mediaID string,
- 	if err != nil {
+@@ -812,7 +829,7 @@ func (r *mutationResolver) MarkChapterRead(ctx context.Context, mediaID string,
  		return nil, err
  	}
+ 	r.afterChaptersMarked(mID, []int64{chID}, true)
 -	go r.Tk.SyncMediaProgress(context.Background(), mID)
 +	r.background(func(ctx context.Context) { r.Tk.SyncMediaProgress(ctx, mID) })
  	return toReadingProgress(prog), nil
  }
  
-@@ -996,6 +1017,9 @@ func (r *mutationResolver) UpdateFolderFlags(ctx context.Context, folderID strin
+@@ -1033,6 +1050,9 @@ func (r *mutationResolver) SetFolderContentTypes(ctx context.Context, folderID s
  }
  
  func (r *mutationResolver) ClearImageCache(ctx context.Context) (bool, error) {
@@ -267,7 +299,7 @@ index 0d9da06..690f050 100644
  	if err := image.ClearDir(filepath.Join(r.MediaDir, "icons")); err != nil {
  		return false, fmt.Errorf("clearing icon cache: %w", err)
  	}
-@@ -1694,7 +1718,7 @@ func (r *queryResolver) Media(ctx context.Context, id string) (*model.Media, err
+@@ -1800,7 +1820,7 @@ func (r *queryResolver) Media(ctx context.Context, id string) (*model.Media, err
  		return nil, err
  	}
  	// Overlaps with the Chapters field resolver's own EnsureChapters call instead of stacking after it.
@@ -295,21 +327,13 @@ index 583a388..e4272c2 100644
  	if err != nil {
  		http.Error(w, "missing file field", http.StatusBadRequest)
 diff --git a/backend/internal/api/rest/content.go b/backend/internal/api/rest/content.go
-index 1611923..668ecf0 100644
+index 23df8cd..c0f0ec4 100644
 --- a/backend/internal/api/rest/content.go
 +++ b/backend/internal/api/rest/content.go
-@@ -6,6 +6,7 @@ import (
- 	"database/sql"
- 	"encoding/base64"
- 	"encoding/json"
-+	"errors"
- 	"fmt"
- 	"io"
- 	"log"
-@@ -22,15 +23,18 @@ import (
- 
+@@ -24,15 +24,18 @@ import (
  	"tsunagu/backend/internal/db/sqlcgen"
  	"tsunagu/backend/internal/localsource"
+ 	"tsunagu/backend/internal/netguard"
 +	"tsunagu/backend/internal/proxyheader"
  	"tsunagu/backend/internal/sandbox"
  	sandboxv1 "tsunagu/backend/internal/sandbox/gen/sandbox/v1"
@@ -328,7 +352,7 @@ index 1611923..668ecf0 100644
  }
  
  func (h *ContentHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-@@ -145,6 +149,7 @@ func (h *ContentHandler) servePage(w http.ResponseWriter, r *http.Request, chapt
+@@ -196,6 +199,7 @@ func (h *ContentHandler) servePage(w http.ResponseWriter, r *http.Request, chapt
  
  	urls, err := client.GetPageURLs(ctx, dctx.ExtensionPackageName, dctx.SourceEntryID, dctx.SourceChapterID)
  	if err != nil {
@@ -336,7 +360,7 @@ index 1611923..668ecf0 100644
  		http.Error(w, "fetching page list failed", http.StatusBadGateway)
  		return
  	}
-@@ -153,8 +158,9 @@ func (h *ContentHandler) servePage(w http.ResponseWriter, r *http.Request, chapt
+@@ -204,8 +208,9 @@ func (h *ContentHandler) servePage(w http.ResponseWriter, r *http.Request, chapt
  		return
  	}
  
@@ -347,7 +371,7 @@ index 1611923..668ecf0 100644
  		http.Error(w, "fetching image failed", http.StatusBadGateway)
  		return
  	}
-@@ -163,7 +169,7 @@ func (h *ContentHandler) servePage(w http.ResponseWriter, r *http.Request, chapt
+@@ -214,7 +219,7 @@ func (h *ContentHandler) servePage(w http.ResponseWriter, r *http.Request, chapt
  		if end > len(urls) {
  			end = len(urls)
  		}
@@ -356,7 +380,7 @@ index 1611923..668ecf0 100644
  	}
  
  	if ct == "" {
-@@ -196,8 +202,8 @@ func (h *ContentHandler) prefetchChapter(w http.ResponseWriter, r *http.Request,
+@@ -247,8 +252,8 @@ func (h *ContentHandler) prefetchChapter(w http.ResponseWriter, r *http.Request,
  		return
  	}
  
@@ -367,7 +391,7 @@ index 1611923..668ecf0 100644
  		defer cancel()
  		urls, err := client.GetPageURLs(ctx, dctx.ExtensionPackageName, dctx.SourceEntryID, dctx.SourceChapterID)
  		if err != nil {
-@@ -207,8 +213,8 @@ func (h *ContentHandler) prefetchChapter(w http.ResponseWriter, r *http.Request,
+@@ -258,8 +263,8 @@ func (h *ContentHandler) prefetchChapter(w http.ResponseWriter, r *http.Request,
  		if k > len(urls) {
  			k = len(urls)
  		}
@@ -378,7 +402,7 @@ index 1611923..668ecf0 100644
  	w.WriteHeader(http.StatusNoContent)
  }
  
-@@ -588,8 +594,9 @@ func (h *ContentHandler) serveHLS(w http.ResponseWriter, r *http.Request, chapte
+@@ -639,8 +644,9 @@ func (h *ContentHandler) serveHLS(w http.ResponseWriter, r *http.Request, chapte
  	}
  	var headers map[string]string
  	if hp := r.URL.Query().Get("h"); hp != "" {
@@ -390,7 +414,7 @@ index 1611923..668ecf0 100644
  		}
  	}
  	h.streamHLS(w, r, tgt, headers, chapterID)
-@@ -605,7 +612,7 @@ func (h *ContentHandler) streamHLS(w http.ResponseWriter, r *http.Request, targe
+@@ -656,7 +662,7 @@ func (h *ContentHandler) streamHLS(w http.ResponseWriter, r *http.Request, targe
  	isRanged := r.Header.Get("Range") != ""
  	looksSegment := !strings.Contains(strings.ToLower(target.Path), ".m3u8")
  	if looksSegment && !isRanged {
@@ -399,72 +423,16 @@ index 1611923..668ecf0 100644
  			writeCachedSegment(w, b, ct)
  			return
  		}
-@@ -649,7 +656,7 @@ func (h *ContentHandler) streamHLS(w http.ResponseWriter, r *http.Request, targe
- 
- func (h *ContentHandler) writeSegment(w http.ResponseWriter, r *http.Request, key string, resp *http.Response) {
- 	respCT := resp.Header.Get("Content-Type")
--	cacheable := resp.StatusCode == http.StatusOK && r.Header.Get("Range") == ""
-+	cacheable := resp.StatusCode == http.StatusOK && r.Header.Get("Range") == "" && resp.ContentLength <= segCacheMaxObject
- 
- 	for _, hk := range []string{"Content-Type", "Content-Length", "Content-Range", "Accept-Ranges"} {
- 		if v := resp.Header.Get(hk); v != "" {
-@@ -659,15 +666,47 @@ func (h *ContentHandler) writeSegment(w http.ResponseWriter, r *http.Request, ke
- 	w.Header().Set("Cache-Control", "no-store")
- 	w.WriteHeader(resp.StatusCode)
- 
--	if !cacheable {
--		_, _ = io.Copy(w, resp.Body)
--		return
--	}
--	body, err := io.ReadAll(io.LimitReader(resp.Body, segCacheMaxObject+1))
--	if err == nil && int64(len(body)) <= segCacheMaxObject {
--		streamSegments.put(key, body, respCT)
-+	// Deliver bytes immediately. The cache limit limits retained memory, never
-+	// the response body: large segments must still reach the player in full.
-+	controller := http.NewResponseController(w)
-+	var cached []byte
-+	var delivered int64
-+	buffer := make([]byte, 32<<10)
-+	for {
-+		n, readErr := resp.Body.Read(buffer)
-+		if n > 0 {
-+			written, writeErr := w.Write(buffer[:n])
-+			delivered += int64(written)
-+			if writeErr != nil || written != n {
-+				panic(http.ErrAbortHandler)
-+			}
-+			if err := controller.Flush(); err != nil && !errors.Is(err, http.ErrNotSupported) {
-+				panic(http.ErrAbortHandler)
-+			}
-+			if cacheable {
-+				if len(cached)+n <= segCacheMaxObject {
-+					cached = append(cached, buffer[:n]...)
-+				} else {
-+					cacheable = false
-+					cached = nil
-+				}
-+			}
-+		}
-+		if readErr == io.EOF {
-+			if resp.ContentLength >= 0 && delivered != resp.ContentLength {
-+				panic(http.ErrAbortHandler)
-+			}
-+			if cacheable {
+@@ -789,7 +795,7 @@ func (h *ContentHandler) writeSegment(w http.ResponseWriter, r *http.Request, ke
+ 				panic(http.ErrAbortHandler)
+ 			}
+ 			if cacheable {
+-				streamSegments.put(key, cached, respCT)
 +				h.segments().put(key, cached, respCT)
-+			}
-+			return
-+		}
-+		if readErr != nil {
-+			// An interrupted upstream response must not look complete or enter
-+			// the cache. net/http closes the stream so AVPlayer can retry it.
-+			panic(http.ErrAbortHandler)
-+		}
- 	}
--	_, _ = w.Write(body)
- }
- 
- func writeCachedSegment(w http.ResponseWriter, data []byte, ct string) {
-@@ -851,8 +890,9 @@ func (h *ContentHandler) serveSubtitle(w http.ResponseWriter, r *http.Request, c
+ 			}
+ 			return
+ 		}
+@@ -987,8 +993,9 @@ func (h *ContentHandler) serveSubtitle(w http.ResponseWriter, r *http.Request, c
  	}
  	var headers map[string]string
  	if hp := r.URL.Query().Get("h"); hp != "" {
@@ -476,7 +444,7 @@ index 1611923..668ecf0 100644
  		}
  	}
  
-@@ -957,11 +997,7 @@ func encodeHeaderParam(headers map[string]string) string {
+@@ -1103,11 +1110,7 @@ func encodeHeaderParam(headers map[string]string) string {
  	if len(headers) == 0 {
  		return ""
  	}
@@ -489,7 +457,7 @@ index 1611923..668ecf0 100644
  }
  
  func dashSegmentBase(manifest *url.URL, headers map[string]string) string {
-@@ -970,11 +1006,10 @@ func dashSegmentBase(manifest *url.URL, headers map[string]string) string {
+@@ -1116,11 +1119,10 @@ func dashSegmentBase(manifest *url.URL, headers map[string]string) string {
  		dir.Path = dir.Path[:i+1]
  	}
  	dir.RawQuery, dir.Fragment = "", ""
@@ -502,7 +470,7 @@ index 1611923..668ecf0 100644
  }
  
  var (
-@@ -1007,16 +1042,11 @@ func (h *ContentHandler) serveDASH(w http.ResponseWriter, r *http.Request, rest
+@@ -1153,16 +1155,11 @@ func (h *ContentHandler) serveDASH(w http.ResponseWriter, r *http.Request, rest
  		http.Error(w, "bad dash path", http.StatusBadRequest)
  		return
  	}
@@ -520,7 +488,7 @@ index 1611923..668ecf0 100644
  		http.Error(w, "bad dash base", http.StatusBadRequest)
  		return
  	}
-@@ -1037,7 +1067,7 @@ func (h *ContentHandler) serveDASH(w http.ResponseWriter, r *http.Request, rest
+@@ -1185,7 +1182,7 @@ func (h *ContentHandler) serveDASH(w http.ResponseWriter, r *http.Request, rest
  	}
  
  	if r.Header.Get("Range") == "" {
@@ -529,7 +497,7 @@ index 1611923..668ecf0 100644
  			writeCachedSegment(w, b, ct)
  			return
  		}
-@@ -1315,3 +1345,15 @@ func serveZipEntry(w http.ResponseWriter, archivePath, entryName string) bool {
+@@ -1464,3 +1461,15 @@ func serveZipEntry(w http.ResponseWriter, archivePath, entryName string) bool {
  }
  
  var _ = sql.ErrNoRows
@@ -546,22 +514,21 @@ index 1611923..668ecf0 100644
 +	return streamSegments
 +}
 diff --git a/backend/internal/api/rest/covers.go b/backend/internal/api/rest/covers.go
-index 5907e61..3433b4f 100644
+index aa8d5a3..3577e05 100644
 --- a/backend/internal/api/rest/covers.go
 +++ b/backend/internal/api/rest/covers.go
-@@ -11,9 +11,11 @@ import (
- 
- 	"tsunagu/backend/internal/db/sqlcgen"
- 	"tsunagu/backend/internal/image"
-+	"tsunagu/backend/internal/sandbox"
+@@ -20,9 +20,9 @@ import (
  )
  
  type CoverProxyHandler struct {
 +	Sc            *sandbox.SupervisedClient
  	Q             *sqlcgen.Queries
  	CoverCacheDir string
+-	Sc            *sandbox.SupervisedClient
  }
-@@ -75,7 +77,24 @@ func (h *CoverProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+ 
+ func (h *CoverProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+@@ -82,7 +82,24 @@ func (h *CoverProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
  	}
  	var localPath string
  	for _, u := range candidates {
@@ -587,12 +554,25 @@ index 5907e61..3433b4f 100644
  			break
  		}
  	}
-@@ -129,7 +148,7 @@ func (h *RemoteCoverProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
- 	}
+@@ -133,6 +150,8 @@ func (h *CoverProxyHandler) fetchViaSandbox(ctx context.Context, packageName, ur
  
- 	destName := base64.URLEncoding.EncodeToString([]byte(upstreamURL))
--	localPath, err := image.DownloadToFile(upstreamURL, h.CoverCacheDir, destName)
-+	localPath, err := image.DownloadToFileContext(r.Context(), upstreamURL, h.CoverCacheDir, destName)
+ type RemoteCoverProxyHandler struct {
+ 	CoverCacheDir string
++	// Client overrides publicImageClient; tests use it to stub upstream hosts.
++	Client *http.Client
+ }
+ 
+ func (h *RemoteCoverProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+@@ -161,7 +180,11 @@ func (h *RemoteCoverProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
+ 	// Hashed to stay under the 255-byte file name limit.
+ 	sum := sha256.Sum256([]byte(upstreamURL))
+ 	destName := hex.EncodeToString(sum[:])
+-	localPath, err := image.DownloadToFileWith(publicImageClient, upstreamURL, h.CoverCacheDir, destName)
++	client := h.Client
++	if client == nil {
++		client = publicImageClient
++	}
++	localPath, err := image.DownloadToFileWithContext(r.Context(), client, upstreamURL, h.CoverCacheDir, destName)
  	if err != nil {
  		http.Error(w, "fetching cover failed", http.StatusBadGateway)
  		return
@@ -999,17 +979,17 @@ index 0000000..22aab18
 +}
 diff --git a/backend/internal/automation/manager.go b/backend/internal/automation/manager.go
 new file mode 100644
-index 0000000..91ad889
+index 0000000..1bdf8f4
 --- /dev/null
 +++ b/backend/internal/automation/manager.go
-@@ -0,0 +1,377 @@
-+// Package automation persists download policies independently of any reader UI.
+@@ -0,0 +1,380 @@
 +package automation
 +
 +import (
 +	"context"
 +	"database/sql"
 +	"encoding/json"
++	"errors"
 +	"fmt"
 +	"strings"
 +	"sync"
@@ -1028,7 +1008,10 @@ index 0000000..91ad889
 +	MaxKeepChapters        int      `json:"maxKeepChapters"`
 +	AutoDownloadScanlators []string `json:"autoDownloadScanlators"`
 +}
-+type Manager struct {
++
++// PolicyManager persists the iOS app's JSON download policies independently of any
++// reader UI. It predates the server-side Manager and still backs the mobile admin API.
++type PolicyManager struct {
 +	Refresh func(context.Context, int64) error
 +	db      *sql.DB
 +	q       *sqlcgen.Queries
@@ -1037,8 +1020,8 @@ index 0000000..91ad889
 +	Now     func() time.Time
 +}
 +
-+func New(db *sql.DB, q *sqlcgen.Queries, dm *download.Manager) *Manager {
-+	return &Manager{db: db, q: q, dm: dm, Now: time.Now}
++func NewPolicyManager(db *sql.DB, q *sqlcgen.Queries, dm *download.Manager) *PolicyManager {
++	return &PolicyManager{db: db, q: q, dm: dm, Now: time.Now}
 +}
 +
 +type Controls struct {
@@ -1046,7 +1029,7 @@ index 0000000..91ad889
 +	EnforceGlobal bool `json:"enforceGlobal"`
 +}
 +
-+func (m *Manager) Controls(ctx context.Context) (Controls, error) {
++func (m *PolicyManager) Controls(ctx context.Context) (Controls, error) {
 +	result := Controls{Enabled: true}
 +	var raw string
 +	err := m.db.QueryRowContext(ctx, "SELECT value FROM app_settings WHERE key='mobile_automation_controls'").Scan(&raw)
@@ -1059,7 +1042,7 @@ index 0000000..91ad889
 +	err = json.Unmarshal([]byte(raw), &result)
 +	return result, err
 +}
-+func (m *Manager) SetControls(ctx context.Context, value Controls) error {
++func (m *PolicyManager) SetControls(ctx context.Context, value Controls) error {
 +	raw, err := json.Marshal(value)
 +	if err != nil {
 +		return err
@@ -1067,12 +1050,12 @@ index 0000000..91ad889
 +	_, err = m.db.ExecContext(ctx, "INSERT INTO app_settings(key,value) VALUES('mobile_automation_controls',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", string(raw))
 +	return err
 +}
-+func (m *Manager) ResetOverrides(ctx context.Context) error {
++func (m *PolicyManager) ResetOverrides(ctx context.Context) error {
 +	_, err := m.db.ExecContext(ctx, "DELETE FROM automation_policies WHERE scope_id>0")
 +	return err
 +}
 +
-+func (m *Manager) Policy(ctx context.Context, media int64) (Policy, error) {
++func (m *PolicyManager) Policy(ctx context.Context, media int64) (Policy, error) {
 +	p := Policy{RefreshInterval: "manual"}
 +	controls, err := m.Controls(ctx)
 +	if err != nil {
@@ -1086,10 +1069,10 @@ index 0000000..91ad889
 +}
 +
 +// SavedPolicy returns editable rules even when automation is disabled.
-+func (m *Manager) SavedPolicy(ctx context.Context, media int64) (Policy, error) {
++func (m *PolicyManager) SavedPolicy(ctx context.Context, media int64) (Policy, error) {
 +	return m.savedPolicy(ctx, media, false)
 +}
-+func (m *Manager) savedPolicy(ctx context.Context, media int64, enforceGlobal bool) (Policy, error) {
++func (m *PolicyManager) savedPolicy(ctx context.Context, media int64, enforceGlobal bool) (Policy, error) {
 +	p := Policy{RefreshInterval: "manual"}
 +	scopes := []int64{0}
 +	if media > 0 && !enforceGlobal {
@@ -1114,7 +1097,7 @@ index 0000000..91ad889
 +	}
 +	return p, nil
 +}
-+func (m *Manager) SetPolicy(ctx context.Context, media int64, raw []byte) error {
++func (m *PolicyManager) SetPolicy(ctx context.Context, media int64, raw []byte) error {
 +	if media < 0 {
 +		return fmt.Errorf("invalid policy scope")
 +	}
@@ -1154,7 +1137,7 @@ index 0000000..91ad889
 +	_, err := m.db.ExecContext(ctx, "INSERT INTO automation_policies(scope_id,policy_json) VALUES(?,?) ON CONFLICT(scope_id) DO UPDATE SET policy_json=excluded.policy_json", media, string(raw))
 +	return err
 +}
-+func (m *Manager) ChapterEvent(ctx context.Context, media, chapter int64, completed bool) error {
++func (m *PolicyManager) ChapterEvent(ctx context.Context, media, chapter int64, completed bool) error {
 +	m.mu.Lock()
 +	defer m.mu.Unlock()
 +	ch, err := m.q.GetChapter(ctx, chapter)
@@ -1191,7 +1174,7 @@ index 0000000..91ad889
 +			return err
 +		}
 +		for _, id := range ids {
-+			if _, err := m.q.EnqueueDownload(ctx, id); err != nil {
++			if _, err := m.q.EnqueueDownload(ctx, id); err != nil && !errors.Is(err, sql.ErrNoRows) {
 +				return err
 +			}
 +		}
@@ -1213,7 +1196,7 @@ index 0000000..91ad889
 +}
 +
 +// NewChapters only receives newly discovered IDs, never the initial backlog.
-+func (m *Manager) NewChapters(ctx context.Context, media int64, ids []int64) error {
++func (m *PolicyManager) NewChapters(ctx context.Context, media int64, ids []int64) error {
 +	policy, err := m.Policy(ctx, media)
 +	if err != nil || !policy.AutoDownload {
 +		return err
@@ -1237,7 +1220,7 @@ index 0000000..91ad889
 +			}
 +		}
 +		if allowed {
-+			if _, err := m.q.EnqueueDownload(ctx, id); err != nil {
++			if _, err := m.q.EnqueueDownload(ctx, id); err != nil && !errors.Is(err, sql.ErrNoRows) {
 +				return err
 +			}
 +		}
@@ -1245,7 +1228,7 @@ index 0000000..91ad889
 +	m.dm.Wake()
 +	return nil
 +}
-+func (m *Manager) Tick(ctx context.Context) error {
++func (m *PolicyManager) Tick(ctx context.Context) error {
 +	controls, err := m.Controls(ctx)
 +	if err != nil || !controls.Enabled {
 +		return err
@@ -1296,7 +1279,7 @@ index 0000000..91ad889
 +	}
 +	return nil
 +}
-+func (m *Manager) DownloadCompleted(ctx context.Context, chapter int64) error {
++func (m *PolicyManager) DownloadCompleted(ctx context.Context, chapter int64) error {
 +	m.mu.Lock()
 +	defer m.mu.Unlock()
 +	ch, err := m.q.GetChapter(ctx, chapter)
@@ -1322,7 +1305,7 @@ index 0000000..91ad889
 +	}
 +	return nil
 +}
-+func (m *Manager) remove(ctx context.Context, id int64) error {
++func (m *PolicyManager) remove(ctx context.Context, id int64) error {
 +	if err := m.dm.Cancel(ctx, id); err != nil {
 +		return err
 +	}
@@ -1334,7 +1317,7 @@ index 0000000..91ad889
 +
 +// RefreshDue executes at most one overdue title per tick. Failed providers retry
 +// after five minutes, rather than on every foreground scheduler tick.
-+func (m *Manager) RefreshDue(ctx context.Context) error {
++func (m *PolicyManager) RefreshDue(ctx context.Context) error {
 +	if m.Refresh == nil {
 +		return nil
 +	}
@@ -1382,10 +1365,10 @@ index 0000000..91ad889
 +}
 diff --git a/backend/internal/automation/manager_test.go b/backend/internal/automation/manager_test.go
 new file mode 100644
-index 0000000..c5afb44
+index 0000000..1959e7c
 --- /dev/null
 +++ b/backend/internal/automation/manager_test.go
-@@ -0,0 +1,245 @@
+@@ -0,0 +1,248 @@
 +package automation
 +
 +import (
@@ -1401,7 +1384,7 @@ index 0000000..c5afb44
 +	"tsunagu/backend/internal/download"
 +)
 +
-+func fixture(t *testing.T) (*Manager, *sql.DB) {
++func policyFixture(t *testing.T) (*PolicyManager, *sql.DB) {
 +	t.Helper()
 +	root := t.TempDir()
 +	conn, err := db.Open(filepath.Join(root, "state.db"))
@@ -1409,15 +1392,18 @@ index 0000000..c5afb44
 +		t.Fatal(err)
 +	}
 +	t.Cleanup(func() { conn.Close() })
-+	_, err = conn.Exec(`INSERT INTO media(id,external_id,content_type,title,added_at) VALUES(1,'series','manga','Series',CURRENT_TIMESTAMP); INSERT INTO chapters(id,media_id,external_id,source_order) VALUES(1,1,'one',0),(2,1,'two',1),(3,1,'three',2)`)
++	// Library updates skip local media, so the series needs a source extension.
++	_, err = conn.Exec(`INSERT INTO repositories(id,index_url) VALUES(1,'https://repo.example/index.json');
++INSERT INTO extensions(id,repository_id,package_name,name,version,content_type,lang,apk_url) VALUES(1,1,'org.example.source','Source','1','manga','en','https://repo.example/source.apk');
++INSERT INTO media(id,extension_id,external_id,content_type,title,added_at) VALUES(1,1,'series','manga','Series',CURRENT_TIMESTAMP); INSERT INTO chapters(id,media_id,external_id,source_order) VALUES(1,1,'one',0),(2,1,'two',1),(3,1,'three',2)`)
 +	if err != nil {
 +		t.Fatal(err)
 +	}
 +	q := sqlcgen.New(conn)
-+	return New(conn, q, download.New(q, nil, root, "", "loose")), conn
++	return NewPolicyManager(conn, q, download.New(q, nil, root, "", "loose")), conn
 +}
 +func TestInheritedPolicyAndIdempotentAhead(t *testing.T) {
-+	m, conn := fixture(t)
++	m, conn := policyFixture(t)
 +	ctx := context.Background()
 +	if err := m.SetPolicy(ctx, 0, []byte(`{"downloadAhead":2,"deleteOnRead":true}`)); err != nil {
 +		t.Fatal(err)
@@ -1449,7 +1435,7 @@ index 0000000..c5afb44
 +	}
 +}
 +func TestDelayedDeletionSurvivesManagerRestartAndRechecksPolicy(t *testing.T) {
-+	m, conn := fixture(t)
++	m, conn := policyFixture(t)
 +	ctx := context.Background()
 +	now := time.Unix(100000, 0)
 +	m.Now = func() time.Time { return now }
@@ -1471,7 +1457,7 @@ index 0000000..c5afb44
 +	if count != 1 {
 +		t.Fatal("deleted too early")
 +	}
-+	restarted := New(conn, m.q, m.dm)
++	restarted := NewPolicyManager(conn, m.q, m.dm)
 +	restarted.Now = func() time.Time { return now.Add(2 * time.Hour) }
 +	if err := restarted.SetPolicy(ctx, 1, []byte(`{"deleteOnRead":false}`)); err != nil {
 +		t.Fatal(err)
@@ -1486,7 +1472,7 @@ index 0000000..c5afb44
 +}
 +
 +func TestRefreshCatchupRespectsPauseAndFailureBackoff(t *testing.T) {
-+	m, _ := fixture(t)
++	m, _ := policyFixture(t)
 +	ctx := context.Background()
 +	now := time.Unix(100000, 0)
 +	m.Now = func() time.Time { return now }
@@ -1534,7 +1520,7 @@ index 0000000..c5afb44
 +}
 +
 +func TestFutureDeletionActionsDoNotStarveDueActions(t *testing.T) {
-+	m, conn := fixture(t)
++	m, conn := policyFixture(t)
 +	ctx := context.Background()
 +	m.Now = func() time.Time { return time.Unix(100000, 0) }
 +	if err := m.SetPolicy(ctx, 0, []byte(`{"deleteOnRead":true,"deleteDelayHours":100}`)); err != nil {
@@ -1569,7 +1555,7 @@ index 0000000..c5afb44
 +}
 +
 +func TestControlsPreserveEditableRulesAndResetOverrides(t *testing.T) {
-+	m, _ := fixture(t)
++	m, _ := policyFixture(t)
 +	ctx := context.Background()
 +	if err := m.SetPolicy(ctx, 0, []byte(`{"downloadAhead":2,"refreshInterval":"daily"}`)); err != nil {
 +		t.Fatal(err)
@@ -1605,7 +1591,7 @@ index 0000000..c5afb44
 +}
 +
 +func TestEnforcedGlobalDeletionIgnoresLongerSeriesDelay(t *testing.T) {
-+	m, conn := fixture(t)
++	m, conn := policyFixture(t)
 +	ctx := context.Background()
 +	now := time.Unix(100000, 0)
 +	m.Now = func() time.Time { return now }
@@ -1704,34 +1690,33 @@ index 0000000..8c6c57e
 +	return 0
 +}
 diff --git a/backend/internal/db/db.go b/backend/internal/db/db.go
-index fa69458..e20278e 100644
+index d3013f5..8ff5eb3 100644
 --- a/backend/internal/db/db.go
 +++ b/backend/internal/db/db.go
-@@ -70,6 +70,12 @@ var migration0016 string
- //go:embed migrations/0017_reading_progress_and_chapter_order_index.sql
- var migration0017 string
+@@ -75,6 +75,9 @@ var migration0017 string
+ //go:embed migrations/0018_repair_anime_episode_identifiers.sql
+ var migration0018 string
  
 +//go:embed migrations/0018_service_automation.sql
-+var migration0018 string
++var migration0018ServiceAutomation string
 +
-+//go:embed migrations/0019_repair_anime_episode_identifiers.sql
-+var migration0019 string
-+
- var migrations = []struct {
- 	name string
- 	sql  string
-@@ -91,6 +97,8 @@ var migrations = []struct {
+ //go:embed migrations/0019_folder_content_types.sql
+ var migration0019 string
+ 
+@@ -102,7 +105,10 @@ var migrations = []struct {
  	{"0015_metadata_search_cooldown.sql", migration0015},
  	{"0016_chapter_latest_index.sql", migration0016},
  	{"0017_reading_progress_and_chapter_order_index.sql", migration0017},
-+	{"0018_service_automation.sql", migration0018},
-+	{"0019_repair_anime_episode_identifiers.sql", migration0019},
++	// Older iOS builds ran this same idempotent repair as 0019_repair_anime_episode_identifiers.sql.
+ 	{"0018_repair_anime_episode_identifiers.sql", migration0018},
++	// iOS-only; keeps its original name so already-migrated phone databases skip it.
++	{"0018_service_automation.sql", migration0018ServiceAutomation},
+ 	{"0019_folder_content_types.sql", migration0019},
+ 	{"0020_automation.sql", migration0020},
  }
- 
- func Open(path string) (*sql.DB, error) {
 diff --git a/backend/internal/db/episode_identifier_test.go b/backend/internal/db/episode_identifier_test.go
 new file mode 100644
-index 0000000..8ff7bd1
+index 0000000..dc6318b
 --- /dev/null
 +++ b/backend/internal/db/episode_identifier_test.go
 @@ -0,0 +1,48 @@
@@ -1765,7 +1750,7 @@ index 0000000..8ff7bd1
 +		t.Fatal(err)
 +	}
 +	for range 2 {
-+		if _, err = conn.Exec(migration0019); err != nil {
++		if _, err = conn.Exec(migration0018); err != nil {
 +			t.Fatal(err)
 +		}
 +	}
@@ -1804,45 +1789,24 @@ index 0000000..806cb0b
 +    name TEXT PRIMARY KEY,
 +    last_run INTEGER NOT NULL
 +);
-diff --git a/backend/internal/db/migrations/0019_repair_anime_episode_identifiers.sql b/backend/internal/db/migrations/0019_repair_anime_episode_identifiers.sql
-new file mode 100644
-index 0000000..5607cb4
---- /dev/null
-+++ b/backend/internal/db/migrations/0019_repair_anime_episode_identifiers.sql
-@@ -0,0 +1,19 @@
-+-- Older AnimeHttpSource concatenated baseUrl with a relative "series/episode"
-+-- identifier, treating the series as part of the host and persisting only /episode.
-+-- Repair this verified 123Anime format in place so progress/download foreign keys survive.
-+UPDATE chapters AS c
-+SET external_id = (
-+    SELECT substr(m.external_id, 8) || c.external_id FROM media m WHERE m.id = c.media_id
-+)
-+WHERE c.external_id GLOB '/[0-9]*'
-+  AND substr(c.external_id, 2) NOT GLOB '*[^0-9]*'
-+  AND EXISTS (
-+    SELECT 1 FROM media m JOIN extensions e ON e.id = m.extension_id
-+    WHERE m.id = c.media_id AND m.content_type = 'anime'
-+      AND e.package_name = 'eu.kanade.tachiyomi.animeextension.en.onetwothreeanime'
-+      AND m.external_id LIKE '/anime/%' AND length(m.external_id) > 7
-+      AND NOT EXISTS (
-+        SELECT 1 FROM chapters valid WHERE valid.media_id = c.media_id
-+          AND valid.external_id = substr(m.external_id, 8) || c.external_id
-+      )
-+  );
 diff --git a/backend/internal/db/queries/downloads.sql b/backend/internal/db/queries/downloads.sql
-index b7b7e94..01dc4cb 100644
+index 8b19ed3..916fbff 100644
 --- a/backend/internal/db/queries/downloads.sql
 +++ b/backend/internal/db/queries/downloads.sql
-@@ -1,6 +1,7 @@
- -- name: EnqueueDownload :one
- INSERT INTO downloads (chapter_id, status, position)
- VALUES (?, 'queued', COALESCE((SELECT MAX(position) FROM downloads WHERE status = 'queued'), 0) + 1)
-+ON CONFLICT(chapter_id) DO UPDATE SET chapter_id = excluded.chapter_id
+@@ -11,6 +11,11 @@ WHERE NOT EXISTS (
+         OR EXISTS (SELECT 1 FROM anime_episode_streams a WHERE a.chapter_id = d.chapter_id AND a.local_path IS NOT NULL AND a.local_path != '')
+       )))
+ )
++-- Chapters own one row (idx_downloads_unique_chapter): a failed or file-less
++-- row is requeued in place.
++ON CONFLICT(chapter_id) DO UPDATE SET
++    status = 'queued', progress = 0, downloaded_bytes = NULL, bytes_per_sec = NULL,
++    position = excluded.position, error = NULL, created_at = CURRENT_TIMESTAMP, completed_at = NULL
  RETURNING *;
  
  -- name: ListQueuedDownloads :many
-@@ -11,7 +12,7 @@ SELECT * FROM downloads WHERE status = 'queued' ORDER BY position;
- SELECT status, COUNT(*) AS count FROM downloads GROUP BY status;
+@@ -24,7 +29,7 @@ SELECT status, COUNT(*) AS count FROM downloads GROUP BY status;
+ UPDATE downloads SET status = 'downloading', progress = 0 WHERE id = ? AND status = 'queued';
  
  -- name: UpdateDownloadProgress :exec
 -UPDATE downloads SET status = ?, progress = ? WHERE id = ?;
@@ -1850,7 +1814,7 @@ index b7b7e94..01dc4cb 100644
  
  -- name: CompleteDownload :exec
  UPDATE downloads SET status = 'done', progress = 1, completed_at = CURRENT_TIMESTAMP WHERE id = ?;
-@@ -26,7 +27,7 @@ DELETE FROM downloads WHERE id = ?;
+@@ -39,7 +44,7 @@ DELETE FROM downloads WHERE id = ?;
  UPDATE downloads SET status = 'queued', progress = 0 WHERE status = 'downloading';
  
  -- name: UpdateDownloadStats :exec
@@ -1858,39 +1822,24 @@ index b7b7e94..01dc4cb 100644
 +UPDATE downloads SET status = ?, progress = MIN(?, 0.99), downloaded_bytes = ?, bytes_per_sec = ? WHERE id = ?;
  
  -- name: GetLatestDownloadForChapter :one
- SELECT * FROM downloads WHERE chapter_id = ? ORDER BY created_at DESC LIMIT 1;
-diff --git a/backend/internal/db/sqlcgen/download_claim.go b/backend/internal/db/sqlcgen/download_claim.go
-new file mode 100644
-index 0000000..e71ceca
---- /dev/null
-+++ b/backend/internal/db/sqlcgen/download_claim.go
-@@ -0,0 +1,13 @@
-+package sqlcgen
-+
-+import "context"
-+
-+// ClaimDownload uses a compare-and-set, so simultaneous workers cannot both own a job.
-+func (q *Queries) ClaimDownload(ctx context.Context, id int64) (bool, error) {
-+	result, err := q.db.ExecContext(ctx, "UPDATE downloads SET status = 'downloading', progress = 0 WHERE id = ? AND status = 'queued'", id)
-+	if err != nil {
-+		return false, err
-+	}
-+	count, err := result.RowsAffected()
-+	return count == 1, err
-+}
+ SELECT * FROM downloads WHERE chapter_id = ? ORDER BY created_at DESC, id DESC LIMIT 1;
 diff --git a/backend/internal/db/sqlcgen/downloads.sql.go b/backend/internal/db/sqlcgen/downloads.sql.go
-index b3b58a3..77bf401 100644
+index 2e24d84..02713a6 100644
 --- a/backend/internal/db/sqlcgen/downloads.sql.go
 +++ b/backend/internal/db/sqlcgen/downloads.sql.go
-@@ -177,6 +177,7 @@ func (q *Queries) DeleteDownloadsByChapters(ctx context.Context, chapterIds []in
- const enqueueDownload = `-- name: EnqueueDownload :one
- INSERT INTO downloads (chapter_id, status, position)
- VALUES (?, 'queued', COALESCE((SELECT MAX(position) FROM downloads WHERE status = 'queued'), 0) + 1)
-+ON CONFLICT(chapter_id) DO UPDATE SET chapter_id = excluded.chapter_id
+@@ -198,6 +198,11 @@ WHERE NOT EXISTS (
+         OR EXISTS (SELECT 1 FROM anime_episode_streams a WHERE a.chapter_id = d.chapter_id AND a.local_path IS NOT NULL AND a.local_path != '')
+       )))
+ )
++-- Chapters own one row (idx_downloads_unique_chapter): a failed or file-less
++-- row is requeued in place.
++ON CONFLICT(chapter_id) DO UPDATE SET
++    status = 'queued', progress = 0, downloaded_bytes = NULL, bytes_per_sec = NULL,
++    position = excluded.position, error = NULL, created_at = CURRENT_TIMESTAMP, completed_at = NULL
  RETURNING id, chapter_id, status, progress, downloaded_bytes, bytes_per_sec, position, error, created_at, completed_at
  `
  
-@@ -453,7 +454,7 @@ func (q *Queries) SetDownloadPosition(ctx context.Context, arg SetDownloadPositi
+@@ -475,7 +480,7 @@ func (q *Queries) SetDownloadPosition(ctx context.Context, arg SetDownloadPositi
  }
  
  const updateDownloadProgress = `-- name: UpdateDownloadProgress :exec
@@ -1899,7 +1848,7 @@ index b3b58a3..77bf401 100644
  `
  
  type UpdateDownloadProgressParams struct {
-@@ -468,7 +469,7 @@ func (q *Queries) UpdateDownloadProgress(ctx context.Context, arg UpdateDownload
+@@ -490,7 +495,7 @@ func (q *Queries) UpdateDownloadProgress(ctx context.Context, arg UpdateDownload
  }
  
  const updateDownloadStats = `-- name: UpdateDownloadStats :exec
@@ -2126,26 +2075,18 @@ index 0000000..c33794d
 +	}
 +}
 diff --git a/backend/internal/download/manager.go b/backend/internal/download/manager.go
-index d166dc6..888de41 100644
+index c9d5d02..6e987b1 100644
 --- a/backend/internal/download/manager.go
 +++ b/backend/internal/download/manager.go
-@@ -28,10 +28,20 @@ import (
- 	"tsunagu/backend/internal/sandbox"
+@@ -30,9 +30,12 @@ import (
  )
  
-+type runningJob struct {
-+	cancel context.CancelFunc
-+	done   chan struct{}
-+}
-+
  type Manager struct {
 -	q        *sqlcgen.Queries
 -	sc       *sandbox.SupervisedClient
 -	mediaDir string
 +	OnComplete  func(int64)
 +	videoEngine VideoDownloadEngine
-+	lifecycle   context.Context
-+	interrupt   context.CancelFunc
 +	stopOnce    sync.Once
 +	q           *sqlcgen.Queries
 +	sc          *sandbox.SupervisedClient
@@ -2153,96 +2094,63 @@ index d166dc6..888de41 100644
  
  	dirMu        sync.RWMutex
  	downloadsDir string
-@@ -46,7 +56,7 @@ type Manager struct {
- 	stopCh    chan struct{}
- 	wg        sync.WaitGroup
- 	runningMu sync.Mutex
--	running   map[int64]context.CancelFunc
-+	running   map[int64]*runningJob
- 
- 	pausedMu sync.RWMutex
- 	paused   bool
-@@ -59,7 +69,8 @@ func New(q *sqlcgen.Queries, sc *sandbox.SupervisedClient, mediaDir, downloadsDi
- 	if imageFormat != "cbz" {
- 		imageFormat = "loose"
- 	}
--	return &Manager{
-+	ctx, cancel := context.WithCancel(context.Background())
-+	return &Manager{lifecycle: ctx, interrupt: cancel,
- 		q:            q,
- 		sc:           sc,
- 		mediaDir:     mediaDir,
-@@ -69,7 +80,7 @@ func New(q *sqlcgen.Queries, sc *sandbox.SupervisedClient, mediaDir, downloadsDi
- 		workers:      2,
- 		wakeCh:       make(chan struct{}, 1),
- 		stopCh:       make(chan struct{}),
--		running:      make(map[int64]context.CancelFunc),
-+		running:      make(map[int64]*runningJob),
- 	}
- }
- 
-@@ -85,7 +96,7 @@ func (m *Manager) Start() {
+@@ -91,8 +94,7 @@ func (m *Manager) Start() {
  }
  
  func (m *Manager) Shutdown() {
 -	close(m.stopCh)
-+	m.stopOnce.Do(func() { m.interrupt(); close(m.stopCh) })
+-	m.stopJobs()
++	m.stopOnce.Do(func() { m.stopJobs(); close(m.stopCh) })
  	m.wg.Wait()
  }
  
-@@ -117,7 +128,7 @@ func (m *Manager) workerLoop() {
+@@ -124,7 +126,7 @@ func (m *Manager) workerLoop() {
  }
  
  func (m *Manager) processOne() {
 -	ctx := context.Background()
-+	ctx := m.lifecycle
++	ctx := m.baseCtx
  
  	jobs, err := m.q.ListQueuedDownloads(ctx)
  	if err != nil {
-@@ -129,22 +140,21 @@ func (m *Manager) processOne() {
- 	}
+@@ -137,19 +139,22 @@ func (m *Manager) processOne() {
  	job := jobs[0]
  
--	if err := m.q.UpdateDownloadProgress(ctx, sqlcgen.UpdateDownloadProgressParams{
--		Status:   "downloading",
--		Progress: 0,
--		ID:       job.ID,
--	}); err != nil {
--		log.Printf("download: claim job %d failed: %v", job.ID, err)
+ 	// Workers race on the same queue; only the one whose UPDATE flips the row
+-	// from 'queued' may run it.
++	// from 'queued' may run it. Claiming under runningMu keeps Cancel from
++	// deleting a queued row between the claim and the job being registered.
 +	m.runningMu.Lock()
-+	claimed, err := m.q.ClaimDownload(ctx, job.ID)
-+	if err != nil || !claimed {
+ 	claimed, err := m.q.ClaimQueuedDownload(ctx, job.ID)
+ 	if err != nil {
++		m.runningMu.Unlock()
+ 		log.Printf("download: claim job %d failed: %v", job.ID, err)
+ 		return
+ 	}
+ 	if claimed == 0 {
 +		m.runningMu.Unlock()
  		return
  	}
  
- 	jobCtx, cancel := context.WithCancel(ctx)
+ 	jobCtx, cancel := context.WithCancel(m.baseCtx)
+ 	run := &runningJob{cancel: cancel, done: make(chan struct{})}
 -	m.runningMu.Lock()
--	m.running[job.ChapterID] = cancel
-+	active := &runningJob{cancel: cancel, done: make(chan struct{})}
-+	m.running[job.ChapterID] = active
+ 	m.running[job.ChapterID] = run
  	m.runningMu.Unlock()
  	defer func() {
- 		m.runningMu.Lock()
- 		delete(m.running, job.ChapterID)
-+		close(active.done)
- 		m.runningMu.Unlock()
- 		cancel()
- 	}()
-@@ -154,7 +164,11 @@ func (m *Manager) processOne() {
- 
- 		log.Printf("download: job %d (chapter %d) cancelled; discarding partial output", job.ID, job.ChapterID)
+@@ -166,8 +171,10 @@ func (m *Manager) processOne() {
+ 	if jobCtx.Err() != nil {
  		m.discardPartial(job.ChapterID)
--		_ = m.q.DeleteDownloadByChapter(context.Background(), job.ChapterID)
-+		if m.lifecycle.Err() != nil {
+ 		if m.baseCtx.Err() != nil {
+-			// Shutting down: the next start requeues it.
++			// Shutting down: requeue now, since a suspended mobile process may
++			// never reach the next start's orphan requeue.
+ 			log.Printf("download: job %d (chapter %d) interrupted by shutdown; will resume on next start", job.ID, job.ChapterID)
 +			_ = m.q.UpdateDownloadProgress(context.Background(), sqlcgen.UpdateDownloadProgressParams{Status: "queued", ID: job.ID})
-+		} else {
-+			_ = m.q.DeleteDownloadByChapter(context.Background(), job.ChapterID)
-+		}
- 		return
- 	}
- 	if err != nil {
-@@ -169,6 +183,8 @@ func (m *Manager) processOne() {
+ 			return
+ 		}
+ 		log.Printf("download: job %d (chapter %d) cancelled; discarded partial output", job.ID, job.ChapterID)
+@@ -186,6 +193,8 @@ func (m *Manager) processOne() {
  
  	if err := m.q.CompleteDownload(ctx, job.ID); err != nil {
  		log.Printf("download: mark complete failed for job %d: %v", job.ID, err)
@@ -2251,7 +2159,7 @@ index d166dc6..888de41 100644
  	}
  }
  
-@@ -534,6 +550,30 @@ func (m *Manager) downloadAnime(ctx context.Context, jobID int64, client *sandbo
+@@ -559,6 +568,30 @@ func (m *Manager) downloadAnime(ctx context.Context, jobID int64, client *sandbo
  		return fmt.Errorf("creating chapter dir: %w", err)
  	}
  	outputPath := filepath.Join(chapterDir, "episode.mp4")
@@ -2280,45 +2188,37 @@ index d166dc6..888de41 100644
 +		return m.q.UpsertAnimeEpisodeStream(ctx, sqlcgen.UpsertAnimeEpisodeStreamParams{ChapterID: dctx.ChapterID, StreamUrl: sql.NullString{String: streamURL, Valid: true}, LocalPath: sql.NullString{String: outputPath, Valid: true}})
 +	}
  
- 	keepaliveCtx, stopKeepalive := context.WithCancel(ctx)
- 	defer stopKeepalive()
-@@ -891,12 +931,22 @@ func parseInt64(s string) (int64, error) {
- 
+ 	if err := m.q.UpdateDownloadProgress(ctx, sqlcgen.UpdateDownloadProgressParams{
+ 		Status:   "downloading",
+@@ -897,10 +930,14 @@ type runningJob struct {
  func (m *Manager) Cancel(ctx context.Context, chapterID int64) error {
  	m.runningMu.Lock()
--	cancel, ok := m.running[chapterID]
-+	active, ok := m.running[chapterID]
-+	if !ok {
+ 	run, ok := m.running[chapterID]
+-	m.runningMu.Unlock()
+ 	if !ok {
+-		return nil
 +		// Delete while holding the claim lock, so a queued job cannot start between
 +		// cancellation and the caller's file cleanup.
 +		err := m.q.DeleteDownloadByChapter(ctx, chapterID)
 +		m.runningMu.Unlock()
 +		return err
-+	}
-+	active.cancel()
- 	m.runningMu.Unlock()
--	if ok {
--		cancel()
-+	select {
-+	case <-active.done:
-+		return nil
-+	case <-ctx.Done():
-+		return ctx.Err()
  	}
--	return nil
- }
- 
- func (m *Manager) discardPartial(chapterID int64) {
++	m.runningMu.Unlock()
+ 	run.cancel()
+ 	wait := time.NewTimer(30 * time.Second)
+ 	defer wait.Stop()
 diff --git a/backend/internal/download/ownership_test.go b/backend/internal/download/ownership_test.go
 new file mode 100644
-index 0000000..b9f190e
+index 0000000..99a9cbc
 --- /dev/null
 +++ b/backend/internal/download/ownership_test.go
-@@ -0,0 +1,59 @@
+@@ -0,0 +1,61 @@
 +package download
 +
 +import (
 +	"context"
++	"database/sql"
++	"errors"
 +	"path/filepath"
 +	"sync"
 +	"sync/atomic"
@@ -2349,19 +2249,19 @@ index 0000000..b9f190e
 +		wg.Add(1)
 +		go func() {
 +			defer wg.Done()
-+			same, err := q.EnqueueDownload(ctx, 1)
-+			if err != nil {
-+				t.Error(err)
++			// An active row is never duplicated: re-enqueueing returns no row.
++			if _, err := q.EnqueueDownload(ctx, 1); !errors.Is(err, sql.ErrNoRows) {
++				t.Errorf("re-enqueue: %v", err)
 +				return
 +			}
-+			if same.ID != job.ID {
-+				t.Error("duplicate queue row")
++			if same, err := q.GetLatestDownloadForChapter(ctx, 1); err != nil || same.ID != job.ID {
++				t.Errorf("duplicate queue row: %v", err)
 +			}
-+			claimed, err := q.ClaimDownload(ctx, job.ID)
++			claimed, err := q.ClaimQueuedDownload(ctx, job.ID)
 +			if err != nil {
 +				t.Error(err)
 +			}
-+			if claimed {
++			if claimed == 1 {
 +				wins.Add(1)
 +			}
 +		}()
@@ -2375,7 +2275,7 @@ index 0000000..b9f190e
 +	m.Shutdown()
 +}
 diff --git a/backend/internal/image/cache.go b/backend/internal/image/cache.go
-index c6b68a3..dd95b27 100644
+index 3b4299c..438a9dc 100644
 --- a/backend/internal/image/cache.go
 +++ b/backend/internal/image/cache.go
 @@ -1,7 +1,14 @@
@@ -2393,20 +2293,29 @@ index c6b68a3..dd95b27 100644
  	"io"
  	"net/http"
  	"os"
-@@ -24,8 +31,11 @@ func ExtFromContentType(ct string) string {
+@@ -24,11 +31,19 @@ func ExtFromContentType(ct string) string {
  }
  
  func DownloadToFile(url, destDir, destName string) (string, error) {
-+	return DownloadToFileContext(context.Background(), url, destDir, destName)
-+}
-+func DownloadToFileContext(ctx context.Context, url, destDir, destName string) (string, error) {
- 	client := &http.Client{Timeout: 15 * time.Second}
+-	return DownloadToFileWith(&http.Client{Timeout: 15 * time.Second}, url, destDir, destName)
++	return DownloadToFileWithContext(context.Background(), &http.Client{Timeout: 15 * time.Second}, url, destDir, destName)
+ }
+ 
+ func DownloadToFileWith(client *http.Client, url, destDir, destName string) (string, error) {
 -	req, err := http.NewRequest(http.MethodGet, url, nil)
++	return DownloadToFileWithContext(context.Background(), client, url, destDir, destName)
++}
++
++func DownloadToFileContext(ctx context.Context, url, destDir, destName string) (string, error) {
++	return DownloadToFileWithContext(ctx, &http.Client{Timeout: 15 * time.Second}, url, destDir, destName)
++}
++
++func DownloadToFileWithContext(ctx context.Context, client *http.Client, url, destDir, destName string) (string, error) {
 +	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
  	if err != nil {
  		return "", fmt.Errorf("fetching %s: %w", url, err)
  	}
-@@ -39,33 +49,37 @@ func DownloadToFile(url, destDir, destName string) (string, error) {
+@@ -42,33 +57,37 @@ func DownloadToFileWith(client *http.Client, url, destDir, destName string) (str
  		return "", fmt.Errorf("fetching %s: status %d", url, resp.StatusCode)
  	}
  
@@ -2421,13 +2330,13 @@ index c6b68a3..dd95b27 100644
 +	data, err := io.ReadAll(io.LimitReader(resp.Body, 32<<20+1))
  	if err != nil {
 -		return "", fmt.Errorf("creating file %s: %w", path, err)
--	}
++		return "", err
+ 	}
 -	defer f.Close()
 -
 -	if _, err := io.Copy(f, resp.Body); err != nil {
 -		return "", fmt.Errorf("writing file %s: %w", path, err)
-+		return "", err
- 	}
+-	}
 -	return path, nil
 +	return SaveBytesToFile(data, resp.Header.Get("Content-Type"), destDir, destName)
  }
@@ -2461,7 +2370,7 @@ index c6b68a3..dd95b27 100644
  	}
  	return path, nil
  }
-@@ -88,3 +102,26 @@ func ClearDir(dir string) error {
+@@ -91,3 +110,26 @@ func ClearDir(dir string) error {
  	}
  	return nil
  }
@@ -2521,10 +2430,10 @@ index 0000000..ed4a89b
 +	}
 +}
 diff --git a/backend/internal/localsource/scan.go b/backend/internal/localsource/scan.go
-index 7007c2c..ee1a787 100644
+index ec3ba1b..e1f4827 100644
 --- a/backend/internal/localsource/scan.go
 +++ b/backend/internal/localsource/scan.go
-@@ -13,6 +13,7 @@ import (
+@@ -12,6 +12,7 @@ import (
  	"strings"
  	"sync"
  	"time"
@@ -2532,7 +2441,7 @@ index 7007c2c..ee1a787 100644
  	"unicode"
  
  	"tsunagu/backend/internal/db/sqlcgen"
-@@ -23,6 +24,7 @@ type Enricher interface {
+@@ -22,6 +23,7 @@ type Enricher interface {
  }
  
  type Scanner struct {
@@ -2540,7 +2449,7 @@ index 7007c2c..ee1a787 100644
  	q        *sqlcgen.Queries
  	mediaDir string
  	enricher Enricher
-@@ -32,7 +34,7 @@ type Scanner struct {
+@@ -31,7 +33,7 @@ type Scanner struct {
  }
  
  func New(q *sqlcgen.Queries, mediaDir string) *Scanner {
@@ -2549,7 +2458,7 @@ index 7007c2c..ee1a787 100644
  }
  
  // SetEnricher wires a metadata provider that newly-discovered local titles
-@@ -346,13 +348,13 @@ func (s *Scanner) upsertMedia(ctx context.Context, externalID, ct, title, cover
+@@ -404,13 +406,13 @@ func (s *Scanner) upsertMedia(ctx context.Context, externalID, ct, title, cover
  // maybeEnrich runs a best-effort metadata auto-match for a newly-discovered
  // local title in the background, so scanning doesn't block on network calls.
  func (s *Scanner) maybeEnrich(mediaID int64) {
@@ -2836,290 +2745,22 @@ index 0000000..0a5fd3c
 +		t.Fatal("legacy contract broken")
 +	}
 +}
-diff --git a/backend/internal/repository/client.go b/backend/internal/repository/client.go
-index f39d049..f589c5b 100644
---- a/backend/internal/repository/client.go
-+++ b/backend/internal/repository/client.go
-@@ -32,6 +32,8 @@ var validPackageName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
- 
- func IsValidPackageName(s string) bool { return validPackageName.MatchString(s) }
- 
-+var unsafeFileChars = regexp.MustCompile(`[^A-Za-z0-9._-]`)
-+
- func ClassifyContentType(packageName string) string {
- 	if strings.HasPrefix(packageName, "eu.kanade.tachiyomi.animeextension.") {
- 		return "anime"
-@@ -61,7 +63,7 @@ func DownloadExtensionFile(cacheDir, packageName, version, downloadURL, ext stri
- 		return "", fmt.Errorf("create cache dir %s: %w", cacheDir, err)
- 	}
- 
--	dest := filepath.Join(cacheDir, fmt.Sprintf("%s-%s.%s", packageName, version, ext))
-+	dest := filepath.Join(cacheDir, fmt.Sprintf("%s-%s.%s", packageName, unsafeFileChars.ReplaceAllString(version, "_"), ext))
- 	if _, err := os.Stat(dest); err == nil {
- 		return dest, nil
- 	}
-@@ -96,19 +98,69 @@ func DownloadExtensionFile(cacheDir, packageName, version, downloadURL, ext stri
- 	return dest, nil
- }
- 
--func filterValid(exts []ParsedExtension) []ParsedExtension {
-+func filterValid(indexURL string, exts []ParsedExtension) []ParsedExtension {
- 	out := make([]ParsedExtension, 0, len(exts))
-+	var skipped []string
- 	for _, ext := range exts {
- 		if !IsValidPackageName(ext.PackageName) {
--			log.Printf("skipping repo entry with invalid package name %q", ext.PackageName)
-+			skipped = append(skipped, fmt.Sprintf("%q (%s)", ext.PackageName, ext.Name))
- 			continue
- 		}
- 		out = append(out, ext)
- 	}
-+	if len(skipped) > 0 {
-+		log.Printf("repo %s: skipped %d entries without a valid package name, e.g. %s", indexURL, len(skipped), skipped[0])
-+	}
- 	return out
- }
- 
-+// indexV2URL returns the protobuf index a Mihon-style repo advertises in the
-+// repo.json next to its index (or at indexURL itself), or "" when it has none.
-+// Such repos (Keiyoushi, NovelSourcery) serve a placeholder index.min.json to
-+// apps that predate index_v2.
-+func indexV2URL(indexURL string) string {
-+	if !strings.HasSuffix(indexURL, ".json") {
-+		return ""
-+	}
-+	repoJSON := indexURL
-+	if !strings.HasSuffix(indexURL, "/repo.json") {
-+		i := strings.LastIndex(indexURL, "/")
-+		if i < 0 {
-+			return ""
-+		}
-+		repoJSON = indexURL[:i] + "/repo.json"
-+	}
-+	resp, err := repoClient.Get(repoJSON)
-+	if err != nil {
-+		return ""
-+	}
-+	defer resp.Body.Close()
-+	if resp.StatusCode != http.StatusOK {
-+		return ""
-+	}
-+	var meta struct {
-+		IndexV2 string `json:"index_v2"`
-+	}
-+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&meta); err != nil {
-+		return ""
-+	}
-+	return meta.IndexV2
-+}
-+
- func FetchIndex(indexURL string) ([]ParsedExtension, error) {
-+	if v2 := indexV2URL(indexURL); v2 != "" && v2 != indexURL {
-+		// Some repo.json files point at a moved or unreadable index; the one the
-+		// user added still works then.
-+		exts, err := fetchIndexAt(v2)
-+		if err == nil {
-+			return exts, nil
-+		}
-+		log.Printf("repo %s: index_v2 %s unusable (%v), using the index as given", indexURL, v2, err)
-+	}
-+	return fetchIndexAt(indexURL)
-+}
-+
-+func fetchIndexAt(indexURL string) ([]ParsedExtension, error) {
- 	resp, err := repoClient.Get(indexURL)
- 	if err != nil {
- 		return nil, fetchErrorf("failed to fetch %s: %v", indexURL, err)
-@@ -165,12 +217,12 @@ func FetchIndex(indexURL string) ([]ParsedExtension, error) {
- 			if hasID && hasURL && !hasPkg {
- 				var novel []novelRepoEntry
- 				if err := json.Unmarshal(data, &novel); err == nil {
--					return filterValid(novelToParsedExtensions(novel)), nil
-+					return filterValid(indexURL, novelToParsedExtensions(novel)), nil
- 				}
- 			}
- 			var legacy []legacyRepoExtension
- 			if err := json.Unmarshal(data, &legacy); err == nil {
--				return filterValid(legacyToParsedExtensions(legacy, apkBaseURL)), nil
-+				return filterValid(indexURL, legacyToParsedExtensions(legacy, apkBaseURL)), nil
- 			}
- 		}
- 	}
-@@ -187,5 +239,5 @@ func FetchIndex(indexURL string) ([]ParsedExtension, error) {
- 		)
- 	}
- 
--	return filterValid(idx.toParsedExtensions(apkBaseURL)), nil
-+	return filterValid(indexURL, idx.toParsedExtensions(apkBaseURL)), nil
- }
-diff --git a/backend/internal/repository/client_test.go b/backend/internal/repository/client_test.go
-new file mode 100644
-index 0000000..f60cf5a
---- /dev/null
-+++ b/backend/internal/repository/client_test.go
-@@ -0,0 +1,134 @@
-+package repository
-+
-+import (
-+	"net/http"
-+	"net/http/httptest"
-+	"path/filepath"
-+	"testing"
-+
-+	"google.golang.org/protobuf/encoding/protowire"
-+)
-+
-+func bytesField(b []byte, num protowire.Number, v []byte) []byte {
-+	b = protowire.AppendTag(b, num, protowire.BytesType)
-+	return protowire.AppendBytes(b, v)
-+}
-+
-+// novelIndexPB is a one-extension index_v2 shaped like NovelSourcery's.
-+func novelIndexPB() []byte {
-+	var res []byte
-+	res = bytesField(res, 501, []byte("https://example.com/boxnovel.jar"))
-+	var src []byte
-+	src = bytesField(src, 3, []byte("en"))
-+	var ext []byte
-+	ext = bytesField(ext, 1, []byte("BoxNovel"))
-+	ext = bytesField(ext, 2, []byte("eu.kanade.tachiyomi.novelextension.en.boxnovel"))
-+	ext = bytesField(ext, 3, res)
-+	ext = bytesField(ext, 6, []byte("1.6.12"))
-+	ext = bytesField(ext, 8, src)
-+	list := bytesField(nil, 1, ext)
-+	idx := bytesField(nil, 1, []byte("NovelSourcery"))
-+	return bytesField(idx, 101, list)
-+}
-+
-+const decoyIndex = `[{"name":"Outdated App","pkg":"eu.kanade.tachiyomi.extension.all.keiyoushi","apk":"x.apk","lang":"all","version":"1.4.1"}]`
-+
-+func TestFetchIndexFollowsIndexV2(t *testing.T) {
-+	mux := http.NewServeMux()
-+	srv := httptest.NewServer(mux)
-+	defer srv.Close()
-+	mux.HandleFunc("/repo/index.min.json", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte(decoyIndex)) })
-+	mux.HandleFunc("/repo/repo.json", func(w http.ResponseWriter, _ *http.Request) {
-+		w.Write([]byte(`{"index_v2":"` + srv.URL + `/repo/index.pb","meta":{"name":"NovelSourcery"}}`))
-+	})
-+	mux.HandleFunc("/repo/index.pb", func(w http.ResponseWriter, _ *http.Request) { w.Write(novelIndexPB()) })
-+	mux.HandleFunc("/plain/index.min.json", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte(decoyIndex)) })
-+
-+	for _, u := range []string{srv.URL + "/repo/index.min.json", srv.URL + "/repo/repo.json"} {
-+		exts, err := FetchIndex(u)
-+		if err != nil {
-+			t.Fatalf("%s: %v", u, err)
-+		}
-+		if len(exts) != 1 || exts[0].Name != "BoxNovel" || exts[0].JarURL != "https://example.com/boxnovel.jar" || exts[0].Lang != "en" {
-+			t.Fatalf("%s: got %+v, want the BoxNovel entry from index_v2", u, exts)
-+		}
-+	}
-+
-+	// No repo.json: the index is used as given.
-+	exts, err := FetchIndex(srv.URL + "/plain/index.min.json")
-+	if err != nil || len(exts) != 1 || exts[0].Name != "Outdated App" {
-+		t.Fatalf("plain index: %+v %v", exts, err)
-+	}
-+}
-+
-+func TestClassifyContentType(t *testing.T) {
-+	for pkg, want := range map[string]string{
-+		"eu.kanade.tachiyomi.extension.en.mangadex":     "manga",
-+		"eu.kanade.tachiyomi.animeextension.en.anikoto": "anime",
-+	} {
-+		if got := ClassifyContentType(pkg); got != want {
-+			t.Errorf("ClassifyContentType(%q) = %q, want %q", pkg, got, want)
-+		}
-+	}
-+}
-+
-+// aniyomiIndexPB is shaped like Secozzi's: field 8 is a varint flag and the
-+// sources sit in field 9.
-+func aniyomiIndexPB() []byte {
-+	res := bytesField(nil, 1, []byte("https://example.com/jellyfin.apk"))
-+	src := bytesField(nil, 3, []byte("all"))
-+	var ext []byte
-+	ext = bytesField(ext, 1, []byte("Jellyfin"))
-+	ext = bytesField(ext, 2, []byte("eu.kanade.tachiyomi.animeextension.all.jellyfin"))
-+	ext = bytesField(ext, 3, res)
-+	ext = bytesField(ext, 6, []byte("17.2"))
-+	ext = protowire.AppendTag(ext, 8, protowire.VarintType)
-+	ext = protowire.AppendVarint(ext, 1)
-+	ext = bytesField(ext, 9, src)
-+	idx := bytesField(nil, 1, []byte("Jellyfin, Stremio, and Torbox"))
-+	return bytesField(idx, 101, bytesField(nil, 1, ext))
-+}
-+
-+func TestFetchIndexAniyomiLayout(t *testing.T) {
-+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.Write(aniyomiIndexPB()) }))
-+	defer srv.Close()
-+	exts, err := FetchIndex(srv.URL + "/index.pb")
-+	if err != nil {
-+		t.Fatal(err)
-+	}
-+	if len(exts) != 1 || exts[0].PackageName != "eu.kanade.tachiyomi.animeextension.all.jellyfin" || exts[0].Lang != "all" {
-+		t.Fatalf("got %+v", exts)
-+	}
-+}
-+
-+func TestFetchIndexFallsBackWhenIndexV2IsDead(t *testing.T) {
-+	mux := http.NewServeMux()
-+	srv := httptest.NewServer(mux)
-+	defer srv.Close()
-+	mux.HandleFunc("/repo/repo.json", func(w http.ResponseWriter, _ *http.Request) {
-+		w.Write([]byte(`{"index_v2":"` + srv.URL + `/moved/index.pb"}`))
-+	})
-+	mux.HandleFunc("/repo/index.min.json", func(w http.ResponseWriter, _ *http.Request) {
-+		w.Write([]byte(`[{"name":"Tachiyomi: MangaDex","pkg":"eu.kanade.tachiyomi.extension.all.mangadex","apk":"x.apk","lang":"all","version":"1.4.1"}]`))
-+	})
-+	exts, err := FetchIndex(srv.URL + "/repo/index.min.json")
-+	if err != nil || len(exts) != 1 || exts[0].PackageName != "eu.kanade.tachiyomi.extension.all.mangadex" {
-+		t.Fatalf("got %+v %v", exts, err)
-+	}
-+}
-+
-+// A repo's version string must not steer the download outside the cache.
-+func TestDownloadExtensionFileStaysInCache(t *testing.T) {
-+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-+		_, _ = w.Write([]byte("jar"))
-+	}))
-+	defer srv.Close()
-+	cache := filepath.Join(t.TempDir(), "cache")
-+	path, err := DownloadExtensionFile(cache, "eu.kanade.tachiyomi.extension.en.x", "1/../../../escaped", srv.URL, "jar")
-+	if err != nil {
-+		t.Fatal(err)
-+	}
-+	if filepath.Dir(path) != cache {
-+		t.Fatalf("downloaded to %s, outside %s", path, cache)
-+	}
-+}
-diff --git a/backend/internal/repository/protobuf.go b/backend/internal/repository/protobuf.go
-index f02a8d0..6596b92 100644
---- a/backend/internal/repository/protobuf.go
-+++ b/backend/internal/repository/protobuf.go
-@@ -176,7 +176,17 @@ func decodeExtension(b []byte) (*extension, error) {
- 			}
- 			b = b[n:]
- 			ext.ContentWarning = int32(v)
--		case 8:
-+		// Keiyoushi-style indexes put sources in 8; Aniyomi-style ones use 8 for a
-+		// varint flag and put sources in 9.
-+		case 8, 9:
-+			if typ != protowire.BytesType {
-+				n, err := skipField(b, typ)
-+				if err != nil {
-+					return nil, err
-+				}
-+				b = b[n:]
-+				continue
-+			}
- 			v, n := protowire.ConsumeBytes(b)
- 			if n < 0 {
- 				return nil, fmt.Errorf("consume source entry: %w", protowire.ParseError(n))
 diff --git a/backend/internal/sandbox/client.go b/backend/internal/sandbox/client.go
-index d8e26a2..d1581d5 100644
+index e8822fc..cf1dadd 100644
 --- a/backend/internal/sandbox/client.go
 +++ b/backend/internal/sandbox/client.go
-@@ -34,16 +34,25 @@ type Client struct {
+@@ -16,7 +16,9 @@ import (
+ // must exceed the sandbox's own 100s OkHttp call timeout
+ const defaultCallTimeout = 110 * time.Second
+ 
+-const maxImageBytes = 64 << 20
++// The sandbox rejects source images over 32 MiB; 40 MiB leaves room for protobuf
++// framing with less memory headroom on iOS than upstream's 64 MiB.
++const maxImageBytes = 40 << 20
+ 
+ func ContentTypeToProto(s string) sandboxv1.ContentType {
+ 	switch s {
+@@ -38,8 +40,11 @@ type Client struct {
  }
  
  func NewClient(addr string) (*Client, error) {
@@ -3128,27 +2769,22 @@ index d8e26a2..d1581d5 100644
 +	return newClient(addr)
 +}
 +
-+// The sandbox rejects source images over 32 MiB; leave room for protobuf framing.
-+// gRPC's 4 MiB default dropped ordinary high-resolution manga pages.
-+const maxImageBytes = 40 << 20
-+
 +func newClient(addr string, extra ...grpc.DialOption) (*Client, error) {
 +	options := []grpc.DialOption{
  		grpc.WithTransportCredentials(insecure.NewCredentials()),
-+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(maxImageBytes)),
  		grpc.WithKeepaliveParams(keepalive.ClientParameters{
  			Time:                20 * time.Second,
- 			Timeout:             5 * time.Second,
- 			PermitWithoutStream: true,
- 		}),
- 		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`),
+@@ -50,7 +55,8 @@ func NewClient(addr string) (*Client, error) {
+ 		// Page images and covers arrive whole in one message; long-strip pages
+ 		// routinely exceed gRPC's 4MB default.
+ 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(maxImageBytes)),
 -	)
 +	}
 +	conn, err := grpc.NewClient(addr, append(options, extra...)...)
  	if err != nil {
  		return nil, fmt.Errorf("dial sandbox at %s: %w", addr, err)
  	}
-@@ -181,3 +190,14 @@ func (c *Client) GetImageBytes(ctx context.Context, extensionID, imageURL string
+@@ -194,3 +200,14 @@ func (c *Client) GetImageBytes(ctx context.Context, extensionID, imageURL string
  		ImageUrl:    imageURL,
  	})
  }
@@ -3814,7 +3450,7 @@ index d249b9e..802e5a0 100644
  			MethodName: "LoadExtensions",
  			Handler:    _ExtensionService_LoadExtensions_Handler,
 diff --git a/backend/internal/sandbox/lifecycle.go b/backend/internal/sandbox/lifecycle.go
-index 75ab078..f773573 100644
+index 8e75ff4..0419358 100644
 --- a/backend/internal/sandbox/lifecycle.go
 +++ b/backend/internal/sandbox/lifecycle.go
 @@ -21,6 +21,8 @@ func (w *logWriter) Write(p []byte) (int, error) {
@@ -3826,7 +3462,7 @@ index 75ab078..f773573 100644
  	jarPath           string
  	port              int
  	extDir            string
-@@ -69,9 +71,22 @@ func NewSupervised(cfg SupervisedConfig) *SupervisedClient {
+@@ -72,9 +74,22 @@ func NewSupervised(cfg SupervisedConfig) *SupervisedClient {
  }
  
  func (sc *SupervisedClient) Ensure(ctx context.Context) (*Client, error) {
@@ -3848,8 +3484,8 @@ index 75ab078..f773573 100644
 +
  	sc.lastAccess = time.Now()
  
- 	if sc.client != nil && sc.processAlive() {
-@@ -260,8 +275,19 @@ func (sc *SupervisedClient) killLocked() {
+ 	if sc.client != nil && (sc.processAlive() || sc.adopted && sc.client.usable()) {
+@@ -324,8 +339,19 @@ func (sc *SupervisedClient) Restart() {
  }
  
  func (sc *SupervisedClient) Shutdown() {
@@ -3925,10 +3561,10 @@ index 0000000..e403fbb
 +	}
 +}
 diff --git a/backend/internal/sync/sync.go b/backend/internal/sync/sync.go
-index b5b1809..4f306e9 100644
+index 8efe440..903c9d4 100644
 --- a/backend/internal/sync/sync.go
 +++ b/backend/internal/sync/sync.go
-@@ -14,6 +14,7 @@ import (
+@@ -15,6 +15,7 @@ import (
  	"strings"
  	"sync"
  	"time"
@@ -3936,7 +3572,7 @@ index b5b1809..4f306e9 100644
  
  	"tsunagu/backend/internal/chapternum"
  	"tsunagu/backend/internal/db/sqlcgen"
-@@ -21,13 +22,17 @@ import (
+@@ -22,13 +23,17 @@ import (
  	"tsunagu/backend/internal/repository"
  	"tsunagu/backend/internal/sandbox"
  	sandboxv1 "tsunagu/backend/internal/sandbox/gen/sandbox/v1"
@@ -3958,8 +3594,8 @@ index b5b1809..4f306e9 100644
  
  	installMu sync.Mutex
  	locks     map[string]*sync.Mutex
-@@ -51,7 +56,7 @@ func (s *Syncer) SetEnricher(e Enricher)     { s.enricher = e }
- func (s *Syncer) SetRecomputer(r Recomputer) { s.recompute = r }
+@@ -66,7 +71,7 @@ func (s *Syncer) SetLibraryUpdateHooks(
+ }
  
  func New(db *sql.DB, q *sqlcgen.Queries, cacheDir, mediaDir string) *Syncer {
 -	return &Syncer{db: db, q: q, cacheDir: cacheDir, mediaDir: mediaDir, locks: make(map[string]*sync.Mutex)}
@@ -3967,28 +3603,13 @@ index b5b1809..4f306e9 100644
  }
  
  type LibraryUpdateProgress struct {
-@@ -84,12 +89,12 @@ func (s *Syncer) StartLibraryUpdate(sc *sandbox.SupervisedClient, folderID *int6
- 	var err error
- 	if folderID != nil {
- 		var rows []sqlcgen.Medium
--		rows, err = s.q.ListMediaInFolder(context.Background(), *folderID)
-+		rows, err = s.q.ListMediaInFolder(s.Work.Context, *folderID)
- 		for _, m := range rows {
- 			ids = append(ids, m.ID)
- 		}
- 	} else {
--		ids, err = s.q.ListUpdateTargetMediaIDs(context.Background())
-+		ids, err = s.q.ListUpdateTargetMediaIDs(s.Work.Context)
- 	}
- 	if err != nil {
- 		s.updateMu.Unlock()
-@@ -103,12 +108,12 @@ func (s *Syncer) StartLibraryUpdate(sc *sandbox.SupervisedClient, folderID *int6
+@@ -121,12 +126,12 @@ func (s *Syncer) StartLibraryUpdate(sc *sandbox.SupervisedClient, ids []int64) b
  	}
  	s.updateMu.Unlock()
  
 -	go s.runLibraryUpdate(sc, ids)
 +	s.Work.Go(func() { s.runLibraryUpdate(sc, ids) })
- 	return true, nil
+ 	return true
  }
  
  func (s *Syncer) runLibraryUpdate(sc *sandbox.SupervisedClient, ids []int64) {
@@ -3997,7 +3618,7 @@ index b5b1809..4f306e9 100644
  	defer func() {
  		s.updateMu.Lock()
  		s.updateProg.Running = false
-@@ -311,7 +316,7 @@ func (s *Syncer) InstallExternalExtension(ctx context.Context, c *sandbox.Client
+@@ -423,7 +428,7 @@ func (s *Syncer) InstallExternalExtension(ctx context.Context, c *sandbox.Client
  	}
  	tempPath := filepath.Join(tempDir, fmt.Sprintf("sideload-%d.%s", time.Now().UnixNano(), ext))
  
@@ -4006,7 +3627,7 @@ index b5b1809..4f306e9 100644
  		return sqlcgen.Extension{}, fmt.Errorf("downloading %s: %w", url, err)
  	}
  	defer os.Remove(tempPath)
-@@ -347,8 +352,14 @@ func (s *Syncer) InstallExternalExtension(ctx context.Context, c *sandbox.Client
+@@ -458,8 +463,14 @@ func (s *Syncer) InstallExternalExtension(ctx context.Context, c *sandbox.Client
  	})
  }
  
@@ -4023,7 +3644,7 @@ index b5b1809..4f306e9 100644
  	if err != nil {
  		return err
  	}
-@@ -796,6 +807,11 @@ func (s *Syncer) MigrateMedia(ctx context.Context, c *sandbox.Client, fromMediaI
+@@ -914,6 +925,11 @@ func (s *Syncer) MigrateMedia(ctx context.Context, c *sandbox.Client, fromMediaI
  	}
  	defer func() { _ = tx.Rollback() }()
  	qtx := s.q.WithTx(tx)
@@ -4035,7 +3656,7 @@ index b5b1809..4f306e9 100644
  
  	for _, p := range progress {
  		oldCh, ok := oldByID[p.ChapterID]
-@@ -980,9 +996,9 @@ func (s *Syncer) upsertEntryFromDetails(ctx context.Context, c *sandbox.Client,
+@@ -1098,9 +1114,9 @@ func (s *Syncer) upsertEntryFromDetails(ctx context.Context, c *sandbox.Client,
  	// resolvers (e.g. ResolveMedia), so leaving it synchronous stalls the
  	// HTTP response on every newly-added entry.
  	id := entry.ID
@@ -4047,7 +3668,7 @@ index b5b1809..4f306e9 100644
  	}
  	if refreshed, err := s.q.GetMedia(ctx, entry.ID); err == nil {
  		entry = refreshed
-@@ -1025,18 +1041,21 @@ func (s *Syncer) EnsureHydrated(ctx context.Context, sc *sandbox.SupervisedClien
+@@ -1143,18 +1159,21 @@ func (s *Syncer) EnsureHydrated(ctx context.Context, sc *sandbox.SupervisedClien
  	if err != nil {
  		return sqlcgen.Medium{}, err
  	}
@@ -4073,7 +3694,7 @@ index b5b1809..4f306e9 100644
  		waitFor(done, hydrateWait)
  	} else {
  		waitForLock(lk, hydrateWait)
-@@ -1096,18 +1115,21 @@ func (s *Syncer) EnsureChapters(ctx context.Context, sc *sandbox.SupervisedClien
+@@ -1214,18 +1233,21 @@ func (s *Syncer) EnsureChapters(ctx context.Context, sc *sandbox.SupervisedClien
  	if err != nil {
  		return nil, err
  	}
@@ -4099,7 +3720,7 @@ index b5b1809..4f306e9 100644
  		waitFor(done, hydrateWait)
  	} else {
  		waitForLock(lk, hydrateWait)
-@@ -1187,9 +1209,26 @@ func (s *Syncer) QueryLibrary(ctx context.Context, q LibraryQuery) ([]sqlcgen.Me
+@@ -1305,9 +1327,26 @@ func (s *Syncer) QueryLibrary(ctx context.Context, q LibraryQuery) ([]sqlcgen.Me
  		}
  		args = append(args, len(q.GenreIDs))
  	}
@@ -4127,36 +3748,12 @@ index b5b1809..4f306e9 100644
  	}
  	if q.UnreadOnly {
  		where = append(where, `EXISTS (
-@@ -1423,6 +1462,17 @@ func (s *Syncer) SyncChapters(ctx context.Context, c *sandbox.Client, libraryEnt
- 		return nil, fmt.Errorf("get extension %d: %w", entry.ExtensionID.Int64, err)
- 	}
- 
-+	existing := map[int64]bool{}
-+	if entry.ChaptersSyncedAt.Valid {
-+		rows, err := s.q.ListChaptersByMedia(ctx, libraryEntryID)
-+		if err != nil {
-+			return nil, err
-+		}
-+		for _, ch := range rows {
-+			existing[ch.ID] = true
-+		}
-+	}
-+
- 	summaries, err := s.fetchChapterSummaries(ctx, c, ext.PackageName, ext.ContentType, entry.ExternalID)
- 	if err != nil {
- 		return nil, err
-@@ -1470,6 +1520,22 @@ func (s *Syncer) SyncChapters(ctx context.Context, c *sandbox.Client, libraryEnt
+@@ -1604,6 +1643,16 @@ func (s *Syncer) SyncChapters(ctx context.Context, c *sandbox.Client, libraryEnt
  		log.Printf("sync: marking chapters synced for media %d failed: %v", libraryEntryID, err)
  	}
  
 +	if s.OnNewChapters != nil && entry.ChaptersSyncedAt.Valid {
-+		var ids []int64
-+		for _, ch := range chapters {
-+			if !existing[ch.ID] {
-+				ids = append(ids, ch.ID)
-+			}
-+		}
-+		if len(ids) > 0 {
++		if ids := newChapterIDs(existing, chapters); len(ids) > 0 {
 +			s.Work.Go(func() {
 +				if err := s.OnNewChapters(s.Work.Context, libraryEntryID, ids); err != nil {
 +					log.Printf("automation new chapters: %v", err)
@@ -4168,11 +3765,34 @@ index b5b1809..4f306e9 100644
  	return chapters, nil
  }
  
-@@ -1486,7 +1552,22 @@ func (s *Syncer) RecordProgress(ctx context.Context, libraryEntryID, chapterID i
+@@ -1620,7 +1669,45 @@ func (s *Syncer) RecordProgress(ctx context.Context, libraryEntryID, chapterID i
  	if durationSeconds != nil {
  		params.DurationSeconds = sql.NullFloat64{Float64: *durationSeconds, Valid: true}
  	}
--	return s.q.UpsertReadingProgress(ctx, params)
+-	return s.q.RecordReadingProgress(ctx, params)
++	return s.recordProgress(ctx, libraryEntryID, chapterID, completed, func() (sqlcgen.ReadingProgress, error) {
++		return s.q.RecordReadingProgress(ctx, params)
++	})
++}
++
++// SetReadState explicitly marks a chapter read or unread; unlike RecordProgress
++// it can clear completed.
++func (s *Syncer) SetReadState(ctx context.Context, libraryEntryID, chapterID int64, read bool) (sqlcgen.ReadingProgress, error) {
++	progress := 0.0
++	if read {
++		progress = 1.0
++	}
++	return s.recordProgress(ctx, libraryEntryID, chapterID, read, func() (sqlcgen.ReadingProgress, error) {
++		return s.q.UpsertReadingProgress(ctx, sqlcgen.UpsertReadingProgressParams{
++			MediaID:   libraryEntryID,
++			ChapterID: chapterID,
++			Progress:  progress,
++			Completed: read,
++		})
++	})
++}
++
++func (s *Syncer) recordProgress(ctx context.Context, libraryEntryID, chapterID int64, completed bool, write func() (sqlcgen.ReadingProgress, error)) (sqlcgen.ReadingProgress, error) {
 +	ch, err := s.q.GetChapter(ctx, chapterID)
 +	if err != nil {
 +		return sqlcgen.ReadingProgress{}, err
@@ -4180,7 +3800,7 @@ index b5b1809..4f306e9 100644
 +	if ch.MediaID != libraryEntryID {
 +		return sqlcgen.ReadingProgress{}, fmt.Errorf("chapter does not belong to media")
 +	}
-+	row, err := s.q.UpsertReadingProgress(ctx, params)
++	row, err := write()
 +	if err == nil && s.OnProgress != nil {
 +		s.Work.Go(func() {
 +			if err := s.OnProgress(s.Work.Context, libraryEntryID, chapterID, completed); err != nil {
@@ -4495,10 +4115,10 @@ index 0000000..5c0b8f1
 +}
 diff --git a/backend/mobile/backend.go b/backend/mobile/backend.go
 new file mode 100644
-index 0000000..80bddc8
+index 0000000..d0b33e5
 --- /dev/null
 +++ b/backend/mobile/backend.go
-@@ -0,0 +1,230 @@
+@@ -0,0 +1,233 @@
 +// Package mobile exposes Tsunagu's embedded core, catalog and source-search API.
 +// Extension execution uses an explicitly supplied app-hosted JVM; no process is spawned.
 +package mobile
@@ -4544,6 +4164,9 @@ index 0000000..80bddc8
 +	token           string
 +	serveErr        error
 +}
++
++// remoteCoverClient is nil (the netguarded public image client) outside tests.
++var remoteCoverClient *http.Client
 +
 +func NewBackend() *Backend { return &Backend{} }
 +
@@ -4622,7 +4245,7 @@ index 0000000..80bddc8
 +	mountServices(mux, services, b.images)
 +	b.mountAdmin(mux)
 +	coverDirectory := filepath.Join(dataDirectory, "media", "covers")
-+	remoteCovers := &rest.RemoteCoverProxyHandler{CoverCacheDir: coverDirectory}
++	remoteCovers := &rest.RemoteCoverProxyHandler{CoverCacheDir: coverDirectory, Client: remoteCoverClient}
 +	mux.Handle("GET /proxy/img/", remoteCovers)
 +	mux.Handle("GET /proxy/cover/remote/", remoteCovers)
 +	mux.Handle("GET /proxy/cover/", &rest.CoverProxyHandler{Sc: sc, Q: sqlcgen.New(conn), CoverCacheDir: coverDirectory})
@@ -4731,10 +4354,10 @@ index 0000000..80bddc8
 +}
 diff --git a/backend/mobile/backend_test.go b/backend/mobile/backend_test.go
 new file mode 100644
-index 0000000..d0e8e0f
+index 0000000..cdf504e
 --- /dev/null
 +++ b/backend/mobile/backend_test.go
-@@ -0,0 +1,192 @@
+@@ -0,0 +1,191 @@
 +package mobile
 +
 +import (
@@ -4801,7 +4424,7 @@ index 0000000..d0e8e0f
 +	if err := json.Unmarshal(body, &status); err != nil {
 +		t.Fatal(err)
 +	}
-+	if code != 200 || status.Migrations != 19 || !status.GraphqlAvailable || status.ExtensionsAvailable {
++	if code != 200 || status.Migrations != 21 || !status.GraphqlAvailable || status.ExtensionsAvailable {
 +		t.Fatalf("unexpected status: %s", body)
 +	}
 +	if _, err := b.conn.Exec("INSERT INTO app_settings(key,value) VALUES ('mobile-test','persisted')"); err != nil {
@@ -4905,9 +4528,8 @@ index 0000000..d0e8e0f
 +	if err != nil {
 +		t.Fatal(err)
 +	}
-+	original := http.DefaultTransport
-+	http.DefaultTransport = coverFixtureTransport{fallback: original, data: data, t: t}
-+	defer func() { http.DefaultTransport = original }()
++	remoteCoverClient = &http.Client{Transport: coverFixtureTransport{fallback: http.DefaultTransport, data: data, t: t}}
++	defer func() { remoteCoverClient = nil }()
 +	b := NewBackend()
 +	if err := b.Start(t.TempDir()); err != nil {
 +		t.Fatal(err)
@@ -5271,10 +4893,10 @@ index 0000000..59959db
 +}
 diff --git a/backend/mobile/catalog_test.go b/backend/mobile/catalog_test.go
 new file mode 100644
-index 0000000..1530a9d
+index 0000000..546e39c
 --- /dev/null
 +++ b/backend/mobile/catalog_test.go
-@@ -0,0 +1,74 @@
+@@ -0,0 +1,75 @@
 +package mobile
 +
 +import (
@@ -5344,7 +4966,8 @@ index 0000000..1530a9d
 +	if result = call(`mutation {deleteRepository(repositoryId:"1")}`); !strings.Contains(result, `"deleteRepository":true`) {
 +		t.Fatal(result)
 +	}
-+	if result = call(`{repositories{id}}`); !strings.Contains(result, `"repositories":[]`) {
++	// Since 0.6.0 deleting a repository keeps installed extensions in the sideload repository.
++	if result = call(`{repositories{id}}`); strings.Contains(result, `"id":"1"`) {
 +		t.Fatal(result)
 +	}
 +
@@ -5520,10 +5143,10 @@ index 0000000..cb14733
 +}
 diff --git a/backend/mobile/services.go b/backend/mobile/services.go
 new file mode 100644
-index 0000000..23c7864
+index 0000000..3fd3078
 --- /dev/null
 +++ b/backend/mobile/services.go
-@@ -0,0 +1,174 @@
+@@ -0,0 +1,177 @@
 +package mobile
 +
 +import (
@@ -5622,8 +5245,11 @@ index 0000000..23c7864
 +	store.OnChange("downloads_dir", func(context.Context) { dm.SetDownloadsDir(store.Config().DownloadsDir) })
 +	store.OnChange("local_source_dir", func(context.Context) { ls.SetLocalDir(store.Config().LocalSourceDir) })
 +	r := &graph.Resolver{Q: q, DB: conn, Sc: sc, Sy: sy, Md: md, Tk: tk, Dm: dm, Ls: ls, Sr: streamresolve.New(sc), Cf: cf, Cfg: store, Am: auth.New(q), MediaDir: cfg.MediaDir, Name: "Tsunagu", Version: "embedded", BuildTime: "unknown"}
-+	policies := automation.New(conn, q, dm)
++	policies := automation.NewPolicyManager(conn, q, dm)
 +	r.Policies = policies
++	// The server-side rules back the GraphQL automation API shared with desktop.
++	// Its scheduler is not started: the policy ticker below owns scheduled work here.
++	r.Au = automation.New(q, dm, sy, sc)
 +	policies.Refresh = func(ctx context.Context, id int64) error {
 +		client, err := sc.Ensure(ctx)
 +		if err != nil {
@@ -6047,409 +5673,11 @@ index cc1802f..9df5193 100644
 +    fun flush() {}
 +    companion object { private val instance = CookieManager(); @JvmStatic fun getInstance(): CookieManager = instance }
  }
-diff --git a/sandbox/src/main/kotlin/android/webkit/WebView.kt b/sandbox/src/main/kotlin/android/webkit/WebView.kt
-index 89b0c6c..fe4c42d 100644
---- a/sandbox/src/main/kotlin/android/webkit/WebView.kt
-+++ b/sandbox/src/main/kotlin/android/webkit/WebView.kt
-@@ -30,6 +30,11 @@ open class WebSettings {
-         const val LOAD_CACHE_ELSE_NETWORK = 1
-         const val LOAD_CACHE_ONLY = 3
-         const val MIXED_CONTENT_ALWAYS_ALLOW = 0
-+
-+        @JvmStatic
-+        fun getDefaultUserAgent(context: Context?): String =
-+            "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 " +
-+                "(KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36"
-     }
- }
- 
-diff --git a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/AnimeSource.kt b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/AnimeSource.kt
-index 4feeff2..3ac9b4a 100644
---- a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/AnimeSource.kt
-+++ b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/AnimeSource.kt
-@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.animesource
- 
- import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
- import eu.kanade.tachiyomi.animesource.model.AnimesPage
-+import eu.kanade.tachiyomi.animesource.model.Hoster
- import eu.kanade.tachiyomi.animesource.model.SAnime
- import eu.kanade.tachiyomi.animesource.model.SEpisode
- import eu.kanade.tachiyomi.animesource.model.Video
-@@ -34,6 +35,15 @@ interface AnimeSource {
- 
-     suspend fun getVideoList(episode: SEpisode): List<Video>
- 
-+    /** @since extensions-lib 16 */
-+    suspend fun getSeasonList(anime: SAnime): List<SAnime> = throw UnsupportedOperationException()
-+
-+    /** @since extensions-lib 16. The first hoster should be the preferred one. */
-+    suspend fun getHosterList(episode: SEpisode): List<Hoster> = throw IllegalStateException("Not used")
-+
-+    /** @since extensions-lib 16 */
-+    suspend fun getVideoList(hoster: Hoster): List<Video> = throw IllegalStateException("Not used")
-+
-     fun getFilterList(): AnimeFilterList = AnimeFilterList()
- 
-     @Deprecated("Use the suspend API instead", ReplaceWith("getAnimeDetails"))
-diff --git a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/UnmeteredSource.kt b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/UnmeteredSource.kt
-new file mode 100644
-index 0000000..4c4cc31
---- /dev/null
-+++ b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/UnmeteredSource.kt
-@@ -0,0 +1,12 @@
-+// Adapted from Aniyomi (https://github.com/aniyomiorg/aniyomi), licensed under Apache License 2.0.
-+// See /NOTICE.md and /THIRD_PARTY_LICENSES/Apache-2.0.txt for full attribution.
-+
-+package eu.kanade.tachiyomi.animesource
-+
-+/**
-+ * A source that explicitly doesn't require traffic considerations.
-+ *
-+ * This typically applies for self-hosted sources.
-+ */
-+@Suppress("unused")
-+interface UnmeteredSource
-diff --git a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/AnimeUpdateStrategy.kt b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/AnimeUpdateStrategy.kt
-new file mode 100644
-index 0000000..d8c5d82
---- /dev/null
-+++ b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/AnimeUpdateStrategy.kt
-@@ -0,0 +1,14 @@
-+// Adapted from Aniyomi (https://github.com/aniyomiorg/aniyomi), licensed under Apache License 2.0.
-+// See /NOTICE.md and /THIRD_PARTY_LICENSES/Apache-2.0.txt for full attribution.
-+
-+package eu.kanade.tachiyomi.animesource.model
-+
-+enum class AnimeUpdateStrategy {
-+    ALWAYS_UPDATE,
-+    ONLY_FETCH_ONCE,
-+}
-+
-+enum class FetchType {
-+    Seasons,
-+    Episodes,
-+}
-diff --git a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/Hoster.kt b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/Hoster.kt
-new file mode 100644
-index 0000000..7eb8a94
---- /dev/null
-+++ b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/Hoster.kt
-@@ -0,0 +1,27 @@
-+// Adapted from Aniyomi (https://github.com/aniyomiorg/aniyomi), licensed under Apache License 2.0.
-+// See /NOTICE.md and /THIRD_PARTY_LICENSES/Apache-2.0.txt for full attribution.
-+
-+package eu.kanade.tachiyomi.animesource.model
-+
-+open class Hoster(
-+    val hosterUrl: String = "",
-+    val hosterName: String = "",
-+    val videoList: List<Video>? = null,
-+    val internalData: String = "",
-+    val lazy: Boolean = false,
-+) {
-+    fun copy(
-+        hosterUrl: String = this.hosterUrl,
-+        hosterName: String = this.hosterName,
-+        videoList: List<Video>? = this.videoList,
-+        internalData: String = this.internalData,
-+        lazy: Boolean = this.lazy,
-+    ): Hoster = Hoster(hosterUrl, hosterName, videoList, internalData, lazy)
-+
-+    companion object {
-+        const val NO_HOSTER_LIST = "no_hoster_list"
-+
-+        fun List<Video>.toHosterList(): List<Hoster> =
-+            listOf(Hoster(hosterUrl = "", hosterName = NO_HOSTER_LIST, videoList = this))
-+    }
-+}
-diff --git a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/SAnime.kt b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/SAnime.kt
-index 32e73c8..905b884 100644
---- a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/SAnime.kt
-+++ b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/SAnime.kt
-@@ -1,7 +1,5 @@
- package eu.kanade.tachiyomi.animesource.model
- 
--import eu.kanade.tachiyomi.source.model.UpdateStrategy
--
- @Suppress("unused")
- interface SAnime {
- 
-@@ -21,7 +19,13 @@ interface SAnime {
- 
-     var thumbnail_url: String?
- 
--    var update_strategy: UpdateStrategy
-+    var background_url: String?
-+
-+    var update_strategy: AnimeUpdateStrategy
-+
-+    var fetch_type: FetchType
-+
-+    var season_number: Double
- 
-     var initialized: Boolean
- 
-diff --git a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/SAnimeImpl.kt b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/SAnimeImpl.kt
-index d8b107c..055d642 100644
---- a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/SAnimeImpl.kt
-+++ b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/SAnimeImpl.kt
-@@ -1,7 +1,5 @@
- package eu.kanade.tachiyomi.animesource.model
- 
--import eu.kanade.tachiyomi.source.model.UpdateStrategy
--
- class SAnimeImpl : SAnime {
-     override lateinit var url: String
-     override lateinit var title: String
-@@ -11,7 +9,10 @@ class SAnimeImpl : SAnime {
-     override var genre: String? = null
-     override var status: Int = 0
-     override var thumbnail_url: String? = null
--    override var update_strategy: UpdateStrategy = UpdateStrategy.ALWAYS_UPDATE
-+    override var background_url: String? = null
-+    override var update_strategy: AnimeUpdateStrategy = AnimeUpdateStrategy.ALWAYS_UPDATE
-+    override var fetch_type: FetchType = FetchType.Episodes
-+    override var season_number: Double = -1.0
-     override var initialized: Boolean = false
-     override var memo: kotlinx.serialization.json.JsonObject? = kotlinx.serialization.json.JsonObject(emptyMap())
- }
-diff --git a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/SEpisode.kt b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/SEpisode.kt
-index 9d330b4..68b1114 100644
---- a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/SEpisode.kt
-+++ b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/SEpisode.kt
-@@ -11,8 +11,14 @@ interface SEpisode {
- 
-     var episode_number: Float
- 
-+    var fillermark: Boolean
-+
-     var scanlator: String?
- 
-+    var summary: String?
-+
-+    var preview_url: String?
-+
-     var memo: kotlinx.serialization.json.JsonObject?
- 
-     companion object {
-diff --git a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/SEpisodeImpl.kt b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/SEpisodeImpl.kt
-index eb3d9ff..d8a982a 100644
---- a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/SEpisodeImpl.kt
-+++ b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/SEpisodeImpl.kt
-@@ -5,6 +5,9 @@ class SEpisodeImpl : SEpisode {
-     override lateinit var name: String
-     override var date_upload: Long = 0
-     override var episode_number: Float = -1f
-+    override var fillermark: Boolean = false
-     override var scanlator: String? = null
-+    override var summary: String? = null
-+    override var preview_url: String? = null
-     override var memo: kotlinx.serialization.json.JsonObject? = kotlinx.serialization.json.JsonObject(emptyMap())
- }
-diff --git a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/Video.kt b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/Video.kt
-index 9645b65..93bffe5 100644
---- a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/Video.kt
-+++ b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/model/Video.kt
-@@ -3,9 +3,11 @@ package eu.kanade.tachiyomi.animesource.model
- import android.net.Uri
- import okhttp3.Headers
- 
-+// The primary constructor (and so the generated copy) must keep the extensions-lib 16 shape:
-+// lib 16 extensions are compiled against it and call it directly.
- data class Video(
--    var videoUrl: String,
--    var videoTitle: String,
-+    var videoUrl: String = "",
-+    var videoTitle: String = "",
-     var resolution: Int? = null,
-     var bitrate: Int? = null,
-     var headers: Headers? = null,
-@@ -13,6 +15,10 @@ data class Video(
-     var subtitleTracks: List<Track> = emptyList(),
-     var audioTracks: List<Track> = emptyList(),
-     var timestamps: List<TimeStamp> = emptyList(),
-+    var mpvArgs: List<Pair<String, String>> = emptyList(),
-+    var ffmpegStreamArgs: List<Pair<String, String>> = emptyList(),
-+    var ffmpegVideoArgs: List<Pair<String, String>> = emptyList(),
-+    var internalData: String = "",
-     var initialized: Boolean = false,
- ) {
-     @Deprecated("Use videoTitle instead", ReplaceWith("videoTitle"))
-@@ -50,13 +56,32 @@ data class Video(
-         uri: Uri? = null,
-         headers: Headers? = null,
-     ) : this(url, quality, videoUrl, headers)
-+
-+    @Deprecated("Only for extensions-lib 14 binaries", level = DeprecationLevel.HIDDEN)
-+    fun copy(
-+        url: String,
-+        quality: String,
-+        videoUrl: String?,
-+        headers: Headers? = this.headers,
-+        subtitleTracks: List<Track> = this.subtitleTracks,
-+        audioTracks: List<Track> = this.audioTracks,
-+    ): Video = Video(url, quality, videoUrl, headers, subtitleTracks, audioTracks)
- }
- 
- data class Track(val url: String, val lang: String)
--data class TimeStamp(val start: Long, val end: Long, val name: String, val type: ChapterType)
-+
-+/** [start] and [end] are in seconds, as in extensions-lib 16. */
-+data class TimeStamp(
-+    val start: Double,
-+    val end: Double,
-+    val name: String,
-+    val type: ChapterType = ChapterType.Other,
-+)
-+
- enum class ChapterType {
--    OPENING,
--    ENDING,
--    RECAP,
--    OTHER,
-+    Opening,
-+    Ending,
-+    Recap,
-+    MixedOp,
-+    Other,
- }
-diff --git a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/online/AnimeHttpSource.kt b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/online/AnimeHttpSource.kt
-index eaec6ff..3bd4245 100644
---- a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/online/AnimeHttpSource.kt
-+++ b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/online/AnimeHttpSource.kt
-@@ -5,11 +5,13 @@ package eu.kanade.tachiyomi.animesource.online
- import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
- import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
- import eu.kanade.tachiyomi.animesource.model.AnimesPage
-+import eu.kanade.tachiyomi.animesource.model.Hoster
- import eu.kanade.tachiyomi.animesource.model.SAnime
- import eu.kanade.tachiyomi.animesource.model.SEpisode
- import eu.kanade.tachiyomi.animesource.model.Video
- import eu.kanade.tachiyomi.network.NetworkHelper
- import eu.kanade.tachiyomi.network.asObservableSuccess
-+import eu.kanade.tachiyomi.network.awaitSuccess
- import org.koin.core.context.GlobalContext
- import okhttp3.Headers
- import okhttp3.HttpUrl.Companion.toHttpUrl
-@@ -18,6 +20,7 @@ import okhttp3.Request
- import okhttp3.Response
- import rx.Observable
- import tsunagu.util.awaitSingle
-+import tsunagu.util.sourceUrlWithoutDomain
- import java.security.MessageDigest
- 
- @Suppress("unused", "unused_parameter")
-@@ -29,11 +32,7 @@ abstract class AnimeHttpSource : AnimeCatalogueSource {
- 
-     open val versionId: Int = 1
- 
--    override val id: Long by lazy {
--        val key = "${name.lowercase()}/$lang/$versionId"
--        val bytes = MessageDigest.getInstance("MD5").digest(key.toByteArray())
--        (0..7).map { bytes[it].toLong() and 0xff shl 8 * (7 - it) }.reduce(Long::or) and Long.MAX_VALUE
--    }
-+    override val id: Long by lazy { generateId(name, lang, versionId) }
- 
-     val headers: Headers by lazy { headersBuilder().build() }
- 
-@@ -120,8 +119,51 @@ abstract class AnimeHttpSource : AnimeCatalogueSource {
-     override suspend fun getVideoList(episode: SEpisode): List<Video> =
-         fetchVideoList(episode).awaitSingle()
- 
-+    override suspend fun getSeasonList(anime: SAnime): List<SAnime> =
-+        seasonListParse(client.newCall(seasonListRequest(anime)).awaitSuccess())
-+
-+    protected open fun seasonListRequest(anime: SAnime): Request = GET(baseUrl + anime.url, headers)
-+
-+    protected open fun seasonListParse(response: Response): List<SAnime> = throw UnsupportedOperationException()
-+
-+    override suspend fun getHosterList(episode: SEpisode): List<Hoster> =
-+        hosterListParse(client.newCall(hosterListRequest(episode)).awaitSuccess())
-+
-+    protected open fun hosterListRequest(episode: SEpisode): Request = GET(baseUrl + episode.url, headers)
-+
-+    protected open fun hosterListParse(response: Response): List<Hoster> = throw UnsupportedOperationException()
-+
-+    override suspend fun getVideoList(hoster: Hoster): List<Video> =
-+        videoListParse(client.newCall(videoListRequest(hoster)).awaitSuccess(), hoster)
-+
-+    protected open fun videoListRequest(hoster: Hoster): Request = GET(hoster.hosterUrl, headers)
-+
-+    protected open fun videoListParse(response: Response, hoster: Hoster): List<Video> =
-+        throw UnsupportedOperationException()
-+
-+    /** Resolves a lazily-loaded video; null when it can't be played. */
-+    open suspend fun resolveVideo(video: Video): Video? = video
-+
-+    open fun List<Hoster>.sortHosters(): List<Hoster> = this
-+
-     open fun List<Video>.sortVideos(): List<Video> = this
- 
-+    @Deprecated("Use resolveVideo instead")
-+    open suspend fun getVideoUrl(video: Video): String =
-+        videoUrlParse(client.newCall(videoUrlRequest(video)).awaitSuccess())
-+
-+    @Deprecated("Use resolveVideo instead")
-+    protected open fun videoUrlRequest(video: Video): Request = GET(video.url, headers)
-+
-+    @Deprecated("Use resolveVideo instead")
-+    protected open fun videoUrlParse(response: Response): String = throw UnsupportedOperationException()
-+
-+    protected fun generateId(name: String, lang: String, versionId: Int): Long {
-+        val key = "${name.lowercase()}/$lang/$versionId"
-+        val bytes = MessageDigest.getInstance("MD5").digest(key.toByteArray())
-+        return (0..7).map { bytes[it].toLong() and 0xff shl 8 * (7 - it) }.reduce(Long::or) and Long.MAX_VALUE
-+    }
-+
-     fun SEpisode.setUrlWithoutDomain(url: String) {
-         this.url = getUrlWithoutDomain(url)
-     }
-@@ -130,17 +172,7 @@ abstract class AnimeHttpSource : AnimeCatalogueSource {
-         this.url = getUrlWithoutDomain(url)
-     }
- 
--    private fun getUrlWithoutDomain(orig: String): String {
--        return try {
--            val url = if (orig.startsWith("http")) orig.toHttpUrl() else "$baseUrl$orig".toHttpUrl()
--            var out = url.encodedPath
--            if (url.encodedQuery != null) out += "?${url.encodedQuery}"
--            if (url.encodedFragment != null) out += "#${url.encodedFragment}"
--            out
--        } catch (_: Exception) {
--            orig
--        }
--    }
-+    private fun getUrlWithoutDomain(orig: String): String = sourceUrlWithoutDomain(orig)
- 
-     open fun getAnimeUrl(anime: SAnime): String {
-         return try {
-diff --git a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/online/ParsedAnimeHttpSource.kt b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/online/ParsedAnimeHttpSource.kt
-index 1ac5b89..4a3a221 100644
---- a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/online/ParsedAnimeHttpSource.kt
-+++ b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/animesource/online/ParsedAnimeHttpSource.kt
-@@ -64,6 +64,15 @@ abstract class ParsedAnimeHttpSource : AnimeHttpSource() {
-         return document.select(videoListSelector()).map { videoFromElement(it) }
-     }
- 
--    protected abstract fun videoListSelector(): String
--    protected abstract fun videoFromElement(element: Element): Video
-+    // Not abstract: extensions-lib 16 dropped them, so lib 16 subclasses don't implement them.
-+    protected open fun videoListSelector(): String = throw UnsupportedOperationException()
-+    protected open fun videoFromElement(element: Element): Video = throw UnsupportedOperationException()
-+
-+    override fun seasonListParse(response: Response): List<SAnime> {
-+        val document = response.asJsoup()
-+        return document.select(seasonListSelector()).map { seasonFromElement(it) }
-+    }
-+
-+    protected open fun seasonListSelector(): String = throw UnsupportedOperationException()
-+    protected open fun seasonFromElement(element: Element): SAnime = throw UnsupportedOperationException()
- }
 diff --git a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/network/NetworkHelper.kt b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/network/NetworkHelper.kt
-index 06672c1..7dcd6a8 100644
+index df5b7c9..9fe7f11 100644
 --- a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/network/NetworkHelper.kt
 +++ b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/network/NetworkHelper.kt
-@@ -74,6 +74,10 @@ class NetworkHelper {
+@@ -77,6 +77,10 @@ class NetworkHelper {
                          ),
                      )
                      .addInterceptor(UncaughtExceptionInterceptor())
@@ -6461,10 +5689,10 @@ index 06672c1..7dcd6a8 100644
  
              val httpLoggingInterceptor =
 diff --git a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/network/PersistentCookieStore.kt b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/network/PersistentCookieStore.kt
-index 82bee33..dac24a5 100644
+index 5d7cdb2..6575e07 100644
 --- a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/network/PersistentCookieStore.kt
 +++ b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/network/PersistentCookieStore.kt
-@@ -3,168 +3,85 @@ package eu.kanade.tachiyomi.network
+@@ -6,168 +6,85 @@ package eu.kanade.tachiyomi.network
  import okhttp3.Cookie
  import okhttp3.HttpUrl
  import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -6701,66 +5929,6 @@ index 82bee33..dac24a5 100644
 +        maxAge=if(c.persistent) ((c.expiresAt-System.currentTimeMillis())/1000).coerceAtLeast(0) else -1
      }
  }
-diff --git a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/source/UnmeteredSource.kt b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/source/UnmeteredSource.kt
-new file mode 100644
-index 0000000..ded56c8
---- /dev/null
-+++ b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/source/UnmeteredSource.kt
-@@ -0,0 +1,12 @@
-+// Adapted from Mihon/Tachiyomi (https://github.com/mihonapp/mihon), licensed under Apache License 2.0.
-+// See /NOTICE.md and /THIRD_PARTY_LICENSES/Apache-2.0.txt for full attribution.
-+
-+package eu.kanade.tachiyomi.source
-+
-+/**
-+ * A source that explicitly doesn't require traffic considerations.
-+ *
-+ * This typically applies for self-hosted sources.
-+ */
-+@Suppress("unused")
-+interface UnmeteredSource
-diff --git a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/source/online/HttpSource.kt b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/source/online/HttpSource.kt
-index 7424a50..4720283 100644
---- a/sandbox/src/main/kotlin/eu/kanade/tachiyomi/source/online/HttpSource.kt
-+++ b/sandbox/src/main/kotlin/eu/kanade/tachiyomi/source/online/HttpSource.kt
-@@ -16,6 +16,7 @@ import okhttp3.Request
- import okhttp3.Response
- import rx.Observable
- import tsunagu.util.awaitSingle
-+import tsunagu.util.sourceUrlWithoutDomain
- import java.security.MessageDigest
- 
- @Suppress("unused", "unused_parameter")
-@@ -156,6 +157,10 @@ abstract class HttpSource : CatalogueSource {
- 
-     protected open fun imageRequest(page: Page): Request = GET(page.imageUrl!!, headers)
- 
-+    // Some sources (e.g. MangaDex) store a relative value in `page.imageUrl` and only build the
-+    // absolute URL in their `imageRequest` override, which callers outside the hierarchy can't call.
-+    fun resolveImageUrl(page: Page): String = imageRequest(page).url.toString()
-+
-     fun SChapter.setUrlWithoutDomain(url: String) {
-         this.url = getUrlWithoutDomain(url)
-     }
-@@ -164,17 +169,7 @@ abstract class HttpSource : CatalogueSource {
-         this.url = getUrlWithoutDomain(url)
-     }
- 
--    private fun getUrlWithoutDomain(orig: String): String {
--        return try {
--            val url = if (orig.startsWith("http")) orig.toHttpUrl() else "$baseUrl$orig".toHttpUrl()
--            var out = url.encodedPath
--            if (url.encodedQuery != null) out += "?${url.encodedQuery}"
--            if (url.encodedFragment != null) out += "#${url.encodedFragment}"
--            out
--        } catch (_: Exception) {
--            orig
--        }
--    }
-+    private fun getUrlWithoutDomain(orig: String): String = sourceUrlWithoutDomain(orig)
- 
-     open fun getMangaUrl(manga: SManga): String {
-         return try {
 diff --git a/sandbox/src/main/kotlin/tsunagu/Embedded.kt b/sandbox/src/main/kotlin/tsunagu/Embedded.kt
 new file mode 100644
 index 0000000..1110be5
@@ -6848,141 +6016,8 @@ index 0000000..1110be5
 +        }
 +    }
 +}
-diff --git a/sandbox/src/main/kotlin/tsunagu/grpc/AnimeVideoLoader.kt b/sandbox/src/main/kotlin/tsunagu/grpc/AnimeVideoLoader.kt
-new file mode 100644
-index 0000000..0502c70
---- /dev/null
-+++ b/sandbox/src/main/kotlin/tsunagu/grpc/AnimeVideoLoader.kt
-@@ -0,0 +1,127 @@
-+package tsunagu.grpc
-+
-+import eu.kanade.tachiyomi.animesource.model.Hoster
-+import eu.kanade.tachiyomi.animesource.model.SEpisode
-+import eu.kanade.tachiyomi.animesource.model.Video
-+import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
-+import eu.kanade.tachiyomi.animesource.online.ParsedAnimeHttpSource
-+import io.github.oshai.kotlinlogging.KotlinLogging
-+import kotlinx.coroutines.CancellationException
-+import kotlinx.coroutines.Dispatchers
-+import kotlinx.coroutines.async
-+import kotlinx.coroutines.awaitAll
-+import kotlinx.coroutines.coroutineScope
-+import kotlinx.coroutines.sync.Semaphore
-+import kotlinx.coroutines.sync.withPermit
-+import kotlinx.coroutines.withTimeoutOrNull
-+
-+/**
-+ * Loads every playable video of an episode the way Aniyomi does: extensions-lib 16 sources
-+ * expose hosters (each with its own video list and lazily resolved videos), older ones return
-+ * the videos straight from getVideoList(episode).
-+ */
-+object AnimeVideoLoader {
-+    private val logger = KotlinLogging.logger {}
-+    private val hosterMethods = setOf("getHosterList", "hosterListRequest", "hosterListParse")
-+    private const val HOSTER_TIMEOUT_MS = 45_000L
-+    private const val RESOLVE_TIMEOUT_MS = 30_000L
-+    private const val PARALLEL_RESOLVES = 4
-+
-+    /** Same check as Aniyomi's EpisodeLoader: the extension class itself overrides a hoster method. */
-+    fun usesHosters(source: AnimeHttpSource): Boolean {
-+        var current: Class<*>? = source.javaClass
-+        while (current != null &&
-+            current != AnimeHttpSource::class.java &&
-+            current != ParsedAnimeHttpSource::class.java
-+        ) {
-+            if (current.declaredMethods.any { it.name in hosterMethods }) return true
-+            current = current.superclass
-+        }
-+        return false
-+    }
-+
-+    suspend fun loadVideos(source: AnimeHttpSource, episode: SEpisode): List<Video> =
-+        uniqueTitles(loadAll(source, episode))
-+
-+    /** The backend picks a stream by its label, so repeated labels would hide every copy but the first. */
-+    private fun uniqueTitles(videos: List<Video>): List<Video> {
-+        val seen = HashMap<String, Int>()
-+        return videos.map { video ->
-+            val count = seen.merge(video.videoTitle, 1, Int::plus)!!
-+            if (count == 1) video else video.copy(videoTitle = "${video.videoTitle} ($count)")
-+        }
-+    }
-+
-+    private suspend fun loadAll(source: AnimeHttpSource, episode: SEpisode): List<Video> {
-+        if (!usesHosters(source)) {
-+            val videos = with(source) { source.getVideoList(episode).sortVideos() }
-+            return resolveAll(source, videos, mutableListOf())
-+        }
-+
-+        val hosters = with(source) { source.getHosterList(episode).sortHosters() }
-+        val errors = mutableListOf<String>()
-+        val perHoster = coroutineScope {
-+            hosters.map { hoster ->
-+                async(Dispatchers.IO) {
-+                    try {
-+                        withTimeoutOrNull(HOSTER_TIMEOUT_MS) { videosOf(source, hoster) }
-+                            ?: emptyList<Video>().also { synchronized(errors) { errors += "${hoster.hosterName}: timeout" } }
-+                    } catch (e: CancellationException) {
-+                        throw e
-+                    } catch (e: Throwable) {
-+                        logger.warn { "hoster ${hoster.hosterName} failed: ${e.javaClass.simpleName}: ${e.message}" }
-+                        synchronized(errors) { errors += "${hoster.hosterName}: ${e.message ?: e.javaClass.simpleName}" }
-+                        emptyList()
-+                    }
-+                }
-+            }.awaitAll()
-+        }
-+        val videos = resolveAll(source, perHoster.flatten(), errors)
-+        if (videos.isEmpty() && errors.isNotEmpty()) {
-+            throw IllegalStateException("no playable video from ${hosters.size} hoster(s): ${errors.take(3).joinToString("; ")}")
-+        }
-+        return videos
-+    }
-+
-+    private suspend fun videosOf(source: AnimeHttpSource, hoster: Hoster): List<Video> {
-+        val videos = hoster.videoList ?: source.getVideoList(hoster)
-+        val sorted = with(source) { videos.sortVideos() }
-+        if (hoster.hosterName.isBlank() || hoster.hosterName == Hoster.NO_HOSTER_LIST) return sorted
-+        return sorted.map { video ->
-+            if (video.videoTitle.contains(hoster.hosterName, ignoreCase = true)) {
-+                video
-+            } else {
-+                video.copy(videoTitle = "${hoster.hosterName} - ${video.videoTitle}".trimEnd(' ', '-'))
-+            }
-+        }
-+    }
-+
-+    private suspend fun resolveAll(source: AnimeHttpSource, videos: List<Video>, errors: MutableList<String>): List<Video> {
-+        val gate = Semaphore(PARALLEL_RESOLVES)
-+        return coroutineScope {
-+            videos.map { video ->
-+                async(Dispatchers.IO) { gate.withPermit { resolve(source, video, errors) } }
-+            }.awaitAll()
-+        }.filterNotNull()
-+    }
-+
-+    @Suppress("DEPRECATION")
-+    private suspend fun resolve(source: AnimeHttpSource, video: Video, errors: MutableList<String>): Video? {
-+        return try {
-+            withTimeoutOrNull(RESOLVE_TIMEOUT_MS) {
-+                val resolved = if (video.initialized) video else source.resolveVideo(video)
-+                when {
-+                    resolved == null -> null
-+                    resolved.videoUrl == "null" -> resolved.copy(videoUrl = source.getVideoUrl(resolved), initialized = true)
-+                    else -> resolved.copy(initialized = true)
-+                }
-+            }?.takeIf { it.videoUrl.isNotBlank() && it.videoUrl != "null" }
-+        } catch (e: CancellationException) {
-+            throw e
-+        } catch (e: Throwable) {
-+            logger.warn { "resolving ${video.videoTitle} failed: ${e.javaClass.simpleName}: ${e.message}" }
-+            synchronized(errors) { errors += "${video.videoTitle}: ${e.message ?: e.javaClass.simpleName}" }
-+            null
-+        }
-+    }
-+}
 diff --git a/sandbox/src/main/kotlin/tsunagu/grpc/ExtensionServiceImpl.kt b/sandbox/src/main/kotlin/tsunagu/grpc/ExtensionServiceImpl.kt
-index fcd5d8e..ce06935 100644
+index bbea9ae..e47f07d 100644
 --- a/sandbox/src/main/kotlin/tsunagu/grpc/ExtensionServiceImpl.kt
 +++ b/sandbox/src/main/kotlin/tsunagu/grpc/ExtensionServiceImpl.kt
 @@ -7,6 +7,7 @@ import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
@@ -6993,15 +6028,7 @@ index fcd5d8e..ce06935 100644
  import eu.kanade.tachiyomi.network.GET
  import eu.kanade.tachiyomi.network.awaitSuccess
  import io.github.oshai.kotlinlogging.KotlinLogging
-@@ -25,7 +26,6 @@ import tsunagu.novel.ChapterItem
- import tsunagu.novel.NovelPlugin
- import tsunagu.novel.SourceNovel
- import tsunagu.grpc.AnimeFilterSerde
--import tsunagu.util.awaitSingle
- import tsunagu.grpc.FilterSerde.applyTo
- import tsunagu.grpc.FilterSerde.toProto
- import tsunagu.registry.ExtensionRegistry
-@@ -35,6 +35,22 @@ class ExtensionServiceImpl(
+@@ -36,6 +37,22 @@ class ExtensionServiceImpl(
      private val registry: ExtensionRegistry,
  ) : ExtensionServiceGrpc.ExtensionServiceImplBase() {
  
@@ -7024,75 +6051,7 @@ index fcd5d8e..ce06935 100644
      private val logger = KotlinLogging.logger {}
  
      private val verboseErrors = System.getenv("SANDBOX_VERBOSE_ERRORS")?.toBoolean() == true
-@@ -170,6 +186,8 @@ class ExtensionServiceImpl(
-             responseObserver.onNext(builder.build())
-             responseObserver.onCompleted()
-         } catch (e: Throwable) {
-+            // Classified like every other call so callers can tell "no results"
-+            // from "source blocked by Cloudflare / offline".
-             logExtensionFailure(e)
-             responseObserver.onError(internal(e))
-         }
-@@ -253,7 +271,7 @@ class ExtensionServiceImpl(
-             val builder = Sandbox.SearchResponse.newBuilder()
-             when (val source = extension.source) {
-                 is HttpSource -> {
--                    val page = runBlocking { source.fetchPopularManga(request.page).awaitSingle() }
-+                    val page = runBlocking { source.getPopularManga(request.page) }
-                     builder.setHasNextPage(page.hasNextPage)
-                     page.mangas.forEach { manga ->
-                         EntryModelCache.putManga(request.extensionId, manga)
-@@ -261,7 +279,7 @@ class ExtensionServiceImpl(
-                     }
-                 }
-                 is AnimeHttpSource -> {
--                    val page = runBlocking { source.fetchPopularAnime(request.page).awaitSingle() }
-+                    val page = runBlocking { source.getPopularAnime(request.page) }
-                     builder.setHasNextPage(page.hasNextPage)
-                     page.animes.forEach { anime ->
-                         EntryModelCache.putAnime(request.extensionId, anime)
-@@ -310,7 +328,7 @@ class ExtensionServiceImpl(
-             val builder = Sandbox.SearchResponse.newBuilder()
-             when (val source = extension.source) {
-                 is HttpSource -> {
--                    val page = runBlocking { source.fetchLatestUpdates(request.page).awaitSingle() }
-+                    val page = runBlocking { source.getLatestUpdates(request.page) }
-                     builder.setHasNextPage(page.hasNextPage)
-                     page.mangas.forEach { manga ->
-                         EntryModelCache.putManga(request.extensionId, manga)
-@@ -318,7 +336,7 @@ class ExtensionServiceImpl(
-                     }
-                 }
-                 is AnimeHttpSource -> {
--                    val page = runBlocking { source.fetchLatestUpdates(request.page).awaitSingle() }
-+                    val page = runBlocking { source.getLatestUpdates(request.page) }
-                     builder.setHasNextPage(page.hasNextPage)
-                     page.animes.forEach { anime ->
-                         EntryModelCache.putAnime(request.extensionId, anime)
-@@ -448,8 +466,11 @@ class ExtensionServiceImpl(
-         handle(responseObserver, request.extensionId) { source ->
-             val chapter: SChapter = chapterStub(request.extensionId, request.sourceChapterId)
-             val pages = runBlocking {
--                source.getPageList(chapter).map { page ->
--                    page.imageUrl ?: source.getImageUrl(page)
-+                val pageList = source.getPageList(chapter)
-+                val urls = resolvePageURLs(pageList) { source.getImageUrl(it) }
-+                pageList.zip(urls).map { (page, url) ->
-+                    page.imageUrl = url
-+                    source.resolveImageUrl(page)
-                 }
-             }
-             val builder = Sandbox.PageList.newBuilder()
-@@ -506,7 +527,7 @@ class ExtensionServiceImpl(
-     ) {
-         handleAnime(responseObserver, request.extensionId) { source ->
-             val episode: SEpisode = episodeStub(request.extensionId, request.sourceEpisodeId)
--            val videos = runBlocking { source.getVideoList(episode) }
-+            val videos = runBlocking { AnimeVideoLoader.loadVideos(source, episode) }
-             if (videos.isEmpty()) {
-                 throw IllegalStateException("no videos returned for episode ${request.sourceEpisodeId}")
-             }
-@@ -519,7 +540,7 @@ class ExtensionServiceImpl(
+@@ -561,7 +578,7 @@ class ExtensionServiceImpl(
                      "audio=${videos.sumOf { it.audioTracks.size }} " +
                      "timestamps=${preferred.timestamps.size}"
              }
@@ -7101,16 +6060,16 @@ index fcd5d8e..ce06935 100644
          }
      }
  
-@@ -535,6 +556,8 @@ class ExtensionServiceImpl(
+@@ -577,7 +594,7 @@ class ExtensionServiceImpl(
          val (client, headers) = when (val s = extension.source) {
              is HttpSource -> s.client to s.headers
              is AnimeHttpSource -> s.client to s.headers
-+            is NovelPlugin -> org.koin.core.context.GlobalContext.get().get<eu.kanade.tachiyomi.network.NetworkHelper>().client to
-+                okhttp3.Headers.Builder().add("Referer", s.site.trimEnd('/') + "/").build()
+-            is NovelPlugin -> NovelJsBridge.client to okhttp3.Headers.headersOf("Referer", s.site)
++            is NovelPlugin -> NovelJsBridge.client to okhttp3.Headers.headersOf("Referer", s.site.trimEnd('/') + "/")
              else -> {
                  responseObserver.onError(internal(IllegalStateException("extension ${request.extensionId} has no HTTP client")))
                  return
-@@ -545,7 +568,8 @@ class ExtensionServiceImpl(
+@@ -588,7 +605,8 @@ class ExtensionServiceImpl(
                  client.newCall(GET(request.imageUrl, headers)).awaitSuccess()
              }
              val data = response.use { resp ->
@@ -7120,7 +6079,7 @@ index fcd5d8e..ce06935 100644
                  val contentType = resp.header("Content-Type") ?: "image/jpeg"
                  Sandbox.ImageData.newBuilder()
                      .setData(com.google.protobuf.ByteString.copyFrom(bytes))
-@@ -778,16 +802,28 @@ class ExtensionServiceImpl(
+@@ -821,16 +839,28 @@ class ExtensionServiceImpl(
              Sandbox.SubtitleTrack.newBuilder().setUrl(it.url).setLang(it.lang).build()
          }
  
@@ -7153,7 +6112,7 @@ index fcd5d8e..ce06935 100644
  
          all.forEach { v ->
              val src = Sandbox.VideoSource.newBuilder()
-@@ -796,7 +832,7 @@ class ExtensionServiceImpl(
+@@ -839,7 +869,7 @@ class ExtensionServiceImpl(
                  .setResolution(parseResolution(v))
                  .setPreferred(v === preferred || v.preferred)
                  .addAllSubtitles(subtitleProtos(v))
@@ -7162,49 +6121,6 @@ index fcd5d8e..ce06935 100644
              builder.addSources(src.build())
          }
  
-@@ -809,10 +845,10 @@ class ExtensionServiceImpl(
-         preferred.timestamps.forEach { ts ->
-             builder.addTimestamps(
-                 Sandbox.SkipTimestamp.newBuilder()
--                    .setStartMs(ts.start)
--                    .setEndMs(ts.end)
-+                    .setStartMs((ts.start * 1000).toLong())
-+                    .setEndMs((ts.end * 1000).toLong())
-                     .setName(ts.name)
--                    .setType(ts.type.name)
-+                    .setType(ts.type.name.uppercase())
-                     .build(),
-             )
-         }
-diff --git a/sandbox/src/main/kotlin/tsunagu/grpc/PageResolution.kt b/sandbox/src/main/kotlin/tsunagu/grpc/PageResolution.kt
-new file mode 100644
-index 0000000..c820104
---- /dev/null
-+++ b/sandbox/src/main/kotlin/tsunagu/grpc/PageResolution.kt
-@@ -0,0 +1,23 @@
-+package tsunagu.grpc
-+
-+import eu.kanade.tachiyomi.source.model.Page
-+import kotlinx.coroutines.Dispatchers
-+import kotlinx.coroutines.async
-+import kotlinx.coroutines.awaitAll
-+import kotlinx.coroutines.coroutineScope
-+import kotlinx.coroutines.sync.Semaphore
-+import kotlinx.coroutines.sync.withPermit
-+
-+// Some sources return page links that each require another HTTP request.
-+// Bound that work without serializing the whole chapter or changing page order.
-+internal suspend fun resolvePageURLs(
-+    pages: List<Page>,
-+    resolve: suspend (Page) -> String,
-+): List<String> = coroutineScope {
-+    val slots = Semaphore(3)
-+    pages.map { page ->
-+        async(Dispatchers.IO) {
-+            page.imageUrl ?: slots.withPermit { resolve(page) }
-+        }
-+    }.awaitAll()
-+}
 diff --git a/sandbox/src/main/kotlin/tsunagu/grpc/SourceErrors.kt b/sandbox/src/main/kotlin/tsunagu/grpc/SourceErrors.kt
 index 9d7c85f..83a9710 100644
 --- a/sandbox/src/main/kotlin/tsunagu/grpc/SourceErrors.kt
@@ -7219,7 +6135,7 @@ index 9d7c85f..83a9710 100644
                  else -> UNAVAILABLE to "The source request failed (HTTP $code)."
              }
 diff --git a/sandbox/src/main/kotlin/tsunagu/loader/ExtensionLoader.kt b/sandbox/src/main/kotlin/tsunagu/loader/ExtensionLoader.kt
-index ce0ebd7..4db3751 100644
+index dd09396..3f581cc 100644
 --- a/sandbox/src/main/kotlin/tsunagu/loader/ExtensionLoader.kt
 +++ b/sandbox/src/main/kotlin/tsunagu/loader/ExtensionLoader.kt
 @@ -17,7 +17,18 @@ data class LoadedExtension(
@@ -7242,7 +6158,7 @@ index ce0ebd7..4db3751 100644
  
  class ExtensionLoadException(message: String) : Exception(message)
  
-@@ -44,8 +55,7 @@ object ExtensionLoader {
+@@ -49,8 +60,7 @@ object ExtensionLoader {
                  return doc.documentElement.getAttribute("package")
              }
          }
@@ -7252,36 +6168,25 @@ index ce0ebd7..4db3751 100644
      }
  
      fun load(file: File): LoadedExtension {
-@@ -77,48 +87,54 @@ object ExtensionLoader {
+@@ -76,42 +86,47 @@ object ExtensionLoader {
              }
              jarFile = file
          } else {
 -            val apk = ApkFile(file)
 -            packageName = apk.apkMeta.packageName
-+            ApkFile(file).use { apk ->
-+                packageName = apk.apkMeta.packageName
- 
+-
 -            val dbFactory = DocumentBuilderFactory.newInstance()
 -            val dBuilder = dbFactory.newDocumentBuilder()
 -            val doc = apk.manifestXml.byteInputStream().use { dBuilder.parse(it) }
++            ApkFile(file).use { apk ->
++                packageName = apk.apkMeta.packageName
+ 
+-            className = sourceClassName(doc, packageName)
 +                val dbFactory = DocumentBuilderFactory.newInstance()
 +                val dBuilder = dbFactory.newDocumentBuilder()
 +                val doc = apk.manifestXml.byteInputStream().use { dBuilder.parse(it) }
  
--            val sourceClassMeta = getManifestMetaData(doc, METADATA_SOURCE_CLASS)
--                ?: getManifestMetaData(doc, METADATA_ANIME_SOURCE_CLASS)
--                ?: throw ExtensionLoadException("no $METADATA_SOURCE_CLASS or $METADATA_ANIME_SOURCE_CLASS meta-data in manifest for $packageName")
-+                val sourceClassMeta = getManifestMetaData(doc, METADATA_SOURCE_CLASS)
-+                    ?: getManifestMetaData(doc, METADATA_ANIME_SOURCE_CLASS)
-+                    ?: throw ExtensionLoadException("no $METADATA_SOURCE_CLASS or $METADATA_ANIME_SOURCE_CLASS meta-data in manifest for $packageName")
- 
--            className = sourceClassMeta.trim().let {
--                if (it.startsWith(".")) packageName + it else it
--            }
-+                className = sourceClassMeta.trim().let {
-+                    if (it.startsWith(".")) packageName + it else it
-+                }
- 
++                className = sourceClassName(doc, packageName)
 +            }
              jarFile = Dex2JarConverter.convert(file)
          }
@@ -7337,27 +6242,35 @@ index ce0ebd7..4db3751 100644
 +        }
      }
  
-     private fun getManifestMetaData(doc: org.w3c.dom.Document, key: String): String? {
+     private fun sourceClassName(doc: org.w3c.dom.Document, packageName: String): String {
 diff --git a/sandbox/src/main/kotlin/tsunagu/novel/NovelJsBridge.kt b/sandbox/src/main/kotlin/tsunagu/novel/NovelJsBridge.kt
-index 855afbb..76f5dea 100644
+index fdd79b8..19150c6 100644
 --- a/sandbox/src/main/kotlin/tsunagu/novel/NovelJsBridge.kt
 +++ b/sandbox/src/main/kotlin/tsunagu/novel/NovelJsBridge.kt
-@@ -23,10 +23,10 @@ import org.jsoup.nodes.TextNode
+@@ -1,6 +1,5 @@
+ package tsunagu.novel
+ 
+-import eu.kanade.tachiyomi.network.buildSandboxDns
+ import kotlinx.serialization.json.Json
+ import kotlinx.serialization.json.JsonArray
+ import kotlinx.serialization.json.JsonElement
+@@ -23,10 +22,11 @@ import org.jsoup.nodes.TextNode
  
  object NovelJsBridge {
  
--    private val client =
+-    internal val client =
 -        OkHttpClient.Builder()
 -            .dns(buildSandboxDns(System.getenv("SANDBOX_DOH") ?: "off"))
 -            .build()
-+    private val client by lazy {
++    // Shares NetworkHelper's client (sandbox DNS plus the persistent cookie store).
++    internal val client by lazy {
 +        org.koin.core.context.GlobalContext.getOrNull()?.get<eu.kanade.tachiyomi.network.NetworkHelper>()?.client
 +            ?: eu.kanade.tachiyomi.network.NetworkHelper().client
 +    }
  
      const val REQUIRE_GLUE = """
          function __require(name) {
-@@ -223,7 +223,7 @@ object NovelJsBridge {
+@@ -497,7 +497,7 @@ object NovelJsBridge {
      private fun fetchModule(wrapPromise: Value): ProxyObject = ProxyObject.fromMap(mapOf(
          "fetchApi" to ProxyExecutable { args -> wrapPromise.execute(doFetch(args)) },
          "fetchText" to ProxyExecutable { args ->
@@ -7367,7 +6280,7 @@ index 855afbb..76f5dea 100644
          },
      ))
 diff --git a/sandbox/src/main/kotlin/tsunagu/novel/NovelPlugin.kt b/sandbox/src/main/kotlin/tsunagu/novel/NovelPlugin.kt
-index ee6a687..3a88462 100644
+index 30770af..2d7fc45 100644
 --- a/sandbox/src/main/kotlin/tsunagu/novel/NovelPlugin.kt
 +++ b/sandbox/src/main/kotlin/tsunagu/novel/NovelPlugin.kt
 @@ -5,7 +5,8 @@ import org.graalvm.polyglot.Value
@@ -7391,7 +6304,7 @@ index ee6a687..3a88462 100644
          if (Thread.currentThread() === jsThread) return block()
          return try {
              exec.submit(Callable { block() }).get()
-@@ -114,11 +118,13 @@ class NovelPlugin(
+@@ -129,11 +133,13 @@ class NovelPlugin(
      }
  
      override fun close() {
@@ -7409,10 +6322,10 @@ index ee6a687..3a88462 100644
  
      private fun toValueList(v: Value): List<Value> = (0 until v.arraySize).map { v.getArrayElement(it) }
 diff --git a/sandbox/src/main/kotlin/tsunagu/novel/NovelPluginLoader.kt b/sandbox/src/main/kotlin/tsunagu/novel/NovelPluginLoader.kt
-index 5086eb8..85c4c30 100644
+index c80400e..4546992 100644
 --- a/sandbox/src/main/kotlin/tsunagu/novel/NovelPluginLoader.kt
 +++ b/sandbox/src/main/kotlin/tsunagu/novel/NovelPluginLoader.kt
-@@ -90,46 +90,48 @@ object NovelPluginLoader {
+@@ -62,47 +62,49 @@ object NovelPluginLoader {
              .allowHostClassLookup { false }
              .build()
  
@@ -7422,7 +6335,8 @@ index 5086eb8..85c4c30 100644
 -        context.getBindings("js").putMember("__hostRequire", NovelJsBridge.requireFn(storageNamespace, wrapPromise))
 -        context.eval("js", NovelJsBridge.REQUIRE_GLUE)
 -        context.eval("js", FORM_DATA_GLUE)
--        context.eval("js", URL_SEARCH_PARAMS_GLUE)
+-        context.getBindings("js").putMember("__hostSleep", NovelJsBridge.hostSleep)
+-        context.eval("js", NovelJsBridge.WEB_GLUE)
 -
 -        val wrapped = """
 -            (function() {
@@ -7440,7 +6354,6 @@ index 5086eb8..85c4c30 100644
 -        } catch (e: PolyglotException) {
 -            context.close(true)
 -            throw ExtensionLoadException("failed to evaluate novel plugin ${file.name}: ${e.message}")
--        }
 +        try {
 +            context.eval("js", PROMISE_WRAP_GLUE)
 +            val wrapPromise: Value = context.getBindings("js").getMember("__wrapPromise")
@@ -7448,7 +6361,8 @@ index 5086eb8..85c4c30 100644
 +            context.getBindings("js").putMember("__hostRequire", NovelJsBridge.requireFn(storageNamespace, wrapPromise))
 +            context.eval("js", NovelJsBridge.REQUIRE_GLUE)
 +            context.eval("js", FORM_DATA_GLUE)
-+            context.eval("js", URL_SEARCH_PARAMS_GLUE)
++            context.getBindings("js").putMember("__hostSleep", NovelJsBridge.hostSleep)
++            context.eval("js", NovelJsBridge.WEB_GLUE)
 +
 +            val wrapped = """
 +                (function() {
@@ -7466,18 +6380,11 @@ index 5086eb8..85c4c30 100644
 +            } catch (e: PolyglotException) {
 +                throw ExtensionLoadException("failed to evaluate novel plugin ${file.name}: ${e.message}")
 +            }
- 
--        if (pluginValue == null || pluginValue.isNull) {
--            context.close(true)
--            throw ExtensionLoadException("novel plugin ${file.name} did not export a default plugin object")
--        }
++
 +            if (pluginValue == null || pluginValue.isNull) {
 +                throw ExtensionLoadException("novel plugin ${file.name} did not export a default plugin object")
 +            }
- 
--        val id = pluginValue.str("id") ?: run {
--            context.close(true)
--            throw ExtensionLoadException("novel plugin ${file.name} missing required field: id")
++
 +            val id = pluginValue.str("id") ?: run {
 +                throw ExtensionLoadException("novel plugin ${file.name} missing required field: id")
 +            }
@@ -7491,6 +6398,16 @@ index 5086eb8..85c4c30 100644
 +            runCatching { context.close(true) }.onFailure { failure.addSuppressed(it) }
 +            throw failure
          }
+-
+-        if (pluginValue == null || pluginValue.isNull) {
+-            context.close(true)
+-            throw ExtensionLoadException("novel plugin ${file.name} did not export a default plugin object")
+-        }
+-
+-        val id = pluginValue.str("id") ?: run {
+-            context.close(true)
+-            throw ExtensionLoadException("novel plugin ${file.name} missing required field: id")
+-        }
 -        val name = pluginValue.str("name") ?: id
 -        val site = pluginValue.str("site") ?: ""
 -        val lang = pluginValue.str("lang") ?: ""
@@ -7500,7 +6417,7 @@ index 5086eb8..85c4c30 100644
      }
  }
 diff --git a/sandbox/src/main/kotlin/tsunagu/registry/ExtensionRegistry.kt b/sandbox/src/main/kotlin/tsunagu/registry/ExtensionRegistry.kt
-index 22e40ef..342d5e1 100644
+index 004de5d..7e85ab7 100644
 --- a/sandbox/src/main/kotlin/tsunagu/registry/ExtensionRegistry.kt
 +++ b/sandbox/src/main/kotlin/tsunagu/registry/ExtensionRegistry.kt
 @@ -4,7 +4,6 @@ import okhttp3.OkHttpClient
@@ -7527,7 +6444,7 @@ index 22e40ef..342d5e1 100644
      fun loadAll() {
          extensionsDir.listFiles { file ->
              file.extension == "apk" || file.extension == "jar"
-@@ -58,36 +57,36 @@ class ExtensionRegistry(
+@@ -72,36 +71,39 @@ class ExtensionRegistry(
          }
      }
  
@@ -7571,6 +6488,9 @@ index 22e40ef..342d5e1 100644
 +            return null
          }
 +        pendingFiles.remove(extensionId)
++        if (loaded.packageName != extensionId) {
++            println("WARNING: extension file '${pendingFile.name}' declares id '${loaded.packageName}' (key mismatch, was cataloged as '$extensionId')")
++        }
 +        return loaded
      }
  
@@ -7580,7 +6500,7 @@ index 22e40ef..342d5e1 100644
      fun install(sourceFile: File, extensionId: String): LoadedExtension {
          val ext = sourceFile.extension.ifBlank { "apk" }
          if (ext == "js" && !novelEnabled) {
-@@ -104,9 +103,7 @@ class ExtensionRegistry(
+@@ -121,9 +123,7 @@ class ExtensionRegistry(
      }
  
      private fun evict(extensionId: String) {
@@ -7591,7 +6511,7 @@ index 22e40ef..342d5e1 100644
          pendingFiles.remove(extensionId)
      }
  
-@@ -137,12 +134,17 @@ class ExtensionRegistry(
+@@ -156,12 +156,17 @@ class ExtensionRegistry(
          }
  
          val request = Request.Builder().url(url).build()
@@ -7614,53 +6534,25 @@ index 22e40ef..342d5e1 100644
  
          val target = targetFile(extensionId, ext)
          val upToDate = target.exists() && target.length() == bytes.size.toLong()
-@@ -153,16 +155,20 @@ class ExtensionRegistry(
+@@ -173,6 +178,7 @@ class ExtensionRegistry(
          return load(target)
      }
  
 +    @Synchronized
      fun uninstall(extensionId: String) {
          requireSafeExtensionId(extensionId)
--        extensions.remove(extensionId)
-+        evict(extensionId)
-         File(extensionsDir, "$extensionId.apk").delete()
-         File(extensionsDir, "$extensionId.jar").delete()
-         File(extensionsDir, "$extensionId.js").delete()
+         evict(extensionId)
+@@ -182,8 +188,10 @@ class ExtensionRegistry(
+         }
      }
  
 +    @Synchronized
      fun invalidateAll() {
-+        extensions.values.forEach { it.close() }
-         extensions.clear()
+         extensions.keys.toList().forEach(::evict)
 +        pendingFiles.clear()
          loadAll()
      }
  }
-diff --git a/sandbox/src/main/kotlin/tsunagu/util/SourceUrl.kt b/sandbox/src/main/kotlin/tsunagu/util/SourceUrl.kt
-new file mode 100644
-index 0000000..22194ff
---- /dev/null
-+++ b/sandbox/src/main/kotlin/tsunagu/util/SourceUrl.kt
-@@ -0,0 +1,19 @@
-+package tsunagu.util
-+
-+import java.net.URI
-+
-+/** Strip a URL's origin without resolving source-owned relative identifiers against baseUrl. */
-+fun sourceUrlWithoutDomain(value: String): String = try {
-+    val uri = URI(value)
-+    if (uri.rawAuthority == null) {
-+        value
-+    } else {
-+        buildString {
-+            append(uri.rawPath.orEmpty())
-+            uri.rawQuery?.let { append('?').append(it) }
-+            uri.rawFragment?.let { append('#').append(it) }
-+        }
-+    }
-+} catch (_: Exception) {
-+    value
-+}
 diff --git a/sandbox/src/test/kotlin/eu/kanade/tachiyomi/network/PersistentCookieStoreTest.kt b/sandbox/src/test/kotlin/eu/kanade/tachiyomi/network/PersistentCookieStoreTest.kt
 new file mode 100644
 index 0000000..1ecb4c7

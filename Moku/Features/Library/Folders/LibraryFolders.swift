@@ -5,6 +5,7 @@ struct LibraryFolders: ViewModifier {
     @Binding var foldersPresented: Bool
     @Binding var newFolderPresented: Bool
     let model: LibraryViewModel
+    var mode: ContentMode = .all
     let selectSaved: () -> Void
     @Environment(LibraryStore.self) private var library
     @State private var draft = FolderViewModel()
@@ -91,7 +92,7 @@ struct LibraryFolders: ViewModifier {
     private var visibleFolders: [LibraryFolder] {
         let query = folderQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         return library.organization.folders.filter {
-            ($0.hidden != true) && (query.isEmpty || $0.name.localizedStandardContains(query))
+            ($0.hidden != true) && $0.shows(in: mode) && (query.isEmpty || $0.name.localizedStandardContains(query))
         }
     }
 

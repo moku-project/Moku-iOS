@@ -4,8 +4,8 @@ struct ExtensionRow: View {
     let item: SourceExtension
     let search: (SourceExtension) -> Void
     let configure: (SourceExtension) -> Void
+    var openLibrary: (SourceExtension) -> Void = { _ in }
     let change: (ExtensionAction, SourceExtension) -> Void
-    @ScaledMetric(relativeTo: .body) private var rowIconSize = 22
     var body: some View {
         HStack(spacing: 12) {
             Button {
@@ -18,6 +18,7 @@ struct ExtensionRow: View {
             OverflowMenu {
                 if item.installed {
                     Button("Configure") { configure(item) }
+                    Button("Library and migration") { openLibrary(item) }
                     if item.enabled { Button("Search source") { search(item) } }
                     if item.needsUpdate == true {
                         Button("Update") { change(.updateExtension, item) }
@@ -27,7 +28,7 @@ struct ExtensionRow: View {
                         .accessibilityIdentifier("extensions.install.\(item.packageName)")
                 }
             } label: {
-                PhosphorIcon("DotsThree").iconSize(rowIconSize)
+                PhosphorIcon("DotsThree", size: 22)
                     .foregroundStyle(.secondary).frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }

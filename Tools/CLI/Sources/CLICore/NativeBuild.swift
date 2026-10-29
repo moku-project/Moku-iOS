@@ -305,7 +305,7 @@ final class NativeBuild {
       try copy(path(".build/java/\(name).jar"), app.appendingPathComponent("\(name).jar"))
     }
     try copy(
-      runner.path("vendor/Tsunagu/sandbox/build/libs/sandbox-0.1.0-all.jar"),
+      runner.path("vendor/Tsunagu/sandbox/build/libs/sandbox-0.6.0-all.jar"),
       app.appendingPathComponent("Sandbox.jar"))
     if local {
       try copy(jdk.appendingPathComponent("lib"), app.appendingPathComponent("lib"))

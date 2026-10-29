@@ -12,7 +12,7 @@ extension LiveMediaRepository {
             """
             { resolveMedia(extensionId: \(BackendAPI.literal(extensionID)), externalId: \(BackendAPI.literal(externalID)), syncChapters: \(syncChapters)) {
                 id title thumbnailUrl description author artist status genres inLibrary
-                \(syncChapters ? "chapters { id title number scanlator completed downloaded uploadedAt sourceOrder }" : "")
+                \(syncChapters ? "chapters { id title number scanlator completed downloaded uploadedAt sourceOrder readingProgress { progress positionSeconds } }" : "")
             } }
             """, cacheFor: 120, refresh: refresh)
         return result.resolveMedia
@@ -51,7 +51,7 @@ extension LiveMediaRepository: DetailsRepository {
                 let media: Media?
             }
             let stored: Stored = try await BackendAPI.shared.graphql(
-                "{ media(id: \(BackendAPI.literal(mediaID))) { chapters { id title number scanlator completed downloaded uploadedAt sourceOrder } } }",
+                "{ media(id: \(BackendAPI.literal(mediaID))) { chapters { id title number scanlator completed downloaded uploadedAt sourceOrder readingProgress { progress positionSeconds } } } }",
                 requiresSourceRuntime: false)
             if let media = stored.media { return media.chapters }
         }

@@ -110,7 +110,7 @@ struct AutomationSettingsContent: View {
             }
             GeneralSection("Rules") {
                 GeneralRow("Apply to", detail: "Select global defaults or a saved series.") {
-                    ChoicePicker(title: "", selection: $mediaID, options: [("0", "Global defaults")] + library.entries.filter { Int64($0.id) != nil }.map { ($0.id, $0.title) }).font(.system(size: 14))
+                    ChoicePicker(title: "", selection: $mediaID, options: [("0", "Global defaults")] + library.entries.filter { Int64($0.id) != nil }.map { ($0.id, $0.title) }).font(.subheadline)
                 }
                 GeneralStyle.divider
                 row("Auto-download new chapters", detail: "Queue new chapters when a series refreshes.", value: policy(\.autoDownload))
@@ -124,7 +124,7 @@ struct AutomationSettingsContent: View {
                 number("Delete delay", detail: "Hours after a chapter is marked read.", value: policy(\.deleteDelayHours), options: [0, 1, 6, 12, 24, 48, 72, 168])
                 GeneralStyle.divider
                 GeneralRow("Refresh interval", detail: "Check saved series for new chapters.") {
-                    ChoicePicker(title: "", selection: policy(\.refreshInterval), options: [("manual", "Manual"), ("daily", "Daily"), ("weekly", "Weekly")]).font(.system(size: 14))
+                    ChoicePicker(title: "", selection: policy(\.refreshInterval), options: [("manual", "Manual"), ("daily", "Daily"), ("weekly", "Weekly")]).font(.subheadline)
                 }
                 GeneralStyle.divider
                 row("Pause updates", detail: "Suspend scheduled series refreshes.", value: policy(\.pauseUpdates))
@@ -173,7 +173,7 @@ struct AutomationSettingsContent: View {
     }
     private func number(_ title: String, detail: String, value: Binding<Int>, options: [Int]) -> some View {
         GeneralRow(title, detail: detail) {
-            ChoicePicker(title: "", selection: value, options: Array(Set(options + [value.wrappedValue])).sorted().map { ($0, String($0)) }).font(.system(size: 14))
+            ChoicePicker(title: "", selection: value, options: Array(Set(options + [value.wrappedValue])).sorted().map { ($0, String($0)) }).font(.subheadline)
         }
     }
 }

@@ -11,7 +11,7 @@ struct SettingsGroup<Content: View>: View {
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label(title, phosphor: symbol).font(.system(size: 12, weight: .medium))
+            Label(title, phosphor: symbol).font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
             VStack(spacing: 0, content: content)
                 .padding(.horizontal, 12).padding(.vertical, 4)

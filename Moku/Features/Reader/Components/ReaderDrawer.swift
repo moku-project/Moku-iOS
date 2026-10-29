@@ -9,8 +9,8 @@ struct ReaderDrawer: View {
         VStack(spacing: 0) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Manga Settings").font(.system(size: 17, weight: .medium))
-                    Text(model.details.title).font(.system(size: 12, design: .monospaced))
+                    Text("Reader settings").font(.body.weight(.medium))
+                    Text(model.details.title).font(.caption.monospacedDigit())
                         .foregroundStyle(.secondary).lineLimit(1)
                 }
                 Spacer(minLength: 4)

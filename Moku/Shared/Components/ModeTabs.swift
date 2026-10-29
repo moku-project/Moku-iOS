@@ -12,7 +12,9 @@ struct ModeTabs: View {
     private let preferredTabWidth: CGFloat = 88
     private var reduceMotion: Bool { systemReduceMotion || !animations }
 
-    var body: some View {
+    var body: some View { chrome.dynamicTypeSize(...DynamicTypeSize.xxLarge) }
+    // Navigation chrome stops growing at the largest standard size; content keeps scaling.
+    @ViewBuilder private var chrome: some View {
         GeometryReader { geometry in
             let modes = configuration.visible
             let tabWidth = min(preferredTabWidth, geometry.size.width / CGFloat(modes.count))

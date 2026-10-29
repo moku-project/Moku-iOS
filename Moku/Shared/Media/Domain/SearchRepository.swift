@@ -32,5 +32,5 @@ extension SearchRepository {
 
 enum SearchFailure: LocalizedError {
     case notConnected
-    var errorDescription: String? { "Search is not available yet." }
+    var errorDescription: String? { "The source runtime isn’t ready. Try again in a moment." }
 }
