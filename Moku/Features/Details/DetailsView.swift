@@ -19,6 +19,7 @@ struct DetailsView: View {
     private var loading: Bool { model.loading }
     @State private var saving = false
     @State private var expanded = false
+    @State private var allGenres = false
     @State private var ascending = false
     @State private var chapterQuery = ""
     @State private var filteredChapters: [Chapter] = []
@@ -36,6 +37,8 @@ struct DetailsView: View {
     @State private var manageSheet: ManageSheet?
     private enum ManageSheet: String, Identifiable { case tracking, migrate, automation, metadata, cover, link; var id: Self { self } }
     @State private var selected: Set<String> = []
+    /// 0 at the top, 1 once content slides under the header, 2 once the title has scrolled away.
+    @State private var scrollStage = 0
 
     init(entry: MediaEntry, initialChapterID: String? = nil, back: @escaping () -> Void) {
         self.entry = entry
@@ -59,19 +62,30 @@ struct DetailsView: View {
                 .padding(20)
                 .frame(maxWidth: 1100)
                 .frame(maxWidth: .infinity)
+                .background(alignment: .top) { backdrop }
             }
+            .onScrollGeometryChange(for: Int.self) { geometry in
+                let offset = geometry.contentOffset.y + geometry.contentInsets.top
+                return offset > 180 ? 2 : offset > 4 ? 1 : 0
+            } action: { _, stage in
+                scrollStage = stage
+            }
+            .refreshable { await load(refresh: true) }
         }
         .firstLoadSkeleton("details-\(entry.id)", loading: loading && details == nil, style: .results)
         .background(NavigationStyle.background.ignoresSafeArea())
-        .safeAreaInset(edge: .top, spacing: 0) {
-            BackHeader(title: "Details", backLabel: "Back", identifier: "details.back", back: back)
-        }
+        .safeAreaInset(edge: .top, spacing: 0) { header }
         .toolbar(.hidden, for: .navigationBar)
         .task(id: entry.id) {
             ascending = defaultAscending
-            await library.load()
+            // The saved library is only needed for links and the bookmark state,
+            // so reading it from disk never delays the title itself.
+            let saved = Task {
+                await library.load()
+                await library.loadOrganization()
+            }
             await load()
-            await library.loadOrganization()
+            await saved.value
             if autoLinkOnOpen { await library.autoLink(entry) }
         }
         .task(id: ChapterFilter(revision: model.chapterRevision, preferences: chapterPreferences,
@@ -167,43 +181,111 @@ struct DetailsView: View {
     /// from the Library list, so prefer its answer.
     private var isSaved: Bool { details?.inLibrary ?? library.contains(entry) }
 
+    private var coverURL: URL? { details.flatMap { BackendAPI.coverURL($0.thumbnailUrl) } ?? entry.coverURL }
+
     private func cover(width: CGFloat) -> some View {
-        CoverImage(
-            url: details.flatMap { BackendAPI.coverURL($0.thumbnailUrl) } ?? entry.coverURL,
-            symbol: entry.media.symbol
-        )
+        CoverImage(url: coverURL, symbol: entry.media.symbol)
         .frame(width: width, height: width * 1.5)
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .shadow(color: .black.opacity(0.35), radius: 10, y: 4)
         .accessibilityHidden(true)
     }
 
+    /// No page title at the top: the series name appears once the cover has
+    /// scrolled away, and the Manage menu sits in the corner.
+    private var header: some View {
+        HStack(spacing: 4) {
+            Button(action: back) {
+                PhosphorIcon("CaretLeft").iconSize(17)
+                    .frame(width: 44, height: 44).contentShape(Rectangle())
+            }
+            .buttonStyle(.plain).accessibilityLabel("Back")
+            .accessibilityIdentifier("details.back")
+            Text(details?.title ?? entry.title).font(.headline).lineLimit(1)
+                .frame(maxWidth: .infinity)
+                .opacity(scrollStage == 2 ? 1 : 0)
+                .accessibilityHidden(scrollStage < 2)
+            if let details { manageMenu(details) } else { Color.clear.frame(width: 44, height: 44) }
+        }
+        .padding(.horizontal, NavigationStyle.pagePadding).frame(minHeight: 52)
+        .background {
+            NavigationStyle.background.opacity(scrollStage > 0 ? 1 : 0).ignoresSafeArea(edges: .top)
+        }
+        .overlay(alignment: .bottom) { Divider().opacity(scrollStage == 2 ? 1 : 0) }
+        .animation(.easeOut(duration: 0.18), value: scrollStage)
+        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
+    }
+
+    /// A soft wash of the cover behind the top of the page. It is blurred once
+    /// into a flat layer, so scrolling only moves a texture.
+    @ViewBuilder private var backdrop: some View {
+        if let coverURL {
+            CoverImage(url: coverURL, contentMode: .fill, symbol: entry.media.symbol)
+                .frame(height: 440)
+                .blur(radius: 36, opaque: true)
+                .drawingGroup()
+                .opacity(0.4)
+                .mask(LinearGradient(
+                    stops: [.init(color: .clear, location: 0), .init(color: .black, location: 0.3),
+                            .init(color: .clear, location: 1)],
+                    startPoint: .top, endPoint: .bottom))
+                .offset(y: -140)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
+    }
+
+    /// MangaDex reports its content rating and original language as genres;
+    /// they read better as badges beside the status.
+    private var tags: (badges: [String], genres: [String]) {
+        var badges: [String] = []
+        var genres: [String] = []
+        for genre in details?.genres ?? [] {
+            let lower = genre.lowercased()
+            if lower.hasPrefix("content rating:") {
+                let rating = genre.dropFirst("content rating:".count).trimmingCharacters(in: .whitespaces)
+                if !rating.isEmpty, rating.lowercased() != "safe" { badges.append(rating.capitalized) }
+            } else if Self.languageTags.contains(lower) {
+                badges.append(genre)
+            } else {
+                genres.append(genre)
+            }
+        }
+        return (badges, genres)
+    }
+
+    private static let languageTags: Set<String> = [
+        "japanese", "korean", "chinese", "english", "indonesian", "thai", "vietnamese", "spanish",
+        "french", "portuguese", "russian", "german", "italian", "filipino", "arabic",
+    ]
+
     private var identity: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(details?.title ?? entry.title).font(.title3.weight(.semibold))
+            Text(details?.title ?? entry.title).font(.title2.weight(.bold))
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityAddTraits(.isHeader)
             if let byline = details?.byline, !byline.isEmpty {
                 Text(byline).font(.subheadline).foregroundStyle(.secondary)
             }
-            HStack(spacing: 6) {
+            ChipFlow(spacing: 6) {
                 if let status = details?.status {
                     badge(status.capitalized, accent: true)
                 }
                 badge(entry.sourceName)
+                ForEach(tags.badges, id: \.self) { badge($0) }
             }
         }
     }
 
     private func metadata(wide: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 16) {
             // Desktop SeriesHeader: cover beside the title on phones, stacked in the sidebar on wide layouts.
             if wide {
                 cover(width: 200)
                 identity
             } else {
                 HStack(alignment: .top, spacing: 16) {
-                    cover(width: 118)
+                    cover(width: 128)
                     identity.frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
@@ -218,58 +300,129 @@ struct DetailsView: View {
                     }
                 }.foregroundStyle(NavigationStyle.accent)
             }
-            if let genres = details?.genres, !genres.isEmpty {
-                Text(genres.joined(separator: " · "))
-                    .font(.caption).foregroundStyle(NavigationStyle.accent)
+            let genres = tags.genres
+            if !genres.isEmpty {
+                // A few genres say enough; the rest stay one tap away.
+                let shown = allGenres ? genres : Array(genres.prefix(4))
+                ChipFlow(spacing: 6) {
+                    ForEach(shown, id: \.self) { genre in
+                        Text(genre).font(.footnote).foregroundStyle(.secondary)
+                            .padding(.horizontal, 10).padding(.vertical, 5)
+                            .background(NavigationStyle.surface, in: Capsule())
+                    }
+                    if genres.count > shown.count {
+                        Text("+\(genres.count - shown.count)").font(.footnote.weight(.semibold))
+                            .foregroundStyle(NavigationStyle.accent)
+                            .padding(.horizontal, 10).padding(.vertical, 5)
+                            .background(NavigationStyle.surface, in: Capsule())
+                    }
+                }
+                .contentShape(Rectangle())
+                .onTapGesture { withAnimation(.snappy(duration: 0.25)) { allGenres.toggle() } }
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(.isButton)
+                .accessibilityLabel("Genres: \(genres.joined(separator: ", "))")
             }
             if let description = details?.description, !description.isEmpty {
-                Text(description).font(.subheadline).foregroundStyle(.secondary)
-                    .lineLimit(expanded ? nil : 5)
-                Button(expanded ? "Show less" : "Read more") { expanded.toggle() }
-                    .font(.caption).frame(minHeight: 44)
+                summary(description)
             }
-            Group {
-                if let target = model.continueTarget(preferences: chapterPreferences) {
-                    Button { open(target.chapter) } label: {
-                        Label(target.label, phosphor: entry.media == .anime ? "Play.fill" : "BookOpen.fill")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(NavigationStyle.background)
-                            .frame(maxWidth: .infinity, minHeight: 44)
-                            .background(NavigationStyle.accent, in: RoundedRectangle(cornerRadius: 6))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("details.continue")
-                }
-                HStack(spacing: 8) {
-                Button {
-                    Task { await toggleLibrary() }
-                } label: {
-                    Label(
-                        isSaved ? "In library" : "Add to library",
-                        phosphor: isSaved ? "Bookmark.fill" : "Bookmark"
-                    )
-                    .font(.subheadline)
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .background(NavigationStyle.surface, in: RoundedRectangle(cornerRadius: 6))
-                }
-                .disabled(saving)
-                if let details { manageMenu(details) }
-                }
-                if let details, !details.chapters.isEmpty {
-                    let read = model.completedCount
-                    HStack {
-                        Text("\(read) / \(details.chapters.count) read")
-                        Spacer()
-                        Text("\(Int(Double(read) / Double(details.chapters.count) * 100))%")
-                    }.font(.caption).foregroundStyle(.secondary)
-                    ProgressView(value: Double(read), total: Double(details.chapters.count))
-                }
-            }
+            actions
             if let error {
                 Text(error).font(.footnote).foregroundStyle(.secondary)
                 Button("Try again") { Task { await load(refresh: true) } }.frame(minHeight: 44)
             }
         }
+    }
+
+    /// Three lines that fade out; tapping anywhere on the text opens the rest.
+    private func summary(_ text: String) -> some View {
+        let long = text.count > 160 || text.filter(\.isNewline).count > 1
+        return Button {
+            withAnimation(.snappy(duration: 0.25)) { expanded.toggle() }
+        } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(text).font(.subheadline).foregroundStyle(.secondary)
+                    .multilineTextAlignment(.leading)
+                    .lineLimit(expanded || !long ? nil : 3)
+                    .mask {
+                        LinearGradient(
+                            stops: [.init(color: .black, location: 0),
+                                    .init(color: .black, location: expanded || !long ? 1 : 0.6),
+                                    .init(color: expanded || !long ? .black : .clear, location: 1)],
+                            startPoint: .top, endPoint: .bottom)
+                    }
+                if long {
+                    Text(expanded ? "Show less" : "Read more")
+                        .font(.caption.weight(.semibold)).foregroundStyle(NavigationStyle.accent)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!long)
+        .accessibilityHint(long ? (expanded ? "Shows less" : "Shows the full description") : "")
+    }
+
+    /// The main read button with a compact bookmark beside it. Before chapters
+    /// arrive the slot holds a placeholder so the row doesn't jump.
+    @ViewBuilder private var actions: some View {
+        let target = model.continueTarget(preferences: chapterPreferences)
+        if target != nil || (loading && (details?.chapters.isEmpty ?? true)) {
+            HStack(spacing: 8) {
+                Button {
+                    if let target { open(target.chapter) }
+                } label: {
+                    Label(target?.label ?? "Loading chapters", phosphor: entry.media == .anime ? "Play.fill" : "BookOpen.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(NavigationStyle.background)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .background(NavigationStyle.accent, in: RoundedRectangle(cornerRadius: 6))
+                        .opacity(target == nil ? 0.45 : 1)
+                }
+                .buttonStyle(.plain)
+                .disabled(target == nil)
+                .accessibilityIdentifier("details.continue")
+                libraryButton(compact: true)
+            }
+        } else {
+            libraryButton(compact: false)
+        }
+        if let details, model.completedCount > 0, !details.chapters.isEmpty {
+            let read = model.completedCount, total = details.chapters.count
+            VStack(spacing: 6) {
+                HStack {
+                    Text("\(read) of \(total) read")
+                    Spacer()
+                    Text("\(Int(Double(read) / Double(total) * 100))%")
+                }.font(.caption).foregroundStyle(.secondary)
+                ProgressView(value: Double(read), total: Double(total)).tint(NavigationStyle.accent)
+            }
+            .accessibilityElement(children: .combine)
+        }
+    }
+
+    private func libraryButton(compact: Bool) -> some View {
+        Button {
+            Task { await toggleLibrary() }
+        } label: {
+            Group {
+                if compact {
+                    PhosphorIcon(isSaved ? "Bookmark.fill" : "Bookmark").frame(width: 52)
+                } else {
+                    Label(isSaved ? "In library" : "Add to library", phosphor: isSaved ? "Bookmark.fill" : "Bookmark")
+                        .font(.subheadline).frame(maxWidth: .infinity)
+                }
+            }
+            .foregroundStyle(NavigationStyle.accent)
+            .frame(minHeight: 44)
+            .background(NavigationStyle.surface, in: RoundedRectangle(cornerRadius: 6))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(saving)
+        .accessibilityLabel(isSaved ? "In library" : "Add to library")
+        .accessibilityIdentifier("details.library")
     }
 
     private var chapters: some View {
@@ -292,7 +445,6 @@ struct DetailsView: View {
                         .frame(width: 44, height: 44)
                 }.accessibilityLabel("Sort chapters")
                 if let details, !details.chapters.isEmpty {
-                    downloadMenu(details)
                     Button {
                         selecting.toggle()
                         selected = []
@@ -301,18 +453,25 @@ struct DetailsView: View {
                     }.accessibilityLabel(selecting ? "Done selecting" : "Select chapters")
                     .accessibilityIdentifier("details.select")
                 }
-                Button {
-                    Task { await load(refresh: true) }
+                Menu {
+                    if let details, !details.chapters.isEmpty { downloadMenu(details) }
+                    Button("Refresh chapters", phosphor: "ArrowsClockwise") {
+                        Task { await load(refresh: true) }
+                    }.disabled(loading)
                 } label: {
-                    PhosphorIcon("ArrowsClockwise").frame(width: 44, height: 44)
-                }.accessibilityLabel("Refresh chapters").disabled(loading)
+                    PhosphorIcon("DotsThreeCircle").frame(width: 44, height: 44)
+                }
+                .accessibilityLabel("More chapter actions")
+                .accessibilityIdentifier("details.chapterActions")
             }
             if let details {
                 ChapterScanlatorMenu(chapters: details.chapters, mediaID: entry.id)
             }
-            TextField("Filter chapters", text: $chapterQuery)
-                .font(.subheadline).padding(12)
-                .background(NavigationStyle.surface, in: RoundedRectangle(cornerRadius: 6))
+            if (details?.chapters.count ?? 0) > 20 || !chapterQuery.isEmpty {
+                TextField("Filter chapters", text: $chapterQuery)
+                    .font(.subheadline).padding(12)
+                    .background(NavigationStyle.surface, in: RoundedRectangle(cornerRadius: 6))
+            }
             if let chapterError = model.chapterError {
                 Text(chapterError).font(.footnote).foregroundStyle(.secondary)
                     .accessibilityIdentifier("details.chapterError")
@@ -402,9 +561,7 @@ struct DetailsView: View {
                 }
             }
         } label: {
-            PhosphorIcon("DotsThree", size: 20)
-                .frame(width: 44, height: 44)
-                .background(NavigationStyle.surface, in: RoundedRectangle(cornerRadius: 6))
+            PhosphorIcon("DotsThree", size: 22).frame(width: 44, height: 44).contentShape(Rectangle())
         }
         .accessibilityLabel("Manage")
         .accessibilityIdentifier("details.manage")
@@ -490,7 +647,7 @@ struct DetailsView: View {
                 }
             }
         } label: {
-            PhosphorIcon("DownloadSimple").frame(width: 44, height: 44)
+            Label("Download", phosphor: "DownloadSimple")
         }
         .accessibilityLabel("Download chapters")
         .accessibilityIdentifier("details.downloadMenu")
@@ -647,5 +804,44 @@ struct ChapterScanlatorMenu: View {
         .onChange(of: mediaID) { _, id in
             preferences = ChapterDisplayPreferences.read(data, id: id)
         }
+    }
+}
+
+/// Wraps chips onto as many rows as they need.
+private struct ChipFlow: Layout {
+    var spacing: CGFloat = 6
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let rows = arrange(width: proposal.width ?? .infinity, subviews: subviews)
+        return CGSize(width: rows.width, height: rows.height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let rows = arrange(width: bounds.width, subviews: subviews)
+        for (index, frame) in rows.frames.enumerated() {
+            subviews[index].place(
+                at: CGPoint(x: bounds.minX + frame.minX, y: bounds.minY + frame.minY),
+                proposal: ProposedViewSize(frame.size))
+        }
+    }
+
+    private func arrange(width: CGFloat, subviews: Subviews) -> (frames: [CGRect], width: CGFloat, height: CGFloat) {
+        var frames: [CGRect] = []
+        var x: CGFloat = 0, y: CGFloat = 0, row: CGFloat = 0, widest: CGFloat = 0
+        for view in subviews {
+            var size = view.sizeThatFits(.unspecified)
+            // A chip longer than the row wraps its own text instead of overflowing.
+            if size.width > width { size = view.sizeThatFits(ProposedViewSize(width: width, height: nil)) }
+            if x > 0, x + size.width > width {
+                x = 0
+                y += row + spacing
+                row = 0
+            }
+            frames.append(CGRect(origin: CGPoint(x: x, y: y), size: size))
+            x += size.width + spacing
+            row = max(row, size.height)
+            widest = max(widest, x - spacing)
+        }
+        return (frames, widest, y + row)
     }
 }

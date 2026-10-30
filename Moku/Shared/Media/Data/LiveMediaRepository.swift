@@ -43,8 +43,9 @@ actor LiveMediaRepository: SearchRepository {
                     : "No installed source matches your search filters. Clear the filters or choose a different content type."
             )
         }
+        // Each source answers independently, so a slow one must not hold the others back.
         let batches: [Result<[MediaEntry], any Error>] = try await concurrentMap(
-            selected, limit: 3,
+            selected, limit: 6,
             onUpdate: { batches in
                 await onUpdate(batches.compactMap { try? $0.get() }.flatMap { $0 })
             },
@@ -71,7 +72,7 @@ actor LiveMediaRepository: SearchRepository {
                         let query =
                             "{ search(extensionId: \(BackendAPI.literal(source.id)), query: \(BackendAPI.literal(request.query)), page: \(max(1, request.page))\(filters.isEmpty ? "" : ", filters: \(filters)")) { results { id externalId title contentType thumbnailUrl } hasNextPage } }"
                         let response: SearchResponse = try await BackendAPI.shared.graphql(
-                            query, cacheFor: 60)
+                            query, cacheFor: 300)
                         for item in response.search.results where seen.insert(item.externalId).inserted {
                             entries.append(MediaEntry(
                                 id: item.id, title: item.title, media: Self.media(item.contentType),
@@ -128,7 +129,7 @@ actor LiveMediaRepository: SearchRepository {
                 ? "Add a source in More → Extensions to discover titles."
                 : "No installed sources match this mode and language.")
         }
-        let batches: [Result<[MediaEntry], any Error>] = try await concurrentMap(selected, limit: 3) { source in
+        let batches: [Result<[MediaEntry], any Error>] = try await concurrentMap(selected, limit: 6) { source in
             do {
                 struct Response: Decodable, Sendable { let listing: SearchResponse.Page }
                 let response: Response = try await BackendAPI.shared.graphql(

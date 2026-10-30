@@ -421,12 +421,12 @@ final class SearchViewModel {
         let sorted = await Self.sorted(entries, by: request.options.sort)
         guard !Task.isCancelled, self.generation == generation else { return }
         state = .results(sorted.filter { !emptyIDs.contains($0.id) })
-        probeForContent(sorted, request: request, generation: generation)
     }
 
     /// Forward fetching for typed searches: each result's chapters are checked in
     /// the background, and titles confirmed empty at their source are removed.
     /// Results stay visible while checking, and a failed check keeps the title.
+    /// Checks start once every source has answered, so they never slow the search.
     private func probeForContent(_ entries: [MediaEntry], request: SearchRequest, generation: Int) {
         guard request.options.hidesEmpty, !request.query.isEmpty, !isLibrary else { return }
         let fresh = entries.filter { probedIDs.insert($0.id).inserted }

@@ -145,6 +145,12 @@ import Observation
         error = nil
         chapterError = nil
         defer { if generation == current { loading = false } }
+        // Search and library titles already carry the server's media ID, so the
+        // chapters load alongside the title info instead of after it.
+        let early: Task<[Chapter], Error>? =
+            details == nil || details?.id == entry.id
+            ? Task { [repository, entry] in try await repository.chapters(mediaID: entry.id, refresh: refresh) }
+            : nil
         do {
             var metadata = try await repository.metadata(for: entry, refresh: refresh)
             try Task.checkCancellation()
@@ -156,9 +162,20 @@ import Observation
             guard !Task.isCancelled, generation == current else { return }
             self.error = "Couldn’t refresh title details. Check your connection and try again."
         }
-        guard !Task.isCancelled, generation == current, let id = details?.id else { return }
+        guard !Task.isCancelled, generation == current, let id = details?.id else {
+            early?.cancel()
+            return
+        }
         do {
-            let chapters = try await repository.chapters(mediaID: id, refresh: refresh)
+            let chapters: [Chapter]
+            if let early, id == entry.id {
+                chapters = try await withTaskCancellationHandler {
+                    try await early.value
+                } onCancel: { early.cancel() }
+            } else {
+                early?.cancel()
+                chapters = try await repository.chapters(mediaID: id, refresh: refresh)
+            }
             try Task.checkCancellation()
             guard generation == current else { return }
             details?.chapters = chapters
