@@ -21,13 +21,18 @@ extension LiveMediaRepository {
     func chapterCount(_ entry: MediaEntry) async throws -> Int? {
         guard let extensionID = entry.extensionID, let externalID = entry.externalID else { return nil }
         struct Response: Decodable, Sendable {
-            struct Media: Decodable, Sendable { let chapterCount: Int }
+            struct Media: Decodable, Sendable {
+                let id: String
+                let chapterCount: Int
+            }
             let resolveMedia: Media
         }
-        // Syncing here also means the chapter list is ready when the title is opened.
         let result: Response = try await BackendAPI.shared.graphql(
-            "{ resolveMedia(extensionId: \(BackendAPI.literal(extensionID)), externalId: \(BackendAPI.literal(externalID)), syncChapters: true) { chapterCount } }",
+            "{ resolveMedia(extensionId: \(BackendAPI.literal(extensionID)), externalId: \(BackendAPI.literal(externalID)), syncChapters: true) { id chapterCount } }",
             cacheFor: 600)
+        // The chapters were just synced, so opening this title reads them from
+        // the database instead of asking the source again.
+        chaptersSyncedAt[result.resolveMedia.id] = .now
         return result.resolveMedia.chapterCount
     }
 
@@ -56,7 +61,7 @@ extension LiveMediaRepository: DetailsRepository {
     func chapters(mediaID: String, refresh: Bool) async throws -> [Chapter] {
         try Task.checkCancellation()
         if let existing = chapterRequests[mediaID] { return try await existing.value }
-        if !refresh, let synced = chaptersSyncedAt[mediaID], Date.now.timeIntervalSince(synced) < 120 {
+        if !refresh, let synced = chaptersSyncedAt[mediaID], Date.now.timeIntervalSince(synced) < 600 {
             // Reopening a title reads current progress from SQLite without asking
             // the extension to rescrape the entire chapter catalog.
             struct Stored: Decodable, Sendable {
@@ -86,7 +91,7 @@ extension LiveMediaRepository: DetailsRepository {
         chaptersSyncedAt[mediaID] = .now
         // Keep this freshness index bounded even across long browsing sessions.
         if chaptersSyncedAt.count > 256 {
-            chaptersSyncedAt = chaptersSyncedAt.filter { Date.now.timeIntervalSince($0.value) < 120 }
+            chaptersSyncedAt = chaptersSyncedAt.filter { Date.now.timeIntervalSince($0.value) < 600 }
         }
         return chapters
     }
