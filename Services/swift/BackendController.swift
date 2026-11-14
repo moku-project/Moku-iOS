@@ -18,14 +18,11 @@ public actor BackendController {
         }
     }
 
-    public struct CoreStatus: Decodable, Sendable {
-        public let name: String
-        public let mode: String
-        public let migrations: Int
+    public struct CoreStatus: Sendable {
+        /// The core answered its health check.
         public let graphqlAvailable: Bool
+        /// The JVM extension host is attached and answered when it was.
         public let extensionsAvailable: Bool
-        public let capabilities: [String: Bool]
-        public let limitations: [String]
     }
 
     public enum BackendError: Error {
@@ -75,6 +72,7 @@ public actor BackendController {
     public private(set) var state: State = .stopped
     private var connection: Connection?
     private var restartConfiguration: (URL, EmbeddedSandbox?, Bool)?
+    private var extensionsAttached = false
 
     public init() {}
 
@@ -101,12 +99,12 @@ public actor BackendController {
         restartConfiguration = (dataDirectory, sandbox, deferSandbox)
         do {
             let result = try await worker.start(dataDirectory: dataDirectory, sandbox: sandbox, deferSandbox: deferSandbox)
-            let status = try await Self.fetchStatus(result)
-            guard status.mode == "embedded-core", status.migrations > 0 else {
-                throw BackendError.unhealthyResponse
-            }
+            try await Self.checkHealth(result)
             try Task.checkCancellation()
             connection = result
+            // Tsunagu's StartWithSandbox only records the address; it is
+            // confirmed on first use. Deferred starts attach later.
+            extensionsAttached = sandbox != nil
             state = .running
             return result
         } catch {
@@ -123,7 +121,9 @@ public actor BackendController {
 
     public func attachSandbox(_ sandbox: EmbeddedSandbox) async throws {
         guard state == .running else { throw BackendError.invalidTransition(state) }
+        // Returns once the host answers; throws if it does not come up.
         try await worker.perform { try $0.attachSandbox(sandbox.address, token: sandbox.token) }
+        extensionsAttached = true
         if let (directory, _, _) = restartConfiguration {
             restartConfiguration = (directory, sandbox, false)
         }
@@ -133,7 +133,8 @@ public actor BackendController {
         guard state == .running, let connection else {
             throw BackendError.invalidTransition(state)
         }
-        return try await Self.fetchStatus(connection)
+        try await Self.checkHealth(connection)
+        return CoreStatus(graphqlAvailable: true, extensionsAvailable: extensionsAttached)
     }
 
     public func stop() async throws {
@@ -142,6 +143,7 @@ public actor BackendController {
         }
         if state == .stopped { return }
         state = .stopping
+        extensionsAttached = false
         defer { connection = nil }
         do {
             try await worker.stop()
@@ -152,17 +154,18 @@ public actor BackendController {
         }
     }
 
-    private static func fetchStatus(_ connection: Connection) async throws -> CoreStatus {
+    private static func checkHealth(_ connection: Connection) async throws {
         // The local server doesn't redirect. Refuse redirects so its credential
         // can never be forwarded to another endpoint.
         let session = URLSession(
             configuration: .ephemeral, delegate: NoRedirects(), delegateQueue: nil)
         defer { session.invalidateAndCancel() }
         let (data, response) = try await session.data(for: connection.statusRequest())
-        guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+        guard (response as? HTTPURLResponse)?.statusCode == 200,
+            String(decoding: data, as: UTF8.self) == "ok"
+        else {
             throw BackendError.unhealthyResponse
         }
-        return try JSONDecoder().decode(CoreStatus.self, from: data)
     }
 }
 

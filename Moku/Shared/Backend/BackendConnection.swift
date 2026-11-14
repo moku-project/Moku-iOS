@@ -89,7 +89,7 @@ extension BackendController {
         }
 
         public func statusRequest() -> URLRequest {
-            var request = URLRequest(url: baseURL.appendingPathComponent("api/mobile/status"))
+            var request = URLRequest(url: baseURL.appendingPathComponent("healthz"))
             request.timeoutInterval = 5
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             return request

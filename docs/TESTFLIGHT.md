@@ -43,10 +43,9 @@ is enough. **Run `./moku-ios backend inputs` first.** `package-jvm` silently
 produces a `libopenjdk.a` without libffi when `Services/.build/libffi-device` is
 missing, and the device link then fails with undefined `_ffi_call`.
 
-The submodule `vendor/Tsunagu` points at commit(s) on the local
-`testflight-ready` branch of the Tsunagu fork. **Push that branch to
-`kannachi323/Tsunagu` before anyone else clones Moku-iOS**, or the submodule
-commit will not resolve.
+Tsunagu is built from `../Tsunagu` (a checkout of moku-project/Tsunagu next
+to this repository). Archive with it on the commit you mean to ship, and make
+sure that commit is pushed.
 
 ## 2. App Store Connect record
 
@@ -131,7 +130,7 @@ features, and background updates are off by default.
       is no keychain entitlement. Run it from Xcode with signing on.
 - [ ] `./moku-ios test acceptance` passes (52/52 on 2026-10-28)
 - [ ] Launch on a real device: first launch starts the backend and Search shows sources
-- [ ] Archive from a clean checkout with the submodule pushed
+- [ ] Archive from a clean checkout, with `../Tsunagu` on a pushed commit
 
 ## Known issues at hand-off (2026-10-28)
 

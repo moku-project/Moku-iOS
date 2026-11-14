@@ -47,12 +47,19 @@ The app bundles and starts Tsunagu automatically. No separate server or Java ins
 
 The `moku-ios` Swift tool is included in this repository. No separate install is needed.
 
+Tsunagu is built from a checkout next to this one, the same layout Moku-Android uses:
+
 ```sh
-git clone --recurse-submodules https://github.com/moku-project/Moku-iOS
+git clone https://github.com/moku-project/Tsunagu
+git clone https://github.com/moku-project/Moku-iOS
 cd Moku-iOS
 ./moku-ios doctor
 ./moku-ios dev
 ```
+
+The app embeds Tsunagu through its upstream `backend/embedded` package
+(`Services/binding.go`) and runs Tsunagu's sandbox in the app's JVM
+(`tsunagu.Embedded`). Changes to `../Tsunagu` are picked up on the next build.
 
 The CLI prepares the backend, launches Simulator, and watches for changes. Use `./moku-ios run` for a single build and launch, or `./moku-ios test` to run unit tests.
 

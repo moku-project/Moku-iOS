@@ -25,7 +25,6 @@ settings:
     SWIFT_STRICT_CONCURRENCY: complete
     'FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]': '$(inherited) $(SRCROOT)/Services/.build/Tsunagu.xcframework/ios-arm64-simulator'
     'FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]': '$(inherited) $(SRCROOT)/Services/.build/Tsunagu.xcframework/ios-arm64'
-    SWIFT_INCLUDE_PATHS: "$(inherited) $(SRCROOT)/Configuration/Tsunagu"
     TARGETED_DEVICE_FAMILY: "1,2"
     CODE_SIGN_STYLE: Automatic
     GENERATE_INFOPLIST_FILE: YES
@@ -67,7 +66,7 @@ targets:
           - $(SRCROOT)/Services/.build/openjdk-local/$(MOKU_BACKEND_PLATFORM)/lib
           - $(SRCROOT)/Services/.build/native-$(MOKU_BACKEND_PLATFORM)/libtsunagu.a
           - $(SRCROOT)/Services/.build/native-$(MOKU_BACKEND_PLATFORM)/libtsmedia.a
-          - $(SRCROOT)/vendor/Tsunagu/sandbox/build/libs/sandbox-0.6.0-all.jar
+          - $(SRCROOT)/../Tsunagu/sandbox/build/libs/sandbox-0.6.0-all.jar
           - $(SRCROOT)/Services/.build/ffmpeg/$(MOKU_BACKEND_PLATFORM)/COPYING.LGPLv2.1
           - $(SRCROOT)/Services/.build/ffmpeg/$(MOKU_BACKEND_PLATFORM)/LICENSE.md
           - $(SRCROOT)/Services/THIRD_PARTY_MEDIA.md
@@ -86,7 +85,6 @@ targets:
         SWIFT_OBJC_BRIDGING_HEADER: Configuration/Moku-Bridging-Header.h
         'FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]': '$(inherited) $(SRCROOT)/Services/.build/Tsunagu.xcframework/ios-arm64-simulator'
         'FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]': '$(inherited) $(SRCROOT)/Services/.build/Tsunagu.xcframework/ios-arm64'
-        SWIFT_INCLUDE_PATHS: "$(inherited) $(SRCROOT)/Configuration/Tsunagu"
         'MOKU_BACKEND_PLATFORM[sdk=iphoneos*]': device
         'MOKU_BACKEND_PLATFORM[sdk=iphonesimulator*]': simulator
         OTHER_LDFLAGS: '$(inherited) -Wl,-export_dynamic -Wl,-force_load,$(SRCROOT)/Services/.build/native-$(MOKU_BACKEND_PLATFORM)/libtsunagu.a $(SRCROOT)/Services/.build/native-$(MOKU_BACKEND_PLATFORM)/libtsmedia.a -framework Foundation -framework Security -framework CoreFoundation -framework CFNetwork -framework VideoToolbox -framework CoreMedia -framework CoreVideo -framework AudioToolbox -lresolv -lz -lxml2 -lc++'

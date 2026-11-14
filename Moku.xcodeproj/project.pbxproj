@@ -317,6 +317,7 @@
 		1064F38113DF2D793CC8A39A /* GeneralSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettingsTests.swift; sourceTree = "<group>"; };
 		10BDBC42F683D885898E5FF5 /* GeneralPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralPreferences.swift; sourceTree = "<group>"; };
 		10F5CEFFCDB31FC4CDC4612B /* SourceOverridesContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceOverridesContent.swift; sourceTree = "<group>"; };
+		1123EC48B73097F1E25ED152 /* TsunaguSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TsunaguSource.swift; sourceTree = "<group>"; };
 		11D5E44FF092A273D2F565A0 /* Moku.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Moku.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		127C588CD89B78E53210D4B7 /* LibraryFilters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryFilters.swift; sourceTree = "<group>"; };
 		12817FFE46CEAD6DD5E81C6A /* SettingsStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStorage.swift; sourceTree = "<group>"; };
@@ -337,7 +338,6 @@
 		1B40B341B72572B547D30AFB /* SourcePreference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourcePreference.swift; sourceTree = "<group>"; };
 		1B89F846AA1FAE7B690834AF /* MokuLinksModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MokuLinksModal.swift; sourceTree = "<group>"; };
 		1C24FA292FA30DDF6F0FE9DE /* AppTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTab.swift; sourceTree = "<group>"; };
-		1C30BEAB20E37EA43B974074 /* module.modulemap */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.module-map"; path = module.modulemap; sourceTree = "<group>"; };
 		1C6905DC673D065E297D4B83 /* ExtensionIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionIdentity.swift; sourceTree = "<group>"; };
 		1C7F5EB3FACC7C9469835F5A /* RemainingParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemainingParityTests.swift; sourceTree = "<group>"; };
 		1C8972850F25AC3E7382E2C5 /* LiveMediaRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveMediaRepository.swift; sourceTree = "<group>"; };
@@ -919,7 +919,6 @@
 				50912EB2E952AA4A0EF49252 /* Moku-Bridging-Header.h */,
 				FE18D8C6F176CADC80C71FAB /* Release.xcconfig */,
 				5D0E11AEC8ACDCFACF5D4E76 /* swift-format.json */,
-				99D5935BD3C3B8866408D5DE /* Tsunagu */,
 			);
 			path = Configuration;
 			sourceTree = "<group>";
@@ -1209,14 +1208,6 @@
 			path = Details;
 			sourceTree = "<group>";
 		};
-		99D5935BD3C3B8866408D5DE /* Tsunagu */ = {
-			isa = PBXGroup;
-			children = (
-				1C30BEAB20E37EA43B974074 /* module.modulemap */,
-			);
-			path = Tsunagu;
-			sourceTree = "<group>";
-		};
 		9A4FB16BC660249BDAD6920F /* Resources */ = {
 			isa = PBXGroup;
 			children = (
@@ -1451,6 +1442,7 @@
 				E5B6F93FD0071E53D7CB5F01 /* RuntimePackaging.swift */,
 				89C3A26B6C37F431FBA91669 /* Simulator.swift */,
 				824D092C49A3155F7EBBDC22 /* Support.swift */,
+				1123EC48B73097F1E25ED152 /* TsunaguSource.swift */,
 				13B6826CE58B02AF90ECACCA /* Workflow.swift */,
 			);
 			path = CLICore;
@@ -1779,7 +1771,6 @@
 				};
 			};
 			buildConfigurationList = 59FA297B3F2E84D1DDDCD262 /* Build configuration list for PBXProject "Moku" */;
-			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -1789,6 +1780,7 @@
 			mainGroup = 30EE511630393F013C1E6EBB;
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
+			productRefGroup = 145C08D9B375ABE7AD448560 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -1831,7 +1823,7 @@
 				"$(SRCROOT)/Services/.build/openjdk-local/$(MOKU_BACKEND_PLATFORM)/lib",
 				"$(SRCROOT)/Services/.build/native-$(MOKU_BACKEND_PLATFORM)/libtsunagu.a",
 				"$(SRCROOT)/Services/.build/native-$(MOKU_BACKEND_PLATFORM)/libtsmedia.a",
-				"$(SRCROOT)/vendor/Tsunagu/sandbox/build/libs/sandbox-0.6.0-all.jar",
+				"$(SRCROOT)/../Tsunagu/sandbox/build/libs/sandbox-0.6.0-all.jar",
 				"$(SRCROOT)/Services/.build/ffmpeg/$(MOKU_BACKEND_PLATFORM)/COPYING.LGPLv2.1",
 				"$(SRCROOT)/Services/.build/ffmpeg/$(MOKU_BACKEND_PLATFORM)/LICENSE.md",
 				"$(SRCROOT)/Services/THIRD_PARTY_MEDIA.md",
@@ -2197,7 +2189,6 @@
 				SDKROOT = iphoneos;
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SWIFT_INCLUDE_PATHS = "$(inherited) $(SRCROOT)/Configuration/Tsunagu";
 				SWIFT_OBJC_BRIDGING_HEADER = "Configuration/Moku-Bridging-Header.h";
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -2254,7 +2245,6 @@
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
-				SWIFT_INCLUDE_PATHS = "$(inherited) $(SRCROOT)/Configuration/Tsunagu";
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -2290,7 +2280,6 @@
 				SDKROOT = iphoneos;
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SWIFT_INCLUDE_PATHS = "$(inherited) $(SRCROOT)/Configuration/Tsunagu";
 				SWIFT_OBJC_BRIDGING_HEADER = "Configuration/Moku-Bridging-Header.h";
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -2354,7 +2343,6 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
-				SWIFT_INCLUDE_PATHS = "$(inherited) $(SRCROOT)/Configuration/Tsunagu";
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";

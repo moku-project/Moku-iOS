@@ -13,7 +13,7 @@ public final class Workflow {
         inputs: [
           "Services/binding.go", "Services/go.mod", "Services/go.sum",
           "Tools/CLI/Sources/CLICore/NativeBuild.swift", "Tools/CLI/Sources/CLICore/Support.swift",
-          "vendor/Tsunagu/backend",
+          TsunaguSource.backend,
         ],
         outputs: [
           "Services/.build/Tsunagu.xcframework/ios-arm64/Tsunagu.framework/Tsunagu",
@@ -39,11 +39,9 @@ public final class Workflow {
     if ["all", "sandbox", "native"].contains(task) {
       try Cache.cached(
         runner.root, "sandbox",
-        inputs: [
-          "vendor/Tsunagu/sandbox/src", "vendor/Tsunagu/sandbox/build.gradle.kts",
-          "vendor/Tsunagu/sandbox/settings.gradle.kts", "vendor/Tsunagu/proto",
+        inputs: TsunaguSource.sandboxInputs + [
           "Tools/CLI/Sources/CLICore/NativeBuild.swift", "Tools/CLI/Sources/CLICore/Support.swift",
-        ], outputs: ["vendor/Tsunagu/sandbox/build/libs/sandbox-0.6.0-all.jar"],
+        ], outputs: [TsunaguSource.sandboxJar],
         force: force && ["all", "sandbox"].contains(task)
       ) { try native.sandbox() }
     }
@@ -56,7 +54,7 @@ public final class Workflow {
           "Tools/CLI/Sources/CLICore/NativeBuild.swift", "Tools/CLI/Sources/CLICore/Support.swift",
           "Services/.build/Tsunagu.xcframework/\(slice)/Tsunagu.framework",
           "Services/.build/openjdk-local/\(platform)",
-          "vendor/Tsunagu/sandbox/build/libs/sandbox-0.6.0-all.jar",
+          TsunaguSource.sandboxJar,
         ],
         outputs: [
           "Services/.build/native-\(platform)/libtsunagu.a",
@@ -87,7 +85,11 @@ public final class Workflow {
     let selected = try Simulator.select(Simulator.devices(json), requested: requested)
     if selected.state != "Booted" { try runner.run(["xcrun", "simctl", "boot", selected.udid]) }
     try runner.run(["xcrun", "simctl", "bootstatus", selected.udid, "-b"])
-    try runner.run(["open", "-a", "Simulator"])
+    // The window is only a viewer; the device runs without it. Some Xcode
+    // installs have no Simulator app registered.
+    do { try runner.run(["open", "-a", "Simulator"]) } catch {
+      print("Simulator window unavailable; \(selected.name) is running without it.")
+    }
     return selected
   }
   func xcode(
@@ -122,10 +124,8 @@ public final class Workflow {
     let watched = [
       "Moku", "Configuration", "project.yml", "Tests", "UITests", "Services/binding.go",
       "Services/go.mod", "Services/go.sum", "Services/swift", "Services/native", "Services/java",
-      "Services/tests", "Services/patches", "Tools/CLI/Sources", "vendor/Tsunagu/backend",
-      "vendor/Tsunagu/sandbox/src", "vendor/Tsunagu/sandbox/build.gradle.kts",
-      "vendor/Tsunagu/sandbox/settings.gradle.kts", "vendor/Tsunagu/proto",
-    ]
+      "Services/tests", "Services/patches", "Tools/CLI/Sources", TsunaguSource.backend,
+    ] + TsunaguSource.sandboxInputs
     var previous: [String: String]?
     while !runner.cancelled {
       let current = try Cache.snapshot(runner.root, watched)
@@ -161,7 +161,7 @@ public final class Workflow {
     }
     let platform = sdk == "iphoneos" ? "device" : "simulator"
     let runtime = runner.path("Services/.build/openjdk-local/\(platform)/lib")
-    let sandbox = runner.path("vendor/Tsunagu/sandbox/build/libs/sandbox-0.6.0-all.jar")
+    let sandbox = runner.path(TsunaguSource.sandboxJar)
     for path in [
       runtime, sandbox, runner.path("Services/.build/native-\(platform)/libtsunagu.a"),
       runner.path("Services/.build/native-\(platform)/libtsmedia.a"),
@@ -226,7 +226,7 @@ public final class Workflow {
     print("Checkout: \(runner.root.path)")
     var missing = false
     for tool in [
-      "swift", "xcodebuild", "xcrun", "xcodegen", "go", "javac", "make", "autoconf",
+      "swift", "xcodebuild", "xcrun", "xcodegen", "go", "javac", "make", "autoconf", "pkg-config",
       "rsync", "curl", "tar", "zip", "unzip",
     ] {
       do {

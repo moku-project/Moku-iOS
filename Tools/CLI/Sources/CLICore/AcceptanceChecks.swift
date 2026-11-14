@@ -4,7 +4,7 @@ extension AcceptanceSuite {
   func run(budget: Double) throws {
     try check("http.authentication") {
       try require(
-        try api.request("/api/mobile/status", authenticated: false).status == 401,
+        try api.request("/api/graphql", authenticated: false).status == 401,
         "Unauthenticated API accepted")
     }
     for (name, index) in [("fixture", "index.pb"), ("novel", "novels.json")] {

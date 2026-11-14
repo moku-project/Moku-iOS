@@ -98,13 +98,14 @@ static JNIEnv *startVM(NSString *runtimeHome, NSString *classPath, NSString *tem
     JNIEnv *env=startVM(runtimeHome,classPath,[directory stringByAppendingPathComponent:@"tmp"],error);
     if (!env) return 0;
     jclass cls=(*env)->FindClass(env,"tsunagu/Embedded");
-    jmethodID method=cls ? (*env)->GetStaticMethodID(env,cls,"start","(Ljava/lang/String;Ljava/lang/String;)I") : NULL;
+    jmethodID method=cls ? (*env)->GetStaticMethodID(env,cls,"start","(Ljava/lang/String;Ljava/lang/String;Z)I") : NULL;
     jstring path=NULL, credential=NULL;
     jint port=0;
     if (method && !(*env)->ExceptionCheck(env)) {
         path=(*env)->NewStringUTF(env,directory.UTF8String);
         credential=(*env)->NewStringUTF(env,token.UTF8String);
-        if(path && credential) port=(*env)->CallStaticIntMethod(env,cls,method,path,credential);
+        // tsunagu.Embedded.start(dataDirectory, token, novelEnabled)
+        if(path && credential) port=(*env)->CallStaticIntMethod(env,cls,method,path,credential,JNI_TRUE);
     }
     if ((*env)->ExceptionCheck(env)) {
         if(error) *error=[NSError errorWithDomain:@"Moku.JVM" code:4 userInfo:@{NSLocalizedDescriptionKey:exceptionMessage(env)}];

@@ -39,12 +39,14 @@ final class NativeBuild {
     try run(["git", "apply", patch.path], cwd: directory)
   }
   func prepare() throws {
-    if !FileManager.default.fileExists(atPath: runner.path("vendor/Tsunagu/backend/go.mod").path) {
-      try runner.run([
-        "git", "submodule", "update", "--init", "--recursive", "--", "vendor/Tsunagu",
-      ])
-    }
-    try apply(path("patches/0001-embedded-core.patch"), in: runner.path("vendor/Tsunagu"))
+    let checkout = runner.path(TsunaguSource.root).standardizedFileURL
+    try require(
+      FileManager.default.fileExists(
+        atPath: checkout.appendingPathComponent("backend/embedded/embedded.go").path),
+      """
+      Tsunagu not found at \(checkout.path). Clone it next to Moku-iOS:
+        git clone https://github.com/moku-project/Tsunagu \(checkout.path)
+      """)
   }
   func download(_ url: String, to destination: URL, hash: String) throws {
     try mkdir(destination.deletingLastPathComponent())
@@ -82,8 +84,8 @@ final class NativeBuild {
         "3623232f33a9c3baadf304480b2535f9a3cba8a58d42ecbb438ba267315d9998", cache
       ),
       (
-        "gradle-8.14.4-bin.zip", "https://services.gradle.org/distributions/gradle-8.14.4-bin.zip",
-        "f1771298a70f6db5a29daf62378c4e18a17fc33c9ba6b14362e0cdf40610380d", cache
+        "gradle-9.9.1-bin.zip", "https://services.gradle.org/distributions/gradle-9.9.1-bin.zip",
+        "d8a18a7a841dd5df825d35a685fad6f2d7f12ac0c280e57b67c27b4a520ba228", cache
       ),
       (
         "libffi-ios-sim.zip",
@@ -107,7 +109,7 @@ final class NativeBuild {
         if name.hasPrefix("gradle") {
           try FileManager.default.setAttributes(
             [.posixPermissions: 0o755],
-            ofItemAtPath: cache.appendingPathComponent("gradle-8.14.4/bin/gradle").path)
+            ofItemAtPath: cache.appendingPathComponent("gradle-9.9.1/bin/gradle").path)
         }
         try write("", marker)
       }
@@ -144,8 +146,8 @@ final class NativeBuild {
     try fetchInputs()
     try run(
       [
-        path(".build/toolchains/gradle-8.14.4/bin/gradle").path, "-p",
-        runner.path("vendor/Tsunagu/sandbox").path, "--no-daemon", "shadowJar",
+        path(".build/toolchains/gradle-9.9.1/bin/gradle").path, "-p",
+        runner.path(TsunaguSource.sandbox).path, "--no-daemon", "shadowJar",
       ], environment: ["JAVA_HOME": path(".build/toolchains/jdk-21.0.12.1+1/Contents/Home").path])
   }
   func jvm(_ value: String) throws {
@@ -295,17 +297,20 @@ final class NativeBuild {
     try copy(
       path("THIRD_PARTY_MEDIA.md"),
       app.appendingPathComponent("ThirdPartyNotices/FFmpeg/BUILD-AND-SOURCE.md"))
+    // The tool's own JDK: macOS's /usr/bin/javac is only a stub when no Java is installed.
+    try fetchInputs()
+    let jdkBin = path(".build/toolchains/jdk-21.0.12.1+1/Contents/Home/bin")
     for (dir, source, name) in [
       ("probe", "java/RuntimeProbe.java", "RuntimeProbe"),
       ("fixture", "tests/java/Extension.java", "Fixture"),
     ] {
       try mkdir(path(".build/java/\(dir)"))
-      try run(["javac", "--release", "11", "-d", ".build/java/\(dir)", source])
-      try run(["jar", "cf", ".build/java/\(name).jar", "-C", ".build/java/\(dir)", "."])
+      try run([jdkBin.appendingPathComponent("javac").path, "--release", "11", "-d", ".build/java/\(dir)", source])
+      try run([jdkBin.appendingPathComponent("jar").path, "cf", ".build/java/\(name).jar", "-C", ".build/java/\(dir)", "."])
       try copy(path(".build/java/\(name).jar"), app.appendingPathComponent("\(name).jar"))
     }
     try copy(
-      runner.path("vendor/Tsunagu/sandbox/build/libs/sandbox-0.6.0-all.jar"),
+      runner.path(TsunaguSource.sandboxJar),
       app.appendingPathComponent("Sandbox.jar"))
     if local {
       try copy(jdk.appendingPathComponent("lib"), app.appendingPathComponent("lib"))

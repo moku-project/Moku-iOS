@@ -23,6 +23,7 @@ require (
 	github.com/klauspost/compress v1.20.1 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/mattn/go-runewidth v0.0.31 // indirect
+	github.com/mattn/go-sqlite3 v1.14.52 // indirect
 	github.com/ncruces/go-strftime v1.1.0 // indirect
 	github.com/nwaples/rardecode/v2 v2.4.2 // indirect
 	github.com/pdfcpu/pdfcpu v0.16.1 // indirect
@@ -56,7 +57,7 @@ require (
 	modernc.org/sqlite v1.60.1 // indirect
 )
 
-replace tsunagu/backend => ../vendor/Tsunagu/backend
+replace tsunagu/backend => ../../Tsunagu/backend
 
 tool (
 	golang.org/x/mobile/cmd/gobind
