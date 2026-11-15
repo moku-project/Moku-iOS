@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// A page pushed onto a tab's navigation stack.
 enum Route: Hashable {
@@ -124,6 +125,11 @@ struct RootView: View {
         .onChange(of: palette, initial: true) { _, value in
             AppTheme.shared.name = value.id
             AppTheme.shared.palette = value
+            // Sheets, menus and alerts take their tint from the window, not the SwiftUI environment.
+            let accent = UIColor(Color(themeHex: value.accent))
+            for case let scene as UIWindowScene in UIApplication.shared.connectedScenes {
+                scene.windows.forEach { $0.tintColor = accent }
+            }
         }
         .background {
             #if DEBUG
