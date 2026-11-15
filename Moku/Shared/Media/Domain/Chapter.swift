@@ -136,6 +136,8 @@ struct ChapterDisplayPreferences: Codable, Equatable {
     var included: [String] = []
     var excluded: [String] = []
     var onlyIncluded = false
+    /// Android "Hide duplicate chapters": one chapter per number, preferring the chosen group.
+    var hideDuplicates = false
 
     static func read(_ data: Data, id: String) -> Self {
         (try? JSONDecoder().decode([String: Self].self, from: data))?[id] ?? Self()
@@ -152,7 +154,7 @@ struct ChapterDisplayPreferences: Codable, Equatable {
         if !preferred.isEmpty {
             list = list.filter { $0.scanlator == preferred } + list.filter { $0.scanlator != preferred }
         }
-        guard !included.isEmpty else { return list }
+        guard !included.isEmpty else { return hideDuplicates ? Self.unique(list).sorted(by: ordered) : list }
         var numbered: [Double: Chapter] = [:]
         var unnumbered: [Chapter] = []
         for chapter in list {
@@ -168,6 +170,28 @@ struct ChapterDisplayPreferences: Codable, Equatable {
             } else { numbered[number] = chapter }
         }
         return (Array(numbered.values) + unnumbered).sorted(by: ordered)
+    }
+
+    /// Keeps the first chapter seen for each number; unnumbered chapters all stay.
+    private static func unique(_ chapters: [Chapter]) -> [Chapter] {
+        var seen = Set<Double>()
+        return chapters.filter { chapter in
+            guard let number = chapter.number, number >= 0 else { return true }
+            return seen.insert(number).inserted
+        }
+    }
+}
+
+// Older saved preferences lack newer keys, so each one decodes with its default.
+extension ChapterDisplayPreferences {
+    private enum CodingKeys: String, CodingKey { case preferred, included, excluded, onlyIncluded, hideDuplicates }
+    init(from decoder: any Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        preferred = try values.decodeIfPresent(String.self, forKey: .preferred) ?? ""
+        included = try values.decodeIfPresent([String].self, forKey: .included) ?? []
+        excluded = try values.decodeIfPresent([String].self, forKey: .excluded) ?? []
+        onlyIncluded = try values.decodeIfPresent(Bool.self, forKey: .onlyIncluded) ?? false
+        hideDuplicates = try values.decodeIfPresent(Bool.self, forKey: .hideDuplicates) ?? false
     }
 }
 

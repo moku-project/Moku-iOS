@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import Observation
 
 @MainActor @Observable final class DetailsViewModel {
@@ -34,6 +35,7 @@ import Observation
     }
 
     /// The source answered with a browser challenge (Cloudflare and the like).
+    private static let log = Logger(subsystem: "com.moku.app", category: "details")
     var sourceChallenge = false
 
     var sourceURL: URL? {
@@ -42,6 +44,63 @@ import Observation
             let id = externalID.split(separator: "/").last, UUID(uuidString: String(id)) != nil
         else { return nil }
         return URL(string: "https://example.org/title/\(id)")
+    }
+
+    /// The title on its source site, resolved once the extension's base URL is known.
+    private(set) var browserURL: URL?
+
+    func loadBrowserURL() async {
+        guard browserURL == nil, let id = details?.id else { return }
+        browserURL = await SourceLink.url(mediaID: id) ?? sourceURL
+    }
+
+    /// Titles pulled from their trackers recently, so reopening a title doesn't pull again.
+    private static var trackerPulledAt: [String: Date] = [:]
+
+    /// Desktop maybePullTracker: quietly bring read progress in from linked trackers, then reread it.
+    func pullTrackerIfNeeded() async {
+        guard let mediaID = details?.id, Int64(mediaID) != nil else { return }
+        if let last = Self.trackerPulledAt[mediaID], Date.now.timeIntervalSince(last) < 600 { return }
+        Self.trackerPulledAt[mediaID] = .now
+        struct Links: Decodable, Sendable {
+            struct Media: Decodable, Sendable { struct Link: Decodable, Sendable { let id: String }; let trackLinks: [Link] }
+            let media: Media?
+        }
+        guard let links: Links = try? await BackendAPI.shared.graphql(
+            "{ media(id: \(BackendAPI.literal(mediaID))) { trackLinks { id } } }", requiresSourceRuntime: false),
+            !(links.media?.trackLinks.isEmpty ?? true)
+        else { return }
+        struct Pulled: Decodable, Sendable { struct Link: Decodable, Sendable { let id: String }; let pullTracker: [Link] }
+        guard (try? await BackendAPI.shared.graphql(
+            "mutation { pullTracker(mediaId: \(BackendAPI.literal(mediaID))) { id } }",
+            requiresSourceRuntime: false) as Pulled) != nil
+        else { return }
+        await refreshReadProgress()
+    }
+
+    /// Rereads read state from the database without asking the source again.
+    func refreshReadProgress() async {
+        guard let mediaID = details?.id else { return }
+        struct Response: Decodable, Sendable {
+            struct Item: Decodable, Sendable { let id: String; let completed: Bool; let readingProgress: Chapter.Progress? }
+            struct Media: Decodable, Sendable { let chapters: [Item] }
+            let media: Media?
+        }
+        guard let response: Response = try? await BackendAPI.shared.graphql(
+            "{ media(id: \(BackendAPI.literal(mediaID))) { chapters { id completed readingProgress { progress positionSeconds } } } }",
+            requiresSourceRuntime: false),
+            details?.id == mediaID, let items = response.media?.chapters
+        else { return }
+        let states = Dictionary(items.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
+        guard details?.chapters.contains(where: { chapter in
+            states[chapter.id].map { $0.completed != chapter.completed || $0.readingProgress != chapter.readingProgress } ?? false
+        }) == true else { return }
+        updateChapters { chapter in
+            if let state = states[chapter.id] {
+                chapter.completed = state.completed
+                chapter.readingProgress = state.readingProgress
+            }
+        }
     }
 
     /// Desktop "Start / Continue · Ch X / Read again": the chapter after the last
@@ -306,6 +365,7 @@ import Observation
         } catch {
             guard !Task.isCancelled, generation == current else { return }
             sourceChallenge = BrowserVerification.isChallenge(error)
+            Self.log.error("chapters for \(self.entry.id, privacy: .public) failed: \(String(describing: error), privacy: .public)")
             chapterError =
                 "Couldn’t load chapters from \(entry.sourceName). This is a request failure, not an empty chapter list. Check your connection or source settings and retry."
         }

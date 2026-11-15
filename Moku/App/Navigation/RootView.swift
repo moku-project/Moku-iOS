@@ -169,10 +169,23 @@ private struct RootTabPage: View, Equatable {
             .background(NavigationStyle.background.ignoresSafeArea())
             .navigationDestination(for: Route.self) { route in
                 destination(route)
+                    .environment(\.searchGenre, searchGenre)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(NavigationStyle.background.ignoresSafeArea())
             }
         }
+    }
+
+    /// Opens Search filtered by one genre (Home hero chips and title pages).
+    private func searchGenre(_ genre: String) {
+        let model = SearchViewModel(
+            repository: AppDependencies.searchRepository,
+            language: sourceLanguage == "all" ? nil : sourceLanguage)
+        model.draft.method = .tags
+        model.draft.genres = [genre]
+        model.apply()
+        navigation.globalSearchModel = model
+        navigation.select(.browse, language: sourceLanguage)
     }
 
     private func openDetails(_ entry: MediaEntry, chapterID: String? = nil) {
@@ -214,16 +227,7 @@ private struct RootTabPage: View, Equatable {
             HomeView(
                 store: homeStore, isActive: activity.isActive,
                 onOpenLibrary: { navigation.select(.library) },
-                onGenre: { genre in
-                    let model = SearchViewModel(
-                        repository: AppDependencies.searchRepository,
-                        language: sourceLanguage == "all" ? nil : sourceLanguage)
-                    model.draft.method = .tags
-                    model.draft.genres = [genre]
-                    model.apply()
-                    navigation.globalSearchModel = model
-                    navigation.select(.browse, language: sourceLanguage)
-                },
+                onGenre: searchGenre,
                 onOpenLibraryTitle: { entry in
                     mode = entry.media
                     openDetails(entry)

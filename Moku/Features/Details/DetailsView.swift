@@ -42,13 +42,18 @@ struct DetailsView: View {
     @State private var playingChapter: Chapter?
     @State private var selecting = false
     @State private var manageSheet: ManageSheet?
-    private enum ManageSheet: String, Identifiable { case tracking, migrate, automation, metadata, cover, link; var id: Self { self } }
+    private enum ManageSheet: String, Identifiable { case tracking, migrate, automation, metadata, cover, link, downloadRange; var id: Self { self } }
     @State private var selected: Set<String> = []
     /// 0 at the top, 1 once content slides under the header, 2 once the title has scrolled away.
     @State private var scrollStage = 0
     /// Set when this page is the root of a sheet or cover, which needs a Close button.
     @Environment(\.detailsShowsClose) private var showsClose
     @Environment(\.presentSourceVerification) private var verify
+    @Environment(\.searchGenre) private var searchGenre
+    @Environment(\.openURL) private var openURL
+    @State private var jumpPresented = false
+    @State private var jumpText = ""
+    @State private var scrollTarget: String?
 
     init(entry: MediaEntry, initialChapterID: String? = nil, back: @escaping () -> Void) {
         self.entry = entry
@@ -59,6 +64,7 @@ struct DetailsView: View {
 
     var body: some View {
         GeometryReader { geometry in
+            ScrollViewReader { proxy in
             List {
                 metadata(wide: geometry.size.width >= 700)
                     .listRowInsets(EdgeInsets(top: 12, leading: 20, bottom: 12, trailing: 20))
@@ -78,6 +84,12 @@ struct DetailsView: View {
                 scrollStage = stage
             }
             .refreshable { await load(refresh: true) }
+            .onChange(of: scrollTarget) { _, target in
+                guard let target else { return }
+                withAnimation { proxy.scrollTo(target, anchor: .top) }
+                scrollTarget = nil
+            }
+            }
         }
         .firstLoadSkeleton("details-\(entry.id)", loading: loading && details == nil, style: .results)
         .background(NavigationStyle.background.ignoresSafeArea())
@@ -86,6 +98,13 @@ struct DetailsView: View {
         // The cover wash shows through the bar until the title scrolls away.
         .toolbarBackground(scrollStage == 2 ? .automatic : .hidden, for: .navigationBar)
         .toolbar { toolbarContent }
+        .alert(entry.media == .anime ? "Go to Episode" : "Go to Chapter", isPresented: $jumpPresented) {
+            TextField("Number", text: $jumpText).keyboardType(.decimalPad)
+            Button("Cancel", role: .cancel) {}
+            Button("Go") { jump(to: jumpText) }
+        } message: {
+            Text("Enter a number to scroll to it in the list.")
+        }
         .task(id: entry.id) {
             ascending = defaultAscending
             // The saved library is only needed for links and the bookmark state,
@@ -95,8 +114,10 @@ struct DetailsView: View {
                 await library.loadOrganization()
             }
             await load()
+            await model.loadBrowserURL()
             await saved.value
             if autoLinkOnOpen { await library.autoLink(entry) }
+            await model.pullTrackerIfNeeded()
         }
         .task(id: ChapterFilter(revision: model.chapterRevision, preferences: chapterPreferences,
                                query: chapterQuery, ascending: ascending, sort: chapterSort,
@@ -159,6 +180,10 @@ struct DetailsView: View {
                     }
                 case .link:
                     SeriesLinkSheet(entry: entry)
+                case .downloadRange:
+                    DownloadRangeSheet(chapters: readingOrder, isAnime: entry.media == .anime) { ids in
+                        Task { await model.download(ids) }
+                    }
                 case .metadata:
                     MetadataSheet(mediaID: details.id, title: details.title, media: entry.media) {
                         Task { await model.load(refresh: true) }
@@ -321,7 +346,10 @@ struct DetailsView: View {
             if !linked.isEmpty {
                 Menu {
                     ForEach(linked) { item in
-                        Button("\(item.title) · \(item.sourceName)") { linkedEntry = item }
+                        Menu("\(item.title) · \(item.sourceName)") {
+                            Button("Open", systemImage: "arrow.up.forward.square") { linkedEntry = item }
+                            Button("Open in Browser", systemImage: "safari") { openInBrowser(item) }
+                        }
                     }
                 } label: {
                     Label("Linked Titles", systemImage: "link")
@@ -335,22 +363,32 @@ struct DetailsView: View {
                 let shown = allGenres ? genres : Array(genres.prefix(4))
                 ChipFlow(spacing: 6) {
                     ForEach(shown, id: \.self) { genre in
-                        Text(genre).font(.footnote).foregroundStyle(.secondary)
-                            .padding(.horizontal, 10).padding(.vertical, 5)
-                            .background(.fill.tertiary, in: Capsule())
+                        if let searchGenre {
+                            Button {
+                                if showsClose { back() }
+                                searchGenre(genre)
+                            } label: { genreChip(genre) }
+                            .buttonStyle(.plain)
+                            .accessibilityHint("Searches for titles in this genre")
+                        } else {
+                            genreChip(genre)
+                        }
                     }
-                    if genres.count > shown.count {
-                        Text("+\(genres.count - shown.count)").font(.footnote.weight(.semibold))
-                            .foregroundStyle(NavigationStyle.accent)
-                            .padding(.horizontal, 10).padding(.vertical, 5)
-                            .background(.fill.tertiary, in: Capsule())
+                    if genres.count > 4 {
+                        Button {
+                            withAnimation(.snappy(duration: 0.25)) { allGenres.toggle() }
+                        } label: {
+                            Text(allGenres ? "Less" : "+\(genres.count - shown.count)").font(.footnote.weight(.semibold))
+                                .foregroundStyle(NavigationStyle.accent)
+                                .padding(.horizontal, 10).padding(.vertical, 5)
+                                .background(.fill.tertiary, in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(allGenres ? "Show fewer genres" : "Show all \(genres.count) genres")
                     }
                 }
-                .contentShape(Rectangle())
-                .onTapGesture { withAnimation(.snappy(duration: 0.25)) { allGenres.toggle() } }
-                .accessibilityElement(children: .combine)
-                .accessibilityAddTraits(.isButton)
-                .accessibilityLabel("Genres: \(genres.joined(separator: ", "))")
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("Genres")
             }
             if let description = details?.description, !description.isEmpty {
                 summary(description)
@@ -362,6 +400,12 @@ struct DetailsView: View {
                     .buttonStyle(.bordered)
             }
         }
+    }
+
+    private func genreChip(_ genre: String) -> some View {
+        Text(genre).font(.footnote).foregroundStyle(.secondary)
+            .padding(.horizontal, 10).padding(.vertical, 5)
+            .background(.fill.tertiary, in: Capsule())
     }
 
     /// Three lines that fade out; tapping anywhere on the text opens the rest.
@@ -559,6 +603,7 @@ struct DetailsView: View {
                     }
                 }
                 .pickerStyle(.inline)
+                Toggle("Hide Duplicate Chapters", systemImage: "square.on.square", isOn: hideDuplicatesBinding)
             } label: {
                 Image(systemName: stateFilter == .all
                       ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
@@ -578,7 +623,13 @@ struct DetailsView: View {
                 .accessibilityLabel(selecting ? "Done selecting" : "Select chapters")
             }
             Menu {
-                if let details, !details.chapters.isEmpty { downloadMenu(details) }
+                if let details, !details.chapters.isEmpty {
+                    downloadMenu(details)
+                    Button(entry.media == .anime ? "Go to Episode…" : "Go to Chapter…", systemImage: "list.number") {
+                        jumpText = ""
+                        jumpPresented = true
+                    }
+                }
                 Button("Refresh Chapters", systemImage: "arrow.clockwise") {
                     Task { await load(refresh: true) }
                 }.disabled(loading)
@@ -590,6 +641,42 @@ struct DetailsView: View {
             .accessibilityIdentifier("details.chapterActions")
         }
         .buttonStyle(.borderless)
+    }
+
+    private var hideDuplicatesBinding: Binding<Bool> {
+        Binding(
+            get: { ChapterDisplayPreferences.read(chapterPreferences, id: entry.id).hideDuplicates },
+            set: { value in
+                var all = (try? JSONDecoder().decode([String: ChapterDisplayPreferences].self, from: chapterPreferences)) ?? [:]
+                var current = all[entry.id] ?? ChapterDisplayPreferences()
+                current.hideDuplicates = value
+                all[entry.id] = current
+                if let encoded = try? JSONEncoder().encode(all) { chapterPreferences = encoded }
+            })
+    }
+
+    /// Scrolls to the visible chapter with this number, or the closest one.
+    private func jump(to text: String) {
+        let normalized = text.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: ".")
+        guard let number = Double(normalized) else { return }
+        let numbered = filteredChapters.filter { $0.number != nil }
+        guard let target = numbered.first(where: { $0.number == number })
+            ?? numbered.min(by: { abs($0.number! - number) < abs($1.number! - number) })
+        else {
+            Toaster.shared.show("No chapter \(number.formatted()) in this list", kind: .info)
+            return
+        }
+        scrollTarget = target.id
+    }
+
+    private func openInBrowser(_ item: MediaEntry) {
+        Task {
+            if let url = await SourceLink.url(mediaID: item.id) {
+                openURL(url)
+            } else {
+                Toaster.shared.show("This source has no web page for the title", kind: .info)
+            }
+        }
     }
 
     private var chapterFilterField: some View {
@@ -773,6 +860,9 @@ struct DetailsView: View {
                 }
             }
             Section {
+                if let browserURL = model.browserURL {
+                    Button("Open in Browser", systemImage: "safari") { openURL(browserURL) }
+                }
                 if let sourceURL = model.sourceURL {
                     ShareLink(item: sourceURL, subject: Text(details.title)) {
                         Label("Share", systemImage: "square.and.arrow.up")
@@ -833,6 +923,11 @@ struct DetailsView: View {
             Button("Mark Previous as Read", systemImage: "checkmark.circle.badge.questionmark") { Task { await model.setRead(previous, read: true) } }
             Button("Mark Previous as Unread", systemImage: "circle.dashed") { Task { await model.setRead(previous, read: false) } }
         }
+        if let index = list.firstIndex(where: { $0.id == chapter.id }), index < list.count - 1 {
+            let below = Set(list[(index + 1)...].map(\.id))
+            Button("Mark Below as Read", systemImage: "checkmark.circle.badge.questionmark") { Task { await model.setRead(below, read: true) } }
+            Button("Mark Below as Unread", systemImage: "circle.dashed") { Task { await model.setRead(below, read: false) } }
+        }
         bookmarkButton(chapter)
         Divider()
         switch chapter.downloadState {
@@ -876,6 +971,7 @@ struct DetailsView: View {
             }
             Button("Unread (\(unread.count))") { Task { await model.download(unread) } }.disabled(unread.isEmpty)
             Button("All (\(missing.count))") { Task { await model.download(missing) } }.disabled(missing.isEmpty)
+            Button("Custom Range…") { manageSheet = .downloadRange }.disabled(missing.isEmpty)
             if !downloaded.isEmpty {
                 Button("Delete all downloads (\(downloaded.count))", role: .destructive) {
                     Task { await model.deleteDownloads(downloaded) }
@@ -1094,6 +1190,8 @@ extension EnvironmentValues {
     /// Shows a Close button on a Details page that is the root of a sheet or
     /// full-screen cover. Pushed Details pages use the system back button.
     @Entry var detailsShowsClose = false
+    /// Opens Search filtered by a genre; nil where no search is reachable.
+    @Entry var searchGenre: (@MainActor (String) -> Void)? = nil
 }
 
 /// Trailing download state on a chapter row: queued, a small determinate ring

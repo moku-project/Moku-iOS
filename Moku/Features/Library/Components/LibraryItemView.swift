@@ -7,6 +7,7 @@ struct LibraryItemView: View {
     let layout: LibraryLayout
     let onOpen: (MediaEntry) -> Void
     @Environment(LibraryStore.self) private var library
+    @State private var trackingPresented = false
 
     var body: some View {
         Button {
@@ -54,6 +55,9 @@ struct LibraryItemView: View {
                         }
                     }
                 }
+                if Int64(item.id) != nil {
+                    Button("Tracking…", systemImage: "antenna.radiowaves.left.and.right") { trackingPresented = true }
+                }
                 if let entry = library.entries.first(where: { $0.id == item.id }) {
                     Button("Refresh Chapters", systemImage: "arrow.clockwise") {
                         Task { await LibraryActions.refresh([entry], model: model) }
@@ -72,6 +76,9 @@ struct LibraryItemView: View {
                     model.selecting = true
                     model.selected = [item.id]
                 }
+            }
+            .sheet(isPresented: $trackingPresented) {
+                TrackingSheet(mediaID: item.id, title: item.title, isAnime: item.media == .anime)
             }
 
     }

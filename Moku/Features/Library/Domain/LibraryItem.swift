@@ -53,6 +53,8 @@ struct LibraryItem: Identifiable, Sendable, Equatable {
     var latestUpload = Date.distantPast
     var tracked = false
     var lastRead = Date.distantPast
+    /// Chapters of this title the reader bookmarked (Tsunagu bookmarkedCount).
+    var chapterBookmarks = 0
     var hasStarted: Bool { readUnits > 0 || lastRead > .distantPast }
     var unread: Int { max(0, totalUnits - readUnits) }
     var isCompleted: Bool { totalUnits > 0 && readUnits >= totalUnits }

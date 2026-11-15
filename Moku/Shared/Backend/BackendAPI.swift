@@ -1,5 +1,8 @@
 import Foundation
+import OSLog
 import ImageIO
+
+private let log = Logger(subsystem: "com.moku.app", category: "graphql")
 
 actor BackendAPI {
     static let shared = BackendAPI()
@@ -88,6 +91,10 @@ actor BackendAPI {
     private nonisolated static func decode<T: Decodable & Sendable>(_ data: Data) throws -> T {
         let envelope = try JSONDecoder().decode(Envelope<T>.self, from: data)
         if let errors = envelope.errors, !errors.isEmpty {
+            // Users see the friendly text; the raw error goes to the system log for diagnosis.
+            for error in errors {
+                log.error("graphql \(error.extensions?.code ?? "-", privacy: .public): \(error.message, privacy: .public)")
+            }
             throw EmbeddedSearchError.message(Self.describe(errors.first?.extensions?.code))
         }
         guard let result = envelope.data else {
@@ -228,7 +235,7 @@ actor BackendAPI {
     private nonisolated static func describe(_ code: String?) -> String {
         switch code {
         case "SOURCE_CLOUDFLARE":
-            "This source is behind Cloudflare protection. Try again later, or set a Cloudflare solver in Settings → Server."
+            "This source is behind Cloudflare protection. Use Verify in Browser to pass the check, then try again."
         case "SOURCE_NOT_FOUND": "The source no longer has this title or chapter."
         case "SOURCE_UNAVAILABLE", "SOURCE_NETWORK": "The source is unreachable right now. Check your connection and try again."
         case "SOURCE_RATE_LIMITED": "The source is rate limiting requests. Wait a minute and try again."

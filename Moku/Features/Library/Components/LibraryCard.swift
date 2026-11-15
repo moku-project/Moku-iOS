@@ -32,8 +32,15 @@ struct LibraryCard: View {
                         if showCardStats && item.unread > 0 {
                             unreadBadge
                         }
-                        if item.downloaded {
-                            downloadedBadge
+                        HStack(spacing: 4) {
+                            if item.chapterBookmarks > 0 && !compact {
+                                Label("\(item.chapterBookmarks)", systemImage: "bookmark.fill")
+                                    .font(.caption.monospacedDigit())
+                                    .foregroundStyle(.secondary)
+                                    .labelStyle(.titleAndIcon)
+                            }
+                            if item.tracked { trackedBadge }
+                            if item.downloaded { downloadedBadge }
                         }
                     }
 
@@ -81,6 +88,13 @@ struct LibraryCard: View {
             .foregroundStyle(.white, NavigationStyle.accent)
     }
 
+    private var trackedBadge: some View {
+        Image(systemName: "antenna.radiowaves.left.and.right.circle.fill")
+            .font(compact ? .caption : .subheadline)
+            .symbolRenderingMode(.palette)
+            .foregroundStyle(.white, Color.blue)
+    }
+
     private var accessibilityStats: String {
         var parts: [String] = []
         if showCardStats && item.totalUnits > 0 && item.readUnits > 0 {
@@ -88,6 +102,10 @@ struct LibraryCard: View {
         }
         if showCardStats && item.unread > 0 { parts.append("\(item.unread) unread") }
         if item.downloaded { parts.append("Downloaded") }
+        if item.tracked { parts.append("Tracked") }
+        if item.chapterBookmarks > 0 {
+            parts.append("\(item.chapterBookmarks) bookmarked \(item.chapterBookmarks == 1 ? "chapter" : "chapters")")
+        }
         return parts.joined(separator: ", ")
     }
 
@@ -130,10 +148,13 @@ struct LibraryCard: View {
             }
         }
         .overlay(alignment: .topTrailing) {
-            if !list && item.downloaded {
-                downloadedBadge
-                    .shadow(color: .black.opacity(0.4), radius: 2)
-                    .padding(compact ? 4 : 6)
+            if !list && (item.downloaded || item.tracked) {
+                HStack(spacing: 3) {
+                    if item.tracked { trackedBadge }
+                    if item.downloaded { downloadedBadge }
+                }
+                .shadow(color: .black.opacity(0.4), radius: 2)
+                .padding(compact ? 4 : 6)
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 8))

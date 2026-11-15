@@ -246,6 +246,7 @@ struct LibraryView: View {
                     Toggle("Started", isOn: Bindable(model).startedOnly)
                     Toggle("Downloaded", isOn: Bindable(model).downloadedOnly)
                     Toggle("Starred", isOn: Bindable(model).bookmarkedOnly)
+                    Toggle("Bookmarked Chapters", isOn: Bindable(model).chapterBookmarkedOnly)
                     Toggle("Tracked", isOn: Bindable(model).trackedOnly)
                     Picker("Status", selection: Bindable(model).status) {
                         Text("Any Status").tag(LibraryStatus?.none)
@@ -520,7 +521,8 @@ struct LibraryView: View {
                     addedAt: progress?.addedAt.flatMap(Self.date) ?? .distantPast,
                     latestUpload: progress?.latestChapter?.uploadedAt.flatMap(Self.date) ?? .distantPast,
                     tracked: !(progress?.trackLinks ?? []).isEmpty,
-                    lastRead: lastRead[entry.id] ?? .distantPast))
+                    lastRead: lastRead[entry.id] ?? .distantPast,
+                    chapterBookmarks: progress?.bookmarkedCount ?? 0))
             }
             return items
         }
@@ -545,6 +547,7 @@ struct LibraryView: View {
     private struct LibraryStats: Decodable, Sendable {
         struct Latest: Decodable, Sendable { let uploadedAt: String? }
         let id: String; let chapterCount: Int; let unreadCount: Int; let downloadedCount: Int
+        let bookmarkedCount: Int?
         let status: String?; let addedAt: String?; let latestChapter: Latest?
         struct Link: Decodable, Sendable { let id: String }
         let trackLinks: [Link]?
@@ -560,7 +563,7 @@ struct LibraryView: View {
         guard !PreviewMode.isEnabled, library.entries.contains(where: { Int64($0.id) != nil }) else { return }
         do {
             struct Result: Decodable, Sendable { struct Page: Decodable, Sendable { let items: [LibraryStats] }; let library: Page }
-            let result: Result = try await BackendAPI.shared.graphql("{ library(limit: 10000) { items { id chapterCount unreadCount downloadedCount status addedAt latestChapter { uploadedAt } trackLinks { id } } } }", requiresSourceRuntime: false)
+            let result: Result = try await BackendAPI.shared.graphql("{ library(limit: 10000) { items { id chapterCount unreadCount downloadedCount bookmarkedCount status addedAt latestChapter { uploadedAt } trackLinks { id } } } }", requiresSourceRuntime: false)
             try Task.checkCancellation()
             statsLoadedAt = .now
             backendStats = Dictionary(result.library.items.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })

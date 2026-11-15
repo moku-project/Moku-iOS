@@ -18,6 +18,7 @@ final class LibraryViewModel {
     var startedOnly = false { didSet { if startedOnly != oldValue { invalidateResults() } } }
     var downloadedOnly = false { didSet { if downloadedOnly != oldValue { invalidateResults() } } }
     var bookmarkedOnly = false { didSet { if bookmarkedOnly != oldValue { invalidateResults() } } }
+    var chapterBookmarkedOnly = false { didSet { if chapterBookmarkedOnly != oldValue { invalidateResults() } } }
     var trackedOnly = false { didSet { if trackedOnly != oldValue { invalidateResults() } } }
     var status: LibraryStatus? { didSet { if status != oldValue { invalidateResults() } } }
     var selecting = false
@@ -33,7 +34,7 @@ final class LibraryViewModel {
     }
 
     var hasFilters: Bool {
-        unreadOnly || startedOnly || downloadedOnly || bookmarkedOnly || trackedOnly
+        unreadOnly || startedOnly || downloadedOnly || bookmarkedOnly || chapterBookmarkedOnly || trackedOnly
             || status != nil
     }
 
@@ -62,6 +63,7 @@ final class LibraryViewModel {
         startedOnly = false
         downloadedOnly = false
         bookmarkedOnly = false
+        chapterBookmarkedOnly = false
         trackedOnly = false
         status = nil
     }
@@ -76,7 +78,8 @@ final class LibraryViewModel {
                          showAllInSaved: showAllInSaved, hideCompletedInSaved: hideCompletedInSaved,
                          disableAutoComplete: disableAutoComplete, folderEntryIDs: folderEntryIDs,
                          unreadOnly: unreadOnly, startedOnly: startedOnly, downloadedOnly: downloadedOnly,
-                         bookmarkedOnly: bookmarkedOnly, trackedOnly: trackedOnly, status: status)
+                         bookmarkedOnly: bookmarkedOnly, chapterBookmarkedOnly: chapterBookmarkedOnly,
+                         trackedOnly: trackedOnly, status: status)
     }
 
     func prepareVisible(mode: ContentMode) async -> [LibraryItem] {
@@ -110,6 +113,7 @@ private struct LibrarySelection: Sendable {
     let startedOnly: Bool
     let downloadedOnly: Bool
     let bookmarkedOnly: Bool
+    let chapterBookmarkedOnly: Bool
     let trackedOnly: Bool
     let status: LibraryStatus?
 
@@ -125,6 +129,7 @@ private struct LibrarySelection: Sendable {
                     && (!startedOnly || $0.hasStarted)
                     && (!downloadedOnly || $0.downloaded)
                     && (!bookmarkedOnly || $0.bookmarked)
+                    && (!chapterBookmarkedOnly || $0.chapterBookmarks > 0)
                     && (!trackedOnly || $0.tracked)
                     && (status == nil || $0.status == status)
             }.sorted { lhs, rhs in
