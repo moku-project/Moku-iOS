@@ -15,6 +15,46 @@ struct Chapter: Decodable, Sendable, Identifiable, Equatable {
         let progress: Double
         var positionSeconds: Double? = nil
     }
+    /// Bookmarked by the reader, as in Mihon.
+    var bookmarked = false
+    /// The latest download job for this chapter; nil when it was never queued.
+    var download: DownloadJob? = nil
+    struct DownloadJob: Decodable, Sendable, Equatable {
+        enum Status: String, Decodable, Sendable {
+            case queued = "QUEUED", downloading = "DOWNLOADING", done = "DONE", failed = "FAILED"
+        }
+        var status: Status
+        var progress: Double = 0
+    }
+
+    /// What a chapter row shows for downloads. A finished job only counts while
+    /// the files are still there, so a deleted download reads as not downloaded.
+    enum DownloadState: Equatable, Sendable {
+        case none, queued, downloading(Double), failed, downloaded
+    }
+    var downloadState: DownloadState {
+        if downloaded { return .downloaded }
+        switch download?.status {
+        case .queued: return .queued
+        case .downloading: return .downloading(min(1, max(0, download?.progress ?? 0)))
+        case .failed: return .failed
+        default: return .none
+        }
+    }
+    /// Queued or downloading, so the page keeps polling for updates.
+    var isDownloadActive: Bool {
+        switch downloadState {
+        case .queued, .downloading: true
+        default: false
+        }
+    }
+    /// Not downloaded and not already in the queue.
+    var canQueueDownload: Bool { !downloaded && !isDownloadActive }
+    /// Partial progress (0 < progress < 1) for an unfinished chapter, else nil.
+    var partialProgress: Double? {
+        guard !completed, let value = readingProgress?.progress, value > 0.01, value < 0.99 else { return nil }
+        return value
+    }
     var label: String { title ?? number.map { "Chapter \($0.formatted())" } ?? "Chapter" }
     var uploadedDate: String? {
         guard let uploadedAt, let date = Self.parse(uploadedAt) else { return nil }
@@ -24,6 +64,69 @@ struct Chapter: Decodable, Sendable, Identifiable, Equatable {
     private static func parse(_ value: String) -> Date? {
         if let date = try? Date(value, strategy: .iso8601) { return date }
         return try? Date(value, strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true))
+    }
+}
+
+// Queries that don't ask for bookmarks or download jobs still decode.
+extension Chapter {
+    private enum CodingKeys: String, CodingKey {
+        case id, title, number, scanlator, completed, downloaded, uploadedAt, sourceOrder,
+            readingProgress, bookmarked, download
+    }
+    init(from decoder: any Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decode(String.self, forKey: .id)
+        title = try values.decodeIfPresent(String.self, forKey: .title)
+        number = try values.decodeIfPresent(Double.self, forKey: .number)
+        scanlator = try values.decodeIfPresent(String.self, forKey: .scanlator)
+        completed = try values.decodeIfPresent(Bool.self, forKey: .completed) ?? false
+        downloaded = try values.decodeIfPresent(Bool.self, forKey: .downloaded) ?? false
+        uploadedAt = try values.decodeIfPresent(String.self, forKey: .uploadedAt)
+        sourceOrder = try values.decodeIfPresent(Int.self, forKey: .sourceOrder)
+        readingProgress = try values.decodeIfPresent(Progress.self, forKey: .readingProgress)
+        bookmarked = try values.decodeIfPresent(Bool.self, forKey: .bookmarked) ?? false
+        // An unknown future status shouldn't fail the whole chapter list.
+        download = try? values.decodeIfPresent(DownloadJob.self, forKey: .download)
+    }
+}
+
+/// Android's chapter list filter (All / Unread / Downloaded), plus Mihon's bookmarks.
+enum ChapterStateFilter: String, CaseIterable, Identifiable, Sendable {
+    case all, unread, downloaded, bookmarked
+    var id: Self { self }
+    var title: String {
+        switch self {
+        case .all: "All"
+        case .unread: "Unread"
+        case .downloaded: "Downloaded"
+        case .bookmarked: "Bookmarked"
+        }
+    }
+    var symbol: String {
+        switch self {
+        case .all: "list.bullet"
+        case .unread: "circle"
+        case .downloaded: "arrow.down.circle"
+        case .bookmarked: "bookmark"
+        }
+    }
+    nonisolated func includes(_ chapter: Chapter) -> Bool {
+        switch self {
+        case .all: true
+        case .unread: !chapter.completed
+        case .downloaded: chapter.downloaded
+        case .bookmarked: chapter.bookmarked
+        }
+    }
+
+    /// Kept per title beside the release-group preferences.
+    static func read(_ data: Data, id: String) -> Self {
+        ((try? JSONDecoder().decode([String: String].self, from: data))?[id]).flatMap(Self.init) ?? .all
+    }
+    func write(into data: Data, id: String) -> Data {
+        var all = (try? JSONDecoder().decode([String: String].self, from: data)) ?? [:]
+        all[id] = self == .all ? nil : rawValue
+        return (try? JSONEncoder().encode(all)) ?? data
     }
 }
 
@@ -85,10 +188,10 @@ enum ChapterSort: String, CaseIterable, Identifiable, Sendable {
 enum ChapterPresentation {
     nonisolated static func filtered(
         _ chapters: [Chapter], preferences: Data, mediaID: String, query: String, ascending: Bool,
-        sort: ChapterSort = .number
+        sort: ChapterSort = .number, state: ChapterStateFilter = .all
     ) async -> [Chapter] {
         let list = ChapterDisplayPreferences.read(preferences, id: mediaID).apply(chapters).filter {
-            query.isEmpty || $0.label.localizedCaseInsensitiveContains(query)
+            state.includes($0) && (query.isEmpty || $0.label.localizedCaseInsensitiveContains(query))
         }
         // Stable sorting preserves the preferred release group for equal keys.
         switch sort {

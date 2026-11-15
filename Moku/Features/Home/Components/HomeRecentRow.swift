@@ -12,6 +12,7 @@ struct HomeRecentRow: View {
                 Text((entry.chapters.first { $0.id == session.chapterID }?.displayTitle ?? "In progress")
                      + (entry.media == "Anime" ? "" : " · p.\(session.page)"))
                     .font(.caption).foregroundStyle(.secondary)
+                HomeSeriesProgress(entry: entry)
             }
             Spacer(minLength: 4)
             Text(RecentFormat.timeAgo(session.endedAt)).font(.caption2).foregroundStyle(.secondary)

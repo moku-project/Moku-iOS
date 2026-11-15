@@ -20,8 +20,22 @@ struct LibraryCard: View {
                         if showCardStats && item.readUnits > 0 && !compact {
                             Text(progress).font(.caption).foregroundStyle(.secondary)
                         }
+                        if showsProgress {
+                            ProgressView(value: fraction)
+                                .progressViewStyle(.linear)
+                                .tint(NavigationStyle.accent)
+                                .frame(maxWidth: 200)
+                        }
                     }
                     Spacer(minLength: 0)
+                    VStack(alignment: .trailing, spacing: 6) {
+                        if showCardStats && item.unread > 0 {
+                            unreadBadge
+                        }
+                        if item.downloaded {
+                            downloadedBadge
+                        }
+                    }
 
                 }
                 .padding(10).background(
@@ -39,6 +53,42 @@ struct LibraryCard: View {
         .foregroundStyle(.primary)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(item.title)
+        .accessibilityValue(accessibilityStats)
+    }
+
+    /// A started title with a known chapter count.
+    private var showsProgress: Bool {
+        showCardStats && item.readUnits > 0 && item.totalUnits > 0
+    }
+
+    private var fraction: Double {
+        guard item.totalUnits > 0 else { return 0 }
+        return min(1, Double(item.readUnits) / Double(item.totalUnits))
+    }
+
+    private var unreadBadge: some View {
+        Text(item.unread, format: .number)
+            .font((compact ? Font.caption2 : .caption).weight(.semibold).monospacedDigit())
+            .foregroundStyle(.black)
+            .padding(.horizontal, compact ? 5 : 7).padding(.vertical, 2)
+            .background(NavigationStyle.accent, in: Capsule())
+    }
+
+    private var downloadedBadge: some View {
+        Image(systemName: "arrow.down.circle.fill")
+            .font(compact ? .caption : .subheadline)
+            .symbolRenderingMode(.palette)
+            .foregroundStyle(.white, NavigationStyle.accent)
+    }
+
+    private var accessibilityStats: String {
+        var parts: [String] = []
+        if showCardStats && item.totalUnits > 0 && item.readUnits > 0 {
+            parts.append("\(item.readUnits) of \(item.totalUnits) \(item.media == .anime ? "watched" : "read")")
+        }
+        if showCardStats && item.unread > 0 { parts.append("\(item.unread) unread") }
+        if item.downloaded { parts.append("Downloaded") }
+        return parts.joined(separator: ", ")
     }
 
     private var progress: String {
@@ -52,10 +102,38 @@ struct LibraryCard: View {
             } else {
                 artwork
             }
-            if showCardStats && item.readUnits > 0 && !compact {
-                Text(progress).font(.caption2.weight(.medium))
-                    .padding(7).frame(maxWidth: .infinity, alignment: .leading)
-                    .background(.black.opacity(0.65))
+            if !list {
+                VStack(spacing: 0) {
+                    if showCardStats && item.readUnits > 0 && !compact && !coversOnly {
+                        Text(progress).font(.caption2.weight(.medium))
+                            .foregroundStyle(.white)
+                            .padding(7).frame(maxWidth: .infinity, alignment: .leading)
+                            .background(.black.opacity(0.65))
+                    }
+                    if showsProgress {
+                        // Thin read/total bar along the bottom edge of the cover.
+                        GeometryReader { geometry in
+                            ZStack(alignment: .leading) {
+                                Rectangle().fill(.black.opacity(0.55))
+                                Rectangle().fill(NavigationStyle.accent)
+                                    .frame(width: geometry.size.width * fraction)
+                            }
+                        }
+                        .frame(height: 3)
+                    }
+                }
+            }
+        }
+        .overlay(alignment: .topLeading) {
+            if !list && showCardStats && item.unread > 0 {
+                unreadBadge.padding(compact ? 4 : 6)
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            if !list && item.downloaded {
+                downloadedBadge
+                    .shadow(color: .black.opacity(0.4), radius: 2)
+                    .padding(compact ? 4 : 6)
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 8))

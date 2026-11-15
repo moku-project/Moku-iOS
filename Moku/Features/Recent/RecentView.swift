@@ -100,7 +100,7 @@ struct RecentView: View {
                 emptyState.accessibilityIdentifier("recent.empty")
             }
         }
-        .searchable(text: query, prompt: "Search titles or chapters")
+        .searchable(text: query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search titles or chapters")
         .scrollDismissesKeyboard(.interactively)
         .refreshable { if tab == .updates { await refresh() } else { await home.load() } }
         .accessibilityIdentifier("recent.scroll")

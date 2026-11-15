@@ -61,6 +61,7 @@ struct SourceBrowseView: View {
                         ForEach(items) { item in
                             Button { openEntry(item) } label: { card(item) }
                                 .buttonStyle(.plain)
+                                .accessibilityIdentifier("source.item.\(item.id)")
                                 .contextMenu {
                                     Button("Open", systemImage: "book") { openEntry(item) }
                                     Button("Copy Title", systemImage: "doc.on.doc") {

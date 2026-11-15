@@ -29,9 +29,16 @@ struct DetailsView: View {
         let query: String
         let ascending: Bool
         let sort: ChapterSort
+        let state: ChapterStateFilter
     }
     @AppStorage("chapter.displayPreferences") private var chapterPreferences = Data()
     @AppStorage("preferences.chapterSort") private var chapterSort: ChapterSort = .number
+    /// All / Unread / Downloaded / Bookmarked, kept per title like release groups.
+    @AppStorage("chapter.stateFilters") private var stateFilters = Data()
+    private var stateFilter: ChapterStateFilter { ChapterStateFilter.read(stateFilters, id: entry.id) }
+    private var stateFilterBinding: Binding<ChapterStateFilter> {
+        Binding(get: { stateFilter }, set: { stateFilters = $0.write(into: stateFilters, id: entry.id) })
+    }
     @State private var playingChapter: Chapter?
     @State private var selecting = false
     @State private var manageSheet: ManageSheet?
@@ -92,12 +99,23 @@ struct DetailsView: View {
             if autoLinkOnOpen { await library.autoLink(entry) }
         }
         .task(id: ChapterFilter(revision: model.chapterRevision, preferences: chapterPreferences,
-                               query: chapterQuery, ascending: ascending, sort: chapterSort)) {
+                               query: chapterQuery, ascending: ascending, sort: chapterSort,
+                               state: stateFilter)) {
             let result = await ChapterPresentation.filtered(
                 details?.chapters ?? [], preferences: chapterPreferences, mediaID: entry.id,
-                query: chapterQuery, ascending: ascending, sort: chapterSort)
+                query: chapterQuery, ascending: ascending, sort: chapterSort, state: stateFilter)
             guard !Task.isCancelled else { return }
             filteredChapters = result
+        }
+        // Light poll while something on this page is queued or downloading. The
+        // task ends when downloads settle or the page goes away.
+        .task(id: model.hasActiveDownloads) {
+            guard model.hasActiveDownloads else { return }
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(2))
+                guard !Task.isCancelled else { return }
+                await model.refreshDownloads()
+            }
         }
         .sheet(item: $linkedEntry) { linked in
             NavigationStack {
@@ -485,7 +503,10 @@ struct DetailsView: View {
                         } description: {
                             Text("No chapters match your filter.")
                         } actions: {
-                            Button("Clear Filter") { chapterQuery = "" }
+                            Button("Clear Filter") {
+                                chapterQuery = ""
+                                stateFilterBinding.wrappedValue = .all
+                            }
                         }
                     } else {
                         ContentUnavailableView {
@@ -507,6 +528,7 @@ struct DetailsView: View {
             }
             ForEach(filtered) { chapter in
                 chapterRow(chapter, in: filtered)
+                    .accessibilityIdentifier("details.chapter.\(chapter.id)")
             }
         }
     }
@@ -530,6 +552,21 @@ struct DetailsView: View {
                     .frame(width: 44, height: 44).contentShape(Rectangle())
             }
             .accessibilityLabel("Sort chapters")
+            Menu {
+                Picker("Show", selection: stateFilterBinding) {
+                    ForEach(ChapterStateFilter.allCases) { filter in
+                        Label(filter.title, systemImage: filter.symbol).tag(filter)
+                    }
+                }
+                .pickerStyle(.inline)
+            } label: {
+                Image(systemName: stateFilter == .all
+                      ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
+                    .frame(width: 44, height: 44).contentShape(Rectangle())
+            }
+            .accessibilityLabel("Chapter filter")
+            .accessibilityValue(stateFilter.title)
+            .accessibilityIdentifier("details.chapterFilter")
             if let details, !details.chapters.isEmpty {
                 Button {
                     selecting.toggle()
@@ -589,19 +626,31 @@ struct DetailsView: View {
                         .foregroundStyle(isSelected ? NavigationStyle.accent : .secondary)
                 }
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(chapter.label).font(.body)
-                        .foregroundStyle(chapter.completed && !selecting ? .secondary : .primary)
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        if chapter.bookmarked {
+                            Image(systemName: "bookmark.fill")
+                                .font(.footnote)
+                                .foregroundStyle(NavigationStyle.accent)
+                                .accessibilityHidden(true)
+                        }
+                        Text(chapter.label).font(.body)
+                            .foregroundStyle(chapter.completed && !selecting ? .secondary : .primary)
+                    }
                     let caption = [resumeLabel(chapter), chapter.scanlator, chapter.uploadedDate].compactMap { $0 }.joined(separator: " · ")
                     if !caption.isEmpty {
                         Text(caption).font(.caption).foregroundStyle(.secondary)
                     }
+                    if let progress = chapter.partialProgress {
+                        ProgressView(value: progress)
+                            .progressViewStyle(.linear)
+                            .tint(NavigationStyle.accent)
+                            .frame(maxWidth: 220)
+                            .padding(.top, 2)
+                            .accessibilityHidden(true)
+                    }
                 }
                 Spacer(minLength: 0)
-                if chapter.downloaded {
-                    Image(systemName: "arrow.down.circle.fill")
-                        .foregroundStyle(NavigationStyle.accent)
-                        .accessibilityLabel("Downloaded")
-                }
+                ChapterDownloadIndicator(state: chapter.downloadState)
                 if chapter.completed && !selecting {
                     Image(systemName: "checkmark")
                         .font(.footnote.weight(.semibold))
@@ -625,17 +674,33 @@ struct DetailsView: View {
                         systemImage: chapter.completed ? "circle" : "checkmark.circle")
                 }
                 .tint(NavigationStyle.accent)
+                bookmarkButton(chapter)
+                    .tint(.orange)
             }
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             if !selecting {
-                if chapter.downloaded {
+                switch chapter.downloadState {
+                case .downloaded:
                     Button(role: .destructive) {
                         Task { await model.deleteDownloads([chapter.id]) }
                     } label: {
                         Label("Delete Download", systemImage: "trash")
                     }
-                } else {
+                case .failed:
+                    Button {
+                        Task { await model.retryDownload(chapter.id) }
+                    } label: {
+                        Label("Retry Download", systemImage: "arrow.clockwise")
+                    }
+                    .tint(.orange)
+                case .queued, .downloading:
+                    Button(role: .destructive) {
+                        Task { await model.cancelDownload(chapter.id) }
+                    } label: {
+                        Label("Cancel Download", systemImage: "xmark")
+                    }
+                case .none:
                     Button {
                         Task { await model.download([chapter.id]) }
                     } label: {
@@ -647,7 +712,35 @@ struct DetailsView: View {
         }
         .contextMenu { if !selecting { chapterMenu(chapter, in: filtered) } }
         .accessibilityLabel(entry.media == .anime ? "Play \(chapter.label)" : chapter.label)
-        .accessibilityValue(selecting ? (isSelected ? "Selected" : "") : (chapter.completed ? "Read" : ""))
+        .accessibilityValue(selecting ? (isSelected ? "Selected" : "") : rowAccessibilityValue(chapter))
+    }
+
+    private func bookmarkButton(_ chapter: Chapter) -> some View {
+        Button {
+            Task { await model.setBookmarked([chapter.id], bookmarked: !chapter.bookmarked) }
+        } label: {
+            Label(
+                chapter.bookmarked ? "Remove Bookmark" : "Bookmark",
+                systemImage: chapter.bookmarked ? "bookmark.slash" : "bookmark")
+        }
+    }
+
+    private func rowAccessibilityValue(_ chapter: Chapter) -> String {
+        var parts: [String] = []
+        if chapter.completed {
+            parts.append("Read")
+        } else if let progress = chapter.partialProgress {
+            parts.append("\(Int(progress * 100))% \(entry.media == .anime ? "watched" : "read")")
+        }
+        if chapter.bookmarked { parts.append("Bookmarked") }
+        switch chapter.downloadState {
+        case .downloaded: parts.append("Downloaded")
+        case .queued: parts.append("Download queued")
+        case .downloading(let value): parts.append("Downloading, \(Int(value * 100))%")
+        case .failed: parts.append("Download failed")
+        case .none: break
+        }
+        return parts.joined(separator: ", ")
     }
 
     /// Desktop SeriesHeader "Manage" drawer, as the toolbar's More menu.
@@ -740,14 +833,20 @@ struct DetailsView: View {
             Button("Mark Previous as Read", systemImage: "checkmark.circle.badge.questionmark") { Task { await model.setRead(previous, read: true) } }
             Button("Mark Previous as Unread", systemImage: "circle.dashed") { Task { await model.setRead(previous, read: false) } }
         }
+        bookmarkButton(chapter)
         Divider()
-        if chapter.downloaded {
+        switch chapter.downloadState {
+        case .downloaded:
             Button("Delete Download", systemImage: "trash", role: .destructive) { Task { await model.deleteDownloads([chapter.id]) } }
-        } else {
+        case .failed:
+            Button("Retry Download", systemImage: "arrow.clockwise") { Task { await model.retryDownload(chapter.id) } }
+        case .queued, .downloading:
+            Button("Cancel Download", systemImage: "xmark.circle", role: .destructive) { Task { await model.cancelDownload(chapter.id) } }
+        case .none:
             Button("Download", systemImage: "arrow.down.circle") { Task { await model.download([chapter.id]) } }
         }
         if let index = order.firstIndex(where: { $0.id == chapter.id }) {
-            let rest = order[index...].filter { !$0.downloaded }.map(\.id)
+            let rest = order[index...].filter(\.canQueueDownload).map(\.id)
             if rest.count > 1 {
                 Button("Download Next 5 from Here", systemImage: "arrow.down.to.line") { Task { await model.download(Array(rest.prefix(5))) } }
                 Button("Download All from Here", systemImage: "arrow.down.to.line.compact") { Task { await model.download(rest) } }
@@ -764,9 +863,9 @@ struct DetailsView: View {
         let order = readingOrder
         let start = model.continueTarget(preferences: chapterPreferences)?.chapter.id
         let fromIndex = order.firstIndex { $0.id == start } ?? 0
-        let ahead = order[fromIndex...].filter { !$0.downloaded }.map(\.id)
-        let unread = order.filter { !$0.completed && !$0.downloaded }.map(\.id)
-        let missing = order.filter { !$0.downloaded }.map(\.id)
+        let ahead = order[fromIndex...].filter(\.canQueueDownload).map(\.id)
+        let unread = order.filter { !$0.completed && $0.canQueueDownload }.map(\.id)
+        let missing = order.filter(\.canQueueDownload).map(\.id)
         let downloaded = order.filter(\.downloaded).map(\.id)
         return Menu {
             Section("From the next chapter") {
@@ -800,12 +899,19 @@ struct DetailsView: View {
                 }
                 .frame(minHeight: 44)
                 Text("\(selected.count) selected").font(.subheadline).foregroundStyle(.secondary)
+                    .lineLimit(1).minimumScaleFactor(0.7)
                     .frame(maxWidth: .infinity)
                 Group {
                     barButton("Mark read", icon: "checkmark.circle") { await model.setRead(ids, read: true) }
                     barButton("Mark unread", icon: "circle") { await model.setRead(ids, read: false) }
+                    // Bookmarks all unless every selected chapter already has one.
+                    let unbookmark = !chosen.isEmpty && chosen.allSatisfy(\.bookmarked)
+                    barButton(unbookmark ? "Remove bookmarks" : "Bookmark",
+                              icon: unbookmark ? "bookmark.slash" : "bookmark") {
+                        await model.setBookmarked(ids, bookmarked: !unbookmark)
+                    }
                     barButton("Download", icon: "arrow.down.circle") {
-                        await model.download(chosen.filter { !$0.downloaded }.map(\.id))
+                        await model.download(chosen.filter(\.canQueueDownload).map(\.id))
                     }
                     barButton("Delete downloads", icon: "trash") {
                         await model.deleteDownloads(chosen.filter(\.downloaded).map(\.id))
@@ -988,4 +1094,42 @@ extension EnvironmentValues {
     /// Shows a Close button on a Details page that is the root of a sheet or
     /// full-screen cover. Pushed Details pages use the system back button.
     @Entry var detailsShowsClose = false
+}
+
+/// Trailing download state on a chapter row: queued, a small determinate ring
+/// while downloading, failed (retry from the swipe or context menu), or done.
+struct ChapterDownloadIndicator: View {
+    let state: Chapter.DownloadState
+    @ScaledMetric(relativeTo: .body) private var ring: CGFloat = 17
+
+    var body: some View {
+        switch state {
+        case .none:
+            EmptyView()
+        case .downloaded:
+            Image(systemName: "arrow.down.circle.fill")
+                .foregroundStyle(NavigationStyle.accent)
+                .accessibilityLabel("Downloaded")
+        case .queued:
+            Image(systemName: "clock")
+                .foregroundStyle(.secondary)
+                .accessibilityLabel("Download queued")
+        case .downloading(let value):
+            ZStack {
+                Circle().stroke(.quaternary, lineWidth: 2.5)
+                Circle().trim(from: 0, to: max(0.03, value))
+                    .stroke(NavigationStyle.accent, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                    .animation(.easeOut(duration: 0.3), value: value)
+            }
+            .frame(width: ring, height: ring)
+            .accessibilityElement()
+            .accessibilityLabel("Downloading")
+            .accessibilityValue("\(Int(value * 100))%")
+        case .failed:
+            Image(systemName: "exclamationmark.circle.fill")
+                .foregroundStyle(.red)
+                .accessibilityLabel("Download failed")
+        }
+    }
 }

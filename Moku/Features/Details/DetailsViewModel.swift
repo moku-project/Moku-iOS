@@ -114,12 +114,132 @@ import Observation
         guard let mediaID = details?.id, !ids.isEmpty else { return }
         guard await StorageGuard.allow(count: ids.count, media: entry.media) else { return }
         do {
-            struct Queued: Decodable, Sendable { struct Item: Decodable, Sendable { let id: String }; let enqueueDownload: [Item] }
-            let _: Queued = try await BackendAPI.shared.graphql(
-                "mutation { enqueueDownload(mediaId: \(BackendAPI.literal(mediaID)), chapterIds: [\(ids.map(BackendAPI.literal).joined(separator: ","))]) { id } }",
+            struct Queued: Decodable, Sendable {
+                struct Item: Decodable, Sendable {
+                    let chapterId: String
+                    let status: Chapter.DownloadJob.Status?
+                    let progress: Double?
+                }
+                let enqueueDownload: [Item]
+            }
+            let queued: Queued = try await BackendAPI.shared.graphql(
+                "mutation { enqueueDownload(mediaId: \(BackendAPI.literal(mediaID)), chapterIds: [\(ids.map(BackendAPI.literal).joined(separator: ","))]) { chapterId status progress } }",
                 requiresSourceRuntime: false)
+            // Show the queue on the rows right away; polling takes it from here.
+            let jobs = Dictionary(
+                queued.enqueueDownload.map {
+                    ($0.chapterId, Chapter.DownloadJob(status: $0.status ?? .queued, progress: $0.progress ?? 0))
+                }, uniquingKeysWith: { _, last in last })
+            updateChapters { chapter in
+                if let job = jobs[chapter.id] { chapter.download = job }
+            }
             Toaster.shared.show(ids.count == 1 ? "Download queued" : "\(ids.count) downloads queued", kind: .download)
         } catch { chapterError = "Couldn’t queue downloads. Try again." }
+    }
+
+    /// True while any chapter on this page is queued or downloading.
+    var hasActiveDownloads: Bool { details?.chapters.contains(where: \.isDownloadActive) ?? false }
+
+    /// Light refresh of download state only, used while downloads run.
+    func refreshDownloads() async {
+        guard let mediaID = details?.id else { return }
+        struct Response: Decodable, Sendable {
+            struct Item: Decodable, Sendable {
+                let id: String
+                let downloaded: Bool
+                let download: Chapter.DownloadJob?
+            }
+            struct Media: Decodable, Sendable { let chapters: [Item] }
+            let media: Media?
+        }
+        guard let response: Response = try? await BackendAPI.shared.graphql(
+            "{ media(id: \(BackendAPI.literal(mediaID))) { chapters { id downloaded download { status progress } } } }",
+            requiresSourceRuntime: false),
+            !Task.isCancelled, details?.id == mediaID, let items = response.media?.chapters
+        else { return }
+        let states = Dictionary(items.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
+        var changed = false
+        var updated = details?.chapters ?? []
+        for index in updated.indices {
+            guard let state = states[updated[index].id] else { continue }
+            if updated[index].downloaded != state.downloaded || updated[index].download != state.download {
+                updated[index].downloaded = state.downloaded
+                updated[index].download = state.download
+                changed = true
+            }
+        }
+        // Only touch `details` when something moved, so idle polls don't rebuild the list.
+        if changed { details?.chapters = updated }
+    }
+
+    func retryDownload(_ id: String) async {
+        guard let mediaID = details?.id else { return }
+        let previous = details?.chapters.first { $0.id == id }?.download
+        updateChapters { if $0.id == id { $0.download = .init(status: .queued) } }
+        do {
+            struct Retry: Decodable, Sendable { struct Value: Decodable, Sendable { let id: String }; let retryDownload: Value }
+            let _: Retry = try await BackendAPI.shared.graphql(
+                "mutation { retryDownload(mediaId: \(BackendAPI.literal(mediaID)), chapterId: \(BackendAPI.literal(id))) { id } }",
+                requiresSourceRuntime: false)
+        } catch {
+            updateChapters { if $0.id == id { $0.download = previous } }
+            chapterError = "Couldn’t retry the download. Try again."
+        }
+    }
+
+    /// Removes a queued or running download.
+    func cancelDownload(_ id: String) async {
+        guard let mediaID = details?.id else { return }
+        let previous = details?.chapters.first { $0.id == id }?.download
+        updateChapters { if $0.id == id { $0.download = nil } }
+        do {
+            struct Cancelled: Decodable, Sendable { let dequeueDownload: Bool }
+            let _: Cancelled = try await BackendAPI.shared.graphql(
+                "mutation { dequeueDownload(mediaId: \(BackendAPI.literal(mediaID)), chapterId: \(BackendAPI.literal(id))) }",
+                requiresSourceRuntime: false)
+        } catch {
+            updateChapters { if $0.id == id { $0.download = previous } }
+            chapterError = "Couldn’t cancel the download. Try again."
+        }
+    }
+
+    /// Mihon-style chapter bookmarks, updated optimistically.
+    func setBookmarked(_ ids: Set<String>, bookmarked: Bool) async {
+        guard let mediaID = details?.id, !ids.isEmpty else { return }
+        let previous = details?.chapters ?? []
+        updateChapters { if ids.contains($0.id) { $0.bookmarked = bookmarked } }
+        do {
+            struct Response: Decodable, Sendable {
+                struct Item: Decodable, Sendable { let id: String; let bookmarked: Bool }
+                let setChaptersBookmarked: [Item]
+            }
+            let _: Response = try await BackendAPI.shared.graphql(
+                "mutation { setChaptersBookmarked(mediaId: \(BackendAPI.literal(mediaID)), chapterIds: [\(ids.map(BackendAPI.literal).joined(separator: ","))], bookmarked: \(bookmarked)) { id bookmarked } }",
+                requiresSourceRuntime: false)
+        } catch {
+            if var restored = details, restored.id == mediaID {
+                // Restore only the bookmark flags, keeping any newer download or read state.
+                let flags = Dictionary(previous.map { ($0.id, $0.bookmarked) }, uniquingKeysWith: { _, last in last })
+                restored.chapters = restored.chapters.map { chapter in
+                    var chapter = chapter
+                    if ids.contains(chapter.id), let flag = flags[chapter.id] { chapter.bookmarked = flag }
+                    return chapter
+                }
+                details = restored
+            }
+            chapterError = "Couldn’t update bookmarks. Try again."
+        }
+    }
+
+    /// Builds the new list first: reading `details` inside its own mutation traps.
+    private func updateChapters(_ change: (inout Chapter) -> Void) {
+        guard var updated = details else { return }
+        updated.chapters = updated.chapters.map { chapter in
+            var chapter = chapter
+            change(&chapter)
+            return chapter
+        }
+        details = updated
     }
 
     func deleteDownloads(_ ids: [String]) async {

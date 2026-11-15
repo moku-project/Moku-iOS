@@ -71,7 +71,7 @@ struct ExtensionsView: View {
         .background(NavigationStyle.background.ignoresSafeArea())
         .searchable(
             text: $model.query,
-            placement: .navigationBarDrawer(displayMode: .automatic),
+            placement: .navigationBarDrawer(displayMode: .always),
             prompt: section == .repositories ? "Find Repositories" : "Find Extensions")
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {

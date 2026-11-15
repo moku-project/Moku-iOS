@@ -21,6 +21,7 @@ struct LibraryItemView: View {
                 compact: layout == .compactGrid || layout == .compactList,
                 coversOnly: layout == .covers)
         }.buttonStyle(.plain)
+            .accessibilityIdentifier("library.item.\(item.id)")
             .contextMenu {
                 Button(
                     item.bookmarked ? "Unstar" : "Star",

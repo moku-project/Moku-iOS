@@ -112,9 +112,13 @@ struct SourceVerificationView: View {
                 .interactiveDismissDisabled(model.session != nil)
         }
         .task {
-            address = request.url?.absoluteString
+            // The caller's page first, then the source's own site as Tsunagu reports it,
+            // then the address used last time.
+            var url = request.url
+            if url == nil { url = await Self.sourceSite(request.extensionID) }
+            address = url?.absoluteString
                 ?? UserDefaults.standard.string(forKey: Self.addressKey(request.extensionID)) ?? "https://"
-            if let url = request.url { await start(url) }
+            if let url { await start(url) }
         }
         .onDisappear { Task { await model.cancel() } }
     }
@@ -182,6 +186,19 @@ struct SourceVerificationView: View {
     }
 
     private static func addressKey(_ extensionID: String) -> String { "verification.url.\(extensionID)" }
+
+    /// The site the installed source reads from, once the extension host has loaded it.
+    private static func sourceSite(_ extensionID: String) async -> URL? {
+        struct Result: Decodable, Sendable {
+            struct Item: Decodable, Sendable { let packageName: String; let baseUrl: String? }
+            let installedExtensions: [Item]
+        }
+        guard let result: Result = try? await BackendAPI.shared.graphql(
+            "{ installedExtensions { packageName baseUrl } }", requiresSourceRuntime: false),
+            let site = result.installedExtensions.first(where: { $0.packageName == extensionID })?.baseUrl
+        else { return nil }
+        return url(from: site)
+    }
 
     private static func url(from text: String) -> URL? {
         var value = text.trimmingCharacters(in: .whitespacesAndNewlines)

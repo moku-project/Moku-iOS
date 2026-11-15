@@ -124,6 +124,8 @@ struct HomeHeroCard: View {
                     .font(.caption).foregroundStyle(.secondary)
                 Text(RecentFormat.timeAgo(session.endedAt)).font(.caption2).foregroundStyle(.secondary)
             }
+            HomeSeriesProgress(entry: entry)
+                .frame(maxWidth: 240)
         }
     }
 
