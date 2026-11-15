@@ -90,11 +90,11 @@ import XCTest
                 XCTAssertLessThanOrEqual(frame.maxY, window.maxY, id)
             }
             app.buttons["mode.all"].tap()
-            app.buttons["tab.more"].tap()
+            app.tabBars.buttons["Settings"].tap()
             // More is a page of destinations now, not a pop-up menu.
-            let item = app.buttons["more.category.Recent"]
+            let item = app.buttons["more.category.History"]
             XCTAssertTrue(item.waitForExistence(timeout: 3))
-            XCTAssertLessThan(item.frame.maxY, app.buttons["tab.more"].frame.minY)
+            XCTAssertLessThan(item.frame.maxY, app.tabBars.buttons["Settings"].frame.minY)
             app.buttons["tab.home"].tap()
             XCTAssertFalse(item.exists)
         }

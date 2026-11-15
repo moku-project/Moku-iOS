@@ -39,7 +39,7 @@ actor LiveMediaRepository: SearchRepository {
         guard !selected.isEmpty else {
             throw EmbeddedSearchError.message(
                 available.isEmpty
-                    ? "No sources installed. Open Extensions from the More menu to add one."
+                    ? "No sources installed. Open Settings → Extensions to add one."
                     : "No installed source matches your search filters. Clear the filters or choose a different content type."
             )
         }
@@ -126,7 +126,7 @@ actor LiveMediaRepository: SearchRepository {
         }
         guard !selected.isEmpty else {
             return DiscoveryPage(entries: [], message: available.isEmpty
-                ? "Add a source in More → Extensions to discover titles."
+                ? "Add a source in Settings → Extensions to discover titles."
                 : "No installed sources match this mode and language.")
         }
         let batches: [Result<[MediaEntry], any Error>] = try await concurrentMap(selected, limit: 6) { source in

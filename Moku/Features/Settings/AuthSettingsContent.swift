@@ -11,51 +11,48 @@ struct AuthSettingsContent: View {
     @State private var notice: String?
     @State private var removePassword = false
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            GeneralSection("Server password") {
-                GeneralRow("Require a password", detail: "The app’s private API token remains valid.") {
-                    Toggle("Require a password", isOn: Binding(get: { passwordSet }, set: { value in
-                        if !value { removePassword = true }
-                    })).toggleStyle(GeneralToggleStyle()).disabled(!loaded || !passwordSet || busy)
-                }
-                GeneralStyle.divider
-                GeneralRow(passwordSet ? "New password" : "Password", detail: "") {
-                    SecureField("Password", text: $password).textContentType(.newPassword).generalInput().frame(width: 150)
-                }
-                GeneralRow("Server access", detail: "") {
-                    Button(passwordSet ? "Change" : "Enable") { Task { await savePassword() } }
-                        .buttonStyle(GeneralTextButtonStyle()).disabled(password.isEmpty || busy || !loaded)
-                }
+        SettingsForm {
+            Section {
+                Toggle("Require a password", isOn: Binding(get: { passwordSet }, set: { value in
+                    if !value { removePassword = true }
+                }))
+                .disabled(!loaded || !passwordSet || busy)
+                .accessibilityIdentifier("Require a password")
+                SecureField(passwordSet ? "New password" : "Password", text: $password)
+                    .textContentType(.newPassword)
+                Button(passwordSet ? "Change password" : "Enable password") { Task { await savePassword() } }
+                    .disabled(password.isEmpty || busy || !loaded)
+            } header: {
+                Text("Server password")
+            } footer: {
+                Text("The app’s private API token remains valid.")
             }
-            GeneralSection("App lock") {
+            Section {
                 if lock.enabled {
-                    GeneralRow("Current PIN", detail: "") { SecureField("Current PIN", text: $currentPIN).keyboardType(.numberPad).generalInput().frame(width: 150) }
-                    GeneralStyle.divider
+                    SecureField("Current PIN", text: $currentPIN).keyboardType(.numberPad)
                 }
-                GeneralRow(lock.enabled ? "New PIN" : "PIN", detail: "6–8 digits. Stored in the device Keychain.") {
-                    SecureField("PIN", text: $newPIN).keyboardType(.numberPad).generalInput().frame(width: 150)
-                }
-                GeneralRow("App lock", detail: "Locks when Moku goes into the background.") {
-                    Button(lock.enabled ? "Change PIN" : "Enable") {
-                        do { try lock.configure(pin: newPIN, currentPIN: currentPIN); newPIN = ""; currentPIN = ""; notice = nil }
+                SecureField(lock.enabled ? "New PIN" : "PIN", text: $newPIN).keyboardType(.numberPad)
+                Button(lock.enabled ? "Change PIN" : "Enable app lock") {
+                    do { try lock.configure(pin: newPIN, currentPIN: currentPIN); newPIN = ""; currentPIN = ""; notice = nil }
+                    catch { notice = error.localizedDescription }
+                }.disabled(newPIN.isEmpty)
+            } header: {
+                Text("App lock")
+            } footer: {
+                Text("6–8 digits, stored in the device Keychain. Locks when Moku goes into the background.")
+            }
+            if lock.enabled {
+                Section {
+                    SettingsToggle("Face ID / Touch ID", detail: "Use biometrics as an alternative to the PIN.", isOn: Binding(get: { lock.biometrics }, set: { lock.biometrics = $0 }))
+                    Button("Remove app lock", role: .destructive) {
+                        do { try lock.disable(pin: currentPIN); currentPIN = ""; notice = nil }
                         catch { notice = error.localizedDescription }
-                    }.buttonStyle(GeneralTextButtonStyle()).disabled(newPIN.isEmpty)
-                }
-                if lock.enabled {
-                    GeneralStyle.divider
-                    GeneralRow("Face ID / Touch ID", detail: "Use biometrics as an alternative to the PIN.") {
-                        Toggle("Face ID / Touch ID", isOn: Binding(get: { lock.biometrics }, set: { lock.biometrics = $0 })).toggleStyle(GeneralToggleStyle())
                     }
-                    GeneralStyle.divider
-                    GeneralRow("Remove app lock", detail: "Requires the current PIN.") {
-                        Button("Disable") {
-                            do { try lock.disable(pin: currentPIN); currentPIN = ""; notice = nil }
-                            catch { notice = error.localizedDescription }
-                        }.buttonStyle(GeneralTextButtonStyle())
-                    }
+                } footer: {
+                    Text("Removing the app lock requires the current PIN.")
                 }
             }
-            if let notice { Text(notice).font(.footnote).foregroundStyle(GeneralStyle.faint) }
+            SettingsNotice(text: notice)
         }.task { await load() }
             .confirmationDialog("Remove the server password?", isPresented: $removePassword, titleVisibility: .visible) {
                 Button("Remove password", role: .destructive) { Task { await disablePassword() } }

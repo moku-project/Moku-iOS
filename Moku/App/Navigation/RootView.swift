@@ -33,7 +33,7 @@ struct RootView: View {
         // Desktop "Default view". Read once at launch; changing it applies next time.
         let navigation = RootNavigation()
         let stored = AppDataStore.shared.preferences.string(forKey: "preferences.startTab")
-        if let tab = stored.flatMap(AppTab.init(rawValue:)), AppTab.startChoices.contains(tab) {
+        if let tab = stored.flatMap(AppTab.init(rawValue:)) {
             navigation.selection = tab
         }
         return navigation
@@ -117,6 +117,7 @@ struct RootView: View {
         }
         .modifier(OverflowMenuHost())
         .modifier(MokuLinksHost())
+        .sourceVerificationHost()
     }
 }
 

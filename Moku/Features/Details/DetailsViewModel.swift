@@ -33,6 +33,9 @@ import Observation
             "\(entry.sourceName) returned no readable chapters for this title. A title can have metadata and a cover even when the source has no chapters available. Check the source’s availability and language settings, then refresh."
     }
 
+    /// The source answered with a browser challenge (Cloudflare and the like).
+    var sourceChallenge = false
+
     var sourceURL: URL? {
         guard entry.extensionID == "example.source",
             let externalID = entry.externalID, externalID.hasPrefix("/manga/"),
@@ -144,6 +147,7 @@ import Observation
         loading = true
         error = nil
         chapterError = nil
+        sourceChallenge = false
         defer { if generation == current { loading = false } }
         // Search and library titles already carry the server's media ID, so the
         // chapters load alongside the title info instead of after it.
@@ -181,6 +185,7 @@ import Observation
             details?.chapters = chapters
         } catch {
             guard !Task.isCancelled, generation == current else { return }
+            sourceChallenge = BrowserVerification.isChallenge(error)
             chapterError =
                 "Couldn’t load chapters from \(entry.sourceName). This is a request failure, not an empty chapter list. Check your connection or source settings and retry."
         }

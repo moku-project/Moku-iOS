@@ -10,29 +10,29 @@ struct CacheSettingsContent: View {
     @State private var busy = false
     @State private var expanded = false
     var body: some View {
-        GeneralSection("Cache") {
-            GeneralRow("Entries", detail: "Stored cover and search results.") { Text("\(files.count)").font(.subheadline) }
-            GeneralStyle.divider
-            GeneralRow("Size", detail: "") { Text(ByteCountFormatter.string(fromByteCount: files.reduce(0) { $0 + $1.bytes }, countStyle: .file)).font(.subheadline) }
+        Section {
+            LabeledContent("Entries", value: "\(files.count)")
+                .task { await refresh() }
+            LabeledContent("Size", value: ByteCountFormatter.string(fromByteCount: files.reduce(0) { $0 + $1.bytes }, countStyle: .file))
             if let oldest = files.first, let newest = files.last {
-                GeneralStyle.divider
-                GeneralRow("Oldest access", detail: "") { Text(oldest.modified, style: .date).font(.subheadline) }
-                GeneralStyle.divider
-                GeneralRow("Newest access", detail: "") { Text(newest.modified, style: .date).font(.subheadline) }
+                LabeledContent("Oldest access") { Text(oldest.modified, style: .date) }
+                LabeledContent("Newest access") { Text(newest.modified, style: .date) }
             }
-            GeneralStyle.divider
-            GeneralRow("Stored keys", detail: "") { Button(expanded ? "Hide" : "Show") { expanded.toggle() }.buttonStyle(GeneralTextButtonStyle()) }
-            if expanded {
-                ForEach(files.prefix(100)) { file in Text(file.id).font(.caption2.monospacedDigit()).foregroundStyle(GeneralStyle.faint).textSelection(.enabled).lineLimit(2) }
+            DisclosureGroup("Stored keys", isExpanded: $expanded) {
+                ForEach(files.prefix(100)) { file in
+                    Text(file.id).font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
+                        .textSelection(.enabled).lineLimit(2)
+                }
             }
-            GeneralStyle.divider
-            GeneralRow("Cache", detail: "Remove cached covers and search results.") {
-                HStack(spacing: 16) {
-                    Button("Refresh") { Task { await refresh() } }
-                    Button("Clear") { Task { await BackendAPI.shared.clearContentCache(); await refresh() } }
-                }.buttonStyle(GeneralTextButtonStyle())
-            }
-        }.disabled(busy).task { await refresh() }
+            Button("Refresh") { Task { await refresh() } }.disabled(busy)
+            Button("Clear cache", role: .destructive) {
+                Task { await BackendAPI.shared.clearContentCache(); await refresh() }
+            }.disabled(busy)
+        } header: {
+            Text("Cache")
+        } footer: {
+            Text("Stored covers and search results.")
+        }
     }
     private func refresh() async {
         busy = true

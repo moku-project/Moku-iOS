@@ -95,6 +95,7 @@ struct MigrateSheet: View {
             }
             .disabled(working)
         }
+        .presentationDetents([.medium, .large])
     }
 
     private func loadSources() async {

@@ -50,149 +50,158 @@ struct TrackingSheet: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    if loading {
-                        ContentSkeleton(style: .settings, count: 3)
-                    } else if trackers.filter(\.isLoggedIn).isEmpty {
-                        Text("No tracker is connected. Sign in to AniList in More → Tracking, then come back to link this title.")
-                            .font(.subheadline).foregroundStyle(GeneralStyle.label)
+            Form {
+                if loading {
+                    Section {
+                        HStack { ProgressView(); Text("Loading trackers…").foregroundStyle(.secondary) }
                     }
-                    ForEach(trackers.filter(\.isLoggedIn)) { tracker in
-                        section(tracker)
-                    }
-                    if let error {
-                        Text(error).font(.footnote).foregroundStyle(.orange)
-                    }
+                } else if trackers.filter(\.isLoggedIn).isEmpty {
+                    ContentUnavailableView(
+                        "No Tracker Connected", systemImage: "antenna.radiowaves.left.and.right",
+                        description: Text("Sign in to AniList in Settings → Tracking, then come back to link this title."))
+                        .listRowBackground(Color.clear)
                 }
-                .padding(20)
+                ForEach(trackers.filter(\.isLoggedIn)) { tracker in
+                    section(tracker)
+                }
+                if let error {
+                    Section { Text(error).foregroundStyle(.orange) }
+                }
             }
+            .scrollContentBackground(.hidden)
             .background(NavigationStyle.background.ignoresSafeArea())
             .navigationTitle("Tracking")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
             .task { await load() }
         }
+        .presentationDetents([.medium, .large])
     }
 
     @ViewBuilder private func section(_ tracker: Tracker) -> some View {
-        GeneralSection(tracker.name) {
+        Section(tracker.name) {
             if let link = links.first(where: { $0.trackerKey == tracker.key }) {
                 linked(link, tracker: tracker)
             } else if searchingTracker == tracker.key {
                 search(tracker)
             } else {
-                GeneralRow("Not linked", detail: "Find this title on \(tracker.name) to sync your progress.") {
+                LabeledContent {
                     Button("Link") {
                         searchingTracker = tracker.key
                         query = title
                         Task { await runSearch(tracker) }
                     }
-                    .buttonStyle(GeneralTextButtonStyle())
+                    .buttonStyle(.bordered)
+                } label: {
+                    Text("Not linked")
+                    Text("Find this title on \(tracker.name) to sync your progress.")
                 }
             }
         }
     }
 
-    private func linked(_ link: TrackLink, tracker: Tracker) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            GeneralRow(link.title, detail: "Now tracking") {
-                if let url = URL(string: link.url) {
-                    Link(destination: url) { PhosphorIcon("ArrowUpRight", size: 14) }
-                        .accessibilityLabel("Open on \(tracker.name)")
-                }
-            }
-            GeneralStyle.divider
-            GeneralRow("Status", detail: "") {
-                Menu {
-                    ForEach(tracker.statusOptions, id: \.value) { option in
-                        Button(isAnime ? option.animeName : option.name) {
-                            Task { await update(link, status: option.value) }
-                        }
-                    }
+    @ViewBuilder private func linked(_ link: TrackLink, tracker: Tracker) -> some View {
+        if let url = URL(string: link.url) {
+            Link(destination: url) {
+                LabeledContent {
+                    Image(systemName: "arrow.up.right.square")
                 } label: {
-                    let current = tracker.statusOptions.first { $0.value == link.status }
-                    Text(current.map { isAnime ? $0.animeName : $0.name } ?? "Choose")
-                        .font(.subheadline).foregroundStyle(NavigationStyle.accent)
+                    Text(link.title).foregroundStyle(.primary)
+                    Text("Now tracking")
                 }
             }
-            GeneralStyle.divider
-            GeneralRow(isAnime ? "Episodes watched" : "Chapters read",
-                       detail: link.totalChapters > 0 ? "of \(link.totalChapters)" : "") {
-                Stepper(
-                    value: Binding(
-                        get: { link.lastChapterRead },
-                        set: { value in Task { await update(link, progress: value) } }),
-                    in: 0...Double(max(link.totalChapters, 10_000)), step: 1
-                ) {
-                    Text(link.lastChapterRead.formatted()).monospacedDigit()
-                }
-                .fixedSize()
+            .accessibilityHint("Opens on \(tracker.name)")
+        } else {
+            LabeledContent {
+                EmptyView()
+            } label: {
+                Text(link.title)
+                Text("Now tracking")
             }
-            if !tracker.scoreOptions.isEmpty {
-                GeneralStyle.divider
-                GeneralRow("Score", detail: "") {
-                    Menu {
-                        ForEach(tracker.scoreOptions, id: \.self) { option in
-                            Button(option) { Task { await update(link, score: Double(option) ?? 0) } }
-                        }
-                    } label: {
-                        Text(link.score == 0 ? "No score" : link.score.formatted())
-                            .font(.subheadline).foregroundStyle(NavigationStyle.accent)
-                    }
+        }
+        Picker("Status", selection: Binding(
+            get: { link.status },
+            set: { value in Task { await update(link, status: value) } }
+        )) {
+            if !tracker.statusOptions.contains(where: { $0.value == link.status }) {
+                Text("Choose").tag(link.status)
+            }
+            ForEach(tracker.statusOptions, id: \.value) { option in
+                Text(isAnime ? option.animeName : option.name).tag(option.value)
+            }
+        }
+        Stepper(
+            value: Binding(
+                get: { link.lastChapterRead },
+                set: { value in Task { await update(link, progress: value) } }),
+            in: 0...Double(max(link.totalChapters, 10_000)), step: 1
+        ) {
+            LabeledContent(isAnime ? "Episodes watched" : "Chapters read") {
+                Text(link.lastChapterRead.formatted()
+                     + (link.totalChapters > 0 ? " of \(link.totalChapters)" : ""))
+                    .monospacedDigit()
+            }
+        }
+        if !tracker.scoreOptions.isEmpty {
+            Menu {
+                ForEach(tracker.scoreOptions, id: \.self) { option in
+                    Button(option) { Task { await update(link, score: Double(option) ?? 0) } }
+                }
+            } label: {
+                LabeledContent("Score") {
+                    Text(link.score == 0 ? "No score" : link.score.formatted())
                 }
             }
-            GeneralStyle.divider
-            HStack {
-                Button("Sync from \(tracker.name)") { Task { await mutate("resyncTrack(linkId: \(BackendAPI.literal(link.id))) { \(Self.linkFields) }") } }
-                Spacer()
-                Button("Unlink", role: .destructive) {
-                    Task {
-                        let _: IgnoredGraphQLResult? = try? await BackendAPI.shared.graphql(
-                            "mutation { unbindTrack(linkId: \(BackendAPI.literal(link.id))) }", requiresSourceRuntime: false)
-                        await load()
-                    }
-                }
+            .foregroundStyle(.primary)
+        }
+        Button {
+            Task { await mutate("resyncTrack(linkId: \(BackendAPI.literal(link.id))) { \(Self.linkFields) }") }
+        } label: {
+            Label("Sync from \(tracker.name)", systemImage: "arrow.triangle.2.circlepath")
+        }
+        Button(role: .destructive) {
+            Task {
+                let _: IgnoredGraphQLResult? = try? await BackendAPI.shared.graphql(
+                    "mutation { unbindTrack(linkId: \(BackendAPI.literal(link.id))) }", requiresSourceRuntime: false)
+                await load()
             }
-            .font(.subheadline).buttonStyle(.plain).foregroundStyle(NavigationStyle.accent)
-            .frame(minHeight: 44)
+        } label: {
+            Label("Unlink", systemImage: "link.badge.minus")
         }
     }
 
-    private func search(_ tracker: Tracker) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                TextField("Search \(tracker.name)", text: $query)
-                    .font(.subheadline).padding(10)
-                    .background(NavigationStyle.surface, in: RoundedRectangle(cornerRadius: 8))
-                    .onSubmit { Task { await runSearch(tracker) } }
-                Button("Cancel") { searchingTracker = nil; results = [] }.font(.subheadline)
-            }
-            if searching { ProgressView().frame(maxWidth: .infinity) }
-            ForEach(results) { result in
-                Button {
-                    Task { await bind(result, tracker: tracker) }
-                } label: {
-                    HStack(spacing: 12) {
-                        CoverImage(url: result.coverUrl.flatMap(URL.init(string:)), symbol: "Book")
-                            .frame(width: 40, height: 58).clipShape(RoundedRectangle(cornerRadius: 4))
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(result.title).font(.subheadline).multilineTextAlignment(.leading)
-                            Text([result.publishingStatus, result.totalChapters.map { "\($0) \(isAnime ? "episodes" : "chapters")" }]
-                                .compactMap { $0 }.joined(separator: " · "))
-                                .font(.caption).foregroundStyle(.secondary)
-                        }
-                        Spacer(minLength: 0)
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            }
-            if !searching && results.isEmpty {
-                Text("No matches. Try a shorter or alternative title.").font(.caption).foregroundStyle(.secondary)
-            }
+    @ViewBuilder private func search(_ tracker: Tracker) -> some View {
+        HStack {
+            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+            TextField("Search \(tracker.name)", text: $query)
+                .submitLabel(.search)
+                .onSubmit { Task { await runSearch(tracker) } }
+            Button("Cancel") { searchingTracker = nil; results = [] }
+                .buttonStyle(.borderless)
         }
-        .padding(.vertical, 8)
+        if searching { ProgressView().frame(maxWidth: .infinity) }
+        ForEach(results) { result in
+            Button {
+                Task { await bind(result, tracker: tracker) }
+            } label: {
+                HStack(spacing: 12) {
+                    CoverImage(url: result.coverUrl.flatMap(URL.init(string:)), symbol: "Book")
+                        .frame(width: 40, height: 58).clipShape(RoundedRectangle(cornerRadius: 4))
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(result.title).font(.subheadline).multilineTextAlignment(.leading)
+                        Text([result.publishingStatus, result.totalChapters.map { "\($0) \(isAnime ? "episodes" : "chapters")" }]
+                            .compactMap { $0 }.joined(separator: " · "))
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
+            }
+            .foregroundStyle(.primary)
+        }
+        if !searching && results.isEmpty {
+            Text("No matches. Try a shorter or alternative title.").font(.caption).foregroundStyle(.secondary)
+        }
     }
 
     private func load() async {

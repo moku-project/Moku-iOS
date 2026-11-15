@@ -71,7 +71,7 @@ final class SearchTests: XCTestCase {
             app.textFields["search.input"].typeText("\n")
             app.buttons["tab.library"].tap()
         }
-        app.buttons["tab.more"].tap()
+        app.tabBars.buttons["Settings"].tap()
         app.buttons["more.category.Extensions"].tap()
         XCTAssertTrue(app.buttons["extensions.section"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["extensions.browse"].waitForExistence(timeout: 3))
@@ -92,7 +92,7 @@ final class SearchTests: XCTestCase {
         input.typeText("moon\n")
         XCTAssertTrue(
             app.staticTexts[
-                "No sources installed. Open Extensions from the More menu to add one."
+                "No sources installed. Open Settings → Extensions to add one."
             ].waitForExistence(timeout: 60))
         app.buttons["tab.library"].tap()
         XCTAssertTrue(app.buttons["tab.library"].waitForExistence(timeout: 3))
@@ -183,7 +183,7 @@ final class LiveSearchTests: XCTestCase {
         app.launchArguments = ["-contentMode", "all", "--ui-testing-isolated-backend"]
         app.launch()
         XCTAssertTrue(app.buttons["tab.browse"].waitForExistence(timeout: 15))
-        app.buttons["tab.more"].tap()
+        app.tabBars.buttons["Settings"].tap()
         app.buttons["more.category.Extensions"].tap()
         app.buttons["extensions.section"].tap()
         app.buttons["extensions.view.Repositories"].tap()
@@ -278,7 +278,7 @@ final class LiveSearchTests: XCTestCase {
             app.buttons["details.back"].tap()
             XCTAssertTrue(input.waitForExistence(timeout: 10))
         }
-        app.buttons["tab.more"].tap()
+        app.tabBars.buttons["Settings"].tap()
         app.buttons["more.category.Extensions"].tap()
         XCTAssertTrue(app.buttons["Manage the source"].waitForExistence(timeout: 15))
         source.swipeLeft()

@@ -7,16 +7,8 @@ struct ExtensionsView: View {
         case browse = "Browse"
         case repositories = "Repositories"
         var id: Self { self }
-        var symbol: String { self == .repositories ? "FolderSimple" : "PuzzlePiece" }
-    }
-    private enum ToolSheet: String, Identifiable {
-        case search, filters
-        var id: Self { self }
     }
     @State private var section: SectionChoice = .installed
-    @State private var viewPicker = false
-    @State private var menuLevel: RadialMenuLevel = .closed
-    @State private var toolSheet: ToolSheet?
     @State private var settingsSource: SourceExtension?
     @State private var librarySource: SourceExtension?
     @State private var model = ExtensionsViewModel(repository: AppDependencies.extensionRepository)
@@ -29,12 +21,10 @@ struct ExtensionsView: View {
     @State private var rename = ""
     @State private var installingURL = false
     @State private var externalURL = ""
-    private var updatable: [SourceExtension] { model.installed.filter { $0.needsUpdate == true } }
-    @Environment(\.navigationContentBottomInset) private var bottomInset
-    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
-    @AppStorage("preferences.animations") private var animations = true
-    @ScaledMetric(relativeTo: .body) private var logoSize = 64
-    private var reduceMotion: Bool { systemReduceMotion || !animations }
+    @AppStorage("preferences.modeTabs") private var savedModes = ""
+    private var modes: [ContentMode] { ModeTabConfiguration(storage: savedModes).visible }
+    private var updatable: [SourceExtension] { model.visibleInstalled.filter { $0.needsUpdate == true } }
+    private var upToDate: [SourceExtension] { model.visibleInstalled.filter { $0.needsUpdate != true } }
     private var visibleRepositories: [ExtensionRepositoryInfo] {
         model.repositories.filter {
             model.query.isEmpty || $0.title.localizedStandardContains(model.query)
@@ -42,53 +32,70 @@ struct ExtensionsView: View {
         }
     }
     private var filterCount: Int {
-        (model.repositoryID == nil ? 0 : 1) + (model.language == nil ? 0 : 1)
+        (model.repositoryID == nil ? 0 : 1) + (model.language == nil ? 0 : 1) + (model.media == .all ? 0 : 1)
     }
 
     var body: some View {
-        GeometryReader { geometry in
-            VStack(spacing: 8) {
-                ModeTabs(
-                    mode: Binding(get: { model.media }, set: { model.media = $0 }),
-                    prefix: "extensions", onSelect: dismissTools
-                ).pillBackdrop(viewPicker).zIndex(3)
-                viewControls.zIndex(2)
-                content
-                    .firstLoadSkeleton(
-                        "extensions-\(section.rawValue)", loading: model.isLoading,
-                        style: .extensions
-                    )
-                    .pillBackdrop(viewPicker)
-                    .opacity(menuLevel == .closed ? 1 : 0.18)
-                    .overlay {
-                        if viewPicker || menuLevel != .closed {
-                            Color.black.opacity(0.001).contentShape(Rectangle())
-                                .onTapGesture { dismissTools() }
-                                .accessibilityLabel("Dismiss Extensions menu")
-                                .accessibilityAddTraits(.isButton)
-                                .accessibilityAction { dismissTools() }
-                        }
+        Group {
+            List {
+                Section {
+                    Picker("View", selection: $section) {
+                        ForEach(SectionChoice.allCases) { Text($0.rawValue).tag($0) }
                     }
+                    .pickerStyle(.segmented)
+                    .accessibilityIdentifier("extensions.section")
+                }
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                .listSectionSpacing(.compact)
+                if let error = model.error {
+                    Section {
+                        Label(error, systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.orange)
+                        Button("Retry") { Task { await model.load() } }
+                    }
+                }
+                switch section {
+                case .installed: installedSections
+                case .browse: browseSections
+                case .repositories: repositorySections
+                }
             }
-            .overlay(alignment: .bottomTrailing) {
-                RadialMenu(
-                    level: $menuLevel, reduceMotion: reduceMotion,
-                    actions: radialActions, accessibilityPrefix: "extensions",
-                    toolsTitle: "Extensions"
-                )
-                .pillBackdrop(viewPicker)
-                .padding(.trailing, max(16, (geometry.size.width - 336) / 2))
-                .padding(.bottom, bottomInset + 12)
-            }
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: viewPicker)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: menuLevel)
+            .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
+            .firstLoadSkeleton(
+                "extensions-\(section.rawValue)", loading: model.isLoading, style: .extensions)
+            .refreshable { await model.load() }
+            .accessibilityIdentifier("extensions.list")
         }
-        .background(NavigationStyle.background)
-        .tint(NavigationStyle.accent)
+        .background(NavigationStyle.background.ignoresSafeArea())
+        .searchable(
+            text: $model.query,
+            placement: .navigationBarDrawer(displayMode: .automatic),
+            prompt: section == .repositories ? "Find Repositories" : "Find Extensions")
+        .toolbar {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                filterMenu
+                Menu {
+                    Button("Add Repository…", systemImage: "folder.badge.plus") { isAdding = true }
+                    Button("Install from URL…", systemImage: "link") {
+                        externalURL = ""
+                        installingURL = true
+                    }
+                } label: {
+                    Label("Add", systemImage: "plus")
+                } primaryAction: {
+                    isAdding = true
+                }
+                .accessibilityIdentifier("extensions.addRepository")
+            }
+        }
         .overlay {
             if model.isWorking {
-                ContentSkeleton(style: .extensions, count: 1).padding(24)
-                    .modifier(FloatingSurface(cornerRadius: 20))
+                ProgressView()
+                    .controlSize(.large)
+                    .padding(24)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
             }
         }
         .disabled(model.isWorking)
@@ -100,12 +107,6 @@ struct ExtensionsView: View {
                 await model.load(refreshSections: !model.installedLoaded)
             } catch {}
         }
-        .onDisappear { dismissTools() }
-        .sheet(item: $toolSheet) { tool in
-            ExtensionFilters(
-                model: model, repositoriesOnly: section == .repositories,
-                title: tool == .search ? "Search" : "Filters", close: { toolSheet = nil })
-        }
         .sheet(isPresented: $isAdding) {
             AddRepositoryView(
                 model: model, repositoryName: $repositoryName, repositoryURL: $repositoryURL,
@@ -115,39 +116,33 @@ struct ExtensionsView: View {
             SourceSettingsView(source: $0, repository: AppDependencies.extensionRepository)
         }
         .sheet(item: $librarySource) { ExtensionLibrarySheet(source: $0) }
-        .alert(
+        .confirmationDialog(
             "Uninstall \(removing?.displayName ?? "extension")?",
-            isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } })
-        ) {
-            Button("Cancel", role: .cancel) {}
-            Button("Uninstall", role: .destructive) {
-                if let item = removing { change(.uninstallExtension, item) }
-            }
-        } message: {
+            isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }),
+            titleVisibility: .visible, presenting: removing
+        ) { item in
+            Button("Uninstall", role: .destructive) { change(.uninstallExtension, item) }
+        } message: { _ in
             Text("This source will no longer be available for search.")
         }
-        .alert(
-            "Remove repository?",
-            isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } })
-        ) {
-            Button("Cancel", role: .cancel) {}
-            Button("Remove", role: .destructive) {
-                if let repo = deleting {
-                    model.repositoryID = nil
-                    Task {
-                        await model.perform {
-                            try await $0.repositoryAction(.deleteRepository, id: repo.id, name: "")
-                        }
+        .confirmationDialog(
+            "Remove \(deleting?.title ?? "repository")?",
+            isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }),
+            titleVisibility: .visible, presenting: deleting
+        ) { repo in
+            Button("Remove Repository", role: .destructive) {
+                model.repositoryID = nil
+                Task {
+                    await model.perform {
+                        try await $0.repositoryAction(.deleteRepository, id: repo.id, name: "")
                     }
                 }
             }
-        } message: {
-            Text(
-                "This removes the repository and its extension catalog. Uninstall its sources first."
-            )
+        } message: { _ in
+            Text("This removes the repository and its extension catalog.")
         }
         .alert(
-            "Rename repository",
+            "Rename Repository",
             isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })
         ) {
             TextField("Name", text: $rename)
@@ -157,8 +152,7 @@ struct ExtensionsView: View {
                     let name = rename
                     Task {
                         await model.perform {
-                            try await $0.repositoryAction(
-                                .renameRepository, id: repo.id, name: name)
+                            try await $0.repositoryAction(.renameRepository, id: repo.id, name: name)
                         }
                     }
                 }
@@ -179,12 +173,234 @@ struct ExtensionsView: View {
         } message: {
             Text("Only install extensions from sources you trust. They run on this device with network access.")
         }
+        .sheet(item: $verification) { SourceVerificationView(request: $0) }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("extensions.page")
     }
 
+    // MARK: Toolbar
+
+    private var filterMenu: some View {
+        Menu {
+            Picker("Content", selection: $model.media) {
+                ForEach(modes) { Text($0.title).tag($0) }
+            }
+            if section != .repositories {
+                Picker(selection: $model.repositoryID) {
+                    Text("All Repositories").tag(String?.none)
+                    ForEach(model.repositories) { repo in
+                        Text(repo.title).tag(Optional(repo.id))
+                    }
+                } label: {
+                    Label("Repository", systemImage: "folder")
+                }
+                .pickerStyle(.menu)
+                Picker(selection: $model.language) {
+                    Text("All Languages").tag(String?.none)
+                    ForEach(model.languages, id: \.self) { language in
+                        Text(Locale.current.localizedString(forLanguageCode: language) ?? language)
+                            .tag(Optional(language))
+                    }
+                } label: {
+                    Label("Language", systemImage: "globe")
+                }
+                .pickerStyle(.menu)
+            }
+            if filterCount > 0 {
+                Divider()
+                Button("Reset Filters", systemImage: "arrow.counterclockwise") {
+                    model.repositoryID = nil
+                    model.language = nil
+                    model.media = .all
+                }
+            }
+        } label: {
+            Label(
+                "Filters",
+                systemImage: filterCount > 0
+                    ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+        }
+        .accessibilityIdentifier("extensions.filters")
+    }
+
+    // MARK: Sections
+
+    @ViewBuilder private var installedSections: some View {
+        if !updatable.isEmpty {
+            Section {
+                ForEach(updatable) { row($0) }
+            } header: {
+                HStack {
+                    Text("Updates")
+                    Spacer()
+                    Button("Update All", action: updateAll)
+                        .font(.subheadline).textCase(nil)
+                }
+            }
+        }
+        if !upToDate.isEmpty {
+            Section {
+                ForEach(upToDate) { row($0) }
+            } header: {
+                Text("Installed")
+            } footer: {
+                Text("\(model.visibleInstalled.count) installed. Tap a source to browse it; touch and hold for settings and migration.")
+            }
+        }
+        if !model.isLoading && model.visibleInstalled.isEmpty {
+            emptyState
+        }
+    }
+
+    @ViewBuilder private var browseSections: some View {
+        if !model.items.isEmpty {
+            Section {
+                ForEach(model.items) { row($0) }
+                if model.items.count < model.total {
+                    Button("Load More") { Task { await model.load(more: true) } }
+                        .disabled(model.isLoading)
+                }
+            } header: {
+                Text("\(model.total.formatted()) extensions")
+            }
+        } else if !model.isLoading {
+            emptyState
+        }
+    }
+
+    @ViewBuilder private var repositorySections: some View {
+        Section {
+            ForEach(visibleRepositories) { repositoryRow($0) }
+            Button {
+                isAdding = true
+            } label: {
+                Label("Add Repository", systemImage: "plus")
+            }
+            .accessibilityIdentifier("extensions.addRepository.row")
+        } header: {
+            Text("\(visibleRepositories.count) repositories")
+        } footer: {
+            Text("Tap a repository to browse its extensions. A repository can be removed once its sources are uninstalled.")
+        }
+    }
+
+    @ViewBuilder private var emptyState: some View {
+        Section {
+            if !model.query.isEmpty {
+                ContentUnavailableView.search(text: model.query)
+            } else if filterCount > 0 {
+                ContentUnavailableView(
+                    "No Matching Extensions", systemImage: "line.3.horizontal.decrease.circle",
+                    description: Text("Change your filters to see more."))
+            } else if section == .installed {
+                ContentUnavailableView {
+                    Label("No Extensions Installed", systemImage: "puzzlepiece.extension")
+                } description: {
+                    Text("Browse extensions to add your first source.")
+                } actions: {
+                    Button("Browse Extensions") { section = .browse }
+                        .buttonStyle(.borderedProminent)
+                        .accessibilityIdentifier("extensions.browse")
+                }
+            } else {
+                ContentUnavailableView {
+                    Label(
+                        model.repositories.isEmpty ? "Add Your First Repository" : "No Extensions Found",
+                        systemImage: "folder")
+                } description: {
+                    Text("Repositories list the extensions you can install.")
+                } actions: {
+                    Button("Add Repository") { isAdding = true }
+                        .buttonStyle(.borderedProminent)
+                }
+            }
+        }
+        .listRowBackground(Color.clear)
+    }
+
+    private func row(_ item: SourceExtension) -> some View {
+        ExtensionRow(
+            item: item, search: search, configure: { settingsSource = $0 },
+            openLibrary: { librarySource = $0 },
+            verify: { verifySource($0) },
+            uninstall: { removing = $0 },
+            change: change)
+    }
+
+    @Environment(\.presentSourceVerification) private var presentSourceVerification
+    /// Used when no `.sourceVerificationHost()` is installed above this page.
+    @State private var verification: SourceVerificationRequest?
+
+    private func verifySource(_ item: SourceExtension) {
+        if presentSourceVerification.isAvailable {
+            presentSourceVerification(extensionID: item.packageName, url: nil, sourceName: item.displayName)
+        } else {
+            verification = SourceVerificationRequest(
+                extensionID: item.packageName, url: nil, sourceName: item.displayName)
+        }
+    }
+
+    private func repositoryRow(_ repo: ExtensionRepositoryInfo) -> some View {
+        Button {
+            model.repositoryID = repo.id
+            section = .browse
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "folder").font(.title3).foregroundStyle(NavigationStyle.accent)
+                    .frame(width: 32).accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(repo.title).foregroundStyle(.primary).lineLimit(2)
+                    Text(repo.indexUrl).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                Image(systemName: "chevron.forward").font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary).accessibilityHidden(true)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            if canRemove(repo) {
+                Button("Remove", role: .destructive) { deleting = repo }
+            }
+            Button("Refresh") { refresh(repo) }.tint(NavigationStyle.accent)
+        }
+        .contextMenu {
+            Button("Browse Extensions", systemImage: "puzzlepiece.extension") {
+                model.repositoryID = repo.id
+                section = .browse
+            }
+            Button("Refresh", systemImage: "arrow.clockwise") { refresh(repo) }
+            Button("Rename", systemImage: "pencil") {
+                rename = repo.title
+                renaming = repo
+            }
+            Button("Copy Index URL", systemImage: "doc.on.doc") {
+                UIPasteboard.general.string = repo.indexUrl
+            }
+            Divider()
+            Button("Remove", systemImage: "trash", role: .destructive) { deleting = repo }
+                .disabled(!canRemove(repo))
+        }
+        .accessibilityHint(canRemove(repo) ? "" : "Uninstall its sources before removing")
+    }
+
+    // MARK: Actions
+
+    private func canRemove(_ repo: ExtensionRepositoryInfo) -> Bool {
+        model.installedLoaded && !model.installed.contains { $0.repositoryId == repo.id }
+    }
+
+    private func refresh(_ repo: ExtensionRepositoryInfo) {
+        Task {
+            await model.perform {
+                try await $0.repositoryAction(.syncRepository, id: repo.id, name: "")
+            }
+        }
+    }
+
     private func updateAll() {
-        let packages = updatable.map(\.packageName)
+        let packages = model.installed.filter { $0.needsUpdate == true }.map(\.packageName)
         Task {
             if await model.perform({ repository in
                 for package in packages { try await repository.extensionAction(.updateExtension, package: package) }
@@ -192,228 +408,6 @@ struct ExtensionsView: View {
                 Toaster.shared.show(packages.count == 1 ? "Extension updated" : "\(packages.count) extensions updated")
             }
         }
-    }
-
-    private var viewControls: some View { viewControlsContent.dynamicTypeSize(...DynamicTypeSize.xxLarge) }
-    // Navigation chrome stops growing at the largest standard size; content keeps scaling.
-    @ViewBuilder private var viewControlsContent: some View {
-        HStack(spacing: 12) {
-            IconRail(
-                title: section.rawValue, symbol: section.symbol,
-                isPresented: viewPicker, itemCount: 2, reduceMotion: reduceMotion,
-                controlIdentifier: "extensions.section", controlLabel: "Extensions view",
-                toggle: {
-                    menuLevel = .closed
-                    viewPicker.toggle()
-                }
-            ) {
-                ForEach(SectionChoice.allCases.filter { $0 != section }) { choice in
-                    IconRailRow(title: choice.rawValue, symbol: choice.symbol, selected: false) {
-                        select(choice)
-                    }.accessibilityIdentifier("extensions.view.\(choice.rawValue)")
-                }
-            }
-            Spacer(minLength: 0)
-            if !model.query.isEmpty || (section != .repositories && filterCount > 0) {
-                Button {
-                    openTool(.filters)
-                } label: {
-                    Text(model.query.isEmpty ? "\(filterCount) filters" : "Search active")
-                        .font(.caption).foregroundStyle(NavigationStyle.accent)
-                        .padding(.horizontal, 12).frame(minHeight: 36)
-                        .modifier(FloatingSurface(cornerRadius: 18))
-                }.buttonStyle(.plain).accessibilityLabel("Edit search and filters")
-            }
-        }.padding(.horizontal, NavigationStyle.pagePadding).padding(.top, 4)
-    }
-
-    private var content: some View {
-        List {
-            if let error = model.error {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(error).font(.footnote).foregroundStyle(.secondary)
-                    Button("Retry") { Task { await model.load() } }.frame(minHeight: 44)
-                }.listRowBackground(Color.clear).listRowSeparator(.hidden)
-            }
-            Text(summary).font(.caption).foregroundStyle(.secondary)
-                .listRowBackground(Color.clear).listRowSeparator(.hidden)
-            if section == .repositories {
-                if model.isLoading && model.repositories.isEmpty {
-                    ContentSkeleton(style: .extensions, count: 3)
-                        .listRowBackground(Color.clear).listRowSeparator(.hidden)
-                }
-                ForEach(visibleRepositories) { repo in
-                    repositoryRow(repo)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            if canRemove(repo) {
-                                Button("Delete", role: .destructive) { deleting = repo }
-                            }
-                        }
-                        .listRowBackground(Color.clear).listRowSeparator(.hidden)
-                }
-                if visibleRepositories.isEmpty && !model.isLoading {
-                    empty(
-                        model.query.isEmpty ? "No repositories yet" : "No matching repositories",
-                        detail: model.query.isEmpty
-                            ? "Add a repository to browse its extensions." : "Try another name."
-                    )
-                    .listRowBackground(Color.clear).listRowSeparator(.hidden)
-                }
-                Button {
-                    dismissTools()
-                    isAdding = true
-                } label: {
-                    Text("+ Add repository").font(.subheadline.weight(.medium))
-                        .foregroundStyle(NavigationStyle.accent).frame(minHeight: 44)
-                }.buttonStyle(.plain).accessibilityIdentifier("extensions.addRepository")
-                .listRowBackground(Color.clear).listRowSeparator(.hidden)
-            } else {
-                ForEach(section == .installed ? model.visibleInstalled : model.items) { item in
-                    ExtensionRow(
-                        item: item, search: search, configure: { settingsSource = $0 },
-                        openLibrary: { librarySource = $0 },
-                        change: change
-                    )
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        if item.installed {
-                            Button("Uninstall", role: .destructive) { removing = item }
-                        }
-                    }
-                    .listRowBackground(Color.clear).listRowSeparator(.hidden)
-                }
-                if model.isLoading {
-                    ContentSkeleton(style: .extensions, count: 5)
-                        .listRowBackground(Color.clear).listRowSeparator(.hidden)
-                } else if (section == .installed ? model.visibleInstalled : model.items).isEmpty {
-                    empty(emptyTitle, detail: emptyDetail)
-                        .listRowBackground(Color.clear).listRowSeparator(.hidden)
-                    if section == .installed && model.installed.isEmpty {
-                        Button("Browse extensions") { select(.browse) }
-                            .frame(maxWidth: .infinity, minHeight: 44).buttonStyle(.plain)
-                            .foregroundStyle(NavigationStyle.accent)
-                            .accessibilityIdentifier("extensions.browse")
-                            .listRowBackground(Color.clear).listRowSeparator(.hidden)
-                    }
-                }
-                if section == .browse && model.items.count < model.total {
-                    Button("Load more") { Task { await model.load(more: true) } }
-                        .frame(maxWidth: .infinity, minHeight: 44).disabled(model.isLoading)
-                        .listRowBackground(Color.clear).listRowSeparator(.hidden)
-                }
-            }
-        }
-        .listStyle(.plain).scrollContentBackground(.hidden)
-        .listRowSpacing(8)
-        .environment(\.defaultMinListRowHeight, 0)
-        .contentMargins(.top, 0, for: .scrollContent)
-        .tracksNavigationScroll()
-        .environment(\.navigationContentBottomInset, bottomInset + 80)
-        .refreshable { await model.load() }
-        .accessibilityIdentifier("extensions.list")
-    }
-
-    private var summary: String {
-        switch section {
-        case .installed:
-            let updates = model.visibleInstalled.filter { $0.needsUpdate == true }.count
-            return "\(model.visibleInstalled.count) installed"
-                + (updates > 0 ? " · \(updates) updates" : "")
-        case .browse: return "\(model.total.formatted()) extensions"
-        case .repositories: return "\(visibleRepositories.count) repositories"
-        }
-    }
-    private var emptyTitle: String {
-        if !model.query.isEmpty || filterCount > 0 || model.media != .all {
-            return "No matching extensions"
-        }
-        return section == .installed
-            ? "Nothing here yet"
-            : model.repositories.isEmpty ? "Add your first repository" : "No extensions found"
-    }
-    private var emptyDetail: String {
-        if !model.query.isEmpty || filterCount > 0 || model.media != .all {
-            return "Try another name or change your filters."
-        }
-        return section == .installed
-            ? "Browse extensions to add your first source."
-            : "Open Repositories to add or refresh an index."
-    }
-    private func empty(_ title: String, detail: String) -> some View {
-        VStack(spacing: 10) {
-            Text(title).font(.title2.bold())
-            Text(detail).font(.subheadline).foregroundStyle(.secondary)
-        }.multilineTextAlignment(.center).frame(maxWidth: .infinity, minHeight: 200)
-    }
-
-    private func repositoryRow(_ repo: ExtensionRepositoryInfo) -> some View {
-        HStack(spacing: 12) {
-            PhosphorIcon("FolderSimple").iconSize(logoSize * 0.65)
-                .foregroundStyle(.secondary).frame(width: logoSize, height: logoSize)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 5) {
-                Text(repo.title).font(.body.weight(.medium)).lineLimit(2)
-                Text(repo.indexUrl).font(.caption).foregroundStyle(.secondary).lineLimit(2)
-                if !canRemove(repo) {
-                    Text("Uninstall its sources before removing").font(.caption2).foregroundStyle(
-                        .secondary)
-                }
-            }.frame(maxWidth: .infinity, alignment: .leading)
-            OverflowMenu {
-                Button("Refresh") {
-                    Task {
-                        await model.perform {
-                            try await $0.repositoryAction(.syncRepository, id: repo.id, name: "")
-                        }
-                    }
-                }
-                Button("Edit name") {
-                    rename = repo.title
-                    renaming = repo
-                }
-            } label: {
-                PhosphorIcon("DotsThree", size: 22)
-                    .foregroundStyle(.secondary).frame(width: 44, height: 44)
-            }.accessibilityLabel("Manage \(repo.title)")
-        }.padding(.vertical, 4)
-    }
-    private func canRemove(_ repo: ExtensionRepositoryInfo) -> Bool {
-        model.installedLoaded && !model.installed.contains { $0.repositoryId == repo.id }
-    }
-    private var radialActions: [RadialAction] {
-        guard menuLevel != .closed else { return [] }
-        return [
-            .init(title: "Search", symbol: "MagnifyingGlass") { openTool(.search) },
-            .init(title: "Filter", symbol: "Funnel", isEnabled: section != .repositories) {
-                openTool(.filters)
-            },
-            .init(title: "Repositories", symbol: "FolderSimple") { select(.repositories) },
-            .init(title: "Add", symbol: "Plus") {
-                dismissTools()
-                isAdding = true
-            },
-            .init(title: updatable.isEmpty ? "Up to date" : "Update all (\(updatable.count))",
-                  symbol: "ArrowsClockwise", isEnabled: !updatable.isEmpty) {
-                dismissTools()
-                updateAll()
-            },
-            .init(title: "Install from URL", symbol: "DownloadSimple") {
-                dismissTools()
-                externalURL = ""
-                installingURL = true
-            },
-        ]
-    }
-    private func dismissTools() {
-        viewPicker = false
-        menuLevel = .closed
-    }
-    private func select(_ choice: SectionChoice) {
-        section = choice
-        dismissTools()
-    }
-    private func openTool(_ tool: ToolSheet) {
-        dismissTools()
-        toolSheet = tool
     }
 
     private func change(_ action: ExtensionAction, _ item: SourceExtension) {

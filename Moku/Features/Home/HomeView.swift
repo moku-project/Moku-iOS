@@ -49,11 +49,9 @@ struct HomeView: View {
     @State private var presentation: HomePresentation?
 
     private enum HomePresentation: Identifiable {
-        case history
         case pin(Int)
         var id: String {
             switch self {
-            case .history: "history"
             case .pin(let slot): "pin-\(slot)"
             }
         }
@@ -96,7 +94,7 @@ struct HomeView: View {
                     HomeActivityView(statistics: statistics)
                 }
                 if let error = store.storageError {
-                    Label(error, phosphor: "Warning")
+                    Label(error, systemImage: "exclamationmark.triangle")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
             }
@@ -107,7 +105,6 @@ struct HomeView: View {
         }
         .firstLoadSkeleton("home", loading: !store.isLoaded, style: .home)
         .accessibilityIdentifier("home.scroll")
-        .tracksNavigationScroll()
         .onScrollPhaseChange { _, phase in pageScrolling = phase != .idle }
         .onChange(of: carouselIDs, initial: true) { _, ids in
             if !ids.contains(activeSlot) { activeSlot = ids.first ?? 0 }
@@ -123,6 +120,14 @@ struct HomeView: View {
             changeSlot(1)
         }
         .navigationTitle("Home")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink(value: Route.more(.recent)) {
+                    Label("History", systemImage: "clock.arrow.circlepath")
+                }
+                .accessibilityIdentifier("home.history")
+            }
+        }
         .alert("Couldn’t open title", isPresented: Binding(
             get: { openError != nil }, set: { if !$0 { openError = nil } }
         )) {
@@ -166,29 +171,15 @@ struct HomeView: View {
         .fullScreenCover(item: $route, onDismiss: { Task { await refreshHero(refresh: true); await refreshBreakdown() } }) { route in
             NavigationStack {
                 DetailsView(entry: route.entry, initialChapterID: route.chapterID) { self.route = nil }
+                    .environment(\.detailsShowsClose, true)
             }
         }
         .sheet(item: $presentation) { page in
             switch page {
-            case .history:
-                historySheet
             case .pin(let slot):
                 pinSheet(slot: slot)
             }
         }
-    }
-
-    private var historySheet: some View {
-        NavigationStack {
-            RecentView(mode: .constant(.all))
-                .safeAreaInset(edge: .top) {
-                    HStack {
-                        Text("History").font(.headline)
-                        Spacer()
-                        Button("Done") { presentation = nil }
-                    }.padding()
-                }
-        }.themedColorScheme()
     }
 
     private func pinSheet(slot: Int) -> some View {
@@ -215,7 +206,7 @@ struct HomeView: View {
             .searchable(text: $pinQuery, prompt: "Search library")
             .overlay {
                 if library?.entries.isEmpty != false {
-                    ContentUnavailableView("Your library is empty", phosphor: "Books")
+                    ContentUnavailableView("Your Library Is Empty", systemImage: "books.vertical")
                 } else if !(library?.entries.contains {
                     pinQuery.isEmpty || $0.title.localizedCaseInsensitiveContains(pinQuery)
                 } ?? false) {
@@ -302,11 +293,11 @@ struct HomeView: View {
                     .tag(item.id)
                     .contextMenu {
                         if item.id > 0 {
-                            Button("Pin a title", phosphor: "PushPin") {
+                            Button("Pin a Title", systemImage: "pin") {
                                 pinQuery = ""; presentation = .pin(item.id)
                             }
                             if item.isPinned {
-                                Button("Unpin", phosphor: "PushPinSlash") {
+                                Button("Unpin", systemImage: "pin.slash") {
                                     store.pin(nil, slot: item.id)
                                 }
                             }
@@ -339,21 +330,16 @@ struct HomeView: View {
         // Re-reading the computed property in firstIndex rebuilds the full list per chapter.
         let slot = self.slot
         return VStack(spacing: 12) {
-            HStack {
-                Text("Up next").font(.headline)
-                Spacer(minLength: 12)
+            HomeSectionHeading(
+                title: "Up Next", action: slot.entry == nil ? nil : "All Chapters",
+                perform: { if let entry = slot.entry { open(entry) } }
+            ) {
                 if let entry = slot.entry, loader.entryID == entry.id, let chapters = loader.chapters {
                     ChapterScanlatorMenu(chapters: chapters, mediaID: entry.id)
                         .labelStyle(.iconOnly)
                         .frame(minWidth: 44)
                 }
-                if let entry = slot.entry {
-                    Button("All chapters") { open(entry) }
-                        .font(.caption).foregroundStyle(.secondary)
-                        .frame(minHeight: 44)
-                }
             }
-            .frame(minHeight: 44)
             if loader.loading && (slot.entry?.chapters.isEmpty ?? true) {
                 ContentSkeleton(style: .chapters, count: 3)
             }
@@ -379,7 +365,7 @@ struct HomeView: View {
                     }
                 }
             } else {
-                HomeEmptyRow(text: "No chapters to show", symbol: "ListBullets")
+                HomeEmptyRow(text: "No chapters to show", systemImage: "list.bullet")
             }
         }
     }
@@ -387,10 +373,10 @@ struct HomeView: View {
     private var recent: some View {
         VStack(spacing: 12) {
             HomeSectionHeading(
-                title: "Recent activity", action: store.recentSessions.isEmpty ? nil : "History",
-                perform: { presentation = .history })
+                title: "Recent Activity", action: store.recentSessions.isEmpty ? nil : "History",
+                link: Route.more(.recent))
             if store.recentSessions.isEmpty {
-                HomeEmptyRow(text: "No recent activity yet", symbol: "Clock")
+                HomeEmptyRow(text: "No recent activity yet", systemImage: "clock")
                 Button("Start reading", action: onOpenLibrary)
                     .frame(minHeight: 44).frame(maxWidth: .infinity, alignment: .leading)
             } else {
@@ -403,7 +389,16 @@ struct HomeView: View {
                                 HomeRecentRow(entry: entry, session: session)
                             }
                             .buttonStyle(.plain)
-                            Divider().overlay(.white.opacity(0.04))
+                            .contextMenu {
+                                Button("Resume", systemImage: "play.fill") {
+                                    open(entry, chapterID: session.chapterID)
+                                }
+                                Button("View Title", systemImage: "info.circle") { open(entry) }
+                                Button("View in Library", systemImage: "books.vertical") {
+                                    open(entry, inLibrary: true)
+                                }
+                            }
+                            Divider()
                         }
                     }
                 }

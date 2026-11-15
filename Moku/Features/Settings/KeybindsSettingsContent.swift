@@ -67,31 +67,34 @@ struct KeybindsSettingsContent: View {
     @State private var draft = ""
     @State private var notice: String?
     var body: some View {
-        LazyVStack(alignment: .leading, spacing: 20) {
-            GeneralSection("Reader") {
+        SettingsForm {
+            Section {
                 ForEach(ReaderShortcut.all) { item in
-                    GeneralRow(item.title, detail: "") {
-                        Button(ReaderShortcut.values(data)[item.id]?.nonemptyShortcut ?? "None") {
-                            draft = ReaderShortcut.values(data)[item.id] ?? item.defaultValue
-                            selected = item
-                        }.buttonStyle(GeneralTextButtonStyle())
+                    Button {
+                        draft = ReaderShortcut.values(data)[item.id] ?? item.defaultValue
+                        selected = item
+                    } label: {
+                        LabeledContent(item.title) {
+                            Text(ReaderShortcut.values(data)[item.id]?.nonemptyShortcut ?? "None")
+                                .font(.body.monospaced())
+                        }
+                        .foregroundStyle(.primary)
                     }
-                    if item.id != ReaderShortcut.all.last?.id { GeneralStyle.divider }
                 }
+            } header: {
+                Text("Reader")
+            } footer: {
+                Text("For hardware keyboards. Tap a shortcut to change it.")
             }
-            GeneralSection("Player") {
+            Section("Player") {
                 choice("Play or pause", value: $play, options: [(" ", "Space"), ("k", "K"), ("", "None")])
-                GeneralStyle.divider
                 choice("Previous episode", value: $previous, options: [("[", "["), ("p", "P"), ("", "None")])
-                GeneralStyle.divider
                 choice("Next episode", value: $next, options: [("]", "]"), ("n", "N"), ("", "None")])
             }
-            GeneralSection("Defaults") {
-                GeneralRow("Keyboard shortcuts", detail: "Restore the default bindings.") {
-                    Button("Reset") { data = Data(); play = " "; previous = "["; next = "]" }.buttonStyle(GeneralTextButtonStyle())
-                }
+            Section {
+                Button("Restore default shortcuts", role: .destructive) { data = Data(); play = " "; previous = "["; next = "]" }
             }
-            if let notice { Text(notice).font(.footnote).foregroundStyle(GeneralStyle.faint) }
+            SettingsNotice(text: notice)
         }.alert(selected?.title ?? "Shortcut", isPresented: Binding(get: { selected != nil }, set: { if !$0 { selected = nil } })) {
             TextField("Shortcut", text: $draft).textInputAutocapitalization(.never).autocorrectionDisabled()
             Button("Cancel", role: .cancel) {}
@@ -106,10 +109,8 @@ struct KeybindsSettingsContent: View {
         if let encoded = try? JSONEncoder().encode(values) { data = encoded; notice = nil }
     }
     private func choice(_ title: String, value: Binding<String>, options: [(String, String)]) -> some View {
-        GeneralRow(title, detail: "") {
-            ChoicePicker(title: "", selection: value, options: options).font(.subheadline)
-                .accessibilityIdentifier("settings.picker.\(title)").accessibilityValue(value.wrappedValue)
-        }
+        SettingsPicker(title, selection: value, options: options)
+            .accessibilityValue(value.wrappedValue)
     }
 }
 private extension String { var nonemptyShortcut: String? { isEmpty ? nil : self } }

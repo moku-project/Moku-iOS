@@ -36,129 +36,173 @@ struct StorageSettingsContent: View {
         var id: String { String(describing: self) }
     }
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            GeneralSection("Storage") {
+        SettingsForm {
+            Section("Storage") {
                 if let info = model.info {
-                    value("Server data", bytes(info.usedBytes))
-                    GeneralStyle.divider
-                    value("Available space", bytes(info.freeBytes))
+                    LabeledContent("Server data", value: bytes(info.usedBytes))
+                    LabeledContent("Available space", value: bytes(info.freeBytes))
                     ForEach(info.categories) { item in
-                        GeneralStyle.divider
-                        GeneralRow(item.label, detail: "\(bytes(item.bytes)) · \(item.fileCount) files") {
+                        LabeledContent {
                             if item.clearable {
-                                Button("Clear") { confirmation = .clear(item.key, item.label) }.buttonStyle(GeneralTextButtonStyle())
+                                Button("Clear", role: .destructive) { confirmation = .clear(item.key, item.label) }
+                                    .buttonStyle(.borderless)
+                                    .accessibilityLabel("Clear \(item.label)")
                             }
+                        } label: {
+                            SettingsLabel(item.label, detail: "\(bytes(item.bytes)) · \(item.fileCount) files")
                         }
                     }
-                } else if model.busy { ProgressView().frame(minHeight: 44) }
-                GeneralRow("Storage usage", detail: "") {
-                    Button("Refresh") { Task { await model.load() } }.buttonStyle(GeneralTextButtonStyle())
+                } else if model.busy {
+                    ProgressView().frame(maxWidth: .infinity)
                 }
+                Button("Refresh storage usage") { Task { await model.load() } }
             }
-            GeneralSection("Downloads") {
+            Section("Downloads") {
                 if let setting = server.values.first(where: { $0.key == "manga_download_format" }) {
                     ServerPreferenceRow(setting: setting, model: server)
-                    GeneralStyle.divider
-                    GeneralRow("Convert existing downloads", detail: "Use the selected download format.") {
-                        Button("Convert") { confirmation = .convert }.buttonStyle(GeneralTextButtonStyle())
+                    Button {
+                        confirmation = .convert
+                    } label: {
+                        SettingsLabel("Convert existing downloads", detail: "Use the selected download format.")
                     }
                 }
-                GeneralStyle.divider
-                GeneralRow("Retry failed downloads", detail: "Retry once per minute while Downloads is open.") {
-                    Toggle("Retry failed downloads", isOn: $autoRetry).toggleStyle(GeneralToggleStyle())
-                }
+                SettingsToggle("Retry failed downloads", detail: "Retry once per minute while Downloads is open.", isOn: $autoRetry)
             }
-            GeneralSection("Storage limit") {
-                GeneralRow("Warn at", detail: "0 disables the storage warning.") {
-                    ChoicePicker(title: "", selection: $limitGB, options: [0, 1, 2, 5, 10, 20, 50, 100].map { ($0, $0 == 0 ? "Off" : "\($0) GB") }).font(.subheadline)
-                }
+            Section {
+                SettingsPicker("Warn at", selection: $limitGB, options: [0, 1, 2, 5, 10, 20, 50, 100].map { ($0, $0 == 0 ? "Off" : "\($0) GB") })
                 if let info = model.info, limitGB > 0, info.usedBytes >= Double(limitGB) * 1_073_741_824 {
-                    Text("Storage limit reached.").font(.footnote).foregroundStyle(GeneralStyle.faint).padding(.vertical, 14)
+                    Label("Storage limit reached.", systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(.orange)
                 }
+            } header: {
+                Text("Storage limit")
+            } footer: {
+                Text("Off disables the storage warning.")
             }
-            GeneralSection("Directories") {
-                value("Downloads", server.values.first { $0.key == "downloads_dir" }?.value.nonempty ?? model.info?.mediaDir ?? "—")
-                GeneralStyle.divider
-                GeneralRow("Downloads directory", detail: "Choose a directory within server data.") {
-                    TextField("Directory name", text: $path).textInputAutocapitalization(.never).autocorrectionDisabled().generalInput().frame(width: 150)
+            Section {
+                LabeledContent("Downloads", value: server.values.first { $0.key == "downloads_dir" }?.value.nonempty ?? model.info?.mediaDir ?? "—")
+                LabeledContent {
+                    TextField("Directory name", text: $path)
+                        .multilineTextAlignment(.trailing)
+                        .textInputAutocapitalization(.never).autocorrectionDisabled()
+                } label: {
+                    Text("New directory")
                 }
-                GeneralRow("Move existing files", detail: "Migrate downloads to the new directory.") { Toggle("Move existing files", isOn: $migrate).toggleStyle(GeneralToggleStyle()) }
-                GeneralRow("Downloads path", detail: "") {
-                    Button("Change") { confirmation = .relocate }.buttonStyle(GeneralTextButtonStyle()).disabled(!validDirectoryName)
-                }
-                GeneralStyle.divider
-                GeneralRow("Local source", detail: "Scan imported local manga, novels, and video.") {
-                    Button("Rescan") { Task { await model.run("rescanLocalMedia { id }") } }.buttonStyle(GeneralTextButtonStyle())
-                }
-                GeneralStyle.divider
-                GeneralRow("Local titles", detail: "See and delete imported series.") {
-                    Button("Manage") { localLibraryOpen = true }.buttonStyle(GeneralTextButtonStyle())
-                        .sheet(isPresented: $localLibraryOpen) { LocalLibrarySheet() }
-                }
+                SettingsToggle("Move existing files", detail: "Migrate downloads to the new directory.", isOn: $migrate)
+                Button("Change downloads directory") { confirmation = .relocate }
+                    .disabled(!validDirectoryName)
+            } header: {
+                Text("Downloads directory")
+            } footer: {
+                Text("Choose a directory within server data.")
             }
-            GeneralSection("Local files") {
-                GeneralRow("Media type", detail: "") { ChoicePicker(title: "", selection: $localKind, options: [("manga", "Manga"), ("novels", "Novels"), ("anime", "Anime")]).font(.subheadline) }
-                GeneralStyle.divider
-                GeneralRow("Series", detail: "") { TextField("Series title", text: $localSeries).generalInput().frame(width: 150) }
-                GeneralStyle.divider
-                GeneralRow("Chapter or episode", detail: "") { TextField("Chapter name", text: $localChapter).generalInput().frame(width: 150) }
-                GeneralRow("Local file", detail: "Copy a file from Files into the local source.") {
-                    Button("Import") { importKind = "local file"; importing = true }.buttonStyle(GeneralTextButtonStyle()).disabled(!validComponent(localSeries) || !validComponent(localChapter))
+            Section("Local source") {
+                Button {
+                    Task { await model.run("rescanLocalMedia { id }") }
+                } label: {
+                    SettingsLabel("Rescan local source", detail: "Scan imported local manga, novels, and video.")
                 }
-                GeneralStyle.divider
-                GeneralRow("Local source directory", detail: "Choose a directory within server data.") { TextField("Directory name", text: $localPath).textInputAutocapitalization(.never).autocorrectionDisabled().generalInput().frame(width: 150) }
-                GeneralRow("Move local files", detail: "Move existing files to the new directory.") {
-                    Button("Change") { confirmation = .relocateLocal }.buttonStyle(GeneralTextButtonStyle()).disabled(!validComponent(localPath))
-                }
+                SettingsLinkRow("Local titles", detail: "See and delete imported series.") { localLibraryOpen = true }
             }
-            GeneralSection("Backups") {
-                GeneralRow("Server database", detail: "Create a consistent database snapshot.") {
-                    Button("Back up") { Task { await model.run("createDatabaseBackup { name }") } }.buttonStyle(GeneralTextButtonStyle())
+            Section {
+                Picker("Media type", selection: $localKind) {
+                    Text("Manga").tag("manga")
+                    Text("Novels").tag("novels")
+                    Text("Anime").tag("anime")
                 }
-                GeneralStyle.divider
-                GeneralRow("Mihon library", detail: "Export the server library as a .tachibk backup.") {
-                    Button("Export") { Task { await model.run("exportMihonBackup { name }") } }.buttonStyle(GeneralTextButtonStyle())
+                LabeledContent("Series") {
+                    TextField("Series title", text: $localSeries).multilineTextAlignment(.trailing)
                 }
-                GeneralRow("Import Mihon backup", detail: "Merge a .tachibk backup from Files.") {
-                    Button("Import") { importKind = "Mihon backup"; importing = true }.buttonStyle(GeneralTextButtonStyle())
+                LabeledContent("Chapter or episode") {
+                    TextField("Chapter name", text: $localChapter).multilineTextAlignment(.trailing)
+                }
+                Button("Import local file") { importKind = "local file"; importing = true }
+                    .disabled(!validComponent(localSeries) || !validComponent(localChapter))
+            } header: {
+                Text("Local files")
+            } footer: {
+                Text("Copy a file from Files into the local source.")
+            }
+            Section {
+                LabeledContent("Directory name") {
+                    TextField("Directory name", text: $localPath)
+                        .multilineTextAlignment(.trailing)
+                        .textInputAutocapitalization(.never).autocorrectionDisabled()
+                }
+                Button("Move local files") { confirmation = .relocateLocal }
+                    .disabled(!validComponent(localPath))
+            } header: {
+                Text("Local source directory")
+            } footer: {
+                Text("Choose a directory within server data. Existing files move to the new directory.")
+            }
+            Section("Server backups") {
+                Button {
+                    Task { await model.run("createDatabaseBackup { name }") }
+                } label: {
+                    SettingsLabel("Back up server database", detail: "Create a consistent database snapshot.")
+                }
+                Button {
+                    Task { await model.run("exportMihonBackup { name }") }
+                } label: {
+                    SettingsLabel("Export Mihon library", detail: "Export the server library as a .tachibk backup.")
+                }
+                Button {
+                    importKind = "Mihon backup"; importing = true
+                } label: {
+                    SettingsLabel("Import Mihon backup", detail: "Merge a .tachibk backup from Files.")
                 }
                 ForEach(model.backups) { backup in
-                    GeneralStyle.divider
-                    GeneralRow(backup.name, detail: "\(bytes(backup.bytes)) · \(backup.createdAt)") {
-                        OverflowMenu {
-                            Button("Save to Files") { Task {
-                                do { document = SettingsExportDocument(data: try await model.backupData(backup)); exportName = backup.name; exporting = true }
-                                catch { model.notice = "Couldn’t export this backup." }
-                            }}
-                            if backup.kind != "sqlite" && backup.name.hasSuffix(".tachibk") {
-                                Button("Import library") { confirmation = .importBackup(backup.name) }
-                            }
-                            Button("Delete", role: .destructive) { confirmation = .deleteBackup(backup.name) }
-                        } label: { Text("Manage").font(.subheadline).foregroundStyle(GeneralStyle.text).frame(minHeight: 44) }
+                    Menu {
+                        backupActions(backup)
+                    } label: {
+                        HStack {
+                            SettingsLabel(backup.name, detail: "\(bytes(backup.bytes)) · \(backup.createdAt)")
+                            Spacer(minLength: 8)
+                            Image(systemName: "ellipsis.circle").foregroundStyle(NavigationStyle.accent)
+                        }
+                        .foregroundStyle(.primary)
+                        .contentShape(Rectangle())
+                    }
+                    .accessibilityLabel("Manage \(backup.name)")
+                    .swipeActions {
+                        Button("Delete", role: .destructive) { confirmation = .deleteBackup(backup.name) }
                     }
                 }
-                GeneralStyle.divider
-                GeneralRow("App library", detail: "Export locally saved titles.") {
-                    Button("Export") { exportLibrary() }.buttonStyle(GeneralTextButtonStyle())
+            }
+            Section("App data") {
+                Button {
+                    exportLibrary()
+                } label: {
+                    SettingsLabel("Export app library", detail: "Export locally saved titles.")
                 }
-                GeneralRow("Import app library", detail: "Merge titles from a Moku library JSON file.") {
-                    Button("Import") { importKind = "library"; importing = true }.buttonStyle(GeneralTextButtonStyle())
+                Button {
+                    importKind = "library"; importing = true
+                } label: {
+                    SettingsLabel("Import app library", detail: "Merge titles from a Moku library JSON file.")
                 }
-                GeneralStyle.divider
-                GeneralRow("Export settings", detail: "Save app preferences without passwords or PINs.") {
-                    Button("Export") { exportSettings() }.buttonStyle(GeneralTextButtonStyle())
+                Button {
+                    exportSettings()
+                } label: {
+                    SettingsLabel("Export settings", detail: "Save app preferences without passwords or PINs.")
                 }
-                GeneralRow("Import settings", detail: "Restore a Moku iOS settings file.") {
-                    Button("Import") { importKind = "settings"; importing = true }.buttonStyle(GeneralTextButtonStyle())
+                Button {
+                    importKind = "settings"; importing = true
+                } label: {
+                    SettingsLabel("Import settings", detail: "Restore a Moku iOS settings file.")
                 }
             }
-            GeneralSection("Preferences") {
-                GeneralRow("Reset preferences", detail: "Keep saved titles, files, history, and app lock.") {
-                    Button("Reset") { confirmation = .resetPreferences }.buttonStyle(GeneralTextButtonStyle())
-                }
+            Section {
+                Button("Reset preferences", role: .destructive) { confirmation = .resetPreferences }
+            } header: {
+                Text("Preferences")
+            } footer: {
+                Text("Keep saved titles, files, history, and app lock.")
             }
-            if let notice = model.notice { Text(notice).font(.footnote).foregroundStyle(GeneralStyle.faint) }
-        }.disabled(model.busy || server.saving)
+            SettingsNotice(text: model.notice)
+        }
+        .disabled(model.busy || server.saving)
+            .sheet(isPresented: $localLibraryOpen) { LocalLibrarySheet() }
             .task { await model.load(); await server.load() }
             .fileExporter(isPresented: $exporting, document: document, contentType: exportName.hasSuffix(".json") ? .json : .data, defaultFilename: exportName) { result in
                 if case .failure = result { model.notice = "Couldn’t export this file." }
@@ -174,6 +218,16 @@ struct StorageSettingsContent: View {
                 Button("Continue", role: .destructive) { if let action = confirmation { Task { await perform(action) } } }
             } message: { Text(confirmationMessage) }
     }
+    @ViewBuilder private func backupActions(_ backup: ServerBackup) -> some View {
+        Button("Save to Files", systemImage: "square.and.arrow.down") { Task {
+            do { document = SettingsExportDocument(data: try await model.backupData(backup)); exportName = backup.name; exporting = true }
+            catch { model.notice = "Couldn’t export this backup." }
+        }}
+        if backup.kind != "sqlite" && backup.name.hasSuffix(".tachibk") {
+            Button("Import library", systemImage: "square.and.arrow.down.on.square") { confirmation = .importBackup(backup.name) }
+        }
+        Button("Delete", systemImage: "trash", role: .destructive) { confirmation = .deleteBackup(backup.name) }
+    }
     private func validComponent(_ value: String) -> Bool { !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && value != "." && value != ".." && !value.contains("/") && !value.contains("\\") }
     private var validDirectoryName: Bool { validComponent(path) }
     private var confirmationMessage: String {
@@ -187,9 +241,6 @@ struct StorageSettingsContent: View {
         case .resetPreferences: "Restore default app preferences?"
         case nil: ""
         }
-    }
-    private func value(_ title: String, _ value: String) -> some View {
-        GeneralRow(title, detail: "") { Text(value).font(.subheadline).foregroundStyle(GeneralStyle.text).multilineTextAlignment(.trailing).frame(maxWidth: 160).fixedSize(horizontal: false, vertical: true) }
     }
     private func bytes(_ value: Double) -> String { ByteCountFormatter.string(fromByteCount: Int64(max(0, min(value, Double(Int64.max / 2)))), countStyle: .file) }
     private func exportSettings() {

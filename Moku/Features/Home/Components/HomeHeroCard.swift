@@ -62,7 +62,7 @@ struct HomeHeroCard: View {
 
                 } else {
                     VStack(spacing: 10) {
-                        PhosphorIcon("BookOpenText", size: 34).foregroundStyle(NavigationStyle.accent)
+                        Image(systemName: "book.pages").font(.largeTitle).foregroundStyle(NavigationStyle.accent)
                             .accessibilityHidden(true)
                         Text("Nothing here yet").font(.headline)
                         Text(
@@ -131,7 +131,7 @@ struct HomeHeroCard: View {
         HStack(spacing: 8) {
             if let onLibrary {
                 Button { onLibrary(entry) } label: {
-                    PhosphorIcon("Books", size: 22).frame(width: 48, height: 48)
+                    Image(systemName: "books.vertical").font(.title3).frame(width: 48, height: 48)
                 }
                 .buttonStyle(.plain)
                 .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 14))
@@ -148,7 +148,7 @@ struct HomeHeroCard: View {
                     Button {
                         onResume?(entry, chapter)
                     } label: {
-                        Label(isOpening ? "Opening…" : "Resume", phosphor: "Play.fill").font(
+                        Label(isOpening ? "Opening…" : "Resume", systemImage: "play.fill").font(
                             .subheadline.weight(.semibold)
                         )
                         .frame(maxWidth: .infinity).frame(minHeight: 48)
@@ -171,7 +171,7 @@ struct HomeHeroCard: View {
                 Button {
                     onDetails(entry)
                 } label: {
-                    PhosphorIcon("Info", size: 22).frame(
+                    Image(systemName: "info.circle").font(.title3).frame(
                         width: 44, height: 48)
                 }
                 .buttonStyle(.plain).accessibilityLabel("Title details")

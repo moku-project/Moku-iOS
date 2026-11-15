@@ -40,7 +40,7 @@ struct LocalLibrarySheet: View {
                         Button("Delete", role: .destructive) { deleting = item }
                     }
                     .contextMenu {
-                        Button("Delete", phosphor: "Trash", role: .destructive) { deleting = item }
+                        Button("Delete", systemImage: "trash", role: .destructive) { deleting = item }
                     }
                 }
                 if let error { Text(error).foregroundStyle(.orange) }

@@ -151,74 +151,58 @@ struct AutomationSettingsContent: View {
     }
     @AppStorage("automation.backgroundUpdates") private var backgroundUpdates = false
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            GeneralSection("Library updates") {
-                GeneralRow("Update library on app open", detail: "Check every saved series for new chapters when Moku starts. Results appear in Recent → Updates.") {
-                    Toggle("Update library on app open", isOn: controls(\.updateOnOpen)).toggleStyle(GeneralToggleStyle())
-                }
-                GeneralStyle.divider
-                GeneralRow("Update in the background", detail: "iOS runs this while your iPhone is idle on a network, and Moku notifies you about new chapters.") {
-                    Toggle("Update in the background", isOn: Binding(get: { backgroundUpdates }, set: { value in
-                        backgroundUpdates = value
-                        if value { Task { _ = await BackgroundWork.requestNotificationPermission() } }
-                    })).toggleStyle(GeneralToggleStyle())
-                }
+        SettingsForm {
+            Section("Library updates") {
+                SettingsToggle("Update library on app open", detail: "Check every saved series for new chapters when Moku starts. Results appear in History → Updates.", isOn: controls(\.updateOnOpen))
+                SettingsToggle("Update in the background", detail: "iOS runs this while your iPhone is idle on a network, and Moku notifies you about new chapters.", isOn: Binding(get: { backgroundUpdates }, set: { value in
+                    backgroundUpdates = value
+                    if value { Task { _ = await BackgroundWork.requestNotificationPermission() } }
+                }))
             }
-            GeneralSection("Behaviour") {
-                row("Enable automation", detail: "Run rules while Moku is active.", value: controls(\.enabled))
-                GeneralStyle.divider
-                row("Enforce global defaults", detail: "Ignore per-series overrides.", value: controls(\.enforceGlobal))
+            .disabled(!model.loaded || model.busy)
+            Section("Behaviour") {
+                SettingsToggle("Enable automation", detail: "Run rules while Moku is active.", isOn: controls(\.enabled))
+                SettingsToggle("Enforce global defaults", detail: "Ignore per-series overrides.", isOn: controls(\.enforceGlobal))
             }
-            GeneralSection("Rules") {
-                GeneralRow("Apply to", detail: "Select global defaults or a saved series.") {
-                    ChoicePicker(title: "", selection: $mediaID, options: [("0", "Global defaults")] + library.entries.filter { Int64($0.id) != nil }.map { ($0.id, $0.title) }).font(.subheadline)
-                }
-                GeneralStyle.divider
-                row("Auto-download new chapters", detail: "Queue new chapters when a series refreshes.", value: policy(\.autoDownload))
-                GeneralStyle.divider
+            .disabled(!model.loaded || model.busy)
+            Section {
+                SettingsPicker("Apply to", selection: $mediaID, options: [("0", "Global defaults")] + library.entries.filter { Int64($0.id) != nil }.map { ($0.id, $0.title) })
+                    .pickerStyle(.navigationLink)
+                SettingsToggle("Auto-download new chapters", detail: "Queue new chapters when a series refreshes.", isOn: policy(\.autoDownload))
                 number("Download ahead", detail: "Queue upcoming chapters while reading.", value: policy(\.downloadAhead), options: [0, 1, 2, 3, 5, 10, 20, 50, 100])
-                GeneralStyle.divider
                 number("Max chapters to keep", detail: "0 keeps all downloaded chapters.", value: policy(\.maxKeepChapters), options: [0, 1, 5, 10, 20, 50, 100])
-                GeneralStyle.divider
-                row("Delete after reading", detail: "Remove completed chapter downloads.", value: policy(\.deleteOnRead))
-                GeneralStyle.divider
+                SettingsToggle("Delete after reading", detail: "Remove completed chapter downloads.", isOn: policy(\.deleteOnRead))
                 number("Delete delay", detail: "Hours after a chapter is marked read.", value: policy(\.deleteDelayHours), options: [0, 1, 6, 12, 24, 48, 72, 168])
-                GeneralStyle.divider
-                GeneralRow("Refresh interval", detail: "Check saved series for new chapters.") {
-                    ChoicePicker(title: "", selection: policy(\.refreshInterval), options: [("manual", "Manual"), ("daily", "Daily"), ("weekly", "Weekly")]).font(.subheadline)
-                }
+                SettingsPicker("Refresh interval", detail: "Check saved series for new chapters.", selection: policy(\.refreshInterval), options: [("manual", "Manual"), ("daily", "Daily"), ("weekly", "Weekly")])
                 if mediaID != "0" {
-                    GeneralStyle.divider
-                    row("Pause updates", detail: "Suspend scheduled refreshes for this series.", value: policy(\.pauseUpdates))
-                    GeneralStyle.divider
-                    GeneralRow("Use global defaults", detail: "Remove this series’ custom rules.") {
-                        Button("Reset") { Task { await model.resetSeries(mediaID) } }.buttonStyle(GeneralTextButtonStyle())
-                    }
+                    SettingsToggle("Pause updates", detail: "Suspend scheduled refreshes for this series.", isOn: policy(\.pauseUpdates))
+                    Button("Use global defaults") { Task { await model.resetSeries(mediaID) } }
                 }
+            } header: {
+                Text("Rules")
+            } footer: {
+                Text(mediaID == "0" ? "Select global defaults or a saved series." : "Use global defaults removes this series’ custom rules.")
             }
-            GeneralSection("Custom overrides") {
-                GeneralRow("Per-series rules", detail: "Reset saved overrides to the global defaults.") {
-                    Button("Reset") { reset = true }.buttonStyle(GeneralTextButtonStyle())
-                }
+            .disabled(!model.loaded || model.busy)
+            Section {
+                Button("Reset per-series rules", role: .destructive) { reset = true }
+            } header: {
+                Text("Custom overrides")
+            } footer: {
+                Text("Reset saved overrides to the global defaults.")
             }
-        }.disabled(!model.loaded || model.busy)
-            .overlay { if model.busy && !model.loaded { ProgressView() } }
-            .task { await library.load() }
-            .task(id: mediaID) { await model.load(mediaID: mediaID) }
-        if let notice = model.notice {
-            GeneralRow(notice, detail: "") { Button("Retry") { Task { await model.load(mediaID: mediaID) } }.buttonStyle(GeneralTextButtonStyle()) }
+            .disabled(!model.loaded || model.busy)
+            SettingsNotice(text: model.notice) { Task { await model.load(mediaID: mediaID) } }
         }
+        .overlay { if model.busy && !model.loaded { ProgressView() } }
+        .task { await library.load() }
+        .task(id: mediaID) { await model.load(mediaID: mediaID) }
         // The server persists schedules; iOS controls when the application can execute them.
-        EmptyView().confirmationDialog("Reset all custom rules?", isPresented: $reset, titleVisibility: .visible) {
+        .confirmationDialog("Reset all custom rules?", isPresented: $reset, titleVisibility: .visible) {
             Button("Reset rules", role: .destructive) { Task { await model.resetOverrides() } }
         }
     }
-    private func row(_ title: String, detail: String, value: Binding<Bool>) -> some View {
-        GeneralRow(title, detail: detail) { Toggle(title, isOn: value).toggleStyle(GeneralToggleStyle()) }
-    }
     private func number(_ title: String, detail: String, value: Binding<Int>, options: [Int]) -> some View {
-        GeneralRow(title, detail: detail) {
-            ChoicePicker(title: "", selection: value, options: Array(Set(options + [value.wrappedValue])).sorted().map { ($0, String($0)) }).font(.subheadline)
-        }
+        SettingsPicker(title, detail: detail, selection: value, options: Array(Set(options + [value.wrappedValue])).sorted().map { ($0, String($0)) })
     }
 }

@@ -39,6 +39,9 @@ struct DetailsView: View {
     @State private var selected: Set<String> = []
     /// 0 at the top, 1 once content slides under the header, 2 once the title has scrolled away.
     @State private var scrollStage = 0
+    /// Set when this page is the root of a sheet or cover, which needs a Close button.
+    @Environment(\.detailsShowsClose) private var showsClose
+    @Environment(\.presentSourceVerification) private var verify
 
     init(entry: MediaEntry, initialChapterID: String? = nil, back: @escaping () -> Void) {
         self.entry = entry
@@ -49,21 +52,18 @@ struct DetailsView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            ScrollView {
-                let layout =
-                    geometry.size.width >= 700
-                    ? AnyLayout(HStackLayout(alignment: .top, spacing: 24))
-                    : AnyLayout(VStackLayout(alignment: .leading, spacing: 24))
-                layout {
-                    metadata(wide: geometry.size.width >= 700)
-                        .frame(maxWidth: geometry.size.width >= 700 ? 240 : .infinity)
-                    chapters.frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .padding(20)
-                .frame(maxWidth: 1100)
-                .frame(maxWidth: .infinity)
-                .background(alignment: .top) { backdrop }
+            List {
+                metadata(wide: geometry.size.width >= 700)
+                    .listRowInsets(EdgeInsets(top: 12, leading: 20, bottom: 12, trailing: 20))
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(
+                        Color.clear.overlay(alignment: .top) { backdrop }
+                    )
+                chapterRows
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .environment(\.defaultMinListRowHeight, 1)
             .onScrollGeometryChange(for: Int.self) { geometry in
                 let offset = geometry.contentOffset.y + geometry.contentInsets.top
                 return offset > 180 ? 2 : offset > 4 ? 1 : 0
@@ -74,8 +74,11 @@ struct DetailsView: View {
         }
         .firstLoadSkeleton("details-\(entry.id)", loading: loading && details == nil, style: .results)
         .background(NavigationStyle.background.ignoresSafeArea())
-        .safeAreaInset(edge: .top, spacing: 0) { header }
-        .toolbar(.hidden, for: .navigationBar)
+        .navigationTitle(details?.title ?? entry.title)
+        .navigationBarTitleDisplayMode(.inline)
+        // The cover wash shows through the bar until the title scrolls away.
+        .toolbarBackground(scrollStage == 2 ? .automatic : .hidden, for: .navigationBar)
+        .toolbar { toolbarContent }
         .task(id: entry.id) {
             ascending = defaultAscending
             // The saved library is only needed for links and the bookmark state,
@@ -97,7 +100,10 @@ struct DetailsView: View {
             filteredChapters = result
         }
         .sheet(item: $linkedEntry) { linked in
-            DetailsView(entry: linked) { linkedEntry = nil }
+            NavigationStack {
+                DetailsView(entry: linked) { linkedEntry = nil }
+            }
+            .environment(\.detailsShowsClose, true)
         }
         .fullScreenCover(item: $readingNovelChapter, onDismiss: refreshReadState) { chapter in
             if let details {
@@ -141,7 +147,7 @@ struct DetailsView: View {
                     }
                 case .automation:
                     NavigationStack {
-                        ScrollView { AutomationSettingsContent(initialMediaID: details.id).padding(20) }
+                        AutomationSettingsContent(initialMediaID: details.id)
                             .background(NavigationStyle.background.ignoresSafeArea())
                             .navigationTitle("Automation").navigationBarTitleDisplayMode(.inline)
                             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { manageSheet = nil } } }
@@ -177,6 +183,37 @@ struct DetailsView: View {
         }
     }
 
+    @ToolbarContentBuilder private var toolbarContent: some ToolbarContent {
+        // The series name appears in the bar once the cover header has scrolled away.
+        ToolbarItem(placement: .principal) {
+            Text(details?.title ?? entry.title).font(.headline).lineLimit(1)
+                .opacity(scrollStage == 2 ? 1 : 0)
+                .accessibilityHidden(scrollStage < 2)
+                .animation(.easeOut(duration: 0.18), value: scrollStage)
+        }
+        if showsClose {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Close", action: back)
+                    .accessibilityIdentifier("details.back")
+            }
+        }
+        if selecting {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Done") {
+                    selecting = false
+                    selected = []
+                }
+                .fontWeight(.semibold)
+                .accessibilityIdentifier("details.select")
+            }
+        } else {
+            ToolbarItem(placement: .topBarTrailing) { libraryButton }
+            ToolbarItem(placement: .topBarTrailing) {
+                if let details { manageMenu(details) }
+            }
+        }
+    }
+
     /// The server knows when a title is saved even if a content level hides it
     /// from the Library list, so prefer its answer.
     private var isSaved: Bool { details?.inLibrary ?? library.contains(entry) }
@@ -189,31 +226,6 @@ struct DetailsView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .shadow(color: .black.opacity(0.35), radius: 10, y: 4)
         .accessibilityHidden(true)
-    }
-
-    /// No page title at the top: the series name appears once the cover has
-    /// scrolled away, and the Manage menu sits in the corner.
-    private var header: some View {
-        HStack(spacing: 4) {
-            Button(action: back) {
-                PhosphorIcon("CaretLeft").iconSize(17)
-                    .frame(width: 44, height: 44).contentShape(Rectangle())
-            }
-            .buttonStyle(.plain).accessibilityLabel("Back")
-            .accessibilityIdentifier("details.back")
-            Text(details?.title ?? entry.title).font(.headline).lineLimit(1)
-                .frame(maxWidth: .infinity)
-                .opacity(scrollStage == 2 ? 1 : 0)
-                .accessibilityHidden(scrollStage < 2)
-            if let details { manageMenu(details) } else { Color.clear.frame(width: 44, height: 44) }
-        }
-        .padding(.horizontal, NavigationStyle.pagePadding).frame(minHeight: 52)
-        .background {
-            NavigationStyle.background.opacity(scrollStage > 0 ? 1 : 0).ignoresSafeArea(edges: .top)
-        }
-        .overlay(alignment: .bottom) { Divider().opacity(scrollStage == 2 ? 1 : 0) }
-        .animation(.easeOut(duration: 0.18), value: scrollStage)
-        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
     }
 
     /// A soft wash of the cover behind the top of the page. It is blurred once
@@ -279,26 +291,25 @@ struct DetailsView: View {
 
     private func metadata(wide: Bool) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Desktop SeriesHeader: cover beside the title on phones, stacked in the sidebar on wide layouts.
-            if wide {
-                cover(width: 200)
-                identity
-            } else {
-                HStack(alignment: .top, spacing: 16) {
-                    cover(width: 128)
-                    identity.frame(maxWidth: .infinity, alignment: .leading)
-                }
+            // Desktop SeriesHeader: cover beside the title.
+            HStack(alignment: .top, spacing: 16) {
+                cover(width: wide ? 180 : 128)
+                identity.frame(maxWidth: .infinity, alignment: .leading)
             }
             if loading && details == nil {
                 ContentSkeleton(style: .settings, count: 3)
             }
             let linked = library.linkedEntries(for: entry.id)
             if !linked.isEmpty {
-                Menu("Linked titles") {
+                Menu {
                     ForEach(linked) { item in
                         Button("\(item.title) · \(item.sourceName)") { linkedEntry = item }
                     }
-                }.foregroundStyle(NavigationStyle.accent)
+                } label: {
+                    Label("Linked Titles", systemImage: "link")
+                        .font(.subheadline)
+                }
+                .buttonStyle(.borderless)
             }
             let genres = tags.genres
             if !genres.isEmpty {
@@ -308,13 +319,13 @@ struct DetailsView: View {
                     ForEach(shown, id: \.self) { genre in
                         Text(genre).font(.footnote).foregroundStyle(.secondary)
                             .padding(.horizontal, 10).padding(.vertical, 5)
-                            .background(NavigationStyle.surface, in: Capsule())
+                            .background(.fill.tertiary, in: Capsule())
                     }
                     if genres.count > shown.count {
                         Text("+\(genres.count - shown.count)").font(.footnote.weight(.semibold))
                             .foregroundStyle(NavigationStyle.accent)
                             .padding(.horizontal, 10).padding(.vertical, 5)
-                            .background(NavigationStyle.surface, in: Capsule())
+                            .background(.fill.tertiary, in: Capsule())
                     }
                 }
                 .contentShape(Rectangle())
@@ -329,7 +340,8 @@ struct DetailsView: View {
             actions
             if let error {
                 Text(error).font(.footnote).foregroundStyle(.secondary)
-                Button("Try again") { Task { await load(refresh: true) } }.frame(minHeight: 44)
+                Button("Try Again") { Task { await load(refresh: true) } }
+                    .buttonStyle(.bordered)
             }
         }
     }
@@ -364,29 +376,33 @@ struct DetailsView: View {
         .accessibilityHint(long ? (expanded ? "Shows less" : "Shows the full description") : "")
     }
 
-    /// The main read button with a compact bookmark beside it. Before chapters
-    /// arrive the slot holds a placeholder so the row doesn't jump.
+    /// The main read button. Before chapters arrive it holds a placeholder so
+    /// the header doesn't jump. Saving to the library lives in the toolbar.
     @ViewBuilder private var actions: some View {
         let target = model.continueTarget(preferences: chapterPreferences)
         if target != nil || (loading && (details?.chapters.isEmpty ?? true)) {
-            HStack(spacing: 8) {
-                Button {
-                    if let target { open(target.chapter) }
-                } label: {
-                    Label(target?.label ?? "Loading chapters", phosphor: entry.media == .anime ? "Play.fill" : "BookOpen.fill")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(NavigationStyle.background)
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                        .background(NavigationStyle.accent, in: RoundedRectangle(cornerRadius: 6))
-                        .opacity(target == nil ? 0.45 : 1)
-                }
-                .buttonStyle(.plain)
-                .disabled(target == nil)
-                .accessibilityIdentifier("details.continue")
-                libraryButton(compact: true)
+            Button {
+                if let target { open(target.chapter) }
+            } label: {
+                Label(
+                    target?.label ?? "Loading chapters",
+                    systemImage: entry.media == .anime ? "play.fill" : "book.fill")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity, minHeight: 36)
             }
-        } else {
-            libraryButton(compact: false)
+            .buttonStyle(.borderedProminent)
+            .disabled(target == nil)
+            .accessibilityIdentifier("details.continue")
+        } else if !isSaved {
+            Button {
+                Task { await toggleLibrary() }
+            } label: {
+                Label("Add to Library", systemImage: "bookmark")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity, minHeight: 36)
+            }
+            .buttonStyle(.bordered)
+            .disabled(saving)
         }
         if let details, model.completedCount > 0, !details.chapters.isEmpty {
             let read = model.completedCount, total = details.chapters.count
@@ -402,166 +418,286 @@ struct DetailsView: View {
         }
     }
 
-    private func libraryButton(compact: Bool) -> some View {
+    private var libraryButton: some View {
         Button {
             Task { await toggleLibrary() }
         } label: {
-            Group {
-                if compact {
-                    PhosphorIcon(isSaved ? "Bookmark.fill" : "Bookmark").frame(width: 52)
-                } else {
-                    Label(isSaved ? "In library" : "Add to library", phosphor: isSaved ? "Bookmark.fill" : "Bookmark")
-                        .font(.subheadline).frame(maxWidth: .infinity)
-                }
-            }
-            .foregroundStyle(NavigationStyle.accent)
-            .frame(minHeight: 44)
-            .background(NavigationStyle.surface, in: RoundedRectangle(cornerRadius: 6))
-            .contentShape(Rectangle())
+            Label(
+                isSaved ? "In Library" : "Add to Library",
+                systemImage: isSaved ? "bookmark.fill" : "bookmark")
         }
-        .buttonStyle(.plain)
         .disabled(saving)
         .accessibilityLabel(isSaved ? "In library" : "Add to library")
         .accessibilityIdentifier("details.library")
     }
 
-    private var chapters: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text(entry.media == .anime ? "Episodes" : "Chapters").font(
-                    .subheadline.weight(.semibold))
-                Text("\(details?.chapters.count ?? 0)").font(.caption).foregroundStyle(.secondary)
-                Spacer()
-                Menu {
-                    Picker("Sort by", selection: $chapterSort) {
-                        ForEach(ChapterSort.allCases) { Text($0.title).tag($0) }
-                    }
-                    Picker("Direction", selection: $ascending) {
-                        Text("Oldest first").tag(true)
-                        Text("Newest first").tag(false)
-                    }
-                } label: {
-                    PhosphorIcon(ascending ? "SortAscending" : "SortDescending")
-                        .frame(width: 44, height: 44)
-                }.accessibilityLabel("Sort chapters")
-                if let details, !details.chapters.isEmpty {
-                    Button {
-                        selecting.toggle()
-                        selected = []
-                    } label: {
-                        PhosphorIcon(selecting ? "X" : "CheckSquare").frame(width: 44, height: 44)
-                    }.accessibilityLabel(selecting ? "Done selecting" : "Select chapters")
-                    .accessibilityIdentifier("details.select")
-                }
-                Menu {
-                    if let details, !details.chapters.isEmpty { downloadMenu(details) }
-                    Button("Refresh chapters", phosphor: "ArrowsClockwise") {
-                        Task { await load(refresh: true) }
-                    }.disabled(loading)
-                } label: {
-                    PhosphorIcon("DotsThreeCircle").frame(width: 44, height: 44)
-                }
-                .accessibilityLabel("More chapter actions")
-                .accessibilityIdentifier("details.chapterActions")
-            }
-            if let details {
-                ChapterScanlatorMenu(chapters: details.chapters, mediaID: entry.id)
-            }
-            if (details?.chapters.count ?? 0) > 20 || !chapterQuery.isEmpty {
-                TextField("Filter chapters", text: $chapterQuery)
-                    .font(.subheadline).padding(12)
-                    .background(NavigationStyle.surface, in: RoundedRectangle(cornerRadius: 6))
-            }
-            if let chapterError = model.chapterError {
+    @ViewBuilder private var chapterRows: some View {
+        chaptersHeader
+            .listRowInsets(EdgeInsets(top: 4, leading: 20, bottom: 4, trailing: 12))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+        if let details {
+            ChapterScanlatorMenu(chapters: details.chapters, mediaID: entry.id)
+                .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+        }
+        if (details?.chapters.count ?? 0) > 20 || !chapterQuery.isEmpty {
+            chapterFilterField
+                .listRowInsets(EdgeInsets(top: 4, leading: 20, bottom: 8, trailing: 20))
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+        }
+        if let chapterError = model.chapterError {
+            VStack(alignment: .leading, spacing: 8) {
                 Text(chapterError).font(.footnote).foregroundStyle(.secondary)
                     .accessibilityIdentifier("details.chapterError")
-                Button("Retry chapters") { Task { await load(refresh: true) } }
-                    .frame(minHeight: 44).disabled(loading)
+                HStack {
+                    if model.sourceChallenge, let extensionID = entry.extensionID {
+                        Button("Verify in Browser") {
+                            verify(extensionID: extensionID, url: model.sourceURL, sourceName: entry.sourceName) {
+                                Task { await load(refresh: true) }
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .accessibilityIdentifier("details.verify")
+                    }
+                    Button("Retry Chapters") { Task { await load(refresh: true) } }
+                        .buttonStyle(.bordered).disabled(loading)
+                }
             }
-            if loading && (details?.chapters.isEmpty ?? true) {
-                ContentSkeleton(style: .chapters, count: 6).padding(.vertical, 12)
-            } else if let details {
-                let filtered = filteredChapters
-                if filtered.isEmpty && model.chapterError == nil {
-                    VStack(alignment: .leading, spacing: 12) {
-                        if !details.chapters.isEmpty {
+            .listRowInsets(EdgeInsets(top: 4, leading: 20, bottom: 8, trailing: 20))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+        }
+        if loading && (details?.chapters.isEmpty ?? true) {
+            ContentSkeleton(style: .chapters, count: 6)
+                .listRowInsets(EdgeInsets(top: 12, leading: 20, bottom: 12, trailing: 20))
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+        } else if let details {
+            let filtered = filteredChapters
+            if filtered.isEmpty && model.chapterError == nil {
+                Group {
+                    if !details.chapters.isEmpty {
+                        ContentUnavailableView {
+                            Label("No Matching Chapters", systemImage: "magnifyingglass")
+                        } description: {
                             Text("No chapters match your filter.")
-                            Button("Clear filter") { chapterQuery = "" }
-                        } else {
+                        } actions: {
+                            Button("Clear Filter") { chapterQuery = "" }
+                        }
+                    } else {
+                        ContentUnavailableView {
+                            Label(
+                                entry.media == .anime ? "No Episodes" : "No Chapters",
+                                systemImage: "list.bullet")
+                        } description: {
                             Text(model.emptyChapterMessage)
+                        } actions: {
                             if let sourceURL = model.sourceURL {
-                                Link("View title on the source", destination: sourceURL)
-                                    .frame(minHeight: 44)
+                                Link("View Title on the source", destination: sourceURL)
                             }
                         }
                     }
-                    .font(.subheadline).foregroundStyle(.secondary)
-                    .padding(.vertical, 24)
-                    .accessibilityIdentifier("details.emptyChapters")
                 }
-                LazyVStack(spacing: 0) {
-                    ForEach(filtered) { chapter in
-                        Button {
-                            if selecting {
-                                if selected.contains(chapter.id) { selected.remove(chapter.id) } else { selected.insert(chapter.id) }
-                            } else {
-                                open(chapter)
-                            }
-                        } label: {
-                            HStack(spacing: 12) {
-                                if selecting {
-                                    PhosphorIcon(selected.contains(chapter.id) ? "CheckSquare.fill" : "Square")
-                                        .foregroundStyle(selected.contains(chapter.id) ? NavigationStyle.accent : .secondary)
-                                } else {
-                                    PhosphorIcon(chapter.completed ? "CheckCircle.fill" : "Circle")
-                                        .foregroundStyle(chapter.completed ? NavigationStyle.accent : .secondary)
-                                }
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(chapter.label).font(.subheadline)
-                                        .foregroundStyle(chapter.completed && !selecting ? .secondary : .primary)
-                                    let caption = [resumeLabel(chapter), chapter.scanlator, chapter.uploadedDate].compactMap { $0 }.joined(separator: " · ")
-                                    if !caption.isEmpty {
-                                        Text(caption).font(.caption).foregroundStyle(.secondary)
-                                    }
-                                }
-                                Spacer()
-                                if chapter.downloaded {
-                                    PhosphorIcon("DownloadSimple.fill").foregroundStyle(
-                                        NavigationStyle.accent)
-                                }
-                            }.padding(.vertical, 14).contentShape(Rectangle())
-                        }.buttonStyle(.plain)
-                        .contextMenu { chapterMenu(chapter, in: filtered) }
-                            .accessibilityLabel(
-                                entry.media == .anime ? "Play \(chapter.label)" : chapter.label)
-                            .accessibilityValue(selecting ? (selected.contains(chapter.id) ? "Selected" : "") : (chapter.completed ? "Read" : ""))
-                        Divider()
-                    }
-                }
+                .accessibilityIdentifier("details.emptyChapters")
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+            }
+            ForEach(filtered) { chapter in
+                chapterRow(chapter, in: filtered)
             }
         }
     }
 
-    /// Desktop SeriesHeader "Manage" drawer.
+    private var chaptersHeader: some View {
+        HStack(spacing: 4) {
+            Text(entry.media == .anime ? "Episodes" : "Chapters").font(.title3.weight(.semibold))
+                .accessibilityAddTraits(.isHeader)
+            Text("\(details?.chapters.count ?? 0)").font(.subheadline).foregroundStyle(.secondary)
+            Spacer()
+            Menu {
+                Picker("Sort by", selection: $chapterSort) {
+                    ForEach(ChapterSort.allCases) { Text($0.title).tag($0) }
+                }
+                Picker("Direction", selection: $ascending) {
+                    Text("Oldest First").tag(true)
+                    Text("Newest First").tag(false)
+                }
+            } label: {
+                Image(systemName: "arrow.up.arrow.down")
+                    .frame(width: 44, height: 44).contentShape(Rectangle())
+            }
+            .accessibilityLabel("Sort chapters")
+            if let details, !details.chapters.isEmpty {
+                Button {
+                    selecting.toggle()
+                    selected = []
+                } label: {
+                    Image(systemName: selecting ? "checkmark.circle.fill" : "checkmark.circle")
+                        .frame(width: 44, height: 44).contentShape(Rectangle())
+                }
+                .accessibilityLabel(selecting ? "Done selecting" : "Select chapters")
+            }
+            Menu {
+                if let details, !details.chapters.isEmpty { downloadMenu(details) }
+                Button("Refresh Chapters", systemImage: "arrow.clockwise") {
+                    Task { await load(refresh: true) }
+                }.disabled(loading)
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .frame(width: 44, height: 44).contentShape(Rectangle())
+            }
+            .accessibilityLabel("More chapter actions")
+            .accessibilityIdentifier("details.chapterActions")
+        }
+        .buttonStyle(.borderless)
+    }
+
+    private var chapterFilterField: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+            TextField("Filter chapters", text: $chapterQuery)
+                .autocorrectionDisabled()
+                .submitLabel(.search)
+            if !chapterQuery.isEmpty {
+                Button { chapterQuery = "" } label: {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel("Clear filter")
+            }
+        }
+        .padding(.horizontal, 8).padding(.vertical, 8)
+        .background(.fill.tertiary, in: RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func chapterRow(_ chapter: Chapter, in filtered: [Chapter]) -> some View {
+        let isSelected = selected.contains(chapter.id)
+        return Button {
+            if selecting {
+                if isSelected { selected.remove(chapter.id) } else { selected.insert(chapter.id) }
+            } else {
+                open(chapter)
+            }
+        } label: {
+            HStack(spacing: 12) {
+                if selecting {
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        .font(.title3)
+                        .foregroundStyle(isSelected ? NavigationStyle.accent : .secondary)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(chapter.label).font(.body)
+                        .foregroundStyle(chapter.completed && !selecting ? .secondary : .primary)
+                    let caption = [resumeLabel(chapter), chapter.scanlator, chapter.uploadedDate].compactMap { $0 }.joined(separator: " · ")
+                    if !caption.isEmpty {
+                        Text(caption).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                Spacer(minLength: 0)
+                if chapter.downloaded {
+                    Image(systemName: "arrow.down.circle.fill")
+                        .foregroundStyle(NavigationStyle.accent)
+                        .accessibilityLabel("Downloaded")
+                }
+                if chapter.completed && !selecting {
+                    Image(systemName: "checkmark")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
+                }
+            }
+            .padding(.vertical, 6)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .listRowInsets(EdgeInsets(top: 4, leading: 20, bottom: 4, trailing: 20))
+        .listRowBackground(Color.clear)
+        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+            if !selecting {
+                Button {
+                    Task { await model.setRead([chapter.id], read: !chapter.completed) }
+                } label: {
+                    Label(
+                        chapter.completed ? "Mark Unread" : "Mark Read",
+                        systemImage: chapter.completed ? "circle" : "checkmark.circle")
+                }
+                .tint(NavigationStyle.accent)
+            }
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            if !selecting {
+                if chapter.downloaded {
+                    Button(role: .destructive) {
+                        Task { await model.deleteDownloads([chapter.id]) }
+                    } label: {
+                        Label("Delete Download", systemImage: "trash")
+                    }
+                } else {
+                    Button {
+                        Task { await model.download([chapter.id]) }
+                    } label: {
+                        Label("Download", systemImage: "arrow.down.circle")
+                    }
+                    .tint(.blue)
+                }
+            }
+        }
+        .contextMenu { if !selecting { chapterMenu(chapter, in: filtered) } }
+        .accessibilityLabel(entry.media == .anime ? "Play \(chapter.label)" : chapter.label)
+        .accessibilityValue(selecting ? (isSelected ? "Selected" : "") : (chapter.completed ? "Read" : ""))
+    }
+
+    /// Desktop SeriesHeader "Manage" drawer, as the toolbar's More menu.
     private func manageMenu(_ details: MediaDetails) -> some View {
         Menu {
-            Button("Tracking", phosphor: "Broadcast") { manageSheet = .tracking }
-            Button("Switch source", phosphor: "ArrowsLeftRight") { manageSheet = .migrate }
-            Button("Metadata match", phosphor: "MagnifyingGlass") { manageSheet = .metadata }
-            if isSaved {
-                Button("Automation", phosphor: "Robot") { manageSheet = .automation }
+            Section {
+                if !details.chapters.isEmpty {
+                    Button("Select Chapters", systemImage: "checkmark.circle") {
+                        selecting = true
+                        selected = []
+                    }
+                    downloadMenu(details)
+                }
+                Button("Refresh", systemImage: "arrow.clockwise") {
+                    Task { await load(refresh: true) }
+                }
+                .disabled(loading)
             }
-            Button("Cover image", phosphor: "Image") { manageSheet = .cover }
-            let links = library.linkedEntries(for: entry.id).count
-            Button(links > 0 ? "Series link (\(links))" : "Series link", phosphor: "Link") { manageSheet = .link }
+            Section {
+                Button("Tracking", systemImage: "antenna.radiowaves.left.and.right") { manageSheet = .tracking }
+                Button("Switch Source", systemImage: "arrow.left.arrow.right") { manageSheet = .migrate }
+                Button("Metadata Match", systemImage: "text.magnifyingglass") { manageSheet = .metadata }
+                if isSaved {
+                    Button("Automation", systemImage: "gearshape.2") { manageSheet = .automation }
+                }
+                Button("Cover Image", systemImage: "photo") { manageSheet = .cover }
+                let links = library.linkedEntries(for: entry.id).count
+                Button(links > 0 ? "Series Link (\(links))" : "Series Link", systemImage: "link") {
+                    manageSheet = .link
+                }
+            }
+            Section {
+                if let sourceURL = model.sourceURL {
+                    ShareLink(item: sourceURL, subject: Text(details.title)) {
+                        Label("Share", systemImage: "square.and.arrow.up")
+                    }
+                } else {
+                    ShareLink(item: details.title) {
+                        Label("Share", systemImage: "square.and.arrow.up")
+                    }
+                }
+            }
             let downloaded = details.chapters.filter(\.downloaded).map(\.id)
             if !downloaded.isEmpty {
-                Button("Delete downloads (\(downloaded.count))", phosphor: "Trash", role: .destructive) {
+                Button("Delete Downloads (\(downloaded.count))", systemImage: "trash", role: .destructive) {
                     Task { await model.deleteDownloads(downloaded) }
                 }
             }
         } label: {
-            PhosphorIcon("DotsThree", size: 22).frame(width: 44, height: 44).contentShape(Rectangle())
+            Label("Manage", systemImage: "ellipsis.circle")
         }
         .accessibilityLabel("Manage")
         .accessibilityIdentifier("details.manage")
@@ -595,30 +731,30 @@ struct DetailsView: View {
     }
 
     @ViewBuilder private func chapterMenu(_ chapter: Chapter, in list: [Chapter]) -> some View {
-        Button(chapter.completed ? "Mark as unread" : "Mark as read") {
+        Button(chapter.completed ? "Mark as Unread" : "Mark as Read", systemImage: chapter.completed ? "circle" : "checkmark.circle") {
             Task { await model.setRead([chapter.id], read: !chapter.completed) }
         }
         let order = readingOrder
         if let index = order.firstIndex(where: { $0.id == chapter.id }), index > 0 {
             let previous = Set(order[..<index].map(\.id))
-            Button("Mark previous as read") { Task { await model.setRead(previous, read: true) } }
-            Button("Mark previous as unread") { Task { await model.setRead(previous, read: false) } }
+            Button("Mark Previous as Read", systemImage: "checkmark.circle.badge.questionmark") { Task { await model.setRead(previous, read: true) } }
+            Button("Mark Previous as Unread", systemImage: "circle.dashed") { Task { await model.setRead(previous, read: false) } }
         }
         Divider()
         if chapter.downloaded {
-            Button("Delete download", role: .destructive) { Task { await model.deleteDownloads([chapter.id]) } }
+            Button("Delete Download", systemImage: "trash", role: .destructive) { Task { await model.deleteDownloads([chapter.id]) } }
         } else {
-            Button("Download") { Task { await model.download([chapter.id]) } }
+            Button("Download", systemImage: "arrow.down.circle") { Task { await model.download([chapter.id]) } }
         }
         if let index = order.firstIndex(where: { $0.id == chapter.id }) {
             let rest = order[index...].filter { !$0.downloaded }.map(\.id)
             if rest.count > 1 {
-                Button("Download next 5 from here") { Task { await model.download(Array(rest.prefix(5))) } }
-                Button("Download all from here") { Task { await model.download(rest) } }
+                Button("Download Next 5 from Here", systemImage: "arrow.down.to.line") { Task { await model.download(Array(rest.prefix(5))) } }
+                Button("Download All from Here", systemImage: "arrow.down.to.line.compact") { Task { await model.download(rest) } }
             }
         }
         Divider()
-        Button("Select") {
+        Button("Select", systemImage: "checkmark.circle") {
             selecting = true
             selected = [chapter.id]
         }
@@ -647,7 +783,7 @@ struct DetailsView: View {
                 }
             }
         } label: {
-            Label("Download", phosphor: "DownloadSimple")
+            Label("Download", systemImage: "arrow.down.circle")
         }
         .accessibilityLabel("Download chapters")
         .accessibilityIdentifier("details.downloadMenu")
@@ -656,28 +792,30 @@ struct DetailsView: View {
     private var selectionBar: some View {
         let ids = selected
         let chosen = (details?.chapters ?? []).filter { ids.contains($0.id) }
-        return HStack(spacing: 4) {
-            Button(selected.count == filteredChapters.count ? "None" : "All") {
-                selected = selected.count == filteredChapters.count ? [] : Set(filteredChapters.map(\.id))
-            }
-            .font(.subheadline).frame(minWidth: 44, minHeight: 44)
-            Text("\(selected.count) selected").font(.subheadline).foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Group {
-                barButton("Mark read", icon: "CheckCircle") { await model.setRead(ids, read: true) }
-                barButton("Mark unread", icon: "Circle") { await model.setRead(ids, read: false) }
-                barButton("Download", icon: "DownloadSimple") {
-                    await model.download(chosen.filter { !$0.downloaded }.map(\.id))
+        return VStack(spacing: 0) {
+            Divider()
+            HStack(spacing: 4) {
+                Button(selected.count == filteredChapters.count ? "Select None" : "Select All") {
+                    selected = selected.count == filteredChapters.count ? [] : Set(filteredChapters.map(\.id))
                 }
-                barButton("Delete downloads", icon: "Trash") {
-                    await model.deleteDownloads(chosen.filter(\.downloaded).map(\.id))
+                .frame(minHeight: 44)
+                Text("\(selected.count) selected").font(.subheadline).foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+                Group {
+                    barButton("Mark read", icon: "checkmark.circle") { await model.setRead(ids, read: true) }
+                    barButton("Mark unread", icon: "circle") { await model.setRead(ids, read: false) }
+                    barButton("Download", icon: "arrow.down.circle") {
+                        await model.download(chosen.filter { !$0.downloaded }.map(\.id))
+                    }
+                    barButton("Delete downloads", icon: "trash") {
+                        await model.deleteDownloads(chosen.filter(\.downloaded).map(\.id))
+                    }
                 }
+                .disabled(selected.isEmpty)
             }
-            .disabled(selected.isEmpty)
+            .padding(.horizontal, 16).padding(.vertical, 4)
         }
-        .padding(.horizontal, 12).padding(.vertical, 6)
-        .modifier(FloatingSurface(cornerRadius: 22))
-        .padding(.horizontal, 12).padding(.bottom, 8)
+        .background(.bar)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("details.selectionBar")
     }
@@ -690,7 +828,7 @@ struct DetailsView: View {
                 selected = []
             }
         } label: {
-            PhosphorIcon(icon).frame(width: 44, height: 44)
+            Image(systemName: icon).font(.title3).frame(width: 44, height: 44)
         }
         .accessibilityLabel(label)
     }
@@ -786,7 +924,7 @@ struct ChapterScanlatorMenu: View {
                 }
                 Button("Reset") { save(ChapterDisplayPreferences()) }
             } label: {
-                Label("Scanlators", phosphor: "Funnel").font(.caption).frame(minHeight: 44)
+                Label("Scanlators", systemImage: "line.3.horizontal.decrease.circle").font(.subheadline).frame(minHeight: 44)
             }
         }
         }
@@ -844,4 +982,10 @@ private struct ChipFlow: Layout {
         }
         return (frames, widest, y + row)
     }
+}
+
+extension EnvironmentValues {
+    /// Shows a Close button on a Details page that is the root of a sheet or
+    /// full-screen cover. Pushed Details pages use the system back button.
+    @Entry var detailsShowsClose = false
 }

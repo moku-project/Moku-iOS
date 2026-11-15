@@ -38,65 +38,66 @@ struct MetadataSheet: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    if loading {
-                        ContentSkeleton(style: .settings, count: 2)
-                    } else {
-                        GeneralSection("Current match") {
-                            if let match {
-                                GeneralRow(
-                                    match.provider == "anilist" ? "AniList" : match.provider.capitalized,
-                                    detail: match.locked
-                                        ? "Chosen by you"
-                                        : "Matched automatically · \(Int(match.confidence * 100))% confident"
-                                ) {
-                                    if let url = URL(string: match.url) {
-                                        Link(destination: url) { PhosphorIcon("ArrowUpRight", size: 14) }
-                                            .accessibilityLabel("Open match")
-                                    }
+            Form {
+                if loading {
+                    Section {
+                        HStack { ProgressView(); Text("Loading…").foregroundStyle(.secondary) }
+                    }
+                } else {
+                    Section("Current match") {
+                        if let match {
+                            LabeledContent {
+                                if let url = URL(string: match.url) {
+                                    Link(destination: url) { Image(systemName: "arrow.up.right.square") }
+                                        .accessibilityLabel("Open match")
                                 }
-                                GeneralStyle.divider
-                                GeneralRow("Refresh", detail: "Fetch the latest details from the match.") {
-                                    Button("Refresh") { run("refreshMetadataMatch(mediaId: \(BackendAPI.literal(mediaID))) { id }", done: "Details refreshed") }
-                                        .buttonStyle(GeneralTextButtonStyle()).disabled(working)
-                                }
-                                GeneralStyle.divider
-                                GeneralRow("Unlink", detail: "Keep the source’s own details only.") {
-                                    Button("Unlink") { run("unlinkMetadata(mediaId: \(BackendAPI.literal(mediaID)))", done: "Match removed") }
-                                        .buttonStyle(GeneralTextButtonStyle()).disabled(working)
-                                }
-                            } else {
-                                GeneralRow("Not matched", detail: "Search below and pick the right entry.") { EmptyView() }
+                            } label: {
+                                Text(match.provider == "anilist" ? "AniList" : match.provider.capitalized)
+                                Text(match.locked
+                                    ? "Chosen by you"
+                                    : "Matched automatically · \(Int(match.confidence * 100))% confident")
                             }
-                        }
-                        GeneralSection("Find a match") {
-                            HStack(spacing: 8) {
-                                TextField("Search AniList", text: $query)
-                                    .textInputAutocapitalization(.never).autocorrectionDisabled()
-                                    .submitLabel(.search).onSubmit { Task { await search() } }
-                                    .generalInput()
-                                Button("Search") { Task { await search() } }
-                                    .buttonStyle(GeneralTextButtonStyle())
-                                    .disabled(searching || query.trimmingCharacters(in: .whitespaces).isEmpty)
+                            Button {
+                                run("refreshMetadataMatch(mediaId: \(BackendAPI.literal(mediaID))) { id }", done: "Details refreshed")
+                            } label: {
+                                Label("Refresh Details", systemImage: "arrow.clockwise")
                             }
-                            .padding(.vertical, 8)
-                            if searching {
-                                ProgressView().frame(maxWidth: .infinity, minHeight: 60)
-                            } else {
-                                ForEach(results) { candidate in
-                                    GeneralStyle.divider
-                                    candidateRow(candidate)
-                                }
+                            .disabled(working)
+                            Button(role: .destructive) {
+                                run("unlinkMetadata(mediaId: \(BackendAPI.literal(mediaID)))", done: "Match removed")
+                            } label: {
+                                Label("Unlink", systemImage: "link.badge.minus")
+                            }
+                            .disabled(working)
+                        } else {
+                            LabeledContent {
+                                EmptyView()
+                            } label: {
+                                Text("Not matched")
+                                Text("Search below and pick the right entry.")
                             }
                         }
                     }
-                    if let error {
-                        Text(error).font(.footnote).foregroundStyle(.orange)
+                    Section {
+                        HStack {
+                            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                            TextField("Search AniList", text: $query)
+                                .textInputAutocapitalization(.never).autocorrectionDisabled()
+                                .submitLabel(.search).onSubmit { Task { await search() } }
+                        }
+                        if searching {
+                            ProgressView().frame(maxWidth: .infinity)
+                        } else {
+                            ForEach(results) { candidate in candidateRow(candidate) }
+                        }
+                    } header: {
+                        Text("Find a match")
+                    } footer: {
+                        if let error { Text(error).foregroundStyle(.orange) }
                     }
                 }
-                .padding(20)
             }
+            .scrollContentBackground(.hidden)
             .background(NavigationStyle.background.ignoresSafeArea())
             .navigationTitle("Metadata")
             .navigationBarTitleDisplayMode(.inline)
@@ -107,6 +108,7 @@ struct MetadataSheet: View {
                 if match == nil { await search() }
             }
         }
+        .presentationDetents([.medium, .large])
     }
 
     private func candidateRow(_ candidate: Candidate) -> some View {
@@ -119,22 +121,21 @@ struct MetadataSheet: View {
                 let detail = [candidate.startYear.map(String.init), candidate.status.map { $0.replacingOccurrences(of: "_", with: " ").capitalized }]
                     .compactMap { $0 }.joined(separator: " · ")
                 if !detail.isEmpty {
-                    Text(detail).font(.caption).foregroundStyle(GeneralStyle.label)
+                    Text(detail).font(.caption).foregroundStyle(.secondary)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             if match?.providerId == candidate.providerId {
-                PhosphorIcon("CheckCircle.fill").foregroundStyle(NavigationStyle.accent)
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(NavigationStyle.accent)
                     .accessibilityLabel("Current match")
             } else {
                 Button("Use") {
                     run("applyMetadataMatch(mediaId: \(BackendAPI.literal(mediaID)), providerId: \(BackendAPI.literal(candidate.providerId)), provider: \(BackendAPI.literal(candidate.provider))) { id }",
                         done: "Matched to \(candidate.title)")
                 }
-                .buttonStyle(GeneralTextButtonStyle()).disabled(working)
+                .buttonStyle(.bordered).disabled(working)
             }
         }
-        .padding(.vertical, 8)
     }
 
     private func load() async {

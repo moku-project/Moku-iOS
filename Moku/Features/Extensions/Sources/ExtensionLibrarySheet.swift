@@ -126,8 +126,8 @@ struct ExtensionLibrarySheet: View {
             }
             Spacer(minLength: 0)
             switch item.state {
-            case .matched: PhosphorIcon("CheckCircle").foregroundStyle(NavigationStyle.accent)
-            case .moved: PhosphorIcon("CheckCircle.fill").foregroundStyle(NavigationStyle.accent)
+            case .matched: Image(systemName: "checkmark.circle").foregroundStyle(NavigationStyle.accent)
+            case .moved: Image(systemName: "checkmark.circle.fill").foregroundStyle(NavigationStyle.accent)
             default: EmptyView()
             }
         }

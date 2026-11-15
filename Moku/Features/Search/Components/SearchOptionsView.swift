@@ -1,7 +1,10 @@
 import SwiftUI
 
+/// Search filters and sort as a native grouped form. Edits `model.draft`;
+/// the presenting sheet applies or cancels them.
 struct SearchOptionsView: View {
     @Bindable var model: SearchViewModel
+    /// Kept for source compatibility; the presenting sheet owns the title.
     var showsTitle = true
     @State private var genreQuery = ""
     private let genres = [
@@ -18,102 +21,109 @@ struct SearchOptionsView: View {
     @AppStorage("preferences.language") private var preferredLanguage = "all"
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            if showsTitle { Text("Filters").font(.title2.bold()) }
-            section("Sort by") {
-                ForEach(SearchOptions.Sort.allCases) { sort in
-                    choice(
-                        sort.rawValue, symbol: sortSymbol(sort), selected: model.draft.sort == sort
-                    ) {
-                        model.draft.sort = sort
+        Form {
+            Section {
+                Picker("Type", selection: $model.draft.media) {
+                    ForEach(ContentMode.allCases) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
+                .accessibilityIdentifier("search.filters.mode")
+                .onChange(of: model.draft.media) { _, _ in model.validateSource() }
+            }
+
+            Section("Sort by") {
+                Picker("Sort by", selection: $model.draft.sort) {
+                    ForEach(SearchOptions.Sort.allCases) { sort in
+                        Label(sort.rawValue, systemImage: sortSymbol(sort)).tag(sort)
                     }
                 }
+                .pickerStyle(.inline)
+                .labelsHidden()
             }
+
             if !model.isLibrary {
-                section("Search by") {
-                    ForEach(SearchOptions.Method.allCases) { method in
-                        choice(
-                            method.rawValue, symbol: methodSymbol(method),
-                            selected: model.draft.method == method
-                        ) {
-                            model.draft.method = method
+                Section("Search by") {
+                    Picker("Search by", selection: $model.draft.method) {
+                        ForEach(SearchOptions.Method.allCases) { method in
+                            Text(method.rawValue).tag(method)
                         }
                     }
+                    .pickerStyle(.segmented)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
                 }
-            }
-            ModeTabs(mode: $model.draft.media, prefix: "search.filters") {
-                model.validateSource()
-            }
-            if !model.isLibrary {
-                section("Results") {
-                    choice("Hide titles with no chapters", symbol: "Funnel", selected: model.draft.hidesEmpty) {
-                        model.draft.hidesEmpty.toggle()
-                    }
+
+                Section {
+                    Toggle("Hide titles with no chapters", isOn: $model.draft.hidesEmpty)
                 }
-                section("Language") {
-                    choice("All languages", symbol: "Globe", selected: model.draft.language == nil)
-                    {
-                        model.draft.language = nil
-                        model.validateSource()
-                    }
-                    ForEach(model.languages, id: \.self) { language in
-                        // Desktop marks the preferred source language with a star.
-                        choice(
-                            (Locale.current.localizedString(forLanguageCode: language) ?? language)
-                                + (language == preferredLanguage ? " · Preferred" : ""),
-                            symbol: "Translate", selected: model.draft.language == language
-                        ) {
-                            model.draft.language = language
-                            model.validateSource()
+
+                Section("Language") {
+                    Picker("Language", selection: $model.draft.language) {
+                        Text("All languages").tag(String?.none)
+                        ForEach(model.languages, id: \.self) { language in
+                            // Desktop marks the preferred source language.
+                            Text(
+                                (Locale.current.localizedString(forLanguageCode: language) ?? language)
+                                    + (language == preferredLanguage ? " · Preferred" : "")
+                            )
+                            .tag(String?.some(language))
                         }
                     }
+                    .onChange(of: model.draft.language) { _, _ in model.validateSource() }
                 }
             }
-            section("Sources") {
-                choice("All sources", symbol: "Stack", selected: model.draft.sourceID == nil) {
+
+            Section {
+                checkRow("All sources", selected: model.draft.sourceID == nil) {
                     model.draft.sourceID = nil
                 }
-                ForEach(model.visibleSources) { source in
-                    choice(
-                        source.name + (source.isPinned ? " ★" : ""),
-                        symbol: "Plugs", selected: model.draft.sourceID == source.id
-                    ) {
-                        model.draft.sourceID = source.id
+                if model.sourcesAreLoading {
+                    HStack {
+                        ProgressView()
+                        Text("Loading sources…").foregroundStyle(.secondary)
                     }
-                    .contextMenu {
-                        Button(source.isPinned ? "Unpin source" : "Pin source",
-                               phosphor: source.isPinned ? "PushPinSlash" : "PushPin") {
-                            SourcePins.toggle(source.id)
-                            Task { await model.loadSources() }
+                } else if let message = model.sourceMessage {
+                    Text(message).font(.footnote).foregroundStyle(.secondary)
+                    Button("Reload sources") { Task { await model.loadSources() } }
+                } else if model.visibleSources.isEmpty {
+                    Text("No sources match these filters.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                } else {
+                    ForEach(model.visibleSources) { source in
+                        checkRow(
+                            source.name, systemImage: source.isPinned ? "pin.fill" : nil,
+                            selected: model.draft.sourceID == source.id
+                        ) {
+                            model.draft.sourceID = source.id
+                        }
+                        .contextMenu {
+                            Button(
+                                source.isPinned ? "Unpin Source" : "Pin Source",
+                                systemImage: source.isPinned ? "pin.slash" : "pin"
+                            ) {
+                                SourcePins.toggle(source.id)
+                                Task { await model.loadSources() }
+                            }
                         }
                     }
                 }
+            } header: {
+                Text("Sources")
+            } footer: {
+                if !model.canApply {
+                    Text("Choose a source for source search.")
+                }
             }
-            .firstLoadSkeleton(
-                "search-sources-\(model.isLibrary)", loading: model.sourcesAreLoading, style: .chips
-            )
-            if model.sourcesAreLoading {
-                ContentSkeleton(style: .chips)
-            } else if let message = model.sourceMessage {
-                Text(message).font(.footnote).foregroundStyle(.secondary)
-                Button("Reload sources") { Task { await model.loadSources() } }
-            } else if model.visibleSources.isEmpty {
-                Text("No sources match these filters.").font(.footnote).foregroundStyle(
-                    .secondary)
-            }
+
             if !model.isLibrary {
-                TextField("Find a genre", text: $genreQuery)
-                    .font(.subheadline)
-                    .padding(.horizontal, 12).padding(.vertical, 10)
-                    .background(NavigationStyle.surface, in: RoundedRectangle(cornerRadius: 8))
-                    .autocorrectionDisabled()
-                    .accessibilityLabel("Find a genre")
-                section("Genres") {
+                Section {
+                    TextField("Find a genre", text: $genreQuery)
+                        .autocorrectionDisabled()
+                        .accessibilityLabel("Find a genre")
                     ForEach(matchingGenres, id: \.self) { genre in
-                        choice(
-                            genre, symbol: genreSymbol(genre),
-                            selected: model.draft.genres.contains(genre)
-                        ) {
+                        checkRow(genre, selected: model.draft.genres.contains(genre)) {
                             if model.draft.genres.contains(genre) {
                                 model.draft.genres.remove(genre)
                             } else {
@@ -121,27 +131,28 @@ struct SearchOptionsView: View {
                             }
                         }
                     }
+                } header: {
+                    Text("Genres")
                 }
-                section("Match genres") {
-                    ForEach(SearchOptions.Match.allCases) { match in
-                        choice(
-                            match.rawValue, symbol: match == .all ? "Intersect" : "Unite",
-                            selected: model.draft.match == match
-                        ) {
-                            model.draft.match = match
+
+                Section("Match genres") {
+                    Picker("Match genres", selection: $model.draft.match) {
+                        ForEach(SearchOptions.Match.allCases) { match in
+                            Text(match.rawValue).tag(match)
                         }
                     }
+                    .pickerStyle(.segmented)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
                 }
-                section("Status") {
-                    choice(
-                        "Any status", symbol: "CirclesFour", selected: model.draft.statuses.isEmpty
-                    ) {
+
+                Section("Status") {
+                    checkRow("Any status", selected: model.draft.statuses.isEmpty) {
                         model.draft.statuses = []
                     }
-                    ForEach(SearchOptions.Status.allCases) { status in
-                        choice(
-                            status.rawValue, symbol: statusSymbol(status),
-                            selected: model.draft.statuses.contains(status)
+                    ForEach(SearchOptions.Status.allCases.filter { $0 != .any }) { status in
+                        checkRow(
+                            status.rawValue, selected: model.draft.statuses.contains(status)
                         ) {
                             if model.draft.statuses.contains(status) {
                                 model.draft.statuses.remove(status)
@@ -152,86 +163,40 @@ struct SearchOptionsView: View {
                     }
                 }
             }
-            if !model.canApply {
-                Text("Choose a source for source search.").font(.footnote).foregroundStyle(
-                    .secondary)
-            }
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 8)
+        .scrollContentBackground(.hidden)
+        .scrollDismissesKeyboard(.interactively)
+    }
+
+    private func checkRow(
+        _ title: String, systemImage: String? = nil, selected: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack {
+                if let systemImage {
+                    Label(title, systemImage: systemImage)
+                } else {
+                    Text(title)
+                }
+                Spacer(minLength: 0)
+                if selected {
+                    Image(systemName: "checkmark")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(NavigationStyle.accent)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .foregroundStyle(.primary)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     private func sortSymbol(_ sort: SearchOptions.Sort) -> String {
         switch sort {
-        case .sourceOrder: "ListNumbers"
-        case .titleAscending: "SortAscending"
-        case .titleDescending: "SortDescending"
+        case .sourceOrder: "list.number"
+        case .titleAscending: "arrow.up"
+        case .titleDescending: "arrow.down"
         }
-    }
-
-    private func methodSymbol(_ method: SearchOptions.Method) -> String {
-        switch method {
-        case .keyword: "MagnifyingGlass"
-        case .tags: "Tag"
-        case .source: "Plugs"
-        }
-    }
-
-    private func statusSymbol(_ status: SearchOptions.Status) -> String {
-        switch status {
-        case .any: "CirclesFour"
-        case .ongoing: "Play"
-        case .completed: "CheckCircle"
-        case .hiatus: "Pause"
-        case .cancelled: "Prohibit"
-        case .finished: "FlagCheckered"
-        }
-    }
-
-    private func genreSymbol(_ genre: String) -> String {
-        switch genre {
-        case "Action": "Lightning"
-        case "Adventure": "Compass"
-        case "Comedy": "Smiley"
-        case "Drama": "SmileySad"
-        case "Fantasy": "CastleTurret"
-        case "Romance": "Heart"
-        case "Sci-Fi": "Planet"
-        case "Slice of Life": "Coffee"
-        case "Horror": "Skull"
-        case "Mystery": "Detective"
-        case "Thriller": "Heartbeat"
-        case "Sports": "Basketball"
-        case "Supernatural": "Ghost"
-        case "Mecha": "Robot"
-        case "Historical": "Scroll"
-        case "Psychological": "Brain"
-        case "School Life": "GraduationCap"
-        case "Shounen", "Seinen", "Josei", "Shoujo": "Users"
-        case "Isekai": "DoorOpen"
-        case "Martial Arts": "HandFist"
-        case "Magic": "MagicWand"
-        case "Music": "MusicNotes"
-        case "Cooking": "CookingPot"
-        case "Medical": "FirstAidKit"
-        case "Military": "Shield"
-        case "Harem": "UsersThree"
-        case "Ecchi": "Flame"
-        default: "Tag"
-        }
-    }
-
-    private func section<Content: View>(
-        _ title: String, @ViewBuilder content: @escaping () -> Content
-    )
-        -> some View
-    {
-        SearchOptionSection(title: title, content: content)
-    }
-
-    private func choice(
-        _ title: String, symbol: String, selected: Bool, action: @escaping () -> Void
-    ) -> some View {
-        SearchOptionChoice(title: title, symbol: symbol, selected: selected, action: action)
     }
 }

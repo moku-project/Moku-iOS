@@ -42,175 +42,40 @@ struct LibraryView: View {
     @State private var pendingItemInput: ItemInput?
     @State private var backendStats: [String: LibraryStats] = [:]
     @State private var model = LibraryViewModel()
-    @State private var search: SearchViewModel?
-    @State private var optionDraft = LibraryViewModel()
-    @State private var panel: Panel?
-    @State private var menuLevel: RadialMenuLevel = .closed
-    @State private var foldersPresented = false
     @State private var removeSelectionConfirmed = false
-    @State private var importPresented = false
     @State private var importHelpPresented = false
     @State private var newFolderPresented = false
-    @Environment(\.navigationContentBottomInset) private var bottomInset
+    @State private var newFolderName = ""
+    @State private var folderDraft = FolderViewModel()
+    @State private var importPresented = false
+    @AppStorage("preferences.modeTabs") private var savedModes = ""
     @AppStorage("library.listLayout") private var legacyListLayout = false
     @AppStorage("library.layout") private var layoutValue = ""
     private var layout: LibraryLayout {
         LibraryLayout(rawValue: layoutValue) ?? (legacyListLayout ? .list : .grid)
     }
-    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
-    @AppStorage("preferences.animations") private var animations = true
-    private var reduceMotion: Bool { systemReduceMotion || !animations }
-    typealias Panel = LibraryControls.Panel
 
     private var isLibraryEmpty: Bool {
         !model.items.contains { mode == .all || $0.media == mode } && model.query.isEmpty && !model.hasFilters
             && model.tab == .saved && model.folder == nil
     }
 
-    var body: some View {
-        GeometryReader { geometry in
-            VStack(spacing: 8) {
-                LibraryHeader(mode: $mode, dismissTools: dismissTools)
-                    .pillBackdrop(panel == .view || panel == .layout).zIndex(4)
-                LibraryControls(
-                    model: model, mode: $mode, panel: $panel,
-                    menuLevel: $menuLevel, foldersPresented: $foldersPresented,
-                    layoutValue: $layoutValue, layout: layout, reduceMotion: reduceMotion,
-                    selectView: selectView, dismissTools: dismissTools
-                ).zIndex(3)
-                if let error = library.error {
-                    HStack {
-                        Text(error).font(.caption).foregroundStyle(.secondary)
-                        Spacer()
-                        Button("Retry") {
-                            Task { _ = await library.refreshFromServer(); await loadStats() }
-                        }.disabled(library.busy)
-                    }.padding(.horizontal, NavigationStyle.pagePadding)
-                }
-                Group {
-                    if !library.loaded && library.error == nil {
-                        ScrollView {
-                            ContentSkeleton(style: layout.isList ? .results : .library, count: 6)
-                                .padding(16)
-                        }
-                    } else if isLibraryEmpty {
-                        GeometryReader { content in
-                            ScrollView {
-                                emptyLibrary
-                                    .frame(maxWidth: .infinity)
-                                    .frame(
-                                        minHeight: max(
-                                            0,
-                                            content.size.height - NavigationStyle.navigationInset
-                                                - max(
-                                                    0,
-                                                    geometry.safeAreaInsets.bottom
-                                                        - NavigationStyle.navigationLowering)))
-                            }
-                        }
-                    } else {
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 14) {
-                                if model.selecting { selectionBar }
-                                let allEntries = visibleItems
-                                let pageSize = min(200, max(12, renderLimit))
-                                let entries = Array(allEntries.prefix(revealedPages * pageSize))
-                                if entries.isEmpty {
-                                    VStack(spacing: 12) {
-                                        Text(
-                                            model.query.isEmpty && !model.hasFilters
-                                                ? model.folder != nil
-                                                    ? "This folder is empty"
-                                                    : "No \(model.tab.rawValue.lowercased()) titles yet"
-                                                : "No matching titles"
-                                        )
-                                        .font(.title2.bold())
-                                        if model.hasFilters {
-                                            Button("Clear filters") { model.clearFilters() }
-                                                .buttonStyle(.plain)
-                                                .foregroundStyle(NavigationStyle.accent)
-                                        }
-                                    }
-                                    .multilineTextAlignment(.center)
-                                    .frame(maxWidth: .infinity, minHeight: 180)
-                                } else if layout.isList {
-                                    LazyVStack(spacing: layout == .compactList ? 6 : 12) {
-                                        ForEach(entries) { item in
-                                            LibraryItemView(
-                                                item: item, list: true, model: model,
-                                                layout: layout, onOpen: onOpen)
-                                        }
-                                    }
-                                } else {
-                                    LazyVGrid(
-                                        columns: Array(
-                                            repeating: GridItem(.flexible(), spacing: 12),
-                                            count: layout == .compactGrid ? 3 : 2),
-                                        alignment: .leading, spacing: 16
-                                    ) {
-                                        ForEach(entries) { item in
-                                            LibraryItemView(
-                                                item: item, list: false, model: model,
-                                                layout: layout, onOpen: onOpen)
-                                        }
-                                    }
-                                }
-                                if allEntries.count > entries.count {
-                                    // Infinite scroll: reveal the next page as the end comes into view.
-                                    ProgressView()
-                                        .frame(maxWidth: .infinity, minHeight: 44)
-                                        .onAppear { revealedPages += 1 }
-                                        .id(revealedPages)
-                                        .accessibilityLabel("Loading more titles")
-                                }
-                            }
-                            .padding(.horizontal, NavigationStyle.pagePadding).padding(.top, 4)
-                            .padding(.bottom, 8)
-                        }
-                    }
-                }
-                .firstLoadSkeleton(
-                    "library", loading: !library.loaded && library.error == nil,
-                    style: layout.isList ? .results : .library
-                )
-                .animation(nil, value: mode)
-                .pillBackdrop(panel == .mode || panel == .view || panel == .layout)
-                .opacity(menuLevel == .closed ? 1 : 0.18)
-                .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: menuLevel)
-                .scrollDismissesKeyboard(.interactively)
-                .tracksNavigationScroll()
-                .refreshable {
-                    _ = await library.refreshFromServer()
-                    await loadStats()
-                }
-                .environment(\.navigationContentBottomInset, bottomInset + 68)
-                .accessibilityIdentifier("library.scroll")
-                .overlay {
-                    if panel == .mode || panel == .view || panel == .layout || menuLevel != .closed
-                    {
-                        Color.black.opacity(0.001).contentShape(Rectangle())
-                            .onTapGesture { dismissTools() }
-                            .accessibilityLabel("Dismiss library menu")
-                            .accessibilityAddTraits(.isButton)
-                            .accessibilityAction { dismissTools() }
-                    }
-                }
-            }
-            .overlay(alignment: .bottomTrailing) {
-                RadialMenu(
-                    level: $menuLevel, reduceMotion: reduceMotion, actions: radialActions
-                )
-                .pillBackdrop(panel == .mode || panel == .view || panel == .layout)
-                .padding(.trailing, max(16, (geometry.size.width - 336) / 2))
-                .padding(.bottom, bottomInset + 12)
-            }
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: panel)
+    private var title: String {
+        if let folder = model.folder { return folder.name }
+        return model.tab == .saved ? "Library" : model.tab.rawValue
+    }
+
+    private var chrome: some View {
+        content
+            .navigationTitle(title)
+            .searchable(text: Bindable(model).query, prompt: "Search library")
+            .safeAreaInset(edge: .top, spacing: 0) { modePicker }
+            .toolbar { toolbar }
+            .toolbar(model.selecting ? .hidden : .automatic, for: .tabBar)
             .onChange(of: isActive) { _, active in
-                if active { syncItems() }
-                else { cancelItemUpdate(); dismissTools() }
+                if active { syncItems() } else { cancelItemUpdate() }
             }
             .onChange(of: mode) { _, _ in
-                dismissTools()
                 model.selected.removeAll()
                 model.selecting = false
             }
@@ -226,7 +91,259 @@ struct LibraryView: View {
             } message: {
                 Text(model.notice ?? "")
             }
+    }
+
+    @ViewBuilder private var content: some View {
+        if !library.loaded && library.error == nil {
+            ScrollView {
+                ContentSkeleton(style: layout.isList ? .results : .library, count: 6)
+                    .padding(16)
+            }
+        } else if isLibraryEmpty {
+            emptyLibrary
+        } else {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    if let error = library.error {
+                        HStack {
+                            Text(error).font(.footnote).foregroundStyle(.secondary)
+                            Spacer()
+                            Button("Retry") {
+                                Task { _ = await library.refreshFromServer(); await loadStats() }
+                            }.disabled(library.busy)
+                        }
+                    }
+                    results
+                }
+                .padding(.horizontal, NavigationStyle.pagePadding).padding(.top, 4)
+                .padding(.bottom, 8)
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .refreshable {
+                _ = await library.refreshFromServer()
+                await loadStats()
+            }
+            .accessibilityIdentifier("library.scroll")
         }
+    }
+
+    @ViewBuilder private var results: some View {
+        let allEntries = visibleItems
+        let pageSize = min(200, max(12, renderLimit))
+        let entries = Array(allEntries.prefix(revealedPages * pageSize))
+        if entries.isEmpty {
+            ContentUnavailableView {
+                Label(
+                    model.query.isEmpty && !model.hasFilters
+                        ? model.folder != nil
+                            ? "This Folder Is Empty"
+                            : "No \(model.tab.rawValue) Titles"
+                        : "No Matching Titles",
+                    systemImage: model.query.isEmpty ? "books.vertical" : "magnifyingglass")
+            } actions: {
+                if model.hasFilters {
+                    Button("Clear Filters") { model.clearFilters() }
+                }
+            }
+            .frame(minHeight: 280)
+        } else if layout.isList {
+            LazyVStack(spacing: layout == .compactList ? 6 : 12) {
+                ForEach(entries) { item in
+                    LibraryItemView(item: item, list: true, model: model, layout: layout, onOpen: onOpen)
+                }
+            }
+        } else {
+            LazyVGrid(
+                columns: Array(
+                    repeating: GridItem(.flexible(), spacing: 12),
+                    count: layout == .compactGrid ? 3 : 2),
+                alignment: .leading, spacing: 16
+            ) {
+                ForEach(entries) { item in
+                    LibraryItemView(item: item, list: false, model: model, layout: layout, onOpen: onOpen)
+                }
+            }
+        }
+        if allEntries.count > entries.count {
+            // Infinite scroll: reveal the next page as the end comes into view.
+            ProgressView()
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .onAppear { revealedPages += 1 }
+                .id(revealedPages)
+                .accessibilityLabel("Loading more titles")
+        }
+    }
+
+    /// Content type, shared with Home, as Android's content filter.
+    private var modePicker: some View {
+        Picker("Content", selection: $mode) {
+            ForEach(ModeTabConfiguration(storage: savedModes).visible) { choice in
+                Text(choice.title).tag(choice)
+                    .accessibilityIdentifier("library.mode.\(choice.rawValue)")
+            }
+        }
+        .pickerStyle(.segmented)
+        .padding(.horizontal, NavigationStyle.pagePadding)
+        .padding(.bottom, 8)
+        .accessibilityIdentifier("library.currentMode")
+    }
+
+    /// The title menu: which part of the library to show.
+    @ViewBuilder private var viewMenu: some View {
+        Picker("View", selection: Binding(
+            get: { model.folder == nil ? model.tab : nil },
+            set: { if let tab = $0 { selectView(tab) } })
+        ) {
+            ForEach(LibraryTab.allCases) { tab in
+                Label(tab.rawValue, systemImage: tab.systemImage).tag(Optional(tab))
+            }
+        }
+        let folders = library.organization.folders.filter { $0.hidden != true && $0.shows(in: mode) }
+        Section("Folders") {
+            ForEach(folders) { folder in
+                Button {
+                    selectView(.saved)
+                    model.folder = folder
+                } label: {
+                    Label(folder.name, systemImage: model.folder?.id == folder.id ? "checkmark" : "folder")
+                }
+            }
+            Button { newFolderPresented = true } label: {
+                Label("New Folder", systemImage: "folder.badge.plus")
+            }
+        }
+    }
+
+    @ToolbarContentBuilder private var toolbar: some ToolbarContent {
+        if model.selecting {
+            ToolbarItem(placement: .topBarLeading) {
+                Button(model.selected.count == visibleItems.count ? "Deselect All" : "Select All") {
+                    model.selected = model.selected.count == visibleItems.count ? [] : Set(visibleItems.map(\.id))
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Done") {
+                    model.selecting = false
+                    model.selected.removeAll()
+                }
+                .fontWeight(.semibold)
+            }
+            ToolbarItemGroup(placement: .bottomBar) { selectionActions }
+        } else {
+            ToolbarItem(placement: .topBarLeading) {
+                Menu { viewMenu } label: {
+                    Label("Library View", systemImage: model.folder != nil ? "folder" : model.tab.systemImage)
+                }
+                .accessibilityIdentifier("library.activeView")
+            }
+            ToolbarItem(placement: .topBarTrailing) { optionsMenu }
+        }
+    }
+
+    private var optionsMenu: some View {
+        Menu {
+            Button { model.selecting = true } label: { Label("Select", systemImage: "checkmark.circle") }
+                .disabled(visibleItems.isEmpty)
+            Button { Task { await updateLibrary() } } label: {
+                Label("Update Library", systemImage: "arrow.clockwise")
+            }
+            Section {
+                Picker(selection: Bindable(model).sort) {
+                    ForEach(LibrarySort.allCases) { Text($0.rawValue).tag($0) }
+                } label: {
+                    Label("Sort By", systemImage: "arrow.up.arrow.down")
+                    Text(model.sort.rawValue)
+                }
+                .pickerStyle(.menu)
+                Toggle(isOn: Bindable(model).ascending) { Label("Ascending", systemImage: "arrow.up") }
+                Menu {
+                    Toggle("Unread", isOn: Bindable(model).unreadOnly)
+                    Toggle("Started", isOn: Bindable(model).startedOnly)
+                    Toggle("Downloaded", isOn: Bindable(model).downloadedOnly)
+                    Toggle("Starred", isOn: Bindable(model).bookmarkedOnly)
+                    Toggle("Tracked", isOn: Bindable(model).trackedOnly)
+                    Picker("Status", selection: Bindable(model).status) {
+                        Text("Any Status").tag(LibraryStatus?.none)
+                        ForEach(LibraryStatus.allCases) { Text($0.rawValue).tag(Optional($0)) }
+                    }
+                    if model.hasFilters {
+                        Button("Clear Filters", role: .destructive) { model.clearFilters() }
+                    }
+                } label: {
+                    Label("Filter", systemImage: model.hasFilters
+                        ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                }
+                Picker(selection: $layoutValue) {
+                    ForEach(LibraryLayout.allCases) { choice in
+                        Label(choice.title, systemImage: choice.systemImage).tag(choice.rawValue)
+                            .accessibilityIdentifier("library.layout.\(choice.rawValue)")
+                    }
+                } label: {
+                    Label("Layout", systemImage: layout.systemImage)
+                    Text(layout.title)
+                }
+                .pickerStyle(.menu)
+            }
+            Section {
+                Button { newFolderPresented = true } label: {
+                    Label("New Folder", systemImage: "folder.badge.plus")
+                }
+                Button { importHelpPresented = true } label: {
+                    Label("Import Library", systemImage: "square.and.arrow.down")
+                }
+            }
+        } label: {
+            Label("Library Options", systemImage: "ellipsis.circle")
+        }
+        .accessibilityIdentifier("library.options")
+    }
+
+    @ViewBuilder private var selectionActions: some View {
+        let ids = model.selected
+        let chosen = library.entries.filter { ids.contains($0.id) }
+        Menu {
+            ForEach(library.organization.folders) { folder in
+                Button(folder.name) {
+                    Task { await LibraryActions.move(ids, to: folder.id, library: library, model: model) }
+                }
+            }
+            if model.folder != nil {
+                Button("Remove from This Folder", role: .destructive) {
+                    Task { await LibraryActions.move(ids, to: nil, library: library, model: model) }
+                }
+            }
+        } label: {
+            Label("Move to Folder", systemImage: "folder")
+        }
+        .disabled(ids.isEmpty)
+        Spacer()
+        Text("\(ids.count) Selected").font(.subheadline.weight(.semibold))
+        Spacer()
+        Button {
+            Task { await LibraryActions.refresh(chosen, model: model) }
+        } label: { Label("Refresh Selected", systemImage: "arrow.clockwise") }
+        .disabled(ids.isEmpty)
+        Button(role: .destructive) {
+            removeSelectionConfirmed = true
+        } label: { Label("Remove Selected", systemImage: "trash") }
+        .disabled(ids.isEmpty)
+        .confirmationDialog(
+            "Remove \(ids.count) titles from your library?", isPresented: $removeSelectionConfirmed,
+            titleVisibility: .visible
+        ) {
+            Button("Remove", role: .destructive) {
+                Task {
+                    await LibraryActions.remove(chosen, library: library, model: model)
+                    model.selecting = false
+                }
+            }
+        } message: {
+            Text("You can add them back from Search at any time.")
+        }
+    }
+
+    var body: some View {
+        chrome
         .onChange(of: library.entriesRevision, initial: true) { _, _ in
             syncItems()
         }
@@ -283,33 +400,12 @@ struct LibraryView: View {
                 await loadStats(ifStale: true)
             }
         }
-        .modifier(
-            LibraryFolders(
-                foldersPresented: $foldersPresented, newFolderPresented: $newFolderPresented,
-                model: model, mode: mode, selectSaved: { selectView(.saved) })
-        )
-        .overlay {
-            if let search {
-                SearchView(
-                    model: search,
-                    openEntry: { entry in
-                        self.search = nil
-                        onOpen(entry)
-                    },
-                    close: { self.search = nil },
-                    isPage: true,
-                    isActive: isActive,
-                    backToLibrary: { self.search = nil },
-                    customOptions: AnyView(LibraryFilters(optionDraft: optionDraft)),
-                    prepareOptions: { copyOptions(from: model, to: optionDraft) },
-                    applyOptions: { copyOptions(from: optionDraft, to: model) },
-                    resetOptions: {
-                        optionDraft.clearFilters()
-                        optionDraft.sort = .title
-                        optionDraft.ascending = true
-                    }
-                )
-            }
+        .alert("New Folder", isPresented: $newFolderPresented) {
+            TextField("Name", text: $newFolderName)
+            Button("Cancel", role: .cancel) { newFolderName = "" }
+            Button("Create") { createFolder() }
+        } message: {
+            Text("Titles you move here stay in your library.")
         }
         .confirmationDialog(
             "Import library", isPresented: $importHelpPresented, titleVisibility: .visible
@@ -334,132 +430,39 @@ struct LibraryView: View {
         .onDisappear { cancelItemUpdate() }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("library.page")
-        .preference(
-            key: ModalPresentedKey.self, value: isActive && (foldersPresented || newFolderPresented)
-        )
     }
 
     private var emptyLibrary: some View {
-        VStack(spacing: 0) {
-            Text("Nothing here yet")
-                .font(.title2.bold())
-                .padding(.bottom, 10)
+        ContentUnavailableView {
+            Label("Nothing Here Yet", systemImage: "books.vertical")
+        } description: {
             Text("Save titles from Search, import files in Settings → Storage, or sync with Moku on your computer.")
-                .font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
-                .frame(maxWidth: 320)
-                .padding(.bottom, 10)
-            Button(action: onBrowse) {
-                Text("Browse titles")
-                    .font(.body.weight(.medium))
-                    .foregroundStyle(NavigationStyle.accent)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
-                    .frame(minHeight: 44)
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("library.browse")
+        } actions: {
+            Button("Browse Titles", action: onBrowse)
+                .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("library.browse")
         }
-        .multilineTextAlignment(.center)
-        .padding(.horizontal, 24)
-        .padding(.vertical, 32)
         .accessibilityIdentifier("library.empty")
     }
 
-    private var selectionBar: some View {
-        let ids = model.selected
-        let chosen = library.entries.filter { ids.contains($0.id) }
-        return HStack(spacing: 6) {
-            Text("\(ids.count) selected").font(.subheadline.weight(.semibold))
-            Button(ids.count == visibleItems.count ? "None" : "All") {
-                model.selected = ids.count == visibleItems.count ? [] : Set(visibleItems.map(\.id))
+    private func createFolder() {
+        Task {
+            folderDraft.name = newFolderName
+            newFolderName = ""
+            guard let folder = await folderDraft.create(in: library) else {
+                model.notice = folderDraft.error
+                return
             }
-            .font(.subheadline).frame(minHeight: 44)
-            Spacer()
-            Group {
-                Menu {
-                    ForEach(library.organization.folders) { folder in
-                        Button(folder.name) {
-                            Task { await LibraryActions.move(ids, to: folder.id, library: library, model: model) }
-                        }
-                    }
-                    if model.folder != nil {
-                        Button("Remove from this folder", role: .destructive) {
-                            Task { await LibraryActions.move(ids, to: nil, library: library, model: model) }
-                        }
-                    }
-                } label: {
-                    PhosphorIcon("FolderSimple").frame(width: 44, height: 44)
-                }
-                .accessibilityLabel("Move to folder")
-                Button {
-                    Task { await LibraryActions.refresh(chosen, model: model) }
-                } label: { PhosphorIcon("ArrowsClockwise").frame(width: 44, height: 44) }
-                .accessibilityLabel("Refresh selected")
-                Button(role: .destructive) {
-                    removeSelectionConfirmed = true
-                } label: { PhosphorIcon("Trash").frame(width: 44, height: 44) }
-                .accessibilityLabel("Remove selected from library")
-            }
-            .disabled(ids.isEmpty)
-            Button("Done") {
-                model.selecting = false
-                model.selected.removeAll()
-            }
-            .font(.subheadline.weight(.semibold)).frame(minHeight: 44)
-        }
-        .padding(.horizontal, 12)
-        .background(NavigationStyle.surface, in: RoundedRectangle(cornerRadius: 12))
-        .confirmationDialog(
-            "Remove \(ids.count) titles from your library?", isPresented: $removeSelectionConfirmed,
-            titleVisibility: .visible
-        ) {
-            Button("Remove", role: .destructive) {
-                Task {
-                    await LibraryActions.remove(chosen, library: library, model: model)
-                    model.selecting = false
-                }
-            }
-        } message: {
-            Text("You can add them back from Search at any time.")
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("library.selectionBar")
-    }
-
-    private var radialActions: [RadialAction] {
-        switch menuLevel {
-        case .closed: []
-        case .root:
-            [
-                .init(title: "Search", symbol: "MagnifyingGlass") {
-                    openLibrarySearch(options: false)
-                },
-                .init(title: "Add", symbol: "Plus") { menuLevel = .add },
-                .init(title: "Update", symbol: "ArrowsClockwise") {
-                    dismissTools()
-                    Task { await updateLibrary() }
-                },
-                .init(title: "Sort", symbol: "SortAscending") { openLibrarySearch(options: true) },
-                .init(title: "Filter", symbol: "Funnel") { openLibrarySearch(options: true) },
-            ]
-        case .add:
-            [
-                .init(title: "Import", symbol: "TrayArrowDown") {
-                    importHelpPresented = true
-                },
-                .init(title: "New folder", symbol: "FolderSimplePlus") {
-                    dismissTools()
-                    newFolderPresented = true
-                },
-            ]
+            selectView(.saved)
+            model.folder = folder
         }
     }
 
     /// Desktop "Update every series in the library": runs on the server, which
-    /// skips folders excluded from updates; results land in Recent → Updates.
+    /// skips folders excluded from updates; results land in History → Updates.
     private func updateLibrary() async {
         let repository = LiveRecentRepository()
-        Toaster.shared.show("Updating library", detail: "New chapters will appear in Recent → Updates.", kind: .info)
+        Toaster.shared.show("Updating library", detail: "New chapters will appear in History → Updates.", kind: .info)
         do {
             try await repository.startLibraryUpdate()
             try await Task.sleep(for: .seconds(1))
@@ -483,8 +486,6 @@ struct LibraryView: View {
     }
 
     private func selectView(_ tab: LibraryTab) {
-        panel = nil
-        menuLevel = .closed
         model.tab = tab
         model.folder = nil
         model.selected.removeAll()
@@ -581,38 +582,6 @@ struct LibraryView: View {
             statsRevision &+= 1
             syncItems()
         } catch { if !Task.isCancelled { model.notice = "Couldn’t refresh library progress." } }
-    }
-
-    private func copyOptions(from source: LibraryViewModel, to target: LibraryViewModel) {
-        target.sort = source.sort
-        target.ascending = source.ascending
-        target.unreadOnly = source.unreadOnly
-        target.startedOnly = source.startedOnly
-        target.downloadedOnly = source.downloadedOnly
-        target.bookmarkedOnly = source.bookmarkedOnly
-        target.trackedOnly = source.trackedOnly
-        target.status = source.status
-    }
-
-    private func openLibrarySearch(options: Bool) {
-        dismissTools()
-        copyOptions(from: model, to: optionDraft)
-        let repository = ScopedLibrarySearchRepository {
-            let items = await model.prepareVisible(mode: mode)
-            let saved = library.entries
-            return await Task.detached(priority: .userInitiated) {
-                let entries = Dictionary(saved.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-                return items.compactMap { entries[$0.id] }
-            }.value
-        }
-        let next = SearchViewModel(repository: repository, isLibrary: true)
-        if options { next.open(.filters) }
-        search = next
-    }
-
-    private func dismissTools() {
-        panel = nil
-        menuLevel = .closed
     }
 
 }

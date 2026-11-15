@@ -16,13 +16,15 @@ struct SearchView: View {
     @GestureState private var interacting = false
     @State private var pageScrolling = false
     @State private var shelfScrolling = false
+    @State private var searchPresented = false
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
     @AppStorage("preferences.animations") private var animations = true
+    @AppStorage("preferences.modeTabs") private var savedModes = ""
     private var autoRotates: Bool {
         isDiscovery && isActive && scenePhase == .active && model.state == .idle
-            && model.query.isEmpty && model.panel == nil && !isInputFocused && !model.discoveryLoading
+            && model.query.isEmpty && model.panel == nil && !searchPresented && !model.discoveryLoading
             && !interacting && !pageScrolling && !shelfScrolling
             && !reduceMotion && !voiceOver && animations && model.discoveryPairs.count > 1
     }
@@ -30,254 +32,199 @@ struct SearchView: View {
     private var discoveryKey: String {
         "\(isActive && !model.canSubmit)-\(model.options.media.rawValue)-\(model.options.language ?? "all")-\(model.options.sourceID ?? "")-\(readingSnapshot.sessions.count)-\(savedEntries.map(\.id).joined(separator: ","))-\(discoveryRetry)"
     }
-    @State private var didFocus = false
-    @Environment(\.navigationContentBottomInset) private var bottomInset
-    @Environment(\.navigationContentSafeAreaAdjustment) private var safeAreaAdjustment
-    @Environment(\.navigationIndicatorBottomInset) private var indicatorInset
     var browseSources: (() -> Void)? = nil
     var backToLibrary: (() -> Void)? = nil
     var customOptions: AnyView? = nil
     var prepareOptions: (() -> Void)? = nil
     var applyOptions: (() -> Void)? = nil
     var resetOptions: (() -> Void)? = nil
-    @FocusState private var isInputFocused: Bool
     @Environment(\.searchHistoryStore) private var historyStore
 
+    private var filtersActive: Bool {
+        model.options.filterCount > 0 || model.options.sort != .sourceOrder
+    }
+
     var body: some View {
-        VStack(spacing: 16) {
-            if isDiscovery {
-                VStack(spacing: 0) {
-                    PageHeader(title: "Search")
-                    ModeTabs(mode: Binding(get: { model.options.media }, set: { model.selectMode($0) }), prefix: "search") {
-                        isInputFocused = false
-                    }
-                }
+        if backToLibrary != nil {
+            // Shown over the Library page: a self-contained native search screen.
+            NavigationStack { page }
+        } else {
+            page
+        }
+    }
+
+    private var page: some View {
+        content
+            .navigationTitle(model.isLibrary ? "Search Library" : "Search")
+            .navigationBarTitleDisplayMode(backToLibrary != nil ? .inline : .automatic)
+            .searchable(
+                text: $model.query, isPresented: $searchPresented,
+                placement: .navigationBarDrawer(displayMode: .always),
+                prompt: model.isLibrary ? "Search your library" : "Titles, authors, genres"
+            )
+            .onSubmit(of: .search) { model.submit() }
+            .toolbar { toolbarContent }
+            .sheet(isPresented: panelPresented) { optionsSheet }
+            .background(NavigationStyle.background.ignoresSafeArea())
+            .accessibilityIdentifier(isPage ? "search.page" : "search.overlay")
+            .onChange(of: isActive) { _, active in
+                model.setActive(active)
+                if !active { searchPresented = false }
             }
-            HStack(spacing: 0) {
-                if !isPage {
-                    island("Close search", symbol: "X", id: "search.close", active: false) {
-                        isInputFocused = false
-                        model.invalidate()
-                        close()
+            .onDisappear { model.setActive(false) }
+            .onAppear {
+                model.setActive(isActive)
+                // Searching the library starts typing right away.
+                if backToLibrary != nil { searchPresented = true }
+            }
+            .task { await model.loadHistory(historyStore) }
+            .task(id: "\(autoRotates)-\(lastInteraction.timeIntervalSinceReferenceDate)-\(discoverySlide)") {
+                guard autoRotates else { return }
+                do { try await Task.sleep(for: .seconds(10)) } catch { return }
+                guard !Task.isCancelled, autoRotates else { return }
+                discoverySlide = (discoverySlide + 1) % model.discoveryPairs.count
+            }
+            .onChange(of: model.discoveryPairs.count) { _, count in
+                if discoverySlide >= count { discoverySlide = 0 }
+            }
+            .task(id: discoveryKey) {
+                guard isDiscovery, isActive, !model.canSubmit else { return }
+                await model.loadDiscovery(snapshot: readingSnapshot, saved: savedEntries, refreshToken: discoveryRetry)
+            }
+            .task(id: model.panel == .filters) {
+                // Opening search must not boot the runtime just to populate filter choices.
+                guard model.panel == .filters, customOptions == nil else { return }
+                await model.loadSources()
+            }
+    }
+
+    @ToolbarContentBuilder private var toolbarContent: some ToolbarContent {
+        if let backToLibrary {
+            ToolbarItem(placement: .topBarLeading) {
+                Button("Done") {
+                    searchPresented = false
+                    backToLibrary()
+                }
+                .accessibilityLabel("Back to Library")
+                .accessibilityIdentifier("search.backToLibrary")
+            }
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            Button {
+                searchPresented = false
+                prepareOptions?()
+                model.open(.filters)
+            } label: {
+                Label(
+                    "Filter and sort",
+                    systemImage: filtersActive
+                        ? "line.3.horizontal.decrease.circle.fill"
+                        : "line.3.horizontal.decrease.circle")
+            }
+            .accessibilityIdentifier("search.filter")
+            .accessibilityValue("\(model.options.filterCount) active filters")
+        }
+    }
+
+    private var panelPresented: Binding<Bool> {
+        Binding(
+            get: { isActive && model.panel != nil },
+            set: { presented in if !presented, model.panel != nil { model.cancelPanel() } })
+    }
+
+    private var optionsSheet: some View {
+        NavigationStack {
+            Group {
+                if let customOptions {
+                    ScrollView {
+                        customOptions.padding(.horizontal, 16).padding(.vertical, 8)
                     }
                 } else {
-                    PhosphorIcon("MagnifyingGlass").iconSize(22)
-                        .foregroundStyle(.secondary).frame(width: 40, height: 44)
-                        .accessibilityHidden(true)
+                    SearchOptionsView(model: model, showsTitle: false)
                 }
-                searchField
-                island(
-                    "Filter and sort", symbol: "Sliders", id: "search.filter",
-                    active: model.panel != nil || model.options.filterCount > 0
-                        || model.options.sort != .sourceOrder
-                ) {
-                    isInputFocused = false
-                    prepareOptions?()
-                    model.open(.filters)
-                }
-                .accessibilityValue("\(model.options.filterCount) active filters")
             }
-            .frame(height: NavigationStyle.navigationHeight)
-            .padding(.horizontal, NavigationStyle.navigationHorizontalPadding)
-            .modifier(
-                FloatingSurface(
-                    cornerRadius: NavigationStyle.navigationCornerRadius, tintOpacity: 0.12)
-            )
-            .padding(.horizontal, 16)
-            if let backToLibrary {
-                Button {
-                    isInputFocused = false
-                    backToLibrary()
-                } label: {
-                    PhosphorIcon("CaretLeft").iconSize(17)
-                        .frame(width: 44, height: 44).contentShape(Rectangle())
+            .background(NavigationStyle.background.ignoresSafeArea())
+            .navigationTitle("Filters")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { model.cancelPanel() }
+                        .accessibilityIdentifier("search.cancelOptions")
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Back to Library")
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .accessibilityIdentifier("search.backToLibrary")
-                .padding(.horizontal, 16)
-            }
-            GeometryReader { geometry in
-                ScrollView {
-                    VStack(spacing: 12) {
-                        if model.panel != nil && !isPage {
-                            if let customOptions {
-                                customOptions
-                            } else {
-                                SearchOptionsView(model: model)
-                            }
-                        } else {
-                            if let message = model.searchMessage {
-                                Text(message).font(.footnote).foregroundStyle(.secondary)
-                            }
-                            if model.hiddenEmpty > 0 {
-                                Text("Hid \(model.hiddenEmpty) title\(model.hiddenEmpty == 1 ? "" : "s") with no chapters at the source.")
-                                    .font(.footnote).foregroundStyle(.secondary)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .accessibilityIdentifier("search.hiddenEmpty")
-                            }
-                            if let error = model.historyError {
-                                Text(error).font(.footnote).foregroundStyle(.secondary)
-                            }
-                            results
-                                .firstLoadSkeleton(
-                                    "search-\(model.isLibrary)-\(model.query.trimmingCharacters(in: .whitespacesAndNewlines))",
-                                    loading: model.isSearching || model.historyLoading,
-                                    style: model.query.isEmpty ? .settings : .results)
-                            if model.isSearching, case .results = model.state {
-                                ContentSkeleton(style: .results, count: 2)
-                            }
-                        }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Apply") {
+                        applyOptions?()
+                        model.apply()
                     }
-                    .frame(
-                        maxWidth: .infinity, minHeight: geometry.size.height,
-                        alignment: .top
-                    )
-                    .padding(.horizontal, 16)
-                    // The page-level hide doesn't reach into the scroll view's
-                    // content; without this, VoiceOver reads results under Filters.
-                    .accessibilityHidden(isPage && model.panel != nil)
+                    .disabled(!model.canApply)
+                    .accessibilityIdentifier("search.apply")
                 }
-                .contentMargins(
-                    .bottom,
-                    isPage && !isInputFocused ? max(0, bottomInset - safeAreaAdjustment) : 0,
-                    for: .scrollContent
-                )
-                .contentMargins(
-                    .bottom, isPage && !isInputFocused ? indicatorInset : 0, for: .scrollIndicators
-                )
-                .onScrollPhaseChange { _, phase in pageScrolling = phase != .idle }
-                .scrollDismissesKeyboard(.interactively)
-                .safeAreaInset(edge: .bottom, spacing: 12) {
-                    if model.panel != nil && !isPage {
-                        optionActions
-                            .padding(.horizontal, 16)
+                ToolbarItem(placement: .bottomBar) {
+                    Button("Reset", role: .destructive) {
+                        resetOptions?()
+                        model.resetFilters()
+                        model.draft.sort = .sourceOrder
                     }
+                    .accessibilityIdentifier("search.resetOptions")
                 }
-                .clipped()
             }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
 
-        }
-        .frame(maxWidth: isPage ? 732 : 632)
-        .padding(.top, 8)
-        .padding(.bottom, 8)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(isPage ? NavigationStyle.background : .clear)
-        .blur(radius: isPage && model.panel != nil ? 4 : 0)
-        .allowsHitTesting(!isPage || model.panel == nil)
-        .accessibilityHidden(isPage && model.panel != nil)
-        .overlay {
-            if isPage && isActive && model.panel != nil {
-                Popup(title: "Filters", close: { model.cancelPanel() }, preferredHeight: 600) {
-                    if let customOptions { customOptions }
-                    else { SearchOptionsView(model: model, showsTitle: false) }
-                } actions: {
-                    optionActions
+    private var content: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                if isDiscovery {
+                    modePicker
+                }
+                if let message = model.searchMessage {
+                    Text(message).font(.footnote).foregroundStyle(.secondary)
+                }
+                if model.hiddenEmpty > 0 {
+                    Text("Hid \(model.hiddenEmpty) title\(model.hiddenEmpty == 1 ? "" : "s") with no chapters at the source.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityIdentifier("search.hiddenEmpty")
+                }
+                if let error = model.historyError {
+                    Text(error).font(.footnote).foregroundStyle(.secondary)
+                }
+                results
+                    .firstLoadSkeleton(
+                        "search-\(model.isLibrary)-\(model.query.trimmingCharacters(in: .whitespacesAndNewlines))",
+                        loading: model.isSearching || model.historyLoading,
+                        style: model.query.isEmpty ? .settings : .results)
+                if model.isSearching, case .results = model.state {
+                    ContentSkeleton(style: .results, count: 2)
                 }
             }
+            .frame(maxWidth: 732, alignment: .top)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
         }
-        .modifier(OverflowMenuHost())
-        .preference(key: ModalPresentedKey.self, value: isPage && isActive && model.panel != nil)
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier(isPage ? "search.page" : "search.overlay")
-        .onChange(of: isActive) { _, active in
-            model.setActive(active)
-            if !active { isInputFocused = false }
-        }
-        .onDisappear { model.setActive(false) }
-        .onAppear { model.setActive(isActive) }
-        .task { await model.loadHistory(historyStore) }
+        .onScrollPhaseChange { _, phase in pageScrolling = phase != .idle }
+        .scrollDismissesKeyboard(.interactively)
         .simultaneousGesture(TapGesture().onEnded { lastInteraction = .now })
         .simultaneousGesture(DragGesture().updating($interacting) { _, touching, _ in
             touching = true
         }.onEnded { _ in lastInteraction = .now })
-        .task(id: "\(autoRotates)-\(lastInteraction.timeIntervalSinceReferenceDate)-\(discoverySlide)") {
-            guard autoRotates else { return }
-            do { try await Task.sleep(for: .seconds(10)) } catch { return }
-            guard !Task.isCancelled, autoRotates else { return }
-            discoverySlide = (discoverySlide + 1) % model.discoveryPairs.count
-        }
-        .onChange(of: model.discoveryPairs.count) { _, count in
-            if discoverySlide >= count { discoverySlide = 0 }
-        }
-        .task(id: discoveryKey) {
-            guard isDiscovery, isActive, !model.canSubmit else { return }
-            await model.loadDiscovery(snapshot: readingSnapshot, saved: savedEntries, refreshToken: discoveryRetry)
-        }
-        .task(id: model.panel == .filters) {
-            // Opening search must not boot the runtime just to populate filter choices.
-            guard model.panel == .filters, customOptions == nil else { return }
-            await model.loadSources()
-        }
-        .task(id: isActive) {
-            guard isActive, !didFocus else { return }
-            // Commit the search page before cold keyboard initialization does UIKit work.
-            // A cancellable task also avoids stealing focus after the page is dismissed.
-            do { try await Task.sleep(for: .milliseconds(100)) } catch { return }
-            guard isActive else { return }
-            didFocus = true
-            isInputFocused = model.panel == nil && !isPage
-        }
-
     }
 
-    private var optionActions: some View {
-        HStack(spacing: 12) {
-            Button("Reset") {
-                resetOptions?()
-                model.resetFilters()
-                model.draft.sort = .sourceOrder
-            }
-            .accessibilityIdentifier("search.resetOptions")
-            Spacer(minLength: 0)
-            Button("Cancel") { model.cancelPanel() }
-                .accessibilityIdentifier("search.cancelOptions")
-            Button("Apply") {
-                applyOptions?()
-                model.apply()
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(!model.canApply)
-            .accessibilityIdentifier("search.apply")
-        }
-        .buttonStyle(.plain)
-        .frame(minHeight: 44)
-        .padding(12)
-        .modifier(FloatingSurface(cornerRadius: 20))
-    }
-
-    private var searchField: some View {
-        HStack(spacing: 10) {
-            TextField("Search", text: $model.query)
-                .focused($isInputFocused)
-                .keyboardType(.webSearch)
-                .submitLabel(.search)
-                .autocorrectionDisabled()
-                .textInputAutocapitalization(.never)
-                .onSubmit {
-                    model.submit()
-                    if isPage { isInputFocused = false }
-                }
-                .disabled(model.panel != nil)
-                .accessibilityIdentifier("search.input")
-            if !model.query.isEmpty {
-                Button {
-                    model.query = ""
-                } label: {
-                    PhosphorIcon("XCircle.fill")
-                        .foregroundStyle(.secondary)
-                        .frame(width: 44, height: 44)
-                        .contentShape(Rectangle())
-                }
-                .accessibilityLabel("Clear search")
-                .accessibilityIdentifier("search.clear")
+    /// Media type for discovery and search, as Android's mode tabs.
+    private var modePicker: some View {
+        Picker(
+            "Type",
+            selection: Binding(get: { model.options.media }, set: { model.selectMode($0) })
+        ) {
+            ForEach(ModeTabConfiguration(storage: savedModes).visible) { mode in
+                Text(mode.title).tag(mode)
             }
         }
-        .frame(minHeight: 44)
-        .padding(.leading, 2)
-        .padding(.trailing, 4)
-
+        .pickerStyle(.segmented)
+        .accessibilityIdentifier("search.mode")
     }
 
     @ViewBuilder private var results: some View {
@@ -288,39 +235,45 @@ struct SearchView: View {
         case .loading:
             ContentSkeleton(style: .results)
         case .unavailable:
-            message("Search couldn’t start. Try again in a moment.", symbol: "MagnifyingGlass")
+            ContentUnavailableView(
+                "Search Unavailable", systemImage: "magnifyingglass",
+                description: Text("Search couldn’t start. Try again in a moment."))
         case .failed(let description):
-            VStack {
-                message(description, symbol: "WifiSlash")
-                Button("Try again") { model.submit() }.frame(minHeight: 44)
+            ContentUnavailableView {
+                Label("Couldn’t Search", systemImage: "wifi.slash")
+            } description: {
+                Text(description)
+            } actions: {
+                Button("Try Again") { model.submit() }
+                    .buttonStyle(.borderedProminent)
                 if model.options.filterCount > 0 {
-                    Button("Clear filters and search") {
+                    Button("Clear Filters and Search") {
                         model.open(.filters)
                         model.resetFilters()
                         model.apply()
-                    }.frame(minHeight: 44)
+                    }
                 }
             }
         case .results(let entries):
             if entries.isEmpty {
-                VStack(spacing: 12) {
-                    Text(model.isLibrary ? "No matches in your Library" : "No results")
-                        .font(.subheadline).foregroundStyle(.secondary)
+                ContentUnavailableView {
+                    Label(
+                        model.isLibrary ? "No Matches in Your Library" : "No Results",
+                        systemImage: "magnifyingglass")
+                } actions: {
                     if let browseSources, model.isLibrary {
-                        Button("Browse sources") {
-                            isInputFocused = false
+                        Button("Browse Sources") {
+                            searchPresented = false
                             browseSources()
                         }
                         .buttonStyle(.borderedProminent)
                         .accessibilityIdentifier("search.browseSources")
                     }
                 }
-                .frame(maxWidth: .infinity).padding(.vertical, 24)
             } else {
                 LazyVStack(spacing: 0) {
                     ForEach(entries) { entry in
                         Button {
-                            isInputFocused = false
                             openEntry(entry)
                         } label: {
                             HStack(alignment: .top, spacing: 16) {
@@ -339,6 +292,7 @@ struct SearchView: View {
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
+                        .contextMenu { entryMenu(entry) }
                         .accessibilityIdentifier("search.result.\(entry.id)")
                         if entry.id != entries.last?.id { Divider().padding(.leading, 104) }
                     }
@@ -347,13 +301,11 @@ struct SearchView: View {
                             Task { await model.loadMore() }
                         } label: {
                             Group {
-                                if model.loadingMore { ProgressView() } else { Text("Load more") }
+                                if model.loadingMore { ProgressView() } else { Text("Load More") }
                             }
-                            .font(.subheadline.weight(.medium))
-                            .frame(maxWidth: .infinity, minHeight: 48)
-                            .background(NavigationStyle.surface, in: RoundedRectangle(cornerRadius: 8))
+                            .frame(maxWidth: .infinity, minHeight: 36)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.bordered)
                         .disabled(model.loadingMore)
                         .padding(.vertical, 16)
                         .accessibilityIdentifier("search.loadMore")
@@ -364,6 +316,13 @@ struct SearchView: View {
                         entries.prefix(12).compactMap(\.coverURL))
                 }
             }
+        }
+    }
+
+    @ViewBuilder private func entryMenu(_ entry: MediaEntry) -> some View {
+        Button("Open", systemImage: "book") { openEntry(entry) }
+        Button("Copy Title", systemImage: "doc.on.doc") {
+            UIPasteboard.general.string = entry.title
         }
     }
 
@@ -413,8 +372,8 @@ struct SearchView: View {
             }
             if let message = model.discoveryMessage {
                 Text(message).font(.subheadline).foregroundStyle(.secondary)
-                Button("Try again") { discoveryRetry += 1 }
-                    .frame(minHeight: 44).accessibilityIdentifier("search.discovery.retry")
+                Button("Try Again") { discoveryRetry += 1 }
+                    .accessibilityIdentifier("search.discovery.retry")
             }
             if !model.recentSearches.isEmpty { recentSearches }
         }
@@ -428,7 +387,6 @@ struct SearchView: View {
             LazyHStack(alignment: .top, spacing: 14) {
                 ForEach(entries) { entry in
                     Button {
-                        isInputFocused = false
                         openEntry(entry)
                     } label: {
                         VStack(alignment: .leading, spacing: 8) {
@@ -443,6 +401,7 @@ struct SearchView: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .contextMenu { entryMenu(entry) }
                     .accessibilityIdentifier("search.\(id).\(entry.id)")
                 }
             }
@@ -452,81 +411,60 @@ struct SearchView: View {
     }
 
     private var recentSearches: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 0) {
             if !model.recentSearches.isEmpty {
                 HStack {
-                    Text("Recent searches").font(.subheadline.weight(.semibold))
+                    Text("Recent Searches").font(.title3.weight(.semibold))
+                        .accessibilityAddTraits(.isHeader)
                     Spacer()
-                    Button("Clear all") { Task { await model.removeHistory() } }
-                        .font(.subheadline).foregroundStyle(.secondary)
-                        .frame(minHeight: 44)
+                    Button("Clear") { Task { await model.removeHistory() } }
                         .accessibilityIdentifier("search.history.clearAll")
                 }
+                .padding(.bottom, 4)
             }
             if model.historyLoading {
                 ContentSkeleton(style: .settings, count: 3)
             } else if model.recentSearches.isEmpty {
-                Text("No recent searches")
-                    .font(.subheadline).foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 8)
+                if !isDiscovery {
+                    ContentUnavailableView(
+                        "No Recent Searches", systemImage: "clock.arrow.circlepath")
+                }
             } else {
-                ForEach(
-                    model.recentSearches.filter {
-                        model.query.isEmpty || $0.query.localizedStandardContains(model.query)
-                    }
-                ) { item in
+                let items = model.recentSearches.filter {
+                    model.query.isEmpty || $0.query.localizedStandardContains(model.query)
+                }
+                ForEach(items) { item in
                     HStack(spacing: 0) {
                         Button {
-                            isInputFocused = false
+                            searchPresented = false
                             model.query = item.query
                             model.submit()
                         } label: {
-                            HStack(spacing: 12) {
-                                PhosphorIcon("ClockCounterClockwise").iconSize(18)
-                                    .foregroundStyle(.secondary)
-                                Text(item.query).font(.subheadline).lineLimit(2)
-                                    .multilineTextAlignment(.leading)
-                                Spacer(minLength: 0)
-                            }
-                            .frame(minHeight: 44).contentShape(Rectangle())
+                            Label(item.query, systemImage: "clock.arrow.circlepath")
+                                .lineLimit(2).multilineTextAlignment(.leading)
+                                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                                .contentShape(Rectangle())
                         }
                         .accessibilityLabel("Search again for \(item.query)")
                         Button {
                             Task { await model.removeHistory(item) }
                         } label: {
-                            PhosphorIcon("X").iconSize(14).foregroundStyle(.secondary)
+                            Image(systemName: "xmark")
+                                .font(.footnote).foregroundStyle(.secondary)
                                 .frame(width: 44, height: 44).contentShape(Rectangle())
                         }
                         .accessibilityLabel("Remove \(item.query) from search history")
                     }
                     .buttonStyle(.plain)
+                    .contextMenu {
+                        Button("Remove", systemImage: "trash", role: .destructive) {
+                            Task { await model.removeHistory(item) }
+                        }
+                    }
+                    if item.id != items.last?.id { Divider().padding(.leading, 36) }
                 }
             }
         }
-        .padding(.horizontal, 8)
         .accessibilityIdentifier("search.history")
-    }
-
-    private func message(_ title: String, symbol: String) -> some View {
-        Label(title, phosphor: symbol)
-            .font(.subheadline)
-            .padding(20)
-            .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func island(
-        _ title: String, symbol: String, id: String, active: Bool, action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            PhosphorIcon(symbol).iconSize(18)
-                .foregroundStyle(active ? NavigationStyle.accent : .primary)
-                .frame(width: 44, height: 44)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-
-        .accessibilityLabel(title)
-        .accessibilityIdentifier(id)
     }
 }

@@ -30,7 +30,7 @@ struct CoverPickerSheet: View {
                             CoverImage(url: candidate.preview, contentMode: .fit, symbol: entry.media.symbol)
                                 .clipShape(RoundedRectangle(cornerRadius: 10))
                                 .frame(maxHeight: 360)
-                            Text(candidate.label).font(.subheadline).foregroundStyle(GeneralStyle.label)
+                            Text(candidate.label).font(.subheadline).foregroundStyle(.secondary)
                         }
                         .padding(.horizontal, 40)
                         .tag(Optional(candidate.id))

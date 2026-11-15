@@ -24,7 +24,7 @@ struct LibraryItemView: View {
             .contextMenu {
                 Button(
                     item.bookmarked ? "Unstar" : "Star",
-                    phosphor: item.bookmarked ? "Star" : "Star"
+                    systemImage: item.bookmarked ? "star.slash" : "star"
                 ) {
                     Task {
                         var next = library.organization
@@ -32,7 +32,7 @@ struct LibraryItemView: View {
                         if !(await library.saveOrganization(next)) { model.notice = library.error }
                     }
                 }
-                Menu("Folders", phosphor: "FolderSimple") {
+                Menu("Folders", systemImage: "folder") {
                     ForEach(library.organization.folders) { folder in
                         Button(
                             folder.entryIDs.contains(item.id)
@@ -54,20 +54,20 @@ struct LibraryItemView: View {
                     }
                 }
                 if let entry = library.entries.first(where: { $0.id == item.id }) {
-                    Button("Refresh chapters", phosphor: "ArrowsClockwise") {
+                    Button("Refresh Chapters", systemImage: "arrow.clockwise") {
                         Task { await LibraryActions.refresh([entry], model: model) }
                     }
                     if item.downloaded {
-                        Button("Delete downloads", phosphor: "Trash") {
+                        Button("Delete Downloads", systemImage: "trash") {
                             Task { await LibraryActions.deleteDownloads([entry.id], model: model) }
                         }
                     }
-                    Button("Remove from library", phosphor: "Bookmark", role: .destructive) {
+                    Button("Remove from Library", systemImage: "bookmark.slash", role: .destructive) {
                         Task { await LibraryActions.remove([entry], library: library, model: model) }
                     }
                 }
                 Divider()
-                Button("Select", phosphor: "CheckSquare") {
+                Button("Select", systemImage: "checkmark.circle") {
                     model.selecting = true
                     model.selected = [item.id]
                 }

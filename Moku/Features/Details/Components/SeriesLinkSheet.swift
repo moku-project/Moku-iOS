@@ -34,7 +34,7 @@ struct SeriesLinkSheet: View {
                 if !linked.isEmpty {
                     Section("Linked") {
                         ForEach(linked) { item in
-                            row(item, trailing: "CheckCircle.fill") {
+                            row(item, trailing: "checkmark.circle.fill") {
                                 Task { await library.setLinked(entry.id, item.id, linked: false) }
                             }
                             .accessibilityHint("Unlinks this title")
@@ -45,7 +45,7 @@ struct SeriesLinkSheet: View {
                     Section("Results") {
                         if results.isEmpty { Text("No titles match.").foregroundStyle(.secondary) }
                         ForEach(results) { item in
-                            row(item, trailing: "Plus") { link(item) }
+                            row(item, trailing: "plus.circle") { link(item) }
                         }
                     }
                 } else {
@@ -54,7 +54,7 @@ struct SeriesLinkSheet: View {
                             Text("No suggestions. Search your library above.").foregroundStyle(.secondary)
                         }
                         ForEach(suggestions, id: \.0.id) { item, score in
-                            row(item, detail: "\(Int(score * 100))% similar", trailing: "Plus") { link(item) }
+                            row(item, detail: "\(Int(score * 100))% similar", trailing: "plus.circle") { link(item) }
                         }
                     }
                 }
@@ -71,6 +71,7 @@ struct SeriesLinkSheet: View {
                 await library.loadOrganization()
             }
         }
+        .presentationDetents([.medium, .large])
     }
 
     private func link(_ item: MediaEntry) {
@@ -92,7 +93,7 @@ struct SeriesLinkSheet: View {
                         .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 }
                 Spacer(minLength: 0)
-                PhosphorIcon(trailing).foregroundStyle(NavigationStyle.accent)
+                Image(systemName: trailing).foregroundStyle(NavigationStyle.accent)
             }
             .contentShape(Rectangle())
         }

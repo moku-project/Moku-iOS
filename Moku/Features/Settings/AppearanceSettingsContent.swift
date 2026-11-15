@@ -49,75 +49,140 @@ struct AppearanceSettingsContent: View {
     @State private var draft: NativeTheme?
     var options: [(String, String)] { (NativeTheme.builtins + NativeTheme.custom(custom)).map { ($0.id, $0.name) } }
     var body: some View {
-        LazyVStack(alignment: .leading, spacing: 20) {
-            GeneralSection("Theme") {
-                GeneralRow("Match system theme", detail: "Follow the device’s light and dark appearance.") {
-                    Toggle("Match system theme", isOn: $system).toggleStyle(GeneralToggleStyle())
-                }
-                GeneralStyle.divider
+        SettingsForm {
+            Section {
+                SettingsToggle("Match system theme", detail: "Follow the device’s light and dark appearance.", isOn: $system)
                 if system {
                     choice("Dark theme", value: $darkTheme)
-                    GeneralStyle.divider
                     choice("Light theme", value: $lightTheme)
-                } else { choice("App theme", value: $theme) }
+                } else {
+                    choice("App theme", value: $theme)
+                }
+                ThemeSwatches(selected: system ? nil : theme, themes: NativeTheme.builtins + NativeTheme.custom(custom)) { id in
+                    theme = id
+                    system = false
+                }
+            } header: {
+                Text("Theme")
             }
-            GeneralSection("Custom themes") {
+            Section {
                 ForEach(NativeTheme.custom(custom)) { item in
-                    GeneralRow(item.name, detail: "") {
-                        OverflowMenu {
-                            Button("Apply") { theme = item.id; system = false }
-                            Button("Edit") { draft = item }
-                            Button("Copy as JSON") {
-                                UIPasteboard.general.string = item.desktopJSON
-                                Toaster.shared.show("Theme copied", detail: "Paste it into Moku desktop’s theme editor or another device.")
-                            }
-                            Button("Delete", role: .destructive) {
-                                saveThemes(NativeTheme.custom(custom).filter { $0.id != item.id })
-                                if theme == item.id { theme = "midnight" }
-                                if darkTheme == item.id { darkTheme = "midnight" }
-                                if lightTheme == item.id { lightTheme = "light" }
-                            }
-                        } label: { Text("Manage").font(.subheadline).frame(minHeight: 44).foregroundStyle(GeneralStyle.text) }
-                    }
-                    GeneralStyle.divider
-                }
-                GeneralRow("Import theme", detail: "Paste a theme copied from Moku desktop or another device.") {
-                    Button("Paste") {
-                        guard let text = UIPasteboard.general.string, let imported = NativeTheme(desktopJSON: text) else {
-                            Toaster.shared.show("No theme on the clipboard", detail: "Copy a theme’s JSON first.", kind: .error)
-                            return
+                    Menu {
+                        Button("Apply", systemImage: "checkmark.circle") { theme = item.id; system = false }
+                        Button("Edit", systemImage: "pencil") { draft = item }
+                        Button("Copy as JSON", systemImage: "doc.on.doc") {
+                            UIPasteboard.general.string = item.desktopJSON
+                            Toaster.shared.show("Theme copied", detail: "Paste it into Moku desktop’s theme editor or another device.")
                         }
-                        saveThemes(NativeTheme.custom(custom) + [imported])
-                        Toaster.shared.show("Imported \(imported.name)")
-                    }.buttonStyle(GeneralTextButtonStyle())
+                        Button("Delete", systemImage: "trash", role: .destructive) { delete(item) }
+                    } label: {
+                        HStack {
+                            Circle().fill(Color(themeHex: item.accent)).frame(width: 14, height: 14)
+                            Text(item.name)
+                            Spacer(minLength: 8)
+                            if theme == item.id && !system {
+                                Image(systemName: "checkmark").foregroundStyle(NavigationStyle.accent)
+                            }
+                            Image(systemName: "ellipsis.circle").foregroundStyle(NavigationStyle.accent)
+                        }
+                        .foregroundStyle(.primary)
+                        .contentShape(Rectangle())
+                    }
+                    .accessibilityLabel("Manage \(item.name)")
+                    .swipeActions {
+                        Button("Delete", role: .destructive) { delete(item) }
+                        Button("Edit") { draft = item }
+                    }
                 }
-                GeneralStyle.divider
-                GeneralRow("Custom palette", detail: "Create a theme from the current colors.") {
-                    Button("Create") {
-                        var value = NativeTheme.resolve(theme, custom: custom)
-                        value.id = UUID().uuidString; value.name = ""
-                        draft = value
-                    }.buttonStyle(GeneralTextButtonStyle())
+                Button {
+                    guard let text = UIPasteboard.general.string, let imported = NativeTheme(desktopJSON: text) else {
+                        Toaster.shared.show("No theme on the clipboard", detail: "Copy a theme’s JSON first.", kind: .error)
+                        return
+                    }
+                    saveThemes(NativeTheme.custom(custom) + [imported])
+                    Toaster.shared.show("Imported \(imported.name)")
+                } label: {
+                    Label("Import theme from clipboard", systemImage: "doc.on.clipboard")
                 }
+                Button {
+                    var value = NativeTheme.resolve(theme, custom: custom)
+                    value.id = UUID().uuidString; value.name = ""
+                    draft = value
+                } label: {
+                    Label("Create custom palette", systemImage: "paintpalette")
+                }
+            } header: {
+                Text("Custom themes")
+            } footer: {
+                Text("Import a theme copied from Moku desktop or another device, or create one from the current colors.")
             }
-            GeneralSection("Interface") {
-                GeneralRow("Solid interface", detail: "Use opaque navigation, reader, and player controls.") { Toggle("Solid interface", isOn: $solid).toggleStyle(GeneralToggleStyle()) }
+            Section("Interface") {
+                SettingsToggle("Solid interface", detail: "Use opaque navigation, reader, and player controls.", isOn: $solid)
             }
-            GeneralSection("Covers") {
-                GeneralRow("Crop cover images", detail: "Fill the cover frame.") { Toggle("Crop cover images", isOn: $cropCovers).toggleStyle(GeneralToggleStyle()) }
+            Section("Covers") {
+                SettingsToggle("Crop cover images", detail: "Fill the cover frame.", isOn: $cropCovers)
             }
-        }.sheet(item: $draft) { value in
+        }
+        .sheet(item: $draft) { value in
             ThemeEditor(initial: value) { next in
                 var values = NativeTheme.custom(custom).filter { $0.id != next.id }
                 values.append(next); saveThemes(values); draft = nil
             }
         }
     }
+    private func delete(_ item: NativeTheme) {
+        saveThemes(NativeTheme.custom(custom).filter { $0.id != item.id })
+        if theme == item.id { theme = "midnight" }
+        if darkTheme == item.id { darkTheme = "midnight" }
+        if lightTheme == item.id { lightTheme = "light" }
+    }
     private func saveThemes(_ value: [NativeTheme]) { if let data = try? JSONEncoder().encode(value) { custom = data } }
     private func choice(_ title: String, value: Binding<String>) -> some View {
-        GeneralRow(title, detail: "") {
-            ChoicePicker(title: "", selection: value, options: options).font(.subheadline)
-                .accessibilityIdentifier("settings.picker.\(title)").accessibilityValue(value.wrappedValue)
+        SettingsPicker(title, selection: value, options: options)
+            .accessibilityValue(value.wrappedValue)
+    }
+}
+
+/// A row of theme previews; tapping one applies it.
+private struct ThemeSwatches: View {
+    let selected: String?
+    let themes: [NativeTheme]
+    let select: (String) -> Void
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(themes) { item in
+                    Button { select(item.id) } label: {
+                        VStack(spacing: 6) {
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color(themeHex: item.background))
+                                .overlay(alignment: .bottomLeading) {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Capsule().fill(Color(themeHex: item.text)).frame(width: 28, height: 4)
+                                        Capsule().fill(Color(themeHex: item.muted)).frame(width: 20, height: 4)
+                                        Capsule().fill(Color(themeHex: item.accent)).frame(width: 16, height: 6)
+                                    }
+                                    .padding(8)
+                                }
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .strokeBorder(
+                                            selected == item.id ? NavigationStyle.accent : Color(themeHex: item.border),
+                                            lineWidth: selected == item.id ? 2.5 : 1)
+                                }
+                                .frame(width: 64, height: 64)
+                            Text(item.name).font(.caption)
+                                .foregroundStyle(selected == item.id ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+                                .lineLimit(1)
+                        }
+                        .frame(width: 72)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(item.name)
+                    .accessibilityAddTraits(selected == item.id ? .isSelected : [])
+                }
+            }
+            .padding(.vertical, 4)
         }
     }
 }
@@ -127,13 +192,13 @@ private struct ThemeEditor: View {
     let save: (NativeTheme) -> Void
     init(initial: NativeTheme, save: @escaping (NativeTheme) -> Void) { _value = State(initialValue: initial); self.save = save }
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                GeneralSection("Theme") {
-                    GeneralRow("Name", detail: "") { TextField("Name", text: $value.name).generalInput().frame(width: 150) }
-                    GeneralRow("Light appearance", detail: "Use dark text in system controls.") { Toggle("Light appearance", isOn: $value.isLight).toggleStyle(GeneralToggleStyle()) }
+        NavigationStack {
+            Form {
+                Section("Theme") {
+                    TextField("Name", text: $value.name)
+                    SettingsToggle("Light appearance", detail: "Use dark text in system controls.", isOn: $value.isLight)
                 }
-                GeneralSection("Colors") {
+                Section("Colors") {
                     color("Background", \.background)
                     color("Surface", \.surface)
                     color("Accent", \.accent)
@@ -142,19 +207,22 @@ private struct ThemeEditor: View {
                     color("Muted text", \.muted)
                     color("Dividers", \.border)
                 }
-                HStack {
-                    Button("Cancel") { dismiss() }
-                    Spacer()
+            }
+            .scrollContentBackground(.hidden)
+            .background(NavigationStyle.background.ignoresSafeArea())
+            .navigationTitle(value.name.isEmpty ? "New theme" : value.name)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { value.name = value.name.trimmingCharacters(in: .whitespacesAndNewlines); save(value) }
                         .disabled(value.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }.buttonStyle(GeneralTextButtonStyle())
-            }.padding(20).frame(maxWidth: 640).frame(maxWidth: .infinity)
-        }.background(NavigationStyle.background)
+                }
+            }
+        }
     }
     private func color(_ title: String, _ key: WritableKeyPath<NativeTheme, String>) -> some View {
-        GeneralRow(title, detail: "") {
-            ColorPicker(title, selection: Binding(get: { Color(themeHex: value[keyPath: key]) }, set: { value[keyPath: key] = $0.themeHex }), supportsOpacity: false).labelsHidden()
-        }
+        ColorPicker(title, selection: Binding(get: { Color(themeHex: value[keyPath: key]) }, set: { value[keyPath: key] = $0.themeHex }), supportsOpacity: false)
     }
 }
 

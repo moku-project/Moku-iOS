@@ -23,3 +23,27 @@ enum LibraryLayout: String, CaseIterable, Identifiable {
     }
     var isList: Bool { self == .list || self == .compactList }
 }
+
+extension LibraryLayout {
+    var systemImage: String {
+        switch self {
+        case .grid: "square.grid.2x2"
+        case .compactGrid: "square.grid.3x3"
+        case .covers: "photo"
+        case .list: "list.bullet"
+        case .compactList: "list.dash"
+        }
+    }
+}
+
+extension LibraryTab {
+    var systemImage: String {
+        switch self {
+        case .saved: "books.vertical"
+        case .downloaded: "arrow.down.circle"
+        case .starred: "star"
+        case .reading: "book"
+        case .completed: "checkmark.circle"
+        }
+    }
+}

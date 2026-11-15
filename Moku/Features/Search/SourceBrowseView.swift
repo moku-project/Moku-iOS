@@ -7,6 +7,7 @@ struct SourceBrowseView: View {
     let openEntry: (MediaEntry) -> Void
     let close: () -> Void
     @Environment(LibraryStore.self) private var library
+    @Environment(\.presentSourceVerification) private var verify
     @State private var query = ""
     @State private var submitted = ""
     @State private var items: [MediaEntry] = []
@@ -23,53 +24,61 @@ struct SourceBrowseView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                HStack(spacing: 8) {
-                    TextField("Search \(source.displayName)…", text: $query)
-                        .textInputAutocapitalization(.never).autocorrectionDisabled()
-                        .submitLabel(.search)
-                        .onSubmit { Task { await load(reset: true) } }
-                        .generalInput()
-                        .accessibilityIdentifier("source.search")
-                    if !submitted.isEmpty {
-                        Button("Clear") {
-                            query = ""
-                            Task { await load(reset: true) }
-                        }
-                        .buttonStyle(GeneralTextButtonStyle())
-                    }
-                }
                 Text(submitted.isEmpty ? "Popular" : "Results for “\(submitted)”")
-                    .font(.headline)
+                    .font(.title3.weight(.semibold))
+                    .accessibilityAddTraits(.isHeader)
                 if hiddenEmpty > 0 {
                     Text("Hid \(hiddenEmpty) title\(hiddenEmpty == 1 ? "" : "s") with no chapters at the source.")
-                        .font(.footnote).foregroundStyle(GeneralStyle.label)
+                        .font(.footnote).foregroundStyle(.secondary)
                 }
                 if let error, items.isEmpty {
-                    VStack(spacing: 12) {
-                        Text(error).font(.subheadline).foregroundStyle(GeneralStyle.label)
-                            .multilineTextAlignment(.center)
-                        Button("Try again") { Task { await load(reset: true) } }
-                            .buttonStyle(GeneralTextButtonStyle())
+                    ContentUnavailableView {
+                        Label("Couldn’t Load", systemImage: "wifi.slash")
+                    } description: {
+                        Text(error)
+                    } actions: {
+                        if BrowserVerification.isChallenge(error) {
+                            Button("Verify in Browser") {
+                                verify(extensionID: source.packageName, url: nil, sourceName: source.displayName) {
+                                    Task { await load(reset: true) }
+                                }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .accessibilityIdentifier("source.verify")
+                        }
+                        Button("Try Again") { Task { await load(reset: true) } }
+                            .buttonStyle(.bordered)
                     }
-                    .frame(maxWidth: .infinity, minHeight: 200)
                 } else if items.isEmpty && loading {
                     ContentSkeleton(style: .library, count: 6)
                 } else if items.isEmpty {
-                    Text("Nothing found.").font(.subheadline).foregroundStyle(GeneralStyle.label)
-                        .frame(maxWidth: .infinity, minHeight: 160)
+                    ContentUnavailableView(
+                        submitted.isEmpty ? "Nothing Here" : "No Results",
+                        systemImage: "magnifyingglass",
+                        description: Text("Nothing found."))
                 } else {
                     LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
                         ForEach(items) { item in
                             Button { openEntry(item) } label: { card(item) }
                                 .buttonStyle(.plain)
+                                .contextMenu {
+                                    Button("Open", systemImage: "book") { openEntry(item) }
+                                    Button("Copy Title", systemImage: "doc.on.doc") {
+                                        UIPasteboard.general.string = item.title
+                                    }
+                                }
                         }
                     }
                     if hasNext {
-                        Button(loading ? "Loading…" : "Load more") { Task { await load(reset: false) } }
-                            .buttonStyle(GeneralTextButtonStyle())
-                            .frame(maxWidth: .infinity, minHeight: 44)
-                            .disabled(loading)
-                            .accessibilityIdentifier("source.loadMore")
+                        Button { Task { await load(reset: false) } } label: {
+                            Group {
+                                if loading { ProgressView() } else { Text("Load More") }
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 36)
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(loading)
+                        .accessibilityIdentifier("source.loadMore")
                     }
                 }
             }
@@ -78,6 +87,16 @@ struct SourceBrowseView: View {
         .refreshable { await load(reset: true) }
         .navigationTitle(source.displayName)
         .navigationBarTitleDisplayMode(.inline)
+        .searchable(
+            text: $query, placement: .navigationBarDrawer(displayMode: .always),
+            prompt: "Search \(source.displayName)")
+        .onSubmit(of: .search) { Task { await load(reset: true) } }
+        .onChange(of: query) { _, value in
+            // Clearing the field returns to the source's popular titles.
+            if value.isEmpty, !submitted.isEmpty { Task { await load(reset: true) } }
+        }
+        .textInputAutocapitalization(.never)
+        .autocorrectionDisabled()
         .background(NavigationStyle.background.ignoresSafeArea())
         .task(id: source.packageName) { await load(reset: true) }
     }
@@ -111,7 +130,7 @@ struct SourceBrowseView: View {
                             .padding(6)
                     }
                 }
-            Text(item.title).font(.caption).lineLimit(2).foregroundStyle(GeneralStyle.text)
+            Text(item.title).font(.caption).lineLimit(2).foregroundStyle(.primary)
         }
         .accessibilityElement(children: .combine)
     }

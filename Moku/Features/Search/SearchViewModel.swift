@@ -253,7 +253,7 @@ final class SearchViewModel {
                 sources.isEmpty
                 ? (isLibrary
                     ? "Sources appear here when you save titles."
-                    : "No sources installed. Open Extensions from the More menu to add one.") : nil
+                    : "No sources installed. Open Settings → Extensions to add one.") : nil
         } catch is CancellationError {
         } catch SearchFailure.notConnected {
             sourceMessage = "Sources couldn’t load. Try again in a moment."

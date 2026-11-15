@@ -19,7 +19,7 @@ struct HomeActivityView: View {
         VStack(alignment: .leading, spacing: 24) {
             VStack(spacing: 14) {
                 HStack {
-                    Text("Activity").font(.headline)
+                    Text("Activity").font(.title3.bold()).accessibilityAddTraits(.isHeader)
                     Spacer()
                     ChoicePicker(
                         title: "", selection: $weeks,
@@ -46,28 +46,28 @@ struct HomeActivityView: View {
                 }.font(.caption2).foregroundStyle(.secondary).accessibilityHidden(true)
             }
             VStack(alignment: .leading, spacing: 12) {
-                HomeSectionHeading(title: "Your stats")
+                HomeSectionHeading(title: "Your Stats")
                 LazyVGrid(
                     columns: [GridItem(.adaptive(minimum: 155), spacing: 24, alignment: .leading)],
                     alignment: .leading, spacing: 20
                 ) {
-                    stat("\(statistics.currentStreak)", "Day streak", "Fire.fill")
-                    stat("\(statistics.bestStreak)", "Best streak", "TrendUp")
-                    stat("\(statistics.units)", "Chapters / episodes", "BookOpen")
-                    stat("\(statistics.minutes)", "Minutes spent", "Clock")
-                    stat("\(statistics.thisWeek)", "Read · 7 days", "CalendarBlank")
-                    stat(String(format: "%.1f", statistics.perDay), "Daily average", "TrendUp")
-                    stat("\(statistics.series)", "Series started", "Books")
+                    stat("\(statistics.currentStreak)", "Day streak", "flame.fill")
+                    stat("\(statistics.bestStreak)", "Best streak", "chart.line.uptrend.xyaxis")
+                    stat("\(statistics.units)", "Chapters / episodes", "book")
+                    stat("\(statistics.minutes)", "Minutes spent", "clock")
+                    stat("\(statistics.thisWeek)", "Read · 7 days", "calendar")
+                    stat(String(format: "%.1f", statistics.perDay), "Daily average", "chart.line.uptrend.xyaxis")
+                    stat("\(statistics.series)", "Series started", "books.vertical")
                     stat(
                         statistics.firstRead?.formatted(.dateTime.month(.abbreviated).year()) ?? "—",
-                        "Since", "CalendarCheck")
+                        "Since", "calendar.badge.checkmark")
                 }
                 .accessibilityIdentifier("home.stats")
             }
             VStack(alignment: .leading, spacing: 16) {
-                HomeSectionHeading(title: "By type")
+                HomeSectionHeading(title: "By Type")
                 if statistics.byMedia.values.reduce(0, +) == 0 {
-                    HomeEmptyRow(text: "No completed chapters or episodes yet", symbol: "ChartPie")
+                    HomeEmptyRow(text: "No completed chapters or episodes yet", systemImage: "chart.pie")
                 } else {
                     HStack(spacing: 24) {
                         donut.frame(width: 94, height: 94).accessibilityHidden(true)
@@ -157,7 +157,7 @@ struct HomeActivityView: View {
 
     private func stat(_ value: String, _ label: String, _ symbol: String) -> some View {
         HStack(alignment: .top, spacing: 10) {
-            PhosphorIcon(symbol, size: 15).foregroundStyle(.secondary)
+            Image(systemName: symbol).font(.subheadline).foregroundStyle(.secondary)
                 .frame(width: 22, height: 28)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 4) {

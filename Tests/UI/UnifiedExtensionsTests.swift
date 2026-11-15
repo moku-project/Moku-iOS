@@ -5,7 +5,7 @@ import XCTest
         let app = XCUIApplication()
         app.launchArguments = ["--ui-testing-extensions", "--ui-testing-search"]
         app.launch()
-        app.buttons["tab.more"].tap()
+        app.tabBars.buttons["Settings"].tap()
         XCTAssertFalse(app.buttons["more.category.Sources"].exists)
         app.buttons["more.category.Extensions"].tap()
         let source = app.buttons["extensions.search.fixture"]
@@ -17,7 +17,7 @@ import XCTest
         app.textFields["source.search"].typeText("\n")
         app.buttons["source.back"].tap()
         XCTAssertTrue(app.textFields["search.input"].waitForExistence(timeout: 5))
-        app.buttons["tab.more"].tap()
+        app.tabBars.buttons["Settings"].tap()
         app.buttons["more.category.Extensions"].tap()
         app.buttons["Manage Test source"].tap()
         app.buttons["Configure"].tap()

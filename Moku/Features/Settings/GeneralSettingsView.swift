@@ -1,14 +1,87 @@
 import SwiftUI
 
-/// Open, readable settings sections using the app’s native navigation and controls.
+/// Settings › General as a native Form.
 struct GeneralSettingsView: View {
     @AppStorage("preferences.startTab") private var startTab = AppTab.library.rawValue
     let openExtensions: () -> Void
-    var serverOnly = false
     @AppStorage("preferences.interfaceScale") private var scale = 100.0
     @AppStorage("preferences.idleTimeout") private var idleTimeout = 5
     @AppStorage("preferences.animations") private var animations = true
     @AppStorage("preferences.language") private var language = "all"
+
+    var body: some View {
+        SettingsForm {
+            Section {
+                Stepper {
+                    LabeledContent("Interface scale") {
+                        Text("\(Int(GeneralPreferences.clampedScale(scale)))%")
+                            .monospacedDigit()
+                            .accessibilityIdentifier("settings.general.scaleValue")
+                    }
+                } onIncrement: {
+                    scale = GeneralPreferences.clampedScale(scale + 5)
+                } onDecrement: {
+                    scale = GeneralPreferences.clampedScale(scale - 5)
+                }
+                .accessibilityIdentifier("settings.general.scale")
+                Button("Reset to 100%") { scale = 100 }
+                    .disabled(scale == 100)
+                    .accessibilityLabel("Reset interface scale")
+            } header: {
+                Text("Interface")
+            } footer: {
+                Text("Adjust the size of the app. Reader zoom is separate.")
+            }
+            BundledServerSection()
+            Section("Startup") {
+                SettingsPicker(
+                    "Default view", detail: "The tab Moku opens to.", selection: $startTab,
+                    options: AppTab.startChoices.map { ($0.rawValue, $0.title) })
+            }
+            Section {
+                SettingsPicker(
+                    "Idle screen timeout", selection: $idleTimeout,
+                    options: [0, 1, 2, 5, 10, 15, 30].map { ($0, GeneralPreferences.timeoutLabel($0)) },
+                    identifier: "settings.general.idleTimeout")
+            } header: {
+                Text("Inactivity")
+            } footer: {
+                Text("Show the Moku idle screen after this much inactivity. Paused while reading or playing media.")
+            }
+            Section("Animations") {
+                SettingsToggle(
+                    "Interface animations",
+                    detail: "Tab transitions and button feedback. Respects Reduce Motion.",
+                    isOn: $animations)
+            }
+            Section {
+                SettingsPicker(
+                    "Preferred source language",
+                    selection: Binding(
+                        get: { GeneralPreferences.canonicalLanguage(language) },
+                        set: { language = $0 }),
+                    options: GeneralPreferences.languageOptions(including: language),
+                    identifier: "settings.general.language")
+                    .pickerStyle(.navigationLink)
+            } header: {
+                Text("Language")
+            } footer: {
+                Text("\(GeneralPreferences.languageName(language)), pre-selected in Search.")
+            }
+            Section {
+                SettingsLinkRow("Extensions and sources", systemImage: "puzzlepiece.extension", action: openExtensions)
+                    .accessibilityIdentifier("settings.general.extensions")
+            } header: {
+                Text("Extensions")
+            } footer: {
+                Text("Browse extensions and manage installed sources.")
+            }
+        }
+    }
+}
+
+/// Status and startup of the embedded server. Shown in General and Server.
+struct BundledServerSection: View {
     // The embedded server runs once per app process.
     @AppStorage(
         "backend.autoStart",
@@ -20,164 +93,50 @@ struct GeneralSettingsView: View {
     @State private var serverError: String?
 
     var body: some View {
-        LazyVStack(alignment: .leading, spacing: 20) {
-            if !serverOnly {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Interface scale")
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(GeneralStyle.text)
-                        .accessibilityAddTraits(.isHeader)
-                    Text("Adjust the size of the app. Reader zoom is separate.")
-                        .font(.footnote).foregroundStyle(GeneralStyle.faint)
-                        .fixedSize(horizontal: false, vertical: true)
-                    HStack(spacing: 8) {
-                        Button {
-                            scale = GeneralPreferences.clampedScale(scale - 5)
-                        } label: {
-                            PhosphorIcon("Minus", size: 18)
-                                .frame(width: 44, height: 44).contentShape(Rectangle())
-                        }
-                        .disabled(scale <= 50)
-                        .accessibilityLabel("Decrease interface scale")
-                        .accessibilityIdentifier("settings.general.scale.decrease")
-                        Text("\(Int(GeneralPreferences.clampedScale(scale)))%")
-                            .font(.title3.weight(.medium)).monospacedDigit()
-                            .foregroundStyle(GeneralStyle.text)
-                            .frame(minWidth: 54)
-                            .accessibilityIdentifier("settings.general.scaleValue")
-                        Button {
-                            scale = GeneralPreferences.clampedScale(scale + 5)
-                        } label: {
-                            PhosphorIcon("Plus", size: 18)
-                                .frame(width: 44, height: 44).contentShape(Rectangle())
-                        }
-                        .disabled(scale >= 200)
-                        .accessibilityLabel("Increase interface scale")
-                        .accessibilityIdentifier("settings.general.scale.increase")
-                        Spacer(minLength: 0)
-                        Button {
-                            scale = 100
-                        } label: {
-                            PhosphorIcon("ArrowCounterClockwise", size: 18)
-                                .frame(width: 44, height: 44).contentShape(Rectangle())
-                        }
-                        .disabled(scale == 100)
-                        .accessibilityLabel("Reset interface scale")
-                    }
-                    .buttonStyle(.plain).foregroundStyle(GeneralStyle.label)
-                    GeneralStyle.divider.padding(.top, 14)
-                }
+        Section {
+            // The loopback address changes every launch and is private to the app,
+            // so show what it means rather than the URL.
+            LabeledContent("Bundled server") {
+                Text(serverURL == nil ? "Not started" : "Running")
+                    .foregroundStyle(serverURL == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(NavigationStyle.accent))
             }
-            GeneralSection("Server") {
-                // The loopback address changes every launch and is private to the app,
-                // so show what it means rather than the URL.
-                GeneralRow("Bundled server", detail: "Runs privately on this device. Sources and downloads go through it.") {
-                    Text(serverURL == nil ? "Not started" : "Running")
-                        .font(.subheadline).foregroundStyle(serverURL == nil ? GeneralStyle.label : NavigationStyle.accent)
-                }
-                GeneralStyle.divider
-                GeneralRow(
-                    "Auto-start bundled server",
-                    detail:
-                        "Start when a feature needs it. Turning this off takes effect on the next app launch."
-                ) {
-                    Toggle("Auto-start bundled server", isOn: $autoStart).toggleStyle(
-                        GeneralToggleStyle())
-                }
-                if serverURL == nil {
-                    GeneralStyle.divider
-                    GeneralRow(
-                        "Bundled server",
-                        detail: serverError ?? "Start manually when automatic startup is off."
-                    ) {
-                        Button(starting ? "Starting…" : "Start") {
-                            Task {
-                                starting = true
-                                defer { starting = false }
-                                do {
-                                    serverURL = try await Backend.shared.connection(
-                                        requiresSourceRuntime: false, manualStart: true
-                                    ).baseURL.absoluteString
-                                    serverError = nil
-                                } catch { serverError = error.localizedDescription }
-                            }
-                        }.buttonStyle(GeneralButtonStyle()).disabled(starting)
-                    }
-                }
+            .task {
+                guard !PreviewMode.isEnabled else { return }
+                serverURL = await Backend.shared.currentServerURL()?.absoluteString
             }
-            if !serverOnly {
-                GeneralSection("Startup") {
-                    GeneralRow("Default view", detail: "The tab Moku opens to.") {
-                        ChoicePicker(
-                            title: "", selection: $startTab,
-                            options: AppTab.startChoices.map { ($0.rawValue, $0.title) }
-                        ).font(.subheadline)
+            SettingsToggle(
+                "Auto-start bundled server",
+                detail: "Start when a feature needs it. Turning this off takes effect on the next app launch.",
+                isOn: $autoStart)
+            if serverURL == nil {
+                Button {
+                    Task {
+                        starting = true
+                        defer { starting = false }
+                        do {
+                            serverURL = try await Backend.shared.connection(
+                                requiresSourceRuntime: false, manualStart: true
+                            ).baseURL.absoluteString
+                            serverError = nil
+                        } catch { serverError = error.localizedDescription }
+                    }
+                } label: {
+                    HStack {
+                        Text(starting ? "Starting…" : "Start server")
+                        if starting {
+                            Spacer()
+                            ProgressView()
+                        }
                     }
                 }
-                GeneralSection("Inactivity") {
-                    GeneralRow(
-                        "Idle screen timeout",
-                        detail:
-                            "Show the Moku idle screen after this much inactivity. Paused while reading or playing media."
-                    ) {
-                        ChoicePicker(
-                            title: "", selection: $idleTimeout,
-                            options: [0, 1, 2, 5, 10, 15, 30].map {
-                                ($0, GeneralPreferences.timeoutLabel($0))
-                            }
-                        )
-                        .font(.subheadline)
-                        .accessibilityLabel("Idle screen timeout")
-                        .accessibilityValue(GeneralPreferences.timeoutLabel(idleTimeout))
-                        .accessibilityIdentifier("settings.general.idleTimeout")
-                    }
-                }
-                GeneralSection("Animations") {
-                    GeneralRow(
-                        "Interface animations",
-                        detail: "Tab transitions and button feedback. Respects Reduce Motion."
-                    ) {
-                        Toggle("Interface animations", isOn: $animations).toggleStyle(
-                            GeneralToggleStyle()
-                        )
-                        .accessibilityIdentifier("Interface animations")
-                    }
-                }
-                GeneralSection("Language") {
-                    GeneralRow(
-                        "Preferred source language",
-                        detail:
-                            "\(GeneralPreferences.languageName(language)), pre-selected in Search."
-                    ) {
-                        ChoicePicker(
-                            title: "",
-                            selection: Binding(
-                                get: { GeneralPreferences.canonicalLanguage(language) },
-                                set: { language = $0 }),
-                            options: GeneralPreferences.languageOptions(including: language)
-                        )
-                        .font(.subheadline).frame(maxWidth: 160)
-                        .accessibilityLabel("Preferred source language")
-                        .accessibilityIdentifier("settings.general.language")
-                    }
-                }
-                GeneralSection("Extensions") {
-                    GeneralRow(
-                        "Extensions and sources",
-                        detail: "Browse extensions and manage installed sources."
-                    ) {
-                        Button("Manage", action: openExtensions).buttonStyle(
-                            GeneralTextButtonStyle()
-                        )
-                        .accessibilityIdentifier("settings.general.extensions")
-                    }
-                }
+                .disabled(starting)
             }
-        }
-        .task {
-            guard !PreviewMode.isEnabled else { return }
-            serverURL = await Backend.shared.currentServerURL()?.absoluteString
+        } header: {
+            Text("Server")
+        } footer: {
+            Text(serverError ?? (serverURL == nil
+                ? "Runs privately on this device. Start it manually when automatic startup is off."
+                : "Runs privately on this device. Sources and downloads go through it."))
         }
     }
-
 }

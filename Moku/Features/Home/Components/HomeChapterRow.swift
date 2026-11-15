@@ -15,7 +15,7 @@ struct HomeChapterRow: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            PhosphorIcon(current ? "Play.fill" : "CaretRight").foregroundStyle(
+            Image(systemName: current ? "play.fill" : "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(
                 current ? NavigationStyle.accent : .secondary)
                 .frame(width: 20).accessibilityHidden(true)
         }

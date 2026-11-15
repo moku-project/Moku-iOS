@@ -101,7 +101,7 @@ import UserNotifications
         guard await center.notificationSettings().authorizationStatus == .authorized else { return }
         let content = UNMutableNotificationContent()
         content.title = "New chapters"
-        content.body = "\(count) new chapter\(count == 1 ? "" : "s") or episode\(count == 1 ? "" : "s") in your library. Open Recent → Updates."
+        content.body = "\(count) new chapter\(count == 1 ? "" : "s") or episode\(count == 1 ? "" : "s") in your library. Open History → Updates."
         content.sound = .default
         try? await center.add(UNNotificationRequest(identifier: "library-updates", content: content, trigger: nil))
     }

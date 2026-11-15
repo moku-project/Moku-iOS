@@ -15,16 +15,17 @@ struct SyncSettingsContent: View {
     @AppStorage("sync.automatic") private var automatic = true
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        SettingsForm {
             if let paired = sync.pairing {
                 connected(paired)
             } else {
                 setup
             }
-            GeneralSection("What syncs") {
-                GeneralRow("Library, folders and progress", detail: "Titles match by source, so the same extension must be installed on both devices. Removing a title on one device removes it on the other.") { EmptyView() }
-                GeneralStyle.divider
-                GeneralRow("Stays on each device", detail: "Downloads, stars, reading history and app settings.") { EmptyView() }
+            Section {
+                SettingsLabel("Library, folders and progress", detail: "Titles match by source, so the same extension must be installed on both devices. Removing a title on one device removes it on the other.")
+                SettingsLabel("Stays on each device", detail: "Downloads, stars, reading history and app settings.")
+            } header: {
+                Text("What syncs")
             }
         }
         .task {
@@ -40,33 +41,39 @@ struct SyncSettingsContent: View {
         }
     }
 
-    private func connected(_ paired: DesktopPairing) -> some View {
-        GeneralSection("Desktop") {
-            GeneralRow(paired.name, detail: paired.baseURL.host() ?? paired.baseURL.absoluteString) {
-                PhosphorIcon("CheckCircle.fill").foregroundStyle(NavigationStyle.accent)
+    @ViewBuilder private func connected(_ paired: DesktopPairing) -> some View {
+        Section("Desktop") {
+            LabeledContent {
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(NavigationStyle.accent)
+            } label: {
+                SettingsLabel(paired.name, detail: paired.baseURL.host() ?? paired.baseURL.absoluteString)
             }
-            GeneralStyle.divider
-            GeneralRow("Sync now", detail: status) {
-                if sync.syncing {
-                    ProgressView()
-                } else {
-                    Button("Sync") { Task { await sync.sync(library: library) } }
-                        .buttonStyle(GeneralTextButtonStyle())
-                        .accessibilityIdentifier("sync.now")
+            Button {
+                Task { await sync.sync(library: library) }
+            } label: {
+                HStack {
+                    SettingsLabel("Sync now", detail: status)
+                    if sync.syncing {
+                        Spacer()
+                        ProgressView()
+                    }
                 }
             }
+            .disabled(sync.syncing)
+            .accessibilityIdentifier("sync.now")
             if let report = sync.lastReport, !report.missingOnPhone.isEmpty || !report.missingOnDesktop.isEmpty {
-                GeneralStyle.divider
-                GeneralRow("Needs an extension", detail: missing(report)) { EmptyView() }
+                Label {
+                    SettingsLabel("Needs an extension", detail: missing(report))
+                } icon: {
+                    Image(systemName: "puzzlepiece.extension").foregroundStyle(.orange)
+                }
             }
-            GeneralStyle.divider
-            GeneralRow("Sync automatically", detail: "When you open Moku, at most every five minutes.") {
-                Toggle("Sync automatically", isOn: $automatic).toggleStyle(GeneralToggleStyle())
-            }
-            GeneralStyle.divider
-            GeneralRow("Disconnect", detail: "Forget this desktop and its password.") {
-                Button("Disconnect") { confirmDisconnect = true }.buttonStyle(GeneralTextButtonStyle())
-            }
+            SettingsToggle("Sync automatically", detail: "When you open Moku, at most every five minutes.", isOn: $automatic)
+        }
+        Section {
+            Button("Disconnect", role: .destructive) { confirmDisconnect = true }
+        } footer: {
+            Text("Forget this desktop and its password.")
         }
     }
 
@@ -91,61 +98,68 @@ struct SyncSettingsContent: View {
         return lines.joined(separator: "\n")
     }
 
-    private var setup: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            GeneralSection("Connect to Moku desktop") {
-                GeneralRow("On your computer", detail: "Open Moku → Settings → Auth, set a server password, then turn on “Allow devices on your network”.") { EmptyView() }
-                GeneralStyle.divider
-                if discovery.desktops.isEmpty {
-                    GeneralRow(discovery.denied ? "Local network access is off" : "Looking for desktops…",
-                               detail: discovery.denied
-                                ? "Allow Moku in iOS Settings → Privacy & Security → Local Network, or enter the address below."
-                                : "Desktops with phone sync on appear here.") {
-                        if !discovery.denied { ProgressView() }
+    @ViewBuilder private var setup: some View {
+        Section {
+            if discovery.desktops.isEmpty {
+                HStack {
+                    SettingsLabel(discovery.denied ? "Local network access is off" : "Looking for desktops…",
+                                  detail: discovery.denied
+                                    ? "Allow Moku in iOS Settings → Privacy & Security → Local Network, or enter the address below."
+                                    : "Desktops with phone sync on appear here.")
+                    if !discovery.denied {
+                        Spacer()
+                        ProgressView()
                     }
-                } else {
-                    ForEach(discovery.desktops) { desktop in
-                        GeneralRow(desktop.name, detail: desktop.address.host() ?? "") {
-                            Button(chosen == desktop ? "Selected" : "Use") {
-                                chosen = desktop
-                                address = desktop.address.absoluteString
+                }
+            } else {
+                ForEach(discovery.desktops) { desktop in
+                    Button {
+                        chosen = desktop
+                        address = desktop.address.absoluteString
+                    } label: {
+                        HStack {
+                            SettingsLabel(desktop.name, detail: desktop.address.host() ?? "")
+                            Spacer()
+                            if chosen == desktop {
+                                Image(systemName: "checkmark").foregroundStyle(NavigationStyle.accent)
                             }
-                            .buttonStyle(GeneralTextButtonStyle())
                         }
+                        .foregroundStyle(.primary)
+                        .contentShape(Rectangle())
+                    }
+                    .accessibilityAddTraits(chosen == desktop ? .isSelected : [])
+                }
+            }
+        } header: {
+            Text("Connect to Moku desktop")
+        } footer: {
+            Text("On your computer, open Moku → Settings → Auth, set a server password, then turn on “Allow devices on your network”.")
+        }
+        Section {
+            TextField("Address, such as 192.168.1.20:6007", text: $address)
+                .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
+                .accessibilityIdentifier("sync.address")
+            SecureField("Server password", text: $password).textContentType(.password)
+                .onSubmit { Task { await connect() } }
+                .accessibilityIdentifier("sync.password")
+            Button {
+                Task { await connect() }
+            } label: {
+                HStack {
+                    Text("Connect")
+                    if pairing {
+                        Spacer()
+                        ProgressView()
                     }
                 }
-                GeneralStyle.divider
-                GeneralRow("Address", detail: "Shown in desktop Settings → Auth → Phone sync.") {
-                    TextField("192.168.1.20:6007", text: $address)
-                        .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
-                        .generalInput().frame(width: 190)
-                        .accessibilityIdentifier("sync.address")
-                }
-                GeneralRow("Server password", detail: "") {
-                    SecureField("Password", text: $password).textContentType(.password)
-                        .generalInput().frame(width: 190)
-                        .onSubmit { Task { await connect() } }
-                        .accessibilityIdentifier("sync.password")
-                }
-                Button { Task { await connect() } } label: {
-                    Group {
-                        if pairing { ProgressView().tint(NavigationStyle.background) } else { Text("Connect") }
-                    }
-                    .font(.headline)
-                    .foregroundStyle(NavigationStyle.background)
-                    .frame(maxWidth: .infinity, minHeight: 48)
-                    .background(NavigationStyle.accent.opacity(address.isEmpty || password.isEmpty ? 0.4 : 1),
-                                in: RoundedRectangle(cornerRadius: 10))
-                }
-                .buttonStyle(.plain)
-                .disabled(pairing || address.isEmpty || password.isEmpty)
-                .padding(.top, 12)
-                .accessibilityIdentifier("sync.connect")
-                if let notice {
-                    Text(notice).font(.footnote).foregroundStyle(.orange)
-                        .padding(.top, 8).padding(.bottom, 4)
-                        .accessibilityIdentifier("sync.error")
-                }
+            }
+            .disabled(pairing || address.isEmpty || password.isEmpty)
+            .accessibilityIdentifier("sync.connect")
+        } footer: {
+            if let notice {
+                Text(notice).foregroundStyle(.orange).accessibilityIdentifier("sync.error")
+            } else {
+                Text("The address is shown in desktop Settings → Auth → Phone sync.")
             }
         }
     }

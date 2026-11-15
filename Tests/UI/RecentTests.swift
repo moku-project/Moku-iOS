@@ -8,9 +8,9 @@ import XCTest
             "-mokuStorageTestID", UUID().uuidString,
         ]
         app.launch()
-        XCTAssertTrue(app.buttons["tab.more"].waitForExistence(timeout: 10))
-        app.buttons["tab.more"].tap()
-        app.buttons["more.category.Recent"].tap()
+        XCTAssertTrue(app.tabBars.buttons["Settings"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["more.category.History"].tap()
         XCTAssertTrue(app.buttons["recent.activeView"].firstMatch.waitForExistence(timeout: 5))
         return app
     }
@@ -82,8 +82,8 @@ import XCTest
             "-mokuStorageTestID", UUID().uuidString,
         ]
         app.launch()
-        XCTAssertTrue(app.buttons["tab.more"].waitForExistence(timeout: 10))
-        app.buttons["tab.more"].tap()
+        XCTAssertTrue(app.tabBars.buttons["Settings"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["Settings"].tap()
         app.buttons["more.category.Tracking"].tap()
         XCTAssertTrue(app.staticTexts["Connected"].waitForExistence(timeout: 5))
         // Trackers the server can't sign in to are hidden rather than shown as "Coming soon".

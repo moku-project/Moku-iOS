@@ -53,16 +53,16 @@ struct ServerLogView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } }
                 ToolbarItemGroup(placement: .primaryAction) {
-                    ShareLink(item: ServerLog.shared.url) { PhosphorIcon("Export") }
+                    ShareLink(item: ServerLog.shared.url) { Image(systemName: "square.and.arrow.up") }
                         .accessibilityLabel("Share server log")
                     Menu {
-                        Button("Copy all", phosphor: "Copy") {
+                        Button("Copy all", systemImage: "doc.on.doc") {
                             UIPasteboard.general.string = shown.map(\.element).joined(separator: "\n")
                             Toaster.shared.show("Copied server log")
                         }
-                        Button("Refresh", phosphor: "ArrowClockwise") { Task { await load() } }
-                        Button("Clear log", phosphor: "Trash", role: .destructive) { confirmClear = true }
-                    } label: { PhosphorIcon("DotsThree") }
+                        Button("Refresh", systemImage: "arrow.clockwise") { Task { await load() } }
+                        Button("Clear log", systemImage: "trash", role: .destructive) { confirmClear = true }
+                    } label: { Image(systemName: "ellipsis.circle") }
                         .accessibilityLabel("Log actions")
                 }
             }
@@ -89,6 +89,6 @@ struct ServerLogView: View {
         let lower = line.lowercased()
         if lower.contains("error") || lower.contains("panic") || lower.contains("fatal") { return .red.opacity(0.85) }
         if lower.contains("warn") { return .orange }
-        return GeneralStyle.text
+        return .primary
     }
 }

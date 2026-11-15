@@ -27,71 +27,79 @@ struct AboutView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 28) {
-                VStack(spacing: 10) {
+        List {
+            Section {
+                VStack(spacing: 8) {
                     Image("MokuMark")
                         .resizable().scaledToFit().frame(width: 56, height: 56)
                         .foregroundStyle(NavigationStyle.accent)
                         .accessibilityHidden(true)
                     Text("Moku").font(.title2.weight(.semibold))
                         .accessibilityAddTraits(.isHeader)
-                    Text(version).font(.subheadline).foregroundStyle(GeneralStyle.faint)
+                    Text(version).font(.subheadline).foregroundStyle(.secondary)
                         .textSelection(.enabled)
                         .accessibilityIdentifier("about.version")
                     Text("A fast, minimal manga, novel and anime app. Sources run on your device; no server needed.")
-                        .font(.subheadline).foregroundStyle(GeneralStyle.label)
+                        .font(.subheadline).foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                         .padding(.top, 4)
                 }
                 .frame(maxWidth: .infinity)
-
-                GeneralSection("Project") {
-                    link("GitHub", detail: "moku-project/Moku-iOS",
-                        url: "https://github.com/moku-project/Moku-iOS")
-                    Button { reportOpen = true } label: {
-                        GeneralRow("Report an issue", detail: "Bug or feature request, with the settings you choose") {
-                            PhosphorIcon("CaretRight", size: 12).foregroundStyle(GeneralStyle.faint)
-                        }
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .sheet(isPresented: $reportOpen) { BugReportSheet() }
-                    link("Website", detail: "moku-project.github.io",
-                        url: "https://moku-project.github.io/")
-                    link("Discord", detail: "Join the community",
-                        url: "https://discord.gg/x97hj8zR72")
-                }
-
-                GeneralSection("Open source") {
-                    GeneralRow("Moku for iOS", detail: "Apache License 2.0") { EmptyView() }
-                    ForEach(Self.notices) { notice in
-                        GeneralRow(notice.name, detail: notice.license) { EmptyView() }
-                    }
-                }
-
-                Text("Moku does not host or distribute any content. Sources are added by you, and the developers have no affiliation with any content providers accessible through them.")
-                    .font(.footnote).foregroundStyle(GeneralStyle.faint)
+                .listRowBackground(Color.clear)
             }
-            .padding(20)
-            .frame(maxWidth: 640)
-            .frame(maxWidth: .infinity)
+
+            Section("Project") {
+                link("GitHub", detail: "moku-project/Moku-iOS", systemImage: "chevron.left.forwardslash.chevron.right",
+                    url: "https://github.com/moku-project/Moku-iOS")
+                Button {
+                    reportOpen = true
+                } label: {
+                    Label("Report an Issue", systemImage: "ladybug")
+                }
+                link("Website", detail: "moku-project.github.io", systemImage: "globe",
+                    url: "https://moku-project.github.io/")
+                link("Discord", detail: "Join the community", systemImage: "bubble.left.and.bubble.right",
+                    url: "https://discord.gg/x97hj8zR72")
+            }
+
+            Section {
+                LabeledContent("Moku for iOS", value: "Apache License 2.0")
+                ForEach(Self.notices) { notice in
+                    LabeledContent(notice.name, value: notice.license)
+                }
+            } header: {
+                Text("Open Source")
+            } footer: {
+                Text("Moku does not host or distribute any content. Sources are added by you, and the developers have no affiliation with any content providers accessible through them.")
+                    .padding(.top, 8)
+            }
         }
-        .tracksNavigationScroll()
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(NavigationStyle.background.ignoresSafeArea())
         .navigationTitle("About")
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $reportOpen) { BugReportSheet() }
         .accessibilityIdentifier("about.page")
     }
 
-    private func link(_ title: String, detail: String, url: String) -> some View {
+    private func link(_ title: String, detail: String, systemImage: String, url: String) -> some View {
         Link(destination: URL(string: url)!) {
-            GeneralRow(title, detail: detail) {
+            HStack {
+                Label {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(title).foregroundStyle(.primary)
+                        Text(detail).font(.subheadline).foregroundStyle(.secondary)
+                    }
+                } icon: {
+                    Image(systemName: systemImage)
+                }
+                Spacer()
                 Image(systemName: "arrow.up.right")
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(GeneralStyle.faint)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary)
             }
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
         .accessibilityHint("Opens in your browser")
     }
 }

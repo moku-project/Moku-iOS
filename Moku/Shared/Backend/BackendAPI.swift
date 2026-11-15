@@ -232,7 +232,7 @@ actor BackendAPI {
         case "SOURCE_NOT_FOUND": "The source no longer has this title or chapter."
         case "SOURCE_UNAVAILABLE", "SOURCE_NETWORK": "The source is unreachable right now. Check your connection and try again."
         case "SOURCE_RATE_LIMITED": "The source is rate limiting requests. Wait a minute and try again."
-        case "SOURCE_PARSE": "The source changed and the extension may need updating. Check More → Extensions for an update."
+        case "SOURCE_PARSE": "The source changed and the extension may need updating. Check Settings → Extensions for an update."
         default: "The source could not complete the request. Check your connection and try again."
         }
     }

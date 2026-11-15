@@ -12,32 +12,43 @@ struct SourceSettingsView: View {
     var body: some View {
         NavigationStack {
             List {
-                if busy { ContentSkeleton(style: .settings) }
+                if busy && preferences.isEmpty { ContentSkeleton(style: .settings) }
                 if let error {
-                    Text(error).foregroundStyle(.red)
-                    Button("Retry") { Task { await load() } }
+                    Section {
+                        Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
+                        Button("Retry") { Task { await load() } }
+                    }
                 }
                 if preferences.isEmpty && !busy && error == nil {
                     ContentUnavailableView(
-                        "No source settings", phosphor: "Sliders",
+                        "No Source Settings", systemImage: "slider.horizontal.3",
                         description: Text("This extension does not expose configurable settings."))
                 }
                 ForEach(preferences) { preference in
                     Button {
                         editing = preference
                     } label: {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(preference.title).foregroundStyle(.primary)
-                            if !preference.summary.isEmpty {
-                                Text(preference.displaySummary).font(.caption).foregroundStyle(
-                                    .secondary)
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(preference.title).foregroundStyle(.primary)
+                                if !preference.summary.isEmpty {
+                                    Text(preference.displaySummary).font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
-                        }.frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 6)
+                            Spacer(minLength: 8)
+                            Image(systemName: "chevron.forward").font(.footnote.weight(.semibold))
+                                .foregroundStyle(.tertiary).accessibilityHidden(true)
+                        }
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
                 }
             }
             .firstLoadSkeleton("source-settings-\(source.id)", loading: busy, style: .settings)
-            .managementListStyle().navigationTitle(source.displayName)
+            .listStyle(.insetGrouped).scrollContentBackground(.hidden)
+            .background(NavigationStyle.background.ignoresSafeArea())
+            .navigationTitle(source.displayName)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
@@ -111,9 +122,14 @@ private struct PreferenceEditor: View {
                     TextField(preference.title, text: $value, axis: .vertical)
                         .textInputAutocapitalization(.never).autocorrectionDisabled()
                 }
-                Button("Restore default") { value = preference.defaultValue }
-                if let error { Text(error).foregroundStyle(.red) }
-                if busy { ContentSkeleton(style: .settings, count: 1) }
+                Section {
+                    Button("Restore Default") { value = preference.defaultValue }
+                } footer: {
+                    if !preference.summary.isEmpty { Text(preference.displaySummary) }
+                }
+                if let error {
+                    Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
+                }
             }
             .navigationTitle(preference.title).navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -121,7 +137,7 @@ private struct PreferenceEditor: View {
                     Button("Cancel") { dismiss() }.disabled(busy)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
+                    if busy { ProgressView() } else { Button("Save") {
                         Task {
                             busy = true
                             defer { busy = false }
@@ -130,9 +146,11 @@ private struct PreferenceEditor: View {
                                 dismiss()
                             } catch { self.error = "Couldn’t save this setting. Try again." }
                         }
-                    }.disabled(busy)
+                    } }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(NavigationStyle.background.ignoresSafeArea())
             .interactiveDismissDisabled(busy)
         }.onAppear { value = preference.currentValue }
     }

@@ -14,51 +14,39 @@ struct ServerSettingsContent: View {
         ("Diagnostics", ["pprof_addr"]),
     ]
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            GeneralSettingsView(openExtensions: openExtensions, serverOnly: true)
-            GeneralSection("Logs") {
-                GeneralRow("Server log", detail: "Recent output from the bundled server, for troubleshooting sources.") {
-                    Button("View") { logOpen = true }
-                        .buttonStyle(GeneralTextButtonStyle())
-                        .accessibilityIdentifier("server.log.open")
-                }
+        SettingsForm {
+            BundledServerSection()
+            Section {
+                SettingsLinkRow("Server log", detail: "Recent output from the bundled server, for troubleshooting sources.") { logOpen = true }
+                    .accessibilityIdentifier("server.log.open")
+            } header: {
+                Text("Logs")
             }
-            if model.loading && model.values.isEmpty { ProgressView().frame(maxWidth: .infinity, minHeight: 44) }
+            if model.loading && model.values.isEmpty {
+                Section { ProgressView().frame(maxWidth: .infinity) }
+            }
             ForEach(groups, id: \.0) { title, keys in
                 let rows = model.values.filter { $0.editable && keys.contains($0.key) }
                 if !rows.isEmpty {
-                    GeneralSection(title) {
-                        ForEach(rows) { setting in
-                            ServerPreferenceRow(setting: setting, model: model)
-                            if setting.id != rows.last?.id { GeneralStyle.divider }
-                        }
+                    Section(title) {
+                        ForEach(rows) { setting in ServerPreferenceRow(setting: setting, model: model) }
                     }
                 }
             }
             let known = Set(groups.flatMap(\.1))
             let advanced = model.values.filter { $0.editable && !known.contains($0.key) }
             if !advanced.isEmpty {
-                GeneralSection("Advanced") {
-                    ForEach(advanced) { setting in
-                        ServerPreferenceRow(setting: setting, model: model)
-                        if setting.id != advanced.last?.id { GeneralStyle.divider }
-                    }
+                Section("Advanced") {
+                    ForEach(advanced) { setting in ServerPreferenceRow(setting: setting, model: model) }
                 }
             }
             let readOnly = model.values.filter { !$0.editable && $0.key != "api_token" }
             if !readOnly.isEmpty {
-                GeneralSection("Read-only") {
-                    ForEach(readOnly) { setting in
-                        ServerPreferenceRow(setting: setting, model: model)
-                        if setting.id != readOnly.last?.id { GeneralStyle.divider }
-                    }
+                Section("Read-only") {
+                    ForEach(readOnly) { setting in ServerPreferenceRow(setting: setting, model: model) }
                 }
             }
-            if let notice = model.notice {
-                GeneralRow(notice, detail: "") {
-                    Button("Retry") { Task { await model.load() } }.buttonStyle(GeneralTextButtonStyle())
-                }
-            }
+            SettingsNotice(text: model.notice) { Task { await model.load() } }
         }
         .task { await model.load() }
         .sheet(isPresented: $logOpen) { ServerLogView() }
@@ -70,32 +58,43 @@ struct ServerPreferenceRow: View {
     @Bindable var model: ServerPreferences
     @State private var draft = ""
     var body: some View {
-        GeneralRow(setting.label, detail: setting.description) {
+        Group {
             if !setting.editable {
-                Text(setting.value.isEmpty ? "—" : setting.value).font(.subheadline)
-                    .foregroundStyle(GeneralStyle.text).multilineTextAlignment(.trailing)
-                    .frame(maxWidth: 150).fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
-            } else if setting.type == "BOOL" {
-                Toggle(setting.label, isOn: Binding(get: { setting.value == "true" }, set: { value in
-                    Task { await model.save(setting, value: String(value)) }
-                })).toggleStyle(GeneralToggleStyle())
-            } else if !setting.choices.isEmpty {
-                ChoicePicker(title: "", selection: Binding(get: { setting.value }, set: { value in
-                    Task { await model.save(setting, value: value) }
-                }), options: setting.choices).font(.subheadline).accessibilityLabel(setting.label)
-            } else {
-                VStack(alignment: .trailing, spacing: 0) {
-                    Group {
-                        if setting.key.contains("secret") { SecureField(setting.label, text: $draft) }
-                        else { TextField(setting.label, text: $draft).keyboardType(setting.type == "INT" ? .numberPad : .default) }
-                    }.textInputAutocapitalization(.never).autocorrectionDisabled().generalInput().frame(width: 150)
-                    Button("Save") { Task { await model.save(setting, value: draft) } }
-                        .buttonStyle(GeneralTextButtonStyle()).disabled(draft == setting.value)
+                LabeledContent {
+                    Text(setting.value.isEmpty ? "—" : setting.value)
+                        .multilineTextAlignment(.trailing).textSelection(.enabled)
+                } label: {
+                    SettingsLabel(setting.label, detail: setting.description)
                 }
+            } else if setting.type == "BOOL" {
+                SettingsToggle(setting.label, detail: setting.description, isOn: Binding(get: { setting.value == "true" }, set: { value in
+                    Task { await model.save(setting, value: String(value)) }
+                }))
+            } else if !setting.choices.isEmpty {
+                SettingsPicker(setting.label, detail: setting.description, selection: Binding(get: { setting.value }, set: { value in
+                    Task { await model.save(setting, value: value) }
+                }), options: setting.choices)
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    SettingsLabel(setting.label, detail: setting.description)
+                    HStack {
+                        Group {
+                            if setting.key.contains("secret") { SecureField(setting.label, text: $draft) }
+                            else { TextField(setting.label, text: $draft).keyboardType(setting.type == "INT" ? .numberPad : .default) }
+                        }
+                        .textInputAutocapitalization(.never).autocorrectionDisabled()
+                        .textFieldStyle(.roundedBorder)
+                        Button("Save") { Task { await model.save(setting, value: draft) } }
+                            .buttonStyle(.borderless)
+                            .disabled(draft == setting.value)
+                    }
+                }
+                .padding(.vertical, 2)
             }
-        }.disabled(model.saving)
-            .onAppear { draft = setting.value }
-            .onChange(of: setting.value) { _, value in draft = value }
+        }
+        .disabled(model.saving)
+        .onAppear { draft = setting.value }
+        .onChange(of: setting.value) { _, value in draft = value }
     }
 }
 
@@ -109,55 +108,66 @@ struct ContentSettingsContent: View {
     @State private var weight = 0
     @State private var confirmingReset = false
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            GeneralSection("Content level") {
+        SettingsForm {
+            Section("Content level") {
                 if let value = server.values.first(where: { $0.key == "content_filter_level" }) {
                     ServerPreferenceRow(setting: value, model: server)
-                } else if server.loading { ProgressView().frame(minHeight: 44) }
-                if let notice = server.notice { Text(notice).font(.footnote).foregroundStyle(GeneralStyle.faint) }
+                } else if server.loading {
+                    ProgressView().frame(maxWidth: .infinity)
+                }
+                if let notice = server.notice { Text(notice).font(.footnote).foregroundStyle(.secondary) }
             }
-            GeneralSection("Add rule") {
-                GeneralRow("Category", detail: "") { TextField("Category", text: $category).generalInput().frame(width: 150) }
-                GeneralStyle.divider
-                GeneralRow("Keyword", detail: "") { TextField("Keyword", text: $keyword).generalInput().frame(width: 150) }
-                GeneralStyle.divider
-                GeneralRow("Field", detail: "") {
-                    ChoicePicker(title: "", selection: $field, options: ["GENRE", "TAG", "TITLE", "DESCRIPTION"].map { ($0, $0.capitalized) }).font(.subheadline)
+            Section {
+                LabeledContent("Category") {
+                    TextField("Category", text: $category).multilineTextAlignment(.trailing)
                 }
-                GeneralStyle.divider
-                GeneralRow("Block level", detail: "") {
-                    ChoicePicker(title: "", selection: $level, options: [("MODERATE", "Moderate"), ("STRICT", "Strict")]).font(.subheadline)
+                LabeledContent("Keyword") {
+                    TextField("Keyword", text: $keyword).multilineTextAlignment(.trailing)
                 }
-                GeneralStyle.divider
-                GeneralRow("Minimum weight", detail: "Tag weight from 0 to 100.") {
-                    ChoicePicker(title: "", selection: $weight, options: stride(from: 0, through: 100, by: 10).map { ($0, String($0)) }).font(.subheadline)
+                SettingsPicker("Field", selection: $field, options: ["GENRE", "TAG", "TITLE", "DESCRIPTION"].map { ($0, $0.capitalized) })
+                SettingsPicker("Block level", selection: $level, options: [("MODERATE", "Moderate"), ("STRICT", "Strict")])
+                Stepper(value: $weight, in: 0...100, step: 10) {
+                    LabeledContent("Minimum weight", value: String(weight))
                 }
-                GeneralRow("Content rule", detail: "") {
-                    Button("Add") { Task {
-                        await model.add(category: category, field: field, keyword: keyword.trimmingCharacters(in: .whitespacesAndNewlines), weight: weight, level: level)
-                        if model.notice == nil { keyword = "" }
-                    }}.buttonStyle(GeneralTextButtonStyle()).disabled(keyword.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || category.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.busy)
-                }
+                Button("Add rule") { Task {
+                    await model.add(category: category, field: field, keyword: keyword.trimmingCharacters(in: .whitespacesAndNewlines), weight: weight, level: level)
+                    if model.notice == nil { keyword = "" }
+                }}
+                .disabled(keyword.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || category.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.busy)
+            } header: {
+                Text("Add rule")
+            } footer: {
+                Text("Minimum weight is the tag weight from 0 to 100.")
             }
-            GeneralSection("Rules") {
+            Section("Rules") {
                 ForEach(model.rules) { rule in
-                    GeneralRow(rule.keyword, detail: "\(rule.field.capitalized) · \(rule.blockLevel.capitalized) · \(rule.minWeight)") {
-                        Button("Remove") { Task { await model.change("removeContentFilterRule(id: \(BackendAPI.literal(rule.id)))") } }.buttonStyle(GeneralTextButtonStyle())
-                    }
-                    GeneralStyle.divider
+                    SettingsLabel(rule.keyword, detail: "\(rule.field.capitalized) · \(rule.blockLevel.capitalized) · \(rule.minWeight)")
+                        .swipeActions {
+                            Button("Remove", role: .destructive) { remove(rule.id) }
+                        }
+                        .contextMenu {
+                            Button("Remove", systemImage: "trash", role: .destructive) { remove(rule.id) }
+                        }
                 }
-                GeneralRow("Reclassify library", detail: "Apply current rules to saved metadata.") {
-                    Button("Run") { Task { await model.change("recomputeContentFilter") } }.buttonStyle(GeneralTextButtonStyle())
-                }
-                GeneralStyle.divider
-                GeneralRow("Default rules", detail: "Restore the built-in rule set.") {
-                    Button("Reset") { confirmingReset = true }.buttonStyle(GeneralTextButtonStyle())
-                }
-            }.disabled(model.busy)
-            if let notice = model.notice { Text(notice).font(.footnote).foregroundStyle(GeneralStyle.faint) }
-        }.task { await server.load(); await model.load() }
-            .confirmationDialog("Reset content rules?", isPresented: $confirmingReset, titleVisibility: .visible) {
-                Button("Reset rules", role: .destructive) { Task { await model.change("resetContentFilterRules") } }
             }
+            .disabled(model.busy)
+            Section {
+                Button {
+                    Task { await model.change("recomputeContentFilter") }
+                } label: {
+                    SettingsLabel("Reclassify library", detail: "Apply current rules to saved metadata.")
+                }
+                Button("Restore default rules", role: .destructive) { confirmingReset = true }
+            }
+            .disabled(model.busy)
+            SettingsNotice(text: model.notice)
+        }
+        .task { await server.load(); await model.load() }
+        .confirmationDialog("Reset content rules?", isPresented: $confirmingReset, titleVisibility: .visible) {
+            Button("Reset rules", role: .destructive) { Task { await model.change("resetContentFilterRules") } }
+        }
+    }
+    private func remove(_ id: String) {
+        Task { await model.change("removeContentFilterRule(id: \(BackendAPI.literal(id)))") }
     }
 }

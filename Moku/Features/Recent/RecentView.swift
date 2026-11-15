@@ -5,20 +5,11 @@ struct RecentView: View {
     @Environment(HomeStore.self) private var home
     @Environment(LibraryStore.self) private var library
     @Environment(ReaderPreferences.self) private var readerPreferences
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var model: RecentViewModel
     @State private var tab: Tab = .history
-    @State private var viewPicker = false
-    @State private var menuLevel: RadialMenuLevel = .closed
-    @State private var tool: Tool?
     @State private var unreadOnly = false
     @State private var downloadedOnly = false
-    @State private var draftQuery = ""
-    @State private var draftUnread = false
-    @State private var draftDownloaded = false
-    @State private var draftMode: ContentMode = .all
-    @Environment(\.navigationContentBottomInset) private var bottomInset
-    private enum Tool { case search, filter, statistics }
+    @State private var showingStatistics = false
     @State private var historySearch = ""
     @State private var updatesSearch = ""
     @State private var expanded: Set<String> = []
@@ -30,14 +21,15 @@ struct RecentView: View {
     private enum Tab: String, CaseIterable {
         case history = "History"
         case updates = "Updates"
-        var symbol: String { self == .history ? "ClockCounterClockwise" : "ArrowsClockwise" }
     }
     private struct Removal: Identifiable {
         var entryID: String?
         var title: String
         var id: String { entryID ?? "all" }
     }
-    private struct Route: Identifiable {
+    private struct Route: Identifiable, Hashable {
+        static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
+        func hash(into hasher: inout Hasher) { hasher.combine(id) }
         let entry: MediaEntry
         let chapterID: String?
         var id: String { entry.id + (chapterID ?? "") }
@@ -71,89 +63,79 @@ struct RecentView: View {
         }
     }
 
+    private var isLoading: Bool {
+        tab == .history ? !home.isLoaded : (!didLoad || model.loading) && updates.isEmpty
+    }
+    private var isEmpty: Bool { tab == .history ? history.isEmpty : updates.isEmpty }
+
     var body: some View {
-        GeometryReader { geometry in
-            VStack(spacing: 8) {
-                ModeTabs(mode: $mode).pillBackdrop(viewPicker)
-                controls.zIndex(3)
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 28) {
-                        if tab == .history {
-                            HistoryList(
-                                home: home, history: history, historySearch: historySearch,
-                                expanded: expanded, opening: opening,
-                                open: { open(id: $0, chapterID: $1) },
-                                toggle: toggle, showStatistics: { openTool(.statistics) },
-                                clear: {
-                                    confirmation = Removal(
-                                        entryID: $0.id,
-                                        title: "Clear history for \($0.entry.title)?")
-                                })
-                        } else {
-                            UpdateList(
-                                model: model, updates: updates, updatesSearch: updatesSearch,
-                                didLoad: didLoad, expanded: expanded, toggle: toggle,
-                                open: { route = Route(entry: $0, chapterID: $1) }, refresh: refresh)
-                        }
-                    }
-                    .frame(maxWidth: 700).frame(maxWidth: .infinity)
-                    .padding(.horizontal, NavigationStyle.pagePadding + 12)
-                    .padding(.top, 24).padding(.bottom, 16)
+        List {
+            if tab == .history {
+                if let error = home.storageError {
+                    Text(error).font(.footnote).foregroundStyle(.red)
+                        .listRowBackground(Color.clear)
                 }
-                .firstLoadSkeleton(
-                    "recent-\(tab.rawValue)",
-                    loading: tab == .history ? !home.isLoaded : model.loading, style: .results
-                )
-                .tracksNavigationScroll()
-                .scrollDismissesKeyboard(.interactively)
-                .refreshable { if tab == .updates { await refresh() } else { await home.load() } }
-                .accessibilityIdentifier("recent.scroll")
-                .pillBackdrop(viewPicker)
-                .opacity(menuLevel == .closed ? 1 : 0.18)
-                .overlay {
-                    if viewPicker || menuLevel != .closed {
-                        Color.black.opacity(0.001).contentShape(Rectangle())
-                            .onTapGesture { dismissTools() }
-                            .accessibilityLabel("Dismiss Recent menu").accessibilityAddTraits(
-                                .isButton)
-                    }
-                }
-            }
-            .overlay(alignment: .bottomTrailing) {
-                RadialMenu(
-                    level: $menuLevel, reduceMotion: reduceMotion,
-                    actions: radialActions, accessibilityPrefix: "recent", toolsTitle: "Recent"
-                )
-                .pillBackdrop(viewPicker)
-                .padding(.trailing, max(16, (geometry.size.width - 336) / 2))
-                .padding(.bottom, bottomInset + 12)
+                HistoryList(
+                    history: history, expanded: expanded, opening: opening,
+                    open: { open(id: $0, chapterID: $1) },
+                    toggle: toggle, showStatistics: { showingStatistics = true },
+                    clear: {
+                        confirmation = Removal(
+                            entryID: $0.id, title: "Clear history for \($0.entry.title)?")
+                    })
+            } else {
+                UpdateList(
+                    model: model, updates: updates, expanded: expanded, toggle: toggle,
+                    open: { route = Route(entry: $0, chapterID: $1) }, refresh: refresh)
             }
         }
-        .blur(radius: tool != nil || confirmation != nil ? 4 : 0)
-        .allowsHitTesting(tool == nil && confirmation == nil)
-        .accessibilityHidden(tool != nil || confirmation != nil)
-        .overlay { if let tool { toolPopup(tool) } }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
         .overlay {
-            if let removal = confirmation {
-                Popup(title: removal.title, close: { confirmation = nil }, preferredHeight: 240) {
-                    Text("Saved titles and downloaded files will be kept.").foregroundStyle(
-                        .secondary)
-                } actions: {
-                    Button("Cancel") { confirmation = nil }.frame(minHeight: 44)
-                    Button("Clear history", role: .destructive) {
-                        confirmation = nil
-                        Task {
-                            await home.clearHistory(entryID: removal.entryID)
-                            if let error = home.storageError { model.notice = error }
-                        }
-                    }.frame(minHeight: 44).accessibilityIdentifier("recent.confirmClear")
-                }
+            if isLoading {
+                ContentSkeleton(style: .results)
+                    .padding(.horizontal, NavigationStyle.pagePadding)
+                    .frame(maxHeight: .infinity, alignment: .top)
+            } else if isEmpty {
+                emptyState.accessibilityIdentifier("recent.empty")
             }
         }
-        .preference(key: ModalPresentedKey.self, value: tool != nil || confirmation != nil)
-        .background(NavigationStyle.background)
-        .buttonStyle(.plain)
-        .tint(NavigationStyle.accent)
+        .searchable(text: query, prompt: "Search titles or chapters")
+        .scrollDismissesKeyboard(.interactively)
+        .refreshable { if tab == .updates { await refresh() } else { await home.load() } }
+        .accessibilityIdentifier("recent.scroll")
+        .navigationTitle("History")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Picker("Recent view", selection: $tab) {
+                    ForEach(Tab.allCases, id: \.self) { choice in
+                        Text(choice.rawValue).tag(choice)
+                            .accessibilityIdentifier("recent.view.\(choice.rawValue)")
+                    }
+                }
+                .pickerStyle(.segmented)
+                .fixedSize()
+                .accessibilityIdentifier("recent.activeView")
+            }
+            ToolbarItem(placement: .topBarTrailing) { toolsMenu }
+        }
+        .confirmationDialog(
+            confirmation?.title ?? "",
+            isPresented: Binding(get: { confirmation != nil }, set: { if !$0 { confirmation = nil } }),
+            titleVisibility: .visible, presenting: confirmation
+        ) { removal in
+            Button("Clear History", role: .destructive) {
+                Task {
+                    await home.clearHistory(entryID: removal.entryID)
+                    if let error = home.storageError { model.notice = error }
+                }
+            }
+            .accessibilityIdentifier("recent.confirmClear")
+        } message: { _ in
+            Text("Saved titles and downloaded files will be kept.")
+        }
+        .sheet(isPresented: $showingStatistics) { statisticsSheet }
         .task {
             await home.load()
             await library.load()
@@ -172,8 +154,8 @@ struct RecentView: View {
             guard !Task.isCancelled else { return }
             history = result
         }
-        .task(id: tool == .statistics) {
-            guard tool == .statistics else { return }
+        .task(id: showingStatistics) {
+            guard showingStatistics else { return }
             let snapshot = home.snapshot
             let result = await Task.detached(priority: .userInitiated) {
                 HomeStatistics.calculate(snapshot: snapshot)
@@ -191,151 +173,112 @@ struct RecentView: View {
         } message: {
             Text(model.notice ?? "")
         }
-        .onDisappear { dismissTools() }
-        .fullScreenCover(
-            item: $route,
-            onDismiss: {
-                if tab == .updates { Task { _ = await model.load(entries: savedEntries) } }
+        // Pushes onto whichever stack hosts History (the Settings tab, or Home).
+        .navigationDestination(item: $route) { route in
+            DetailsView(entry: route.entry, initialChapterID: route.chapterID) {
+                self.route = nil
             }
-        ) { route in
-            NavigationStack {
-                DetailsView(entry: route.entry, initialChapterID: route.chapterID) {
-                    self.route = nil
-                }
-            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(NavigationStyle.background.ignoresSafeArea())
+        }
+        .onChange(of: route == nil) { _, closed in
+            if closed, tab == .updates { Task { _ = await model.load(entries: savedEntries) } }
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("recent.page")
     }
 
-    private var controls: some View {
-        HStack(alignment: .top, spacing: 12) {
-            IconRail(
-                title: tab.rawValue, symbol: tab.symbol, isPresented: viewPicker,
-                itemCount: 1, reduceMotion: reduceMotion,
-                controlIdentifier: "recent.activeView", controlLabel: "Recent view",
-                toggle: {
-                    menuLevel = .closed
-                    viewPicker.toggle()
-                }
-            ) {
-                ForEach(Tab.allCases.filter { $0 != tab }, id: \.self) { choice in
-                    IconRailRow(title: choice.rawValue, symbol: choice.symbol, selected: false) {
-                        tab = choice
-                        viewPicker = false
-                    }.accessibilityIdentifier("recent.view.\(choice.rawValue)")
-                }
-            }
-            Spacer(minLength: 0)
-            if !query.wrappedValue.isEmpty || unreadOnly || downloadedOnly {
-                Button {
-                    openTool(.filter)
-                } label: {
-                    Text(query.wrappedValue.isEmpty ? "Filtered" : "Search active")
-                        .font(.subheadline).foregroundStyle(NavigationStyle.accent)
-                }
-            }
-        }.padding(.horizontal, NavigationStyle.pagePadding).padding(.top, 4)
-    }
-
-    private var radialActions: [RadialAction] {
-        [
-            .init(title: "Search", symbol: "MagnifyingGlass") { openTool(.search) },
-            .init(title: "Filter", symbol: "Funnel") { openTool(.filter) },
-            tab == .history
-                ? .init(
-                    title: "Clear history", symbol: "Trash",
-                    isEnabled: !home.snapshot.sessions.isEmpty
-                ) {
-                    dismissTools()
-                    confirmation = Removal(title: "Clear all history?")
-                }
-                : .init(title: "Refresh", symbol: "ArrowsClockwise", isEnabled: !model.loading) {
-                    dismissTools()
-                    Task { await refresh() }
-                },
-        ]
-    }
-    private func dismissTools() {
-        viewPicker = false
-        menuLevel = .closed
-    }
-    private func openTool(_ value: Tool) {
-        dismissTools()
-        draftQuery = query.wrappedValue
-        draftUnread = unreadOnly
-        draftDownloaded = downloadedOnly
-        draftMode = mode
-        tool = value
-    }
-    private func closeTool() { tool = nil }
-    private func toolPopup(_ value: Tool) -> some View {
-        Popup(
-            title: value == .search ? "Search" : value == .filter ? "Filters" : "Activity",
-            close: closeTool, preferredHeight: value == .search ? 300 : 480
-        ) {
-            VStack(alignment: .leading, spacing: 24) {
-                if value == .statistics {
-                    statistics
-                } else {
-                    TextField("Search titles or chapters", text: $draftQuery)
-                        .textInputAutocapitalization(.never).autocorrectionDisabled()
-                        .submitLabel(.search).padding(14)
-                        .background(NavigationStyle.surface, in: RoundedRectangle(cornerRadius: 12))
-                        .accessibilityIdentifier("recent.search")
-                    if value == .filter {
-                        ModeTabs(mode: $draftMode)
-                        if tab == .updates {
-                            Toggle("Unread only", isOn: $draftUnread)
-                            Toggle("Downloaded only", isOn: $draftDownloaded)
-                        }
-                    }
-                }
-            }
-        } actions: {
-            if value != .statistics {
-                Button("Reset") {
-                    draftQuery = ""
-                    draftUnread = false
-                    draftDownloaded = false
-                    draftMode = .all
-                }
-                Spacer()
-                Button("Cancel") { tool = nil }
-                Button("Apply") {
-                    query.wrappedValue = draftQuery
-                    unreadOnly = draftUnread
-                    downloadedOnly = draftDownloaded
-                    mode = draftMode
-                    tool = nil
-                }.foregroundStyle(NavigationStyle.accent).frame(minHeight: 44)
-            } else {
-                Button("Done") { tool = nil }.frame(minHeight: 44)
+    @ViewBuilder private var emptyState: some View {
+        if !query.wrappedValue.isEmpty {
+            ContentUnavailableView.search(text: query.wrappedValue)
+        } else if tab == .history {
+            ContentUnavailableView(
+                "No History Yet", systemImage: "clock.arrow.circlepath",
+                description: Text("Your reading and watching history will appear here."))
+        } else {
+            ContentUnavailableView {
+                Label("No Recent Library Updates", systemImage: "arrow.triangle.2.circlepath")
+            } description: {
+                Text(unreadOnly || downloadedOnly
+                     ? "No updates match the current filters."
+                     : "Save titles to your Library, then check for updates.")
+            } actions: {
+                Button("Check for Updates") { Task { await refresh() } }
+                    .disabled(model.loading)
             }
         }
     }
 
-    private var statistics: some View {
-        let stats = activityStats
-        return LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-            stat("\(stats.currentStreak)", "Day streak", "Fire")
-            stat("\(stats.units)", "Chapters / episodes", "BookOpen")
-            stat(RecentFormat.duration(stats.minutes), "Time spent", "Clock")
-            stat("\(stats.series)", "Titles", "Books")
-        }.accessibilityIdentifier("recent.stats")
+    private var isFiltered: Bool { mode != .all || unreadOnly || downloadedOnly }
+
+    private var toolsMenu: some View {
+        Menu {
+            Picker("Type", selection: $mode) {
+                ForEach(ContentMode.allCases) { value in
+                    Text(value.title).tag(value)
+                }
+            }
+            .pickerStyle(.inline)
+            if tab == .updates {
+                Section {
+                    Toggle("Unread Only", isOn: $unreadOnly)
+                    Toggle("Downloaded Only", isOn: $downloadedOnly)
+                }
+            }
+            Section {
+                if tab == .updates {
+                    Button("Check for Updates", systemImage: "arrow.clockwise") {
+                        Task { await refresh() }
+                    }
+                    .disabled(model.loading)
+                }
+                Button("Activity Statistics", systemImage: "chart.bar") { showingStatistics = true }
+            }
+            if tab == .history {
+                Section {
+                    Button("Clear All History", systemImage: "trash", role: .destructive) {
+                        confirmation = Removal(title: "Clear all history?")
+                    }
+                    .disabled(home.snapshot.sessions.isEmpty)
+                }
+            }
+        } label: {
+            Label(
+                "History options",
+                systemImage: isFiltered
+                    ? "line.3.horizontal.decrease.circle.fill" : "ellipsis")
+        }
+        .accessibilityIdentifier("recent.tools")
     }
 
-    private func stat(_ value: String, _ label: String, _ symbol: String) -> some View {
-        HStack(spacing: 10) {
-            PhosphorIcon(symbol).iconSize(20).foregroundStyle(.secondary)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(value).font(.headline)
-                Text(label).font(.caption).foregroundStyle(.secondary)
+    private var statisticsSheet: some View {
+        let stats = activityStats
+        return NavigationStack {
+            List {
+                LabeledContent {
+                    Text("\(stats.currentStreak)").monospacedDigit()
+                } label: { Label("Day streak", systemImage: "flame") }
+                LabeledContent {
+                    Text("\(stats.units)").monospacedDigit()
+                } label: { Label("Chapters / episodes", systemImage: "book") }
+                LabeledContent {
+                    Text(RecentFormat.duration(stats.minutes))
+                } label: { Label("Time spent", systemImage: "clock") }
+                LabeledContent {
+                    Text("\(stats.series)").monospacedDigit()
+                } label: { Label("Titles", systemImage: "books.vertical") }
             }
-            Spacer(minLength: 0)
-        }.padding(12).frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
-            .background(NavigationStyle.surface, in: RoundedRectangle(cornerRadius: 10))
-            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("recent.stats")
+            .navigationTitle("Activity")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { showingStatistics = false }
+                }
+            }
+        }
+        .presentationDetents([.medium])
+        .themedColorScheme()
     }
 
     private func toggle(_ id: String) { if !expanded.insert(id).inserted { expanded.remove(id) } }
