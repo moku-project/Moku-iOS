@@ -1,8 +1,8 @@
 import Observation
 
-/// The app's tabs. Search is last: on iOS it takes the system search slot.
+/// The app's tabs, in Android's order.
 enum AppTab: String, CaseIterable, Identifiable {
-    case home, library, downloads, settings, browse
+    case home, browse, library, downloads, settings
 
     var id: Self { self }
 
@@ -23,6 +23,13 @@ enum AppTab: String, CaseIterable, Identifiable {
         case .browse: "magnifyingglass"
         case .downloads: "arrow.down.circle"
         case .settings: "gearshape"
+        }
+    }
+
+    var selectedSystemImage: String {
+        switch self {
+        case .browse: "magnifyingglass"
+        default: systemImage + ".fill"
         }
     }
 

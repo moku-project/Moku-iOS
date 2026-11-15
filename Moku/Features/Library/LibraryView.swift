@@ -69,9 +69,10 @@ struct LibraryView: View {
         content
             .navigationTitle(title)
             .searchable(text: Bindable(model).query, prompt: "Search library")
-            .safeAreaInset(edge: .top, spacing: 0) { modePicker }
             .toolbar { toolbar }
-            .toolbar(model.selecting ? .hidden : .automatic, for: .tabBar)
+            .onChange(of: model.selecting, initial: true) { _, selecting in
+                TabBarState.shared.hidden = selecting && isActive
+            }
             .onChange(of: isActive) { _, active in
                 if active { syncItems() } else { cancelItemUpdate() }
             }
@@ -93,17 +94,15 @@ struct LibraryView: View {
             }
     }
 
-    @ViewBuilder private var content: some View {
-        if !library.loaded && library.error == nil {
-            ScrollView {
-                ContentSkeleton(style: layout.isList ? .results : .library, count: 6)
-                    .padding(16)
-            }
-        } else if isLibraryEmpty {
-            emptyLibrary
-        } else {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
+    /// One scroll view for every state, so the large title and search field stay attached to it.
+    private var content: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                if !library.loaded && library.error == nil {
+                    ContentSkeleton(style: layout.isList ? .results : .library, count: 6)
+                } else if isLibraryEmpty {
+                    emptyLibrary.containerRelativeFrame(.vertical) { height, _ in height * 0.75 }
+                } else {
                     if let error = library.error {
                         HStack {
                             Text(error).font(.footnote).foregroundStyle(.secondary)
@@ -115,16 +114,16 @@ struct LibraryView: View {
                     }
                     results
                 }
-                .padding(.horizontal, NavigationStyle.pagePadding).padding(.top, 4)
-                .padding(.bottom, 8)
             }
-            .scrollDismissesKeyboard(.interactively)
-            .refreshable {
-                _ = await library.refreshFromServer()
-                await loadStats()
-            }
-            .accessibilityIdentifier("library.scroll")
+            .padding(.horizontal, NavigationStyle.pagePadding).padding(.top, 4)
+            .padding(.bottom, 8)
         }
+        .scrollDismissesKeyboard(.interactively)
+        .refreshable {
+            _ = await library.refreshFromServer()
+            await loadStats()
+        }
+        .accessibilityIdentifier("library.scroll")
     }
 
     @ViewBuilder private var results: some View {
@@ -172,20 +171,6 @@ struct LibraryView: View {
                 .id(revealedPages)
                 .accessibilityLabel("Loading more titles")
         }
-    }
-
-    /// Content type, shared with Home, as Android's content filter.
-    private var modePicker: some View {
-        Picker("Content", selection: $mode) {
-            ForEach(ModeTabConfiguration(storage: savedModes).visible) { choice in
-                Text(choice.title).tag(choice)
-                    .accessibilityIdentifier("library.mode.\(choice.rawValue)")
-            }
-        }
-        .pickerStyle(.segmented)
-        .padding(.horizontal, NavigationStyle.pagePadding)
-        .padding(.bottom, 8)
-        .accessibilityIdentifier("library.currentMode")
     }
 
     /// The title menu: which part of the library to show.

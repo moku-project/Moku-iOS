@@ -59,30 +59,47 @@ struct RootView: View {
     }()
 
     private var tabSelection: Binding<AppTab> {
-        Binding(
-            get: { navigation.selection },
-            set: { tab in
-                // Choosing the open tab again returns it to its first page.
-                if tab == navigation.selection { navigation.paths[tab] = [] }
-                navigation.select(tab)
-            })
+        Binding(get: { navigation.selection }, set: { navigation.select($0) })
     }
+
+    @State private var keyboardVisible = false
+    private var barVisible: Bool { !keyboardVisible && !TabBarState.shared.hidden }
 
     var body: some View {
         TabView(selection: tabSelection) {
             ForEach(AppTab.allCases) { tab in
-                Tab(tab.title, systemImage: tab.systemImage, value: tab, role: tab == .browse ? .search : nil) {
+                Tab(tab.title, systemImage: tab.systemImage, value: tab) {
                     RootTabPage(
                         tab: tab, activity: navigation.tabs[tab], navigation: navigation,
                         homeStore: homeStore, downloadsModel: downloadsModel
                     )
                     .equatable()
+                    // Pages scroll under the bar, as under a system tab bar.
+                    .safeAreaInset(edge: .bottom, spacing: 0) {
+                        Color.clear.frame(height: barVisible ? MokuTabBar.height + 8 : 0)
+                    }
+                    .toolbar(.hidden, for: .tabBar)
                     .accessibilityIdentifier("page.\(tab.rawValue)")
                 }
-                .accessibilityIdentifier("tab.\(tab.rawValue)")
             }
         }
-        .tabBarMinimizeBehaviorIfAvailable()
+        .overlay(alignment: .bottom) {
+            if barVisible {
+                MokuTabBar(
+                    selection: tabSelection,
+                    // Choosing the open tab again returns it to its first page.
+                    reselect: { navigation.paths[$0] = [] })
+                .padding(.bottom, 2)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.easeOut(duration: 0.2), value: barVisible)
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+            keyboardVisible = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            keyboardVisible = false
+        }
         .background(NavigationStyle.background.ignoresSafeArea())
         .fullScreenCover(isPresented: Binding(get: { !onboarded && !Self.skipsOnboarding }, set: { _ in })) {
             OnboardingView(
@@ -118,17 +135,6 @@ struct RootView: View {
         .modifier(OverflowMenuHost())
         .modifier(MokuLinksHost())
         .sourceVerificationHost()
-    }
-}
-
-extension View {
-    /// Lets the tab bar shrink while content scrolls, where the system supports it.
-    @ViewBuilder func tabBarMinimizeBehaviorIfAvailable() -> some View {
-        if #available(iOS 26.0, *) {
-            tabBarMinimizeBehavior(.onScrollDown)
-        } else {
-            self
-        }
     }
 }
 

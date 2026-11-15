@@ -21,7 +21,7 @@ struct SearchView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
     @AppStorage("preferences.animations") private var animations = true
-    @AppStorage("preferences.modeTabs") private var savedModes = ""
+    @AppStorage("contentMode") private var contentMode: ContentMode = .all
     private var autoRotates: Bool {
         isDiscovery && isActive && scenePhase == .active && model.state == .idle
             && model.query.isEmpty && model.panel == nil && !searchPresented && !model.discoveryLoading
@@ -63,6 +63,10 @@ struct SearchView: View {
                 prompt: model.isLibrary ? "Search your library" : "Titles, authors, genres"
             )
             .onSubmit(of: .search) { model.submit() }
+            // The bar's content button chooses what Search looks for, as on Android.
+            .onChange(of: contentMode, initial: true) { _, mode in
+                if !model.isLibrary { model.selectMode(mode) }
+            }
             .toolbar { toolbarContent }
             .sheet(isPresented: panelPresented) { optionsSheet }
             .background(NavigationStyle.background.ignoresSafeArea())
@@ -176,9 +180,6 @@ struct SearchView: View {
     private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                if isDiscovery {
-                    modePicker
-                }
                 if let message = model.searchMessage {
                     Text(message).font(.footnote).foregroundStyle(.secondary)
                 }
@@ -213,19 +214,6 @@ struct SearchView: View {
         }.onEnded { _ in lastInteraction = .now })
     }
 
-    /// Media type for discovery and search, as Android's mode tabs.
-    private var modePicker: some View {
-        Picker(
-            "Type",
-            selection: Binding(get: { model.options.media }, set: { model.selectMode($0) })
-        ) {
-            ForEach(ModeTabConfiguration(storage: savedModes).visible) { mode in
-                Text(mode.title).tag(mode)
-            }
-        }
-        .pickerStyle(.segmented)
-        .accessibilityIdentifier("search.mode")
-    }
 
     @ViewBuilder private var results: some View {
         switch model.state {

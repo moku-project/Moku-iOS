@@ -1,6 +1,12 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "" : {
+
+    },
+    "·" : {
+
+    },
     "/" : {
 
     },
@@ -34,12 +40,32 @@
         }
       }
     },
+    "%@ · %lld chapter%@ or episode%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · %2$lld chapter%3$@ or episode%4$@"
+          }
+        }
+      }
+    },
     "%@ · %lld:%@" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$@ · %2$lld:%3$@"
+          }
+        }
+      }
+    },
+    "%@ · %lld%%" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · %2$lld%%"
           }
         }
       }
@@ -64,13 +90,10 @@
         }
       }
     },
-    "%@ menu" : {
+    "%@ extensions" : {
 
     },
     "%@ times" : {
-
-    },
-    "%@ tools" : {
 
     },
     "%@, %@" : {
@@ -82,6 +105,9 @@
           }
         }
       }
+    },
+    "%@, pre-selected in Search." : {
+
     },
     "%@: %lld chapters or episodes" : {
       "localizations" : {
@@ -109,33 +135,27 @@
         }
       }
     },
-    "%lld / %lld read" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld / %2$lld read"
-          }
-        }
-      }
-    },
     "%lld active filters" : {
 
     },
     "%lld chapters" : {
 
     },
-    "%lld chapters / episodes" : {
+    "%lld connected. Sign in to import your lists and keep progress in sync." : {
 
     },
-    "%lld connected" : {
+    "%lld installed. Tap a source to browse it; touch and hold for settings and migration." : {
 
     },
-    "%lld failed" : {
-
-    },
-    "%lld filters" : {
-
+    "%lld line%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld line%2$@"
+          }
+        }
+      }
     },
     "%lld new %@" : {
       "localizations" : {
@@ -147,7 +167,39 @@
         }
       }
     },
+    "%lld of %lld read" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld of %2$lld read"
+          }
+        }
+      }
+    },
+    "%lld percent" : {
+
+    },
+    "%lld repositories" : {
+
+    },
+    "%lld saved title%@ from %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld saved title%2$@ from %3$@."
+          }
+        }
+      }
+    },
     "%lld selected" : {
+
+    },
+    "%lld Selected" : {
+
+    },
+    "%lld titles" : {
 
     },
     "%lld unread" : {
@@ -159,46 +211,88 @@
     "%lld%%" : {
 
     },
-    "+ Add repository" : {
+    "+ Save current" : {
 
     },
-    "+ Save current" : {
+    "+%lld" : {
 
     },
     "1–%lld" : {
 
     },
-    "18+" : {
+    "6–8 digits, stored in the device Keychain. Locks when Moku goes into the background." : {
+
+    },
+    "A dry run counts what would be imported without changing your library. Swipe a title to skip it or choose its match." : {
+
+    },
+    "A fast, minimal manga, novel and anime app. Sources run on your device; no server needed." : {
+
+    },
+    "About" : {
+
+    },
+    "About Moku" : {
 
     },
     "Account" : {
 
     },
-    "Actions for %@" : {
-
-    },
     "Activity" : {
 
     },
-    "Activity statistics" : {
+    "Activity Statistics" : {
 
     },
     "Add" : {
 
     },
-    "Add repository" : {
+    "Add Repository" : {
+
+    },
+    "Add Repository…" : {
+
+    },
+    "Add rule" : {
+
+    },
+    "Add titles from your tracker lists to your library." : {
+
+    },
+    "Add to library" : {
+
+    },
+    "Add to Library" : {
+
+    },
+    "Add Your First Repository" : {
+
+    },
+    "Address, such as 192.168.1.20:6007" : {
 
     },
     "Adjust the size of the app. Reader zoom is separate." : {
 
     },
-    "All chapters" : {
+    "Advanced" : {
+
+    },
+    "All (%lld)" : {
 
     },
     "All languages" : {
 
     },
+    "All Languages" : {
+
+    },
     "All remaining (%lld)" : {
+
+    },
+    "All Repositories" : {
+
+    },
+    "Animations" : {
 
     },
     "Anime" : {
@@ -207,76 +301,154 @@
     "Any group" : {
 
     },
+    "Any Status" : {
+
+    },
+    "App data" : {
+
+    },
+    "App lock" : {
+
+    },
     "Apply" : {
 
     },
-    "Approve access, then paste the token or redirected URL." : {
+    "Approve access in your browser, then paste the token or the redirected URL below." : {
 
     },
-    "Authorize %@" : {
+    "Ascending" : {
 
     },
-    "Auto-start bundled server" : {
+    "Attach settings" : {
 
     },
-    "Back" : {
+    "Audio continues when you lock the screen or switch apps. Picture in Picture starts when you go home." : {
 
     },
-    "Back to %@ tools" : {
+    "Auto Retry" : {
+
+    },
+    "Automation" : {
+
+    },
+    "Available space" : {
+
+    },
+    "Back 10 seconds" : {
 
     },
     "Back to Library" : {
 
     },
-    "Back up" : {
-
-    },
     "Background" : {
 
     },
-    "Browse extensions" : {
+    "Behaviour" : {
 
     },
-    "Browse sources" : {
+    "Best match" : {
 
     },
-    "Browse titles" : {
+    "Browse Extensions" : {
+
+    },
+    "Browse extensions and manage installed sources." : {
+
+    },
+    "Browse extensions to add your first source." : {
+
+    },
+    "Browse Source" : {
+
+    },
+    "Browse Sources" : {
+
+    },
+    "Browse Titles" : {
+
+    },
+    "Browses this source" : {
+
+    },
+    "Bug" : {
+
+    },
+    "Build" : {
+
+    },
+    "Bundled server" : {
+
+    },
+    "Cache" : {
 
     },
     "Cancel" : {
 
     },
-    "Cancel waiting" : {
-
-    },
     "Category" : {
 
     },
-    "Change" : {
+    "Change downloads directory" : {
+
+    },
+    "Change password" : {
 
     },
     "Change PIN" : {
 
     },
+    "Change your filters to see more." : {
+
+    },
     "Chapter name" : {
+
+    },
+    "Chapter or episode" : {
+
+    },
+    "Chapter progress" : {
 
     },
     "Chapters" : {
 
     },
+    "Chapters / episodes" : {
+
+    },
+    "Chapters read" : {
+
+    },
+    "Check for Updates" : {
+
+    },
+    "Choose" : {
+
+    },
+    "Choose a directory within server data." : {
+
+    },
+    "Choose a directory within server data. Existing files move to the new directory." : {
+
+    },
+    "Choose a source" : {
+
+    },
     "Choose a source for source search." : {
 
     },
-    "Choose content mode" : {
+    "Choose at least one list." : {
 
     },
     "Choose episode" : {
 
     },
-    "Choose match" : {
+    "Choose Match" : {
 
     },
     "Choose Moku library JSON" : {
+
+    },
+    "Chosen by you" : {
 
     },
     "Clear" : {
@@ -288,43 +460,46 @@
     "Clear %@ downloads?" : {
 
     },
-    "Clear all" : {
+    "Clear All History" : {
+
+    },
+    "Clear cache" : {
 
     },
     "Clear filter" : {
 
     },
-    "Clear filters" : {
+    "Clear Filter" : {
 
     },
-    "Clear filters and search" : {
+    "Clear Filters" : {
 
     },
-    "Clear folder search" : {
+    "Clear Filters and Search" : {
 
     },
-    "Clear history" : {
+    "Clear History" : {
+
+    },
+    "Clear log" : {
 
     },
     "Clear reading activity on this device. Saved titles and files will be kept." : {
 
     },
-    "Clear search" : {
+    "Clear reading history" : {
 
     },
-    "Clear title history" : {
+    "Clear the server log?" : {
 
     },
-    "Close %@ menu" : {
+    "Clear Title History" : {
 
     },
-    "Close modes" : {
+    "Close" : {
 
     },
     "Close Moku links" : {
-
-    },
-    "Close popup" : {
 
     },
     "Close reader settings" : {
@@ -333,10 +508,10 @@
     "Collapsed" : {
 
     },
-    "Compact" : {
+    "Colors" : {
 
     },
-    "Configure" : {
+    "Complete the check on this page, then tap Done." : {
 
     },
     "Confirm storage action" : {
@@ -345,10 +520,16 @@
     "Connect" : {
 
     },
-    "Connected" : {
+    "Connect to Moku desktop" : {
 
     },
-    "Content modes" : {
+    "Connecting…" : {
+
+    },
+    "Content" : {
+
+    },
+    "Content level" : {
 
     },
     "Continue" : {
@@ -357,40 +538,100 @@
     "Continue from your saved position" : {
 
     },
-    "Convert" : {
+    "Continue Saved Import" : {
 
     },
-    "Copy authorization link" : {
+    "Copy a file from Files into the local source." : {
+
+    },
+    "Copy all" : {
+
+    },
+    "Copy as JSON" : {
+
+    },
+    "Copy as Markdown" : {
+
+    },
+    "Copy Authorization Link" : {
+
+    },
+    "Copy Index URL" : {
+
+    },
+    "Copy Title" : {
+
+    },
+    "Couldn’t Load" : {
 
     },
     "Couldn’t open title" : {
 
     },
+    "Couldn’t Search" : {
+
+    },
+    "Couldn’t sign in" : {
+
+    },
+    "Cover image" : {
+
+    },
+    "Cover Image" : {
+
+    },
+    "Covers" : {
+
+    },
     "Create" : {
+
+    },
+    "Create custom palette" : {
 
     },
     "Create folder" : {
 
     },
-    "Creating…" : {
-
-    },
-    "Crop cover images" : {
+    "Current match" : {
 
     },
     "Current PIN" : {
 
     },
-    "Customize visible modes" : {
+    "Custom overrides" : {
 
     },
-    "Decrease interface scale" : {
+    "Custom themes" : {
+
+    },
+    "Data" : {
+
+    },
+    "Day streak" : {
 
     },
     "Delete" : {
 
     },
+    "Delete %@?" : {
+
+    },
+    "Delete all downloads (%lld)" : {
+
+    },
     "Delete download" : {
+
+    },
+    "Delete Download" : {
+
+    },
+    "Delete Downloads" : {
+
+    },
+    "Delete Downloads (%lld)" : {
+
+    },
+    "Delete files" : {
 
     },
     "Delete folder" : {
@@ -399,40 +640,52 @@
     "Delete folder?" : {
 
     },
+    "Describe what happened" : {
+
+    },
+    "Deselect All" : {
+
+    },
+    "Desktop" : {
+
+    },
+    "Details" : {
+
+    },
+    "Direction" : {
+
+    },
     "Directory name" : {
-
-    },
-    "Disable" : {
-
-    },
-    "Disabled" : {
 
     },
     "Discard" : {
 
     },
+    "Discard import?" : {
+
+    },
     "Disconnect" : {
+
+    },
+    "Disconnect %@?" : {
+
+    },
+    "Disconnect from this desktop?" : {
 
     },
     "Dismiss" : {
 
     },
-    "Dismiss content modes" : {
+    "Dismisses this notice" : {
 
     },
-    "Dismiss download tools" : {
-
-    },
-    "Dismiss Extensions menu" : {
-
-    },
-    "Dismiss library menu" : {
-
-    },
-    "Dismiss Recent menu" : {
+    "Display" : {
 
     },
     "Done" : {
+
+    },
+    "Done selecting" : {
 
     },
     "Double-tap the center to show or hide controls." : {
@@ -444,7 +697,16 @@
     "Download %@" : {
 
     },
+    "Download All from Here" : {
+
+    },
     "Download chapters" : {
+
+    },
+    "Download Chapters" : {
+
+    },
+    "Download Next 5 from Here" : {
 
     },
     "Download queued" : {
@@ -453,34 +715,52 @@
     "Download status" : {
 
     },
-    "Downloaded only" : {
+    "Download tools" : {
+
+    },
+    "Downloaded" : {
+
+    },
+    "Downloaded Only" : {
 
     },
     "Downloads" : {
 
     },
-    "Downloads view" : {
+    "Downloads directory" : {
 
     },
-    "Dry run" : {
+    "Dry Run" : {
+
+    },
+    "Each title is removed from %@." : {
 
     },
     "Edit" : {
 
     },
-    "Edit name" : {
+    "en" : {
 
     },
-    "Edit search and filters" : {
+    "Enable app lock" : {
 
     },
-    "Enable" : {
+    "Enable password" : {
 
     },
     "Enter a key, optionally with ctrl+, cmd+, alt+, or shift+. Leave blank to disable." : {
 
     },
+    "Enter the source’s website. Pass its check in the page that opens, then tap Done so the source can load with the same browser session." : {
+
+    },
+    "Entries" : {
+
+    },
     "Episodes" : {
+
+    },
+    "Episodes watched" : {
 
     },
     "Exclude from downloads" : {
@@ -495,25 +775,25 @@
     "Expanded" : {
 
     },
-    "Export" : {
+    "Export Failures" : {
 
     },
-    "Export failures" : {
+    "Extensions" : {
 
     },
     "F" : {
 
     },
-    "Face ID / Touch ID" : {
+    "Feature request" : {
+
+    },
+    "Filter" : {
+
+    },
+    "Filter and sort" : {
 
     },
     "Filter chapters" : {
-
-    },
-    "Filter sources" : {
-
-    },
-    "Filtered" : {
 
     },
     "Filters" : {
@@ -522,11 +802,33 @@
     "Find a genre" : {
 
     },
-    "Find extensions" : {
+    "Find a match" : {
 
     },
-    "Find repositories" : {
+    "Find Extensions" : {
 
+    },
+    "Find matches" : {
+
+    },
+    "Find Repositories" : {
+
+    },
+    "Find the title" : {
+
+    },
+    "Find this title on %@ to sync your progress." : {
+
+    },
+    "Finding matches… %lld of %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Finding matches… %1$lld of %2$lld"
+          }
+        }
+      }
     },
     "Folder name" : {
 
@@ -534,22 +836,53 @@
     "Folders" : {
 
     },
-    "GitHub" : {
+    "Font" : {
+
+    },
+    "For hardware keyboards. Tap a shortcut to change it." : {
+
+    },
+    "Forget this desktop and its password." : {
+
+    },
+    "Forward 10 seconds" : {
+
+    },
+    "From the next chapter" : {
+
+    },
+    "Genres" : {
+
+    },
+    "Genres: %@" : {
 
     },
     "Go" : {
 
     },
+    "Go to bookmark" : {
+
+    },
     "Go to page" : {
 
     },
-    "Hide" : {
+    "Got it" : {
 
     },
-    "Hide %@" : {
+    "Guide bar" : {
 
     },
-    "Hide chapters" : {
+    "Hid %lld title%@ with no chapters at the source." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Hid %1$lld title%2$@ with no chapters at the source."
+          }
+        }
+      }
+    },
+    "Hide Chapters" : {
 
     },
     "Hide from library" : {
@@ -558,19 +891,31 @@
     "Hide groups" : {
 
     },
+    "Hide titles with no chapters" : {
+
+    },
     "History" : {
 
     },
-    "Hold to choose All, Manga, Novels, or Anime" : {
+    "History options" : {
 
     },
     "Home" : {
 
     },
-    "HTTPS index URL" : {
+    "How it could work" : {
 
     },
-    "Idle screen timeout" : {
+    "https://…/extension.apk" : {
+
+    },
+    "https://…/index.min.json" : {
+
+    },
+    "https://example.com" : {
+
+    },
+    "Idea" : {
 
     },
     "Import" : {
@@ -582,13 +927,31 @@
     "Import %lld" : {
 
     },
+    "Import a theme copied from Moku desktop or another device, or create one from the current colors." : {
+
+    },
+    "Import From" : {
+
+    },
+    "Import from %@" : {
+
+    },
     "Import library" : {
 
     },
-    "Import list" : {
+    "Import Library" : {
+
+    },
+    "Import List…" : {
+
+    },
+    "Import local file" : {
 
     },
     "Import saved titles from a Moku library.json file. Existing titles are kept." : {
+
+    },
+    "Import theme from clipboard" : {
 
     },
     "Imported %lld" : {
@@ -597,25 +960,55 @@
     "Imported titles will be kept. Unfinished matches will be removed." : {
 
     },
+    "In library" : {
+
+    },
+    "In Library" : {
+
+    },
+    "Inactivity" : {
+
+    },
     "Include in downloads" : {
 
     },
     "Include in updates" : {
 
     },
-    "Increase interface scale" : {
+    "Includes this title" : {
+
+    },
+    "Index URL" : {
 
     },
     "Install" : {
 
     },
+    "Install %@" : {
+
+    },
+    "Install from URL" : {
+
+    },
+    "Install from URL…" : {
+
+    },
     "Installed" : {
 
     },
-    "Interface animations" : {
+    "Interface" : {
 
     },
     "Interface scale" : {
+
+    },
+    "Its imported files are removed from this device." : {
+
+    },
+    "Justify text" : {
+
+    },
+    "Keep saved titles, files, history, and app lock." : {
 
     },
     "Keyword" : {
@@ -624,10 +1017,13 @@
     "Language" : {
 
     },
+    "Layout" : {
+
+    },
     "Layout, fit, direction, zoom and image settings can be saved for this manga." : {
 
     },
-    "Leave blank to allow all groups." : {
+    "Leaves this title out" : {
 
     },
     "Less" : {
@@ -636,37 +1032,85 @@
     "Library" : {
 
     },
-    "Library layout" : {
+    "Library and Migration" : {
 
     },
-    "Library mode: %@" : {
+    "Library folders" : {
 
     },
-    "Library view" : {
+    "Library Options" : {
 
     },
-    "Light appearance" : {
+    "Library updates" : {
 
     },
-    "Linked titles" : {
+    "Library View" : {
+
+    },
+    "Limit the number of library cards rendered at once." : {
+
+    },
+    "Link" : {
+
+    },
+    "Link as same series" : {
+
+    },
+    "Linked" : {
+
+    },
+    "Linked Titles" : {
+
+    },
+    "Linked titles share covers and are treated as one series. Tap a linked title to unlink it." : {
 
     },
     "Lists" : {
 
     },
-    "Load more" : {
+    "Load More" : {
+
+    },
+    "Load upcoming pages while reading." : {
+
+    },
+    "Loading chapter" : {
 
     },
     "Loading list…" : {
 
     },
-    "Lock" : {
+    "Loading more titles" : {
+
+    },
+    "Loading sources…" : {
+
+    },
+    "Loading trackers…" : {
+
+    },
+    "Loading…" : {
+
+    },
+    "Local files" : {
+
+    },
+    "Local source" : {
+
+    },
+    "Local source directory" : {
+
+    },
+    "Local titles" : {
+
+    },
+    "Log actions" : {
+
+    },
+    "Logs" : {
 
     },
     "M" : {
-
-    },
-    "Main navigation" : {
 
     },
     "Manage" : {
@@ -678,58 +1122,165 @@
     "Manga" : {
 
     },
-    "Manga Settings" : {
+    "Mark as Read" : {
 
     },
-    "Match system theme" : {
+    "Mark as Unread" : {
+
+    },
+    "Mark Previous as Read" : {
+
+    },
+    "Mark Previous as Unread" : {
+
+    },
+    "Mark Read" : {
+
+    },
+    "Mark Unread" : {
+
+    },
+    "Match" : {
+
+    },
+    "Match genres" : {
+
+    },
+    "Match on" : {
+
+    },
+    "Matched automatically · %lld%% confident" : {
+
+    },
+    "Matches" : {
 
     },
     "Media" : {
 
     },
-    "Modes" : {
+    "Media type" : {
+
+    },
+    "Metadata" : {
+
+    },
+    "Metadata Match" : {
+
+    },
+    "Minimum weight" : {
+
+    },
+    "Minimum weight is the tag weight from 0 to 100." : {
 
     },
     "Moku" : {
 
     },
+    "Moku does not host or distribute any content. Sources are added by you, and the developers have no affiliation with any content providers accessible through them." : {
+
+    },
+    "Moku for iOS" : {
+
+    },
     "Moku idle screen. Tap to continue" : {
 
     },
-    "Moku links" : {
+    "Moku is locked" : {
 
     },
     "More" : {
 
     },
+    "More chapter actions" : {
+
+    },
+    "Move %lld title%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Move %1$lld title%2$@"
+          }
+        }
+      }
+    },
+    "Move %lld titles to %@?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Move %1$lld titles to %2$@?"
+          }
+        }
+      }
+    },
+    "Move all to another source" : {
+
+    },
     "Move down" : {
 
     },
-    "Move existing files" : {
+    "Move Down" : {
 
     },
-    "Move left" : {
+    "Move local files" : {
 
     },
-    "Move right" : {
+    "Move titles" : {
+
+    },
+    "Move to" : {
+
+    },
+    "Move to %@?" : {
+
+    },
+    "Move to Bottom" : {
+
+    },
+    "Move to Folder" : {
+
+    },
+    "Move to Top" : {
 
     },
     "Move up" : {
 
     },
+    "Move Up" : {
+
+    },
+    "Moving titles… %lld moved" : {
+
+    },
     "Name" : {
 
     },
-    "Name (optional)" : {
-
-    },
-    "Names, separated by commas" : {
+    "New directory" : {
 
     },
     "New folder" : {
 
     },
-    "Next" : {
+    "New Folder" : {
+
+    },
+    "New password" : {
+
+    },
+    "New PIN" : {
+
+    },
+    "Newest access" : {
+
+    },
+    "Newest First" : {
+
+    },
+    "Next %lld" : {
+
+    },
+    "Next chapter" : {
 
     },
     "Next chapters" : {
@@ -738,7 +1289,13 @@
     "Next slide" : {
 
     },
-    "No %@ titles yet" : {
+    "No %@ Titles" : {
+
+    },
+    "No %@Downloads" : {
+
+    },
+    "No Chapters" : {
 
     },
     "No chapters match your filter." : {
@@ -747,34 +1304,67 @@
     "No chapters to show" : {
 
     },
-    "No folders" : {
+    "No Download History" : {
 
     },
-    "No matches" : {
+    "No Episodes" : {
 
     },
-    "No matches in your Library" : {
+    "No Extensions Found" : {
 
     },
-    "No matching folders" : {
+    "No Extensions Installed" : {
 
     },
-    "No matching titles" : {
+    "No History Yet" : {
+
+    },
+    "No local titles yet. Import a file in Settings › Storage › Local files." : {
+
+    },
+    "No Matches in Your Library" : {
+
+    },
+    "No matches. Try a shorter or alternative title." : {
+
+    },
+    "No Matching Chapters" : {
+
+    },
+    "No Matching Extensions" : {
+
+    },
+    "No matching lines" : {
+
+    },
+    "No Matching Titles" : {
+
+    },
+    "No other covers found. Link this title to the same series on another source, or match it to AniList, for more choices." : {
 
     },
     "No presets yet — save the current settings to make one." : {
 
     },
-    "No recent searches" : {
+    "No Recent Library Updates" : {
 
     },
-    "No results" : {
+    "No Recent Searches" : {
 
     },
-    "No services available" : {
+    "No Results" : {
 
     },
-    "No sources installed." : {
+    "No results yet. Search, or try another source." : {
+
+    },
+    "No server output yet" : {
+
+    },
+    "No Services Available" : {
+
+    },
+    "No Source Settings" : {
 
     },
     "No sources match these filters." : {
@@ -783,22 +1373,76 @@
     "No subtitle tracks available" : {
 
     },
+    "No suggestions. Search your library above." : {
+
+    },
     "No titles in the selected lists." : {
+
+    },
+    "No titles match." : {
+
+    },
+    "No Tracker Connected" : {
+
+    },
+    "No updates match the current filters." : {
+
+    },
+    "Not linked" : {
+
+    },
+    "Not matched" : {
+
+    },
+    "Not started" : {
+
+    },
+    "Nothing found." : {
+
+    },
+    "Nothing Here" : {
 
     },
     "Nothing here yet" : {
 
     },
-    "Nothing installs until you select an extension." : {
+    "Nothing Here Yet" : {
+
+    },
+    "Nothing is deleted on either device. Sync stops until you connect again." : {
+
+    },
+    "Novels" : {
+
+    },
+    "Now tracking" : {
 
     },
     "Number of chapters" : {
 
     },
+    "Off disables the storage warning." : {
+
+    },
     "OK" : {
 
     },
+    "Oldest access" : {
+
+    },
+    "Oldest First" : {
+
+    },
+    "On your computer, open Moku → Settings → Auth, set a server password, then turn on “Allow devices on your network”." : {
+
+    },
+    "Only install extensions from sources you trust. They run on this device with network access." : {
+
+    },
     "Only selected groups" : {
+
+    },
+    "Only the groups you choose are included. Passwords, PINs, keybinds, themes, bookmarks and reading positions are never attached." : {
 
     },
     "Open" : {
@@ -807,14 +1451,60 @@
     "Open %@" : {
 
     },
+    "Open Chapter" : {
+
+    },
+    "Open in Safari" : {
+
+    },
+    "Open match" : {
+
+    },
+    "Open on GitHub" : {
+
+    },
+    "Open Site" : {
+
+    },
+    "Open Source" : {
+
+    },
+    "Opening site…" : {
+
+    },
+    "Opening…" : {
+
+    },
+    "Opens %@’s sign-in page here and connects when you approve access." : {
+
+    },
     "Opens in your browser" : {
 
     },
-    "Opens the project and community links" : {
+    "Opens on %@" : {
+
+    },
+    "Optional" : {
+
+    },
+    "Organize saved titles." : {
+
+    },
+    "Output appears here once the server starts working." : {
 
     },
     "Page" : {
 
+    },
+    "Page %lld of %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Page %1$lld of %2$lld"
+          }
+        }
+      }
     },
     "Page progress" : {
 
@@ -828,7 +1518,10 @@
     "Password" : {
 
     },
-    "Per-source overrides" : {
+    "Paste a Mihon or Aniyomi repository link, or an LNReader plugins.min.json. Nothing installs until you choose an extension." : {
+
+    },
+    "Pause All" : {
 
     },
     "Pin" : {
@@ -840,19 +1533,34 @@
     "Pin a title" : {
 
     },
+    "Pin a Title" : {
+
+    },
     "Pin a title or keep reading to fill this slot." : {
+
+    },
+    "Pin Source" : {
 
     },
     "Pinned" : {
 
     },
+    "Playback" : {
+
+    },
     "Playback speed" : {
 
     },
-    "Preferred group" : {
+    "Player" : {
 
     },
-    "Preferred source language" : {
+    "Popular" : {
+
+    },
+    "Preferences" : {
+
+    },
+    "Preferred group" : {
 
     },
     "Preset name" : {
@@ -861,16 +1569,19 @@
     "Preview" : {
 
     },
-    "Preview import" : {
-
-    },
-    "Previous" : {
-
-    },
     "Previous slide" : {
 
     },
+    "Project" : {
+
+    },
     "Queue" : {
+
+    },
+    "Re-download from source" : {
+
+    },
+    "Read" : {
 
     },
     "Read a title to see it here." : {
@@ -879,28 +1590,64 @@
     "Read more" : {
 
     },
+    "Read progress carries over by chapter number. Downloads stay with the old source. Titles without a confident match are left alone; tap a match to leave it out." : {
+
+    },
+    "Read progress carries over by chapter number. The title is removed from %@ and its downloads are not moved." : {
+
+    },
+    "Read-only" : {
+
+    },
     "Reader" : {
+
+    },
+    "Reader settings" : {
 
     },
     "Reading" : {
 
     },
-    "Reading is not available yet" : {
+    "Reading activity" : {
+
+    },
+    "Reading guide" : {
 
     },
     "Recent" : {
 
     },
-    "Recent searches" : {
+    "Recent Searches" : {
+
+    },
+    "Recent view" : {
 
     },
     "Refresh" : {
 
     },
-    "Refresh chapters" : {
+    "Refresh Chapters" : {
+
+    },
+    "Refresh Details" : {
+
+    },
+    "Refresh runtime status" : {
+
+    },
+    "Refresh Selected" : {
+
+    },
+    "Refresh storage usage" : {
 
     },
     "Release groups" : {
+
+    },
+    "Release notes" : {
+
+    },
+    "Reload" : {
 
     },
     "Reload sources" : {
@@ -912,7 +1659,19 @@
     "Remove %@ from search history" : {
 
     },
+    "Remove %@?" : {
+
+    },
+    "Remove %lld titles from your library?" : {
+
+    },
     "Remove all %@ chapters from this view." : {
+
+    },
+    "Remove app lock" : {
+
+    },
+    "Remove cached covers and temporary results. Library, downloads, and history are kept." : {
 
     },
     "Remove cached covers and temporary results. They will load again when needed. Your library, downloads, history, and source installations will be kept." : {
@@ -921,13 +1680,31 @@
     "Remove completed records from history. Downloaded files will be kept." : {
 
     },
+    "Remove from Library" : {
+
+    },
+    "Remove from Queue" : {
+
+    },
+    "Remove from This Folder" : {
+
+    },
     "Remove password" : {
 
     },
-    "Remove repository?" : {
+    "Remove Repository" : {
+
+    },
+    "Remove Selected" : {
+
+    },
+    "Remove Series Downloads" : {
 
     },
     "Remove the server password?" : {
+
+    },
+    "Removing the app lock requires the current PIN." : {
 
     },
     "Rename" : {
@@ -939,10 +1716,22 @@
     "Rename preset" : {
 
     },
-    "Rename repository" : {
+    "Rename Repository" : {
 
     },
-    "Reorder %@" : {
+    "Rendering" : {
+
+    },
+    "Report an issue" : {
+
+    },
+    "Report an Issue" : {
+
+    },
+    "Repositories list the extensions you can install." : {
+
+    },
+    "Repository" : {
 
     },
     "Require a password" : {
@@ -960,19 +1749,43 @@
     "Reset content rules?" : {
 
     },
+    "Reset Filters" : {
+
+    },
     "Reset interface scale" : {
+
+    },
+    "Reset per-series rules" : {
+
+    },
+    "Reset preferences" : {
 
     },
     "Reset rules" : {
 
     },
-    "Reset search and filters" : {
+    "Reset saved overrides to the global defaults." : {
 
     },
-    "Restore default" : {
+    "Reset to 100%" : {
+
+    },
+    "Restore Default" : {
+
+    },
+    "Restore default rules" : {
+
+    },
+    "Restore default shortcuts" : {
 
     },
     "Restore preferences on this device. Saved titles and reading activity will be kept." : {
+
+    },
+    "Results" : {
+
+    },
+    "Results for “%@”" : {
 
     },
     "Resume" : {
@@ -981,25 +1794,34 @@
     "Resume %@" : {
 
     },
-    "Resume matching" : {
+    "Resume All" : {
 
     },
     "Retry" : {
 
     },
-    "Retry chapters" : {
+    "Retry %lld Failed" : {
 
     },
-    "Retry failed downloads" : {
+    "Retry All" : {
 
     },
-    "Reverse chapter order" : {
+    "Retry Chapters" : {
 
     },
-    "Review" : {
+    "Retry Failed" : {
 
     },
-    "Run" : {
+    "Review Import" : {
+
+    },
+    "Rules" : {
+
+    },
+    "Running" : {
+
+    },
+    "Runtime" : {
 
     },
     "S" : {
@@ -1008,13 +1830,25 @@
     "Save" : {
 
     },
-    "Save & close" : {
+    "Save & Close" : {
 
     },
     "Save preset" : {
 
     },
+    "Save titles from Search, import files in Settings → Storage, or sync with Moku on your computer." : {
+
+    },
+    "Save titles to your Library, then check for updates." : {
+
+    },
     "Save to Files" : {
+
+    },
+    "Saved" : {
+
+    },
+    "Saved titles and downloaded files are kept." : {
 
     },
     "Saved titles and downloaded files will be kept." : {
@@ -1023,49 +1857,130 @@
     "Scanlators" : {
 
     },
+    "Score" : {
+
+    },
     "Scroll speed" : {
 
     },
     "Search" : {
 
     },
-    "Search active" : {
+    "Search %@" : {
 
     },
     "Search again for %@" : {
 
     },
-    "Search folders" : {
+    "Search AniList" : {
+
+    },
+    "Search below and pick the right entry." : {
+
+    },
+    "Search by" : {
+
+    },
+    "Search couldn’t start. Try again in a moment." : {
 
     },
     "Search library" : {
 
     },
+    "Search Library" : {
+
+    },
     "Search source" : {
+
+    },
+    "Search title" : {
 
     },
     "Search titles or chapters" : {
 
     },
+    "Search Unavailable" : {
+
+    },
+    "Search your library" : {
+
+    },
+    "Searching…" : {
+
+    },
+    "Select" : {
+
+    },
+    "Select All" : {
+
+    },
     "Select chapter" : {
+
+    },
+    "Select chapters" : {
+
+    },
+    "Select Chapters" : {
+
+    },
+    "Select global defaults or a saved series." : {
+
+    },
+    "Select None" : {
+
+    },
+    "Selected" : {
+
+    },
+    "Series" : {
+
+    },
+    "Series Link" : {
+
+    },
+    "Series Link (%lld)" : {
 
     },
     "Series title" : {
 
     },
+    "Server" : {
+
+    },
+    "Server backups" : {
+
+    },
+    "Server data" : {
+
+    },
+    "Server log" : {
+
+    },
+    "Server password" : {
+
+    },
+    "Server version" : {
+
+    },
+    "Services" : {
+
+    },
     "Settings" : {
+
+    },
+    "Share" : {
+
+    },
+    "Share server log" : {
 
     },
     "Shortcut" : {
 
     },
-    "Show" : {
+    "Show Chapters" : {
 
     },
-    "Show %@" : {
-
-    },
-    "Show chapters" : {
+    "Show for" : {
 
     },
     "Show in library" : {
@@ -1077,7 +1992,40 @@
     "Show playback controls" : {
 
     },
-    "Signed in as %@" : {
+    "Show the Moku idle screen after this much inactivity. Paused while reading or playing media." : {
+
+    },
+    "Shows less" : {
+
+    },
+    "Shows the full description" : {
+
+    },
+    "Sign In" : {
+
+    },
+    "Sign in elsewhere" : {
+
+    },
+    "Sign in to %@" : {
+
+    },
+    "Sign In to %@" : {
+
+    },
+    "Sign in to AniList in Settings → Tracking, then come back to link this title." : {
+
+    },
+    "Signed in as" : {
+
+    },
+    "Signing in…" : {
+
+    },
+    "Site address" : {
+
+    },
+    "Size" : {
 
     },
     "Skip" : {
@@ -1093,49 +2041,151 @@
         }
       }
     },
-    "Solid interface" : {
+    "Sort by" : {
+
+    },
+    "Sort By" : {
+
+    },
+    "Sort chapters" : {
 
     },
     "Source" : {
 
     },
-    "SOURCE" : {
+    "Source code" : {
 
     },
-    "Start" : {
+    "Source runtime" : {
 
     },
-    "Start a new import" : {
+    "Source Settings" : {
+
+    },
+    "Sources" : {
+
+    },
+    "Star" : {
+
+    },
+    "Starred" : {
+
+    },
+    "Start a New Import" : {
 
     },
     "Start reading" : {
 
     },
+    "Start server" : {
+
+    },
+    "Started" : {
+
+    },
     "Starting…" : {
+
+    },
+    "Startup" : {
+
+    },
+    "Status" : {
+
+    },
+    "Steps to reproduce" : {
 
     },
     "Stop" : {
 
     },
+    "Stop Waiting" : {
+
+    },
     "Stopping…" : {
+
+    },
+    "Storage" : {
+
+    },
+    "Storage limit" : {
 
     },
     "Storage limit reached." : {
 
     },
-    "Subtitle bottom offset" : {
+    "Stored covers and search results." : {
 
     },
-    "Subtitle text size" : {
+    "Stored keys" : {
+
+    },
+    "Stream" : {
+
+    },
+    "Stream: %@" : {
 
     },
     "Subtitles" : {
 
     },
+    "Suggested" : {
+
+    },
+    "Summary" : {
+
+    },
+    "Swipe or long press for actions" : {
+
+    },
+    "Switch source" : {
+
+    },
+    "Switch Source" : {
+
+    },
+    "Sync from %@" : {
+
+    },
+    "System" : {
+
+    },
     "T" : {
 
     },
+    "Tap a repository to browse its extensions. A repository can be removed once its sources are uninstalled." : {
+
+    },
+    "Tap edges to turn pages" : {
+
+    },
     "Tap to continue" : {
+
+    },
+    "Tap to dismiss" : {
+
+    },
+    "Testing" : {
+
+    },
+    "Text" : {
+
+    },
+    "The address is shown in desktop Settings → Auth → Phone sync." : {
+
+    },
+    "The app’s private API token remains valid." : {
+
+    },
+    "The problem it solves" : {
+
+    },
+    "The quick brown fox jumps over the lazy dog. Typography changes apply as you go." : {
+
+    },
+    "Theme" : {
+
+    },
+    "Thickness" : {
 
     },
     "This chapter" : {
@@ -1144,16 +2194,19 @@
     "This extension does not expose configurable settings." : {
 
     },
-    "This folder is empty" : {
+    "This Folder Is Empty" : {
 
     },
-    "This removes the repository and its extension catalog. Uninstall its sources first." : {
-
-    },
-    "This screen is ready for design." : {
+    "This removes the repository and its extension catalog." : {
 
     },
     "This source will no longer be available for search." : {
+
+    },
+    "This title can’t be opened right now" : {
+
+    },
+    "Time spent" : {
 
     },
     "Title %lld of %lld" : {
@@ -1169,16 +2222,52 @@
     "Title details" : {
 
     },
+    "Titles" : {
+
+    },
     "Titles will remain in your library." : {
+
+    },
+    "Titles you move here stay in your library." : {
+
+    },
+    "Titles, authors, genres" : {
+
+    },
+    "Token" : {
 
     },
     "Token or redirect URL" : {
 
     },
+    "Tracked" : {
+
+    },
+    "Tracker Accounts" : {
+
+    },
     "Tracking" : {
 
     },
+    "Tracking Actions" : {
+
+    },
+    "Tracking services" : {
+
+    },
+    "Tracking services couldn’t be loaded." : {
+
+    },
+    "Try a different filter." : {
+
+    },
     "Try again" : {
+
+    },
+    "Try Again" : {
+
+    },
+    "Type" : {
 
     },
     "Uninstall" : {
@@ -1190,22 +2279,46 @@
     "Uninstall its sources before removing" : {
 
     },
+    "Unlink" : {
+
+    },
+    "Unlinks this title" : {
+
+    },
     "Unlock" : {
 
     },
     "Unpin" : {
 
     },
-    "Unread only" : {
+    "Unpin Source" : {
 
     },
-    "Up next" : {
+    "Unread" : {
+
+    },
+    "Unread (%lld)" : {
+
+    },
+    "Unread Only" : {
+
+    },
+    "Unstar" : {
 
     },
     "Update" : {
 
     },
-    "Update available" : {
+    "Update %@" : {
+
+    },
+    "Update All" : {
+
+    },
+    "Update Library" : {
+
+    },
+    "Updates" : {
 
     },
     "Updating library · %lld/%lld" : {
@@ -1218,7 +2331,37 @@
         }
       }
     },
+    "Use" : {
+
+    },
+    "Use a Token" : {
+
+    },
+    "Use cover" : {
+
+    },
     "Use Face ID / Touch ID" : {
+
+    },
+    "Use global defaults" : {
+
+    },
+    "Use global defaults removes this series’ custom rules." : {
+
+    },
+    "Use this if the cover looks corrupted or wrong" : {
+
+    },
+    "Verify in Browser" : {
+
+    },
+    "Verify in Browser…" : {
+
+    },
+    "Version" : {
+
+    },
+    "Version %@" : {
 
     },
     "Video" : {
@@ -1236,7 +2379,10 @@
     "View title" : {
 
     },
-    "View title on the source" : {
+    "View Title" : {
+
+    },
+    "View Title on the source" : {
 
     },
     "W" : {
@@ -1245,10 +2391,43 @@
     "Watching" : {
 
     },
-    "Without a source" : {
+    "What happened instead" : {
+
+    },
+    "What syncs" : {
+
+    },
+    "What went wrong?" : {
+
+    },
+    "What would you like?" : {
+
+    },
+    "What you expected" : {
+
+    },
+    "What’s new" : {
+
+    },
+    "With a source, each title is matched to it so chapters are ready to read. Without one, titles are saved from the tracker’s details." : {
+
+    },
+    "Without a Source" : {
 
     },
     "Working…" : {
+
+    },
+    "You can add them back from Search at any time." : {
+
+    },
+    "You’re all caught up." : {
+
+    },
+    "Your Library Is Empty" : {
+
+    },
+    "Your reading and watching history will appear here." : {
 
     },
     "Your saved titles will be kept." : {
