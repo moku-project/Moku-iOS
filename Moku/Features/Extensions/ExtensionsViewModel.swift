@@ -11,6 +11,8 @@ final class ExtensionsViewModel {
     private(set) var languages: [String] = []
     private(set) var isLoading = true
     private(set) var isWorking = false
+    /// The extension a row action is running on; it shows a spinner instead of blocking the list.
+    private(set) var busyPackage: String?
     private(set) var installedLoaded = false
     var error: String?
     var query = ""
@@ -121,10 +123,13 @@ final class ExtensionsViewModel {
             + ((error as? EmbeddedSearchError)?.errorDescription ?? "Try again.")
     }
 
-    func perform(_ action: @Sendable (any ExtensionRepository) async throws -> Void) async -> Bool {
+    func perform(
+        on package: String? = nil, _ action: @Sendable (any ExtensionRepository) async throws -> Void
+    ) async -> Bool {
         guard !isWorking else { return false }
         isWorking = true
-        defer { isWorking = false }
+        busyPackage = package
+        defer { isWorking = false; busyPackage = nil }
         do {
             try await action(repository)
             await load()

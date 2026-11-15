@@ -67,6 +67,7 @@ struct ExtensionsView: View {
             .firstLoadSkeleton(
                 "extensions-\(section.rawValue)", loading: model.isLoading, style: .extensions)
             .refreshable { await model.load() }
+            .overlay { if isEmpty { emptyState.accessibilityIdentifier("extensions.empty") } }
             .accessibilityIdentifier("extensions.list")
         }
         .background(NavigationStyle.background.ignoresSafeArea())
@@ -94,14 +95,14 @@ struct ExtensionsView: View {
             }
         }
         .overlay {
-            if model.isWorking {
+            if model.isWorking && model.busyPackage == nil {
                 ProgressView()
                     .controlSize(.large)
                     .padding(24)
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
             }
         }
-        .disabled(model.isWorking)
+        .disabled(model.isWorking && model.busyPackage == nil)
         .task(id: [
             model.query, model.repositoryID ?? "", model.language ?? "", model.media.rawValue,
         ]) {
@@ -256,9 +257,6 @@ struct ExtensionsView: View {
                 Text("\(model.visibleInstalled.count) installed. Tap a source to browse it; touch and hold for settings and migration.")
             }
         }
-        if !model.isLoading && model.visibleInstalled.isEmpty {
-            emptyState
-        }
     }
 
     @ViewBuilder private var browseSections: some View {
@@ -272,8 +270,6 @@ struct ExtensionsView: View {
             } header: {
                 Text(counted(model.total, "extension"))
             }
-        } else if !model.isLoading {
-            emptyState
         }
     }
 
@@ -293,43 +289,26 @@ struct ExtensionsView: View {
         }
     }
 
-    @ViewBuilder private var emptyState: some View {
-        Section {
-            if !model.query.isEmpty {
-                ContentUnavailableView.search(text: model.query)
-            } else if filterCount > 0 {
-                ContentUnavailableView(
-                    "No Matching Extensions", systemImage: "line.3.horizontal.decrease.circle",
-                    description: Text("Change your filters to see more."))
-            } else if section == .installed {
-                ContentUnavailableView {
-                    Label("No Extensions Installed", systemImage: "puzzlepiece.extension")
-                } description: {
-                    Text("Browse extensions to add your first source.")
-                } actions: {
-                    Button("Browse Extensions") { section = .browse }
-                        .buttonStyle(.borderedProminent)
-                        .accessibilityIdentifier("extensions.browse")
-                }
-            } else {
-                ContentUnavailableView {
-                    Label(
-                        model.repositories.isEmpty ? "Add Your First Repository" : "No Extensions Found",
-                        systemImage: "folder")
-                } description: {
-                    Text("Repositories list the extensions you can install.")
-                } actions: {
-                    Button("Add Repository") { isAdding = true }
-                        .buttonStyle(.borderedProminent)
-                }
-            }
+    private var isEmpty: Bool {
+        guard !model.isLoading, model.error == nil else { return false }
+        switch section {
+        case .installed: return model.visibleInstalled.isEmpty
+        case .browse: return model.items.isEmpty
+        case .repositories: return false
         }
-        .listRowBackground(Color.clear)
+    }
+
+    private var emptyState: EmptyState {
+        if !model.query.isEmpty { return EmptyState(systemImage: "magnifyingglass", message: "No results for “\(model.query)”") }
+        if filterCount > 0 { return EmptyState(systemImage: "line.3.horizontal.decrease.circle", message: "No extensions match these filters") }
+        if section == .installed { return EmptyState(systemImage: "puzzlepiece.extension", message: "No extensions installed") }
+        if model.repositories.isEmpty { return EmptyState(systemImage: "shippingbox", message: "Add a repository to find extensions") }
+        return EmptyState(systemImage: "puzzlepiece.extension", message: "No extensions found")
     }
 
     private func row(_ item: SourceExtension) -> some View {
         ExtensionRow(
-            item: item, search: search, configure: { settingsSource = $0 },
+            item: item, busy: model.busyPackage == item.packageName, search: search, configure: { settingsSource = $0 },
             openLibrary: { librarySource = $0 },
             verify: { verifySource($0) },
             uninstall: { removing = $0 },
@@ -430,7 +409,7 @@ struct ExtensionsView: View {
 
     private func change(_ action: ExtensionAction, _ item: SourceExtension) {
         Task {
-            await model.perform { try await $0.extensionAction(action, package: item.packageName) }
+            await model.perform(on: item.packageName) { try await $0.extensionAction(action, package: item.packageName) }
         }
     }
 }

@@ -3,6 +3,7 @@ import SwiftUI
 /// Tap an installed source to browse it; the trailing button installs or updates, the rest is in the context menu.
 struct ExtensionRow: View {
     let item: SourceExtension
+    var busy = false
     let search: (SourceExtension) -> Void
     let configure: (SourceExtension) -> Void
     var openLibrary: (SourceExtension) -> Void = { _ in }
@@ -22,10 +23,12 @@ struct ExtensionRow: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .disabled(!browsable)
+            .allowsHitTesting(browsable)
             .accessibilityHint(browsable ? "Browses this source" : "")
             .accessibilityIdentifier("extensions.search.\(item.packageName)")
-            if !item.installed {
+            if busy {
+                ProgressView().controlSize(.small)
+            } else if !item.installed {
                 Button("Install") { change(.installExtension, item) }
                     .buttonStyle(.bordered).buttonBorderShape(.capsule).controlSize(.small)
                     .accessibilityLabel("Install \(item.displayName)")
