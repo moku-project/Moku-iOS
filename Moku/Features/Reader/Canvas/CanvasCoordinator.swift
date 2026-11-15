@@ -44,6 +44,8 @@ final class CanvasCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogniz
                 return
             }
             self.lastSize = scroll.bounds.size
+            // Layout assumes an unzoomed canvas (rotation, split view).
+            if scroll.zoomScale != 1 { scroll.setZoomScale(1, animated: false) }
             self.layout(anchor: nil)
         }
         let double = UITapGestureRecognizer(target: self, action: #selector(doubleTap(_:)))
@@ -78,6 +80,8 @@ final class CanvasCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogniz
         if changed {
             let animate =
                 !paths.isEmpty && paths == model.pages && !model.isStrip && !parent.reduceMotion
+            // A page turn starts unzoomed, like Android.
+            if !model.isStrip && scroll.zoomScale != 1 { scroll.setZoomScale(1, animated: false) }
             for task in work.values { task.cancel() }
             work.removeAll()
             for view in views.values { view.removeFromSuperview() }
@@ -117,9 +121,12 @@ final class CanvasCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogniz
             lastLandscape = model.landscape
             if !changed { layout(anchor: model.page) }
         }
-        scroll.maximumZoomScale = model.behaviour.pinchZoom ? 3 : 1
+        // Double-tap zoom works in paged layouts whether or not pinching is on;
+        // the "Pinch to zoom" setting only governs the pinch gesture.
+        scroll.maximumZoomScale = model.behaviour.pinchZoom ? 3 : (model.isStrip ? 1 : Self.doubleTapZoom)
         scroll.minimumZoomScale = 1
-        if !model.behaviour.pinchZoom && scroll.zoomScale != 1 {
+        scroll.pinchGestureRecognizer?.isEnabled = model.behaviour.pinchZoom
+        if !model.behaviour.pinchZoom && model.isStrip && scroll.zoomScale != 1 {
             scroll.setZoomScale(1, animated: false)
         }
         if lastJump != model.jumpID {
@@ -386,9 +393,49 @@ final class CanvasCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogniz
             loadWindow()
             return
         }
-        if !parent.model.behaviour.tapToToggleBar { parent.toggleChrome() }
+        let model = parent.model
+        guard !model.isStrip else {
+            if !model.behaviour.tapToToggleBar { parent.toggleChrome() }
+            return
+        }
+        // Paged: 30/40/30 zones. The edge zones turn pages (mirrored for right to
+        // left); the middle, or the whole screen with tap-to-turn off, toggles the
+        // controls, since double-tap zooms in paged layouts.
+        if model.behaviour.tapToTurn, let scroll {
+            let x = gesture.location(in: scroll).x - scroll.contentOffset.x
+            let fraction = x / max(1, scroll.bounds.width)
+            let rtl = model.settings.readingDirection == "rtl"
+            if fraction < 0.3 {
+                model.navigate(forward: rtl)
+                return
+            }
+            if fraction > 0.7 {
+                model.navigate(forward: !rtl)
+                return
+            }
+        }
+        parent.toggleChrome()
     }
-    @objc func doubleTap(_ gesture: UITapGestureRecognizer) { parent.toggleChrome() }
+    static let doubleTapZoom: CGFloat = 2.5
+    @objc func doubleTap(_ gesture: UITapGestureRecognizer) {
+        guard let scroll, !parent.model.isStrip else {
+            parent.toggleChrome()
+            return
+        }
+        if scroll.zoomScale > 1.01 {
+            scroll.setZoomScale(1, animated: !parent.reduceMotion)
+            return
+        }
+        let point = gesture.location(in: canvas)
+        let size = CGSize(
+            width: scroll.bounds.width / Self.doubleTapZoom,
+            height: scroll.bounds.height / Self.doubleTapZoom)
+        scroll.zoom(
+            to: CGRect(
+                x: point.x - size.width / 2, y: point.y - size.height / 2,
+                width: size.width, height: size.height),
+            animated: !parent.reduceMotion)
+    }
     @objc func swipe(_ gesture: UISwipeGestureRecognizer) {
         guard !parent.model.isStrip, scroll?.zoomScale == 1 else { return }
         let forward =

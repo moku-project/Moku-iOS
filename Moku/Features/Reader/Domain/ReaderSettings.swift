@@ -23,6 +23,29 @@ struct ReaderBehaviour: Codable, Equatable, Sendable {
     var autoScrollSpeed = 5.0
     var tapToToggleBar = false
     var containerized = false
+    /// Paged layouts: left and right 30 % of the screen turn pages (mirrored
+    /// for right to left), the middle 40 % shows or hides the controls.
+    var tapToTurn = true
+}
+
+/// Keys added after release decode with their defaults, so an older saved
+/// document never fails to decode (which would reset every reader setting).
+extension ReaderBehaviour {
+    init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = ReaderBehaviour()
+        autoMarkRead = try c.decodeIfPresent(Bool.self, forKey: .autoMarkRead) ?? d.autoMarkRead
+        autoNextChapter = try c.decodeIfPresent(Bool.self, forKey: .autoNextChapter) ?? d.autoNextChapter
+        markReadOnNext = try c.decodeIfPresent(Bool.self, forKey: .markReadOnNext) ?? d.markReadOnNext
+        autoBookmark = try c.decodeIfPresent(Bool.self, forKey: .autoBookmark) ?? d.autoBookmark
+        preloadPages = try c.decodeIfPresent(Int.self, forKey: .preloadPages) ?? d.preloadPages
+        pinchZoom = try c.decodeIfPresent(Bool.self, forKey: .pinchZoom) ?? d.pinchZoom
+        autoScroll = try c.decodeIfPresent(Bool.self, forKey: .autoScroll) ?? d.autoScroll
+        autoScrollSpeed = try c.decodeIfPresent(Double.self, forKey: .autoScrollSpeed) ?? d.autoScrollSpeed
+        tapToToggleBar = try c.decodeIfPresent(Bool.self, forKey: .tapToToggleBar) ?? d.tapToToggleBar
+        containerized = try c.decodeIfPresent(Bool.self, forKey: .containerized) ?? d.containerized
+        tapToTurn = try c.decodeIfPresent(Bool.self, forKey: .tapToTurn) ?? d.tapToTurn
+    }
 }
 
 struct MangaReaderPreset: Codable, Identifiable, Equatable, Sendable {
@@ -43,4 +66,21 @@ struct ReaderPreferenceDocument: Codable, Sendable {
     var presets: [MangaReaderPreset] = []
     var positions: [String: ReaderPosition] = [:]
     var bookmarks: [String: ReaderPosition] = [:]
+    /// When each entry in `positions` was saved, to compare with the server's
+    /// progress `updatedAt` (the newer one wins when reopening a chapter).
+    var positionDates: [String: Date] = [:]
+}
+
+extension ReaderPreferenceDocument {
+    init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = ReaderPreferenceDocument()
+        global = try c.decodeIfPresent(MangaReadingSettings.self, forKey: .global) ?? d.global
+        behaviour = try c.decodeIfPresent(ReaderBehaviour.self, forKey: .behaviour) ?? d.behaviour
+        overrides = try c.decodeIfPresent([String: MangaReadingSettings].self, forKey: .overrides) ?? [:]
+        presets = try c.decodeIfPresent([MangaReaderPreset].self, forKey: .presets) ?? []
+        positions = try c.decodeIfPresent([String: ReaderPosition].self, forKey: .positions) ?? [:]
+        bookmarks = try c.decodeIfPresent([String: ReaderPosition].self, forKey: .bookmarks) ?? [:]
+        positionDates = try c.decodeIfPresent([String: Date].self, forKey: .positionDates) ?? [:]
+    }
 }

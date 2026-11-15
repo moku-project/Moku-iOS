@@ -56,6 +56,10 @@ struct ReaderSettingsView: View {
                 if settings.pageStyle == "double" || settings.pageStyle == "auto" && landscape {
                     toggle("Offset spreads", setting(\.offsetDoubleSpreads))
                 }
+                if settings.pageStyle != "longstrip" {
+                    toggle("Tap to turn pages", behaviour(\.tapToTurn))
+                        .accessibilityIdentifier("reader.tapToTurn")
+                }
                 if settings.pageStyle == "longstrip" {
                     toggle("Page gap", setting(\.pageGap))
                     toggle("Auto next chapter", behaviour(\.autoNextChapter))
@@ -190,7 +194,9 @@ struct ReaderSettingsView: View {
                     }
                     toggle("Tap to toggle bar", behaviour(\.tapToToggleBar))
                     toggle("Containerized view", behaviour(\.containerized))
-                    Text("Double-tap the center to show or hide controls.")
+                    Text(
+                        "Pages: tap the center to show or hide controls, double-tap to zoom. Long strip: double-tap to show or hide controls."
+                    )
                         .font(.caption).foregroundStyle(.secondary)
                 }.padding(.top, 12)
             }
@@ -282,6 +288,8 @@ struct ReaderSettingsView: View {
                 pagePicker(
                     "Bar position", setting(\.barPosition),
                     [("top", "Top"), ("left", "Left"), ("right", "Right")])
+                GeneralStyle.divider
+                pageToggle("Tap to turn pages", behaviour(\.tapToTurn))
                 GeneralStyle.divider
                 pageToggle("Tap to toggle bar", behaviour(\.tapToToggleBar))
                 GeneralStyle.divider

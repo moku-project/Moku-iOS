@@ -18,6 +18,7 @@ struct ReaderView: View {
     @State private var actionTask: Task<Void, Never>?
     @State private var closing = false
     @State private var drawerDrag: CGFloat = 0
+    @State private var previousIdleTimer = false
 
     init(
         details: MediaDetails, chapterID: String, preferences: ReaderPreferences,
@@ -122,7 +123,12 @@ struct ReaderView: View {
         }
         .focusable().focusEffectDisabled().focused($keyboardFocused)
         .onKeyPress(phases: [.down, .repeat]) { press in handleKey(press) }
-        .onAppear { keyboardFocused = true }
+        .onAppear {
+            keyboardFocused = true
+            // Keep the screen on while reading, like the player and Android.
+            previousIdleTimer = UIApplication.shared.isIdleTimerDisabled
+            UIApplication.shared.isIdleTimerDisabled = true
+        }
         .onChange(of: model.drawerOpen) { _, open in if !open { keyboardFocused = true } }
         .onChange(of: pickerOpen) { _, open in if !open { keyboardFocused = true } }
         .onChange(of: downloadsOpen) { _, open in if !open { keyboardFocused = true } }
@@ -134,7 +140,10 @@ struct ReaderView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { run { await model.flush() } }
         }
-        .onDisappear { actionTask?.cancel() }
+        .onDisappear {
+            actionTask?.cancel()
+            UIApplication.shared.isIdleTimerDisabled = previousIdleTimer
+        }
         .recordActivity(
             entry: model.activityEntry,
             chapterID: model.chapterID, position: model.page,
@@ -216,14 +225,31 @@ struct ReaderView: View {
                 }.frame(maxWidth: .infinity, minHeight: 48, alignment: .leading).padding(
                     .leading, 12)
             }.accessibilityLabel("Select chapter").accessibilityIdentifier("reader.chapters")
-            icon(
-                model.bookmarked ? "Bookmark.fill" : "Bookmark", label: "Bookmark this page",
-                id: "reader.bookmark"
-            ) { model.toggleBookmark() }
-            .foregroundStyle(model.bookmarked ? NavigationStyle.accent : Color(white: 0.8))
+            pageBookmarkButton
+                .foregroundStyle(model.bookmarked ? NavigationStyle.accent : Color(white: 0.8))
+            chapterBookmarkButton
+                .foregroundStyle(model.chapterBookmarked ? NavigationStyle.accent : Color(white: 0.8))
             icon("Sliders", label: "Reader settings", id: "reader.settings") { drawer(true) }
         }
         .padding(4).modifier(ReaderSurface()).buttonStyle(.plain)
+    }
+    /// Device-only saved page ("Page bookmark"), distinct from the chapter bookmark.
+    private var pageBookmarkButton: some View {
+        icon(
+            model.bookmarked ? "PushPin.fill" : "PushPin",
+            label: model.bookmarked ? "Remove page bookmark" : "Add page bookmark",
+            id: "reader.bookmark"
+        ) { model.toggleBookmark() }
+    }
+    /// Synced chapter bookmark, as on Android and Mihon.
+    private var chapterBookmarkButton: some View {
+        icon(
+            model.chapterBookmarked ? "Bookmark.fill" : "Bookmark",
+            label: model.chapterBookmarked ? "Remove chapter bookmark" : "Bookmark chapter",
+            id: "reader.chapterBookmark"
+        ) { model.toggleChapterBookmark() }
+        .accessibilityAddTraits(model.chapterBookmarked ? .isSelected : [])
+        .disabled(model.loading)
     }
     private var progressBar: some View {
         VStack(spacing: 0) {
@@ -283,10 +309,10 @@ struct ReaderView: View {
                 model.navigate(forward: true)
             }
             Spacer(minLength: 0)
-            icon(
-                model.bookmarked ? "Bookmark.fill" : "Bookmark", label: "Bookmark this page",
-                id: "reader.bookmark"
-            ) { model.toggleBookmark() }
+            pageBookmarkButton
+                .foregroundStyle(model.bookmarked ? NavigationStyle.accent : Color(white: 0.8))
+            chapterBookmarkButton
+                .foregroundStyle(model.chapterBookmarked ? NavigationStyle.accent : Color(white: 0.8))
             icon("Sliders", label: "Reader settings", id: "reader.settings") { drawer(true) }
         }.padding(4).modifier(ReaderSurface())
     }

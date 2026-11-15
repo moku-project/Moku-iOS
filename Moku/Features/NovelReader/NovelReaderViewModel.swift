@@ -19,6 +19,9 @@ import Observation
     private var generation = UUID()
     /// A bookmark jump: where the next load scrolls, instead of synced progress.
     private var pendingResume: Double?
+    /// Server chapter bookmarks (Mihon-style), separate from the local page bookmark.
+    private(set) var chapterBookmarks: [String: Bool] = [:]
+    @ObservationIgnored private var bookmarkTasks: [String: Task<Void, Never>] = [:]
 
     init(details: MediaDetails, chapterID: String, preferences: Data) {
         self.details = details
@@ -39,6 +42,7 @@ import Observation
     var next: Chapter? { chapters.indices.contains(index + 1) ? chapters[index + 1] : nil }
     var completed: Bool { progress >= 0.97 }
     var ready: Bool { !loading && error == nil && document != nil }
+    var chapterBookmarked: Bool { chapterBookmarks[chapterID] ?? false }
 
     func load() async {
         let id = chapterID
@@ -56,12 +60,15 @@ import Observation
             let parsed = await Task.detached(priority: .userInitiated) {
                 NovelDocument.parse(body, isHTML: isHTML)
             }.value
-            let resume = await saved
+            let state = await saved
             try Task.checkCancellation()
             guard generation == current else { return }
             document = parsed
+            if let state, bookmarkTasks[id] == nil { chapterBookmarks[id] = state.bookmarked }
             // A finished chapter reopens at the top rather than at its last line.
-            resumeAt = pendingResume ?? resume.map { $0 >= 0.97 ? 0 : $0 }
+            resumeAt = pendingResume ?? state?.progress.map {
+                $0.completed || $0.progress >= 0.97 ? 0 : $0.progress
+            }
             pendingResume = nil
             loading = false
         } catch {
@@ -130,18 +137,29 @@ import Observation
         }
     }
 
-    private nonisolated func savedPosition(chapterID: String) async -> Double? {
-        struct Response: Decodable, Sendable {
-            struct Chapter: Decodable, Sendable {
-                struct Progress: Decodable, Sendable { let progress: Double }
-                let readingProgress: Progress?
+    func toggleChapterBookmark() {
+        let id = chapterID
+        let previous = chapterBookmarks[id] ?? false
+        let value = !previous
+        chapterBookmarks[id] = value
+        bookmarkTasks[id]?.cancel()
+        let mediaID = details.id
+        bookmarkTasks[id] = Task { [weak self] in
+            do {
+                try await ChapterSync.setBookmarked(mediaID: mediaID, chapterIDs: [id], bookmarked: value)
+            } catch is CancellationError {
+                return
+            } catch {
+                guard let self, !Task.isCancelled else { return }
+                self.chapterBookmarks[id] = previous
+                Toaster.shared.show("Couldn’t update the chapter bookmark", detail: "Try again.", kind: .error)
             }
-            let chapter: Chapter?
+            if !Task.isCancelled { self?.bookmarkTasks[id] = nil }
         }
-        let response: Response? = try? await BackendAPI.shared.graphql(
-            "{ chapter(id: \(BackendAPI.literal(chapterID))) { readingProgress { progress } } }",
-            requiresSourceRuntime: false)
-        return response?.chapter?.readingProgress?.progress
+    }
+
+    private nonisolated func savedPosition(chapterID: String) async -> ReaderChapterState? {
+        try? await ChapterSync.state(chapterID: chapterID)
     }
 }
 

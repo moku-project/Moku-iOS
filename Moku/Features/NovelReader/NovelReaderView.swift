@@ -28,6 +28,7 @@ struct NovelReaderView: View {
     @State private var chaptersOpen = false
     @State private var position = ScrollPosition(edge: .top)
     @State private var geometry = ScrollMetrics()
+    @State private var previousIdleTimer = false
 
     private struct ScrollMetrics: Equatable {
         var offset: CGFloat = 0
@@ -66,7 +67,15 @@ struct NovelReaderView: View {
             position.scrollTo(y: max(0, CGFloat(resume) * (geometry.content - geometry.viewport)))
         }
         .onChange(of: scenePhase) { _, phase in if phase != .active { model.flush() } }
-        .onDisappear { model.flush() }
+        .onAppear {
+            // Keep the screen on while reading, like the player and Android.
+            previousIdleTimer = UIApplication.shared.isIdleTimerDisabled
+            UIApplication.shared.isIdleTimerDisabled = true
+        }
+        .onDisappear {
+            model.flush()
+            UIApplication.shared.isIdleTimerDisabled = previousIdleTimer
+        }
         .recordActivity(
             entry: model.activityEntry, chapterID: model.chapterID,
             position: Int(model.progress * 100), completed: model.completed,
@@ -206,10 +215,10 @@ struct NovelReaderView: View {
         var all = NovelBookmark.all(bookmarkData)
         if bookmarkedHere {
             all.removeValue(forKey: model.details.id)
-            Toaster.shared.show("Bookmark removed", kind: .info)
+            Toaster.shared.show("Page bookmark removed", kind: .info)
         } else {
             all[model.details.id] = NovelBookmark(chapterID: model.chapterID, fraction: model.progress)
-            Toaster.shared.show("Bookmarked", detail: "\(model.chapter?.label ?? "This chapter") · \(Int(model.progress * 100))%")
+            Toaster.shared.show("Page bookmark saved", detail: "\(model.chapter?.label ?? "This chapter") · \(Int(model.progress * 100))%")
         }
         bookmarkData = NovelBookmark.encode(all)
     }
@@ -271,10 +280,18 @@ struct NovelReaderView: View {
                     Text(model.chapter?.label ?? "").font(.caption).foregroundStyle(theme.secondary).lineLimit(1)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                iconButton(bookmarkedHere ? "Bookmark.fill" : "Bookmark",
-                           label: bookmarkedHere ? "Remove bookmark" : "Bookmark this spot") { toggleBookmark() }
+                iconButton(bookmarkedHere ? "PushPin.fill" : "PushPin",
+                           label: bookmarkedHere ? "Remove page bookmark" : "Add page bookmark") { toggleBookmark() }
                     .foregroundStyle(bookmarkedHere ? NavigationStyle.accent : theme.text)
                     .accessibilityIdentifier("novel.bookmark")
+                iconButton(model.chapterBookmarked ? "Bookmark.fill" : "Bookmark",
+                           label: model.chapterBookmarked ? "Remove chapter bookmark" : "Bookmark chapter") {
+                    model.toggleChapterBookmark()
+                }
+                .foregroundStyle(model.chapterBookmarked ? NavigationStyle.accent : theme.text)
+                .accessibilityAddTraits(model.chapterBookmarked ? .isSelected : [])
+                .disabled(!model.ready)
+                .accessibilityIdentifier("novel.chapterBookmark")
                 iconButton("ListBullets", label: "Chapters") { chaptersOpen = true }
                 iconButton("Sliders", label: "Reader settings") { settingsOpen = true }
                     .accessibilityIdentifier("novel.settings")
@@ -400,11 +417,11 @@ struct NovelReaderView: View {
                             } label: {
                                 Label {
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text("Go to bookmark")
+                                        Text("Go to page bookmark")
                                         Text("\(marked.label) · \(Int(bookmark.fraction * 100))%")
                                             .font(.caption).foregroundStyle(.secondary)
                                     }
-                                } icon: { PhosphorIcon("Bookmark.fill").foregroundStyle(NavigationStyle.accent) }
+                                } icon: { PhosphorIcon("PushPin.fill").foregroundStyle(NavigationStyle.accent) }
                                 .frame(minHeight: 44)
                             }
                             .accessibilityIdentifier("novel.gotoBookmark")
