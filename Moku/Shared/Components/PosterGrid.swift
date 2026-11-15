@@ -29,8 +29,9 @@ struct PosterGrid: View {
 
     private func card(_ entry: MediaEntry) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            CoverImage(url: entry.coverURL, symbol: entry.media.symbol)
-                .aspectRatio(2 / 3, contentMode: .fill)
+            Color.clear
+                .aspectRatio(2 / 3, contentMode: .fit)
+                .overlay { CoverImage(url: entry.coverURL, symbol: entry.media.symbol).scaledToFill() }
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .overlay(alignment: .topLeading) {
                     if library.contains(entry) {
@@ -41,7 +42,7 @@ struct PosterGrid: View {
                             .padding(6)
                     }
                 }
-            Text(entry.title).font(.caption).lineLimit(2).foregroundStyle(.primary)
+            Text(entry.title).font(.caption).lineLimit(2, reservesSpace: true).foregroundStyle(.primary)
                 .multilineTextAlignment(.leading)
             Text(entry.sourceName).font(.caption2).lineLimit(1).foregroundStyle(.secondary)
         }

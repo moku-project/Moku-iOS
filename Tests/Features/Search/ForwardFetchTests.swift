@@ -50,6 +50,8 @@ struct ForwardFetchTests {
 
     @MainActor @Test func typedSearchHidesTitlesWithoutChapters() async throws {
         let model = SearchViewModel(repository: ChapterlessResults(), debounce: .milliseconds(10), probe: ContentProbe())
+        model.draft.hidesEmpty = true
+        model.apply()
         model.query = "rent a girlfriend"
         try await waitUntil { if case .results(let items) = model.state { items.count == 2 } else { false } }
         guard case .results(let items) = model.state else { Issue.record("No results"); return }
@@ -57,10 +59,8 @@ struct ForwardFetchTests {
         #expect(model.hiddenEmpty == 1)
     }
 
-    @MainActor @Test func hidingCanBeTurnedOff() async throws {
+    @MainActor @Test func hidingIsOffByDefault() async throws {
         let model = SearchViewModel(repository: ChapterlessResults(), debounce: .milliseconds(10), probe: ContentProbe())
-        model.draft.hidesEmpty = false
-        model.apply()
         model.query = "rent a girlfriend"
         try await waitUntil { if case .results(let items) = model.state { items.count == 3 } else { false } }
         try await Task.sleep(for: .milliseconds(100))

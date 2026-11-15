@@ -39,12 +39,12 @@ struct SearchOptions: Equatable, Sendable {
     var statuses: Set<Status> = []
     var match: Match = .all
     var sort: Sort = .sourceOrder
-    /// Typed searches drop results with no chapters at their source; on by default, so not counted as a filter.
-    var hidesEmpty = true
+    /// Opt-in: checking every result's chapters costs one source request per title.
+    var hidesEmpty = false
 
     var filterCount: Int {
         (method == .keyword ? 0 : 1) + (media == .all ? 0 : 1)
             + (sourceID == nil ? 0 : 1) + (language == nil ? 0 : 1)
-            + genres.count + statuses.count
+            + genres.count + statuses.count + (hidesEmpty ? 1 : 0)
     }
 }
