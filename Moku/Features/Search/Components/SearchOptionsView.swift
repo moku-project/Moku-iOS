@@ -3,8 +3,6 @@ import SwiftUI
 /// Search filters and sort as a grouped form; edits `model.draft`, which the presenting sheet applies or cancels.
 struct SearchOptionsView: View {
     @Bindable var model: SearchViewModel
-    /// Kept for source compatibility; the presenting sheet owns the title.
-    var showsTitle = true
     @State private var genreQuery = ""
     private let genres = [
         "Action", "Adventure", "Comedy", "Drama", "Fantasy", "Romance", "Sci-Fi",

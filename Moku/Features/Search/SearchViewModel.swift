@@ -12,13 +12,10 @@ final class SearchViewModel {
         case failed(String)
     }
 
-    private(set) var popular: [MediaEntry] = [] { didSet { shelfCache = nil } }
-    private(set) var latest: [MediaEntry] = [] { didSet { shelfCache = nil } }
-    private(set) var recommendations: [MediaEntry] = [] { didSet { shelfCache = nil } }
-    private(set) var discoveryLoading = false
-    private(set) var discoveryMessage: String?
-    private(set) var recommendationMessage: String?
-    @ObservationIgnored private var discoveryGeneration = 0
+    private(set) var popular: [MediaEntry] = []
+    private(set) var popularLoading = false
+    private(set) var popularMessage: String?
+    @ObservationIgnored private var popularLoaded: (options: SearchOptions, at: Date)?
 
     func selectMode(_ mode: ContentMode) {
         guard mode != options.media else { return }
@@ -29,113 +26,28 @@ final class SearchViewModel {
         apply()
     }
 
-    @ObservationIgnored private var discoveryLoadedAt: Date?
-    @ObservationIgnored private var discoveryLoadedOptions: SearchOptions?
-    @ObservationIgnored private var discoveryLoadedContext = ""
-
-    func loadDiscovery(snapshot: HomeSnapshot, saved: [MediaEntry], refreshToken: Int = 0) async {
+    /// Page one of every matching source's popular list, merged; reused for five minutes unless forced.
+    func loadPopular(force: Bool = false) async {
+        let selected = options
+        if !force, let popularLoaded, popularLoaded.options == selected,
+           Date.now.timeIntervalSince(popularLoaded.at) < 300 { return }
         guard !Task.isCancelled else { return }
-        let context = "\(refreshToken)-\(snapshot.sessions.count)-\(snapshot.sessions.map(\.endedAt).max()?.timeIntervalSinceReferenceDate ?? 0)-\(saved.map(\.id))"
-        if discoveryLoadedOptions == options, discoveryLoadedContext == context,
-           let discoveryLoadedAt, Date.now.timeIntervalSince(discoveryLoadedAt) < 300 {
-            return
-        }
-        let sameMode = discoveryLoadedOptions == options
-        discoveryGeneration += 1
-        let generation = discoveryGeneration
-        let selectedOptions = options
-        // Keep usable shelves visible while refreshing the same selection.
-        if !sameMode {
-            popular = []
-            latest = []
-            recommendations = []
-        }
-        discoveryMessage = nil
-        recommendationMessage = nil
-        discoveryLoading = true
-        defer { if generation == discoveryGeneration { discoveryLoading = false } }
-        async let fresh: Void = loadLatest(options: selectedOptions, generation: generation)
-        await loadPopularDiscovery(snapshot: snapshot, saved: saved, selectedOptions: selectedOptions, generation: generation)
-        await fresh
-        guard !Task.isCancelled, generation == discoveryGeneration else { return }
-        if discoveryMessage == nil || !popular.isEmpty {
-            discoveryLoadedAt = .now
-            discoveryLoadedOptions = selectedOptions
-            discoveryLoadedContext = context
-        }
-    }
-
-    private func loadLatest(options: SearchOptions, generation: Int) async {
+        if popularLoaded?.options != selected { popular = [] }
+        popularLoading = true
+        popularMessage = nil
+        defer { if options == selected { popularLoading = false } }
         do {
-            let page = try await repository.latest(options: options)
+            let page = try await repository.popular(options: selected)
             try Task.checkCancellation()
-            guard generation == discoveryGeneration else { return }
-            latest = page.entries
-        } catch {
-            // Optional shelves must never hide the primary recommendations.
-        }
-    }
-
-    @ObservationIgnored private var shelfCache: [[DiscoveryShelf]]?
-    var discoveryPairs: [[DiscoveryShelf]] {
-        // Track shelf dependencies even when the derived presentation is cached.
-        let recommended = recommendations, popular = popular, latest = latest
-        if let shelfCache { return shelfCache }
-        let result = DiscoveryRotation.pairs(recommended: recommended, popular: popular, latest: latest)
-        shelfCache = result
-        return result
-    }
-
-    private func loadPopularDiscovery(snapshot: HomeSnapshot, saved: [MediaEntry], selectedOptions: SearchOptions, generation: Int) async {
-        do {
-            let page = try await repository.popular(options: selectedOptions)
-            try Task.checkCancellation()
-            guard generation == discoveryGeneration else { return }
+            guard options == selected else { return }
             popular = page.entries
-            discoveryMessage = page.message
-            let readIDs = Set(snapshot.sessions.map(\.entryID))
-            let seeds = Array(snapshot.entries.filter {
-                readIDs.contains($0.id)
-                    && (selectedOptions.media == .all || $0.sourceEntry?.media == selectedOptions.media
-                        || $0.media.lowercased() == selectedOptions.media.rawValue)
-            }.prefix(12))
-            let seedGenres = try await concurrentMap(seeds, limit: 3) { [repository] seed in
-                if !seed.genres.isEmpty { return seed.genres }
-                guard let entry = seed.sourceEntry else { return [] }
-                do { return try await repository.genres(for: entry) }
-                catch is CancellationError { throw CancellationError() }
-                catch { return [] }
-            }
-            let weights = DiscoveryRanking.weights(seedGenres)
-            guard !weights.isEmpty else {
-                recommendationMessage = "Read a few titles to get recommendations based on your favorite genres."
-                return
-            }
-            let excluded = saved + snapshot.entries.compactMap(\.sourceEntry)
-            let excludedIDs = Set(saved.map(\.id)).union(readIDs)
-            let excludedKeys = Set(excluded.map(DiscoveryRanking.key))
-            let candidates = page.entries.filter {
-                !excludedIDs.contains($0.id) && !excludedKeys.contains(DiscoveryRanking.key($0))
-            }
-            let scored = try await concurrentMap(candidates, limit: 3) { [repository] entry in
-                do {
-                    let genres = try await repository.genres(for: entry)
-                    return (entry, DiscoveryRanking.score(genres, weights: weights))
-                } catch is CancellationError { throw CancellationError() }
-                catch { return (entry, 0) }
-            }
-            try Task.checkCancellation()
-            guard generation == discoveryGeneration else { return }
-            recommendations = scored.enumerated().filter { $0.element.1 > 0 }
-                .sorted { a, b in a.element.1 == b.element.1 ? a.offset < b.offset : a.element.1 > b.element.1 }
-                .prefix(12).map { $0.element.0 }
-            if recommendations.isEmpty {
-                recommendationMessage = "No similar titles found yet. Explore popular titles below."
-            }
+            popularMessage = page.message
+            popularLoaded = (selected, .now)
         } catch is CancellationError {
         } catch {
-            guard generation == discoveryGeneration else { return }
-            discoveryMessage = "Couldn’t load discoveries. Check your connection and try again."
+            guard options == selected else { return }
+            popularMessage = (error as? EmbeddedSearchError)?.errorDescription
+                ?? "Couldn’t load popular titles. Check your connection and try again."
         }
     }
 
@@ -504,59 +416,5 @@ final class SearchViewModel {
             return sort == .titleAscending
                 ? order == .orderedAscending : order == .orderedDescending
         }
-    }
-}
-
-/// One vote per genre per read title; repeated sessions do not overpower other tastes.
-enum DiscoveryRanking {
-    static func normalized(_ value: String) -> String {
-        value.trimmingCharacters(in: .whitespacesAndNewlines).folding(
-            options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "en_US_POSIX"))
-    }
-    static func key(_ entry: MediaEntry) -> String { entry.media.rawValue + ":" + normalized(entry.title) }
-    static func weights(_ titles: [[String]]) -> [String: Int] {
-        var result: [String: Int] = [:]
-        for genres in titles {
-            for genre in Set(genres.map(normalized)) where !genre.isEmpty { result[genre, default: 0] += 1 }
-        }
-        return result
-    }
-    static func score(_ genres: [String], weights: [String: Int]) -> Int {
-        Set(genres.map(normalized)).reduce(0) { $0 + weights[$1, default: 0] }
-    }
-}
-
-struct DiscoveryShelf: Identifiable, Equatable {
-    let id: String
-    let title: String
-    let entries: [MediaEntry]
-}
-
-/// Each rotation shows a distinct set of titles, including across source aliases.
-enum DiscoveryRotation {
-    static func pairs(recommended: [MediaEntry], popular: [MediaEntry], latest: [MediaEntry]) -> [[DiscoveryShelf]] {
-        var seen = Set<String>()
-        func take(_ entries: [MediaEntry], limit: Int = 12) -> [MediaEntry] {
-            var result: [MediaEntry] = []
-            for entry in entries where !seen.contains(DiscoveryRanking.key(entry)) {
-                seen.insert(DiscoveryRanking.key(entry))
-                result.append(entry)
-                if result.count == limit { break }
-            }
-            return result
-        }
-        let first = [
-            DiscoveryShelf(id: "recommended", title: "Recommended for you", entries: take(recommended)),
-            DiscoveryShelf(id: "popular", title: "Popular right now", entries: take(popular)),
-        ]
-        // Reserve unseen titles for the second shelf when the latest feed is the only source of extras.
-        let unseenLatest = latest.filter { !seen.contains(DiscoveryRanking.key($0)) }
-        let fresh = take(unseenLatest, limit: min(12, max(1, unseenLatest.count / 2)))
-        let explore = take(popular + latest)
-        guard !fresh.isEmpty, !explore.isEmpty else { return [first] }
-        return [first, [
-            DiscoveryShelf(id: "latest", title: "Latest updates", entries: fresh),
-            DiscoveryShelf(id: "explore", title: "More to explore", entries: explore),
-        ]]
     }
 }

@@ -2,36 +2,17 @@ import XCTest
 
 @MainActor
 final class SearchTests: XCTestCase {
-    func testDiscoveryCarouselRotatesWithoutControls() {
+    func testPopularGridFollowsContentButtonWithoutOpeningKeyboard() {
         let app = XCUIApplication()
         app.launchArguments = ["--ui-testing-search", "--ui-testing-storage", "-mokuStorageTestID", UUID().uuidString]
         app.launch()
         app.buttons["tab.browse"].tap()
-        XCTAssertTrue(app.staticTexts["Popular right now"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.buttons["search.discovery.page.1"].exists)
-        XCTAssertFalse(app.buttons["search.discovery.pause"].exists)
-        XCTAssertFalse(app.staticTexts["Inspired by the genres you’ve been reading."].exists)
-        XCTAssertTrue(app.staticTexts["Popular right now"].exists)
-        XCTAssertTrue(app.buttons["search.latest.fresh-1"].waitForExistence(timeout: 15))
-        XCTAssertTrue(app.staticTexts["Latest updates"].exists)
-        XCTAssertTrue(app.staticTexts["More to explore"].exists)
-        XCTAssertFalse(app.staticTexts["Popular right now"].exists)
-        XCTAssertFalse(app.buttons["search.popular.moon"].exists)
-        screenshot("Search discovery — alternate sections")
-        XCTAssertTrue(app.buttons["search.popular.moon"].waitForExistence(timeout: 15))
-    }
-
-    func testDiscoveryPageHasPopularAndFollowsContentButtonWithoutOpeningKeyboard() {
-        let app = XCUIApplication()
-        app.launchArguments = ["--ui-testing-search", "--ui-testing-storage", "-mokuStorageTestID", UUID().uuidString]
-        app.launch()
-        app.buttons["tab.browse"].tap()
-        XCTAssertTrue(app.staticTexts["Popular right now"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["search.popular.moon"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["Popular right now"].exists)
+        XCTAssertFalse(app.staticTexts["Recommended for you"].exists)
         XCTAssertFalse(app.keyboards.firstMatch.exists)
         XCTAssertTrue(app.searchFields.firstMatch.exists)
-        // The per-page mode tabs are gone; the tab bar's content button picks the type.
-        XCTAssertFalse(app.buttons["search.mode.all"].exists)
+        XCTAssertTrue(app.buttons["search.sources"].exists)
         NavigationTests.chooseMode("Novels", in: app)
         XCTAssertTrue(app.buttons["search.popular.garden"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["search.popular.moon"].exists)
@@ -40,7 +21,7 @@ final class SearchTests: XCTestCase {
         XCTAssertEqual(app.buttons["mode.button"].value as? String, "Novels")
         XCTAssertTrue(app.buttons["search.popular.garden"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["search.popular.moon"].exists)
-        screenshot("Search discovery")
+        screenshot("Search popular")
     }
 
     func testNavigationWithEmbeddedRuntimeStartup() {
@@ -75,10 +56,9 @@ final class SearchTests: XCTestCase {
         app.openSettingsRow("more.category.Extensions")
         let section = app.segmentedControls["extensions.section"]
         XCTAssertTrue(section.waitForExistence(timeout: 3))
-        XCTAssertTrue(app.buttons["extensions.browse"].waitForExistence(timeout: 10))
-        app.buttons["extensions.browse"].tap()
+        section.buttons["Browse"].tap()
         XCTAssertTrue(section.buttons["Browse"].isSelected)
-        XCTAssertTrue(app.staticTexts["Add Your First Repository"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Add a repository to find extensions"].waitForExistence(timeout: 10))
     }
 
     func testSearchReadsInstalledSourcesWithoutStartingJava() {
@@ -292,7 +272,7 @@ final class LiveSearchTests: XCTestCase {
         app.buttons["Uninstall"].firstMatch.tap()
         app.buttons["Uninstall"].firstMatch.tap()
         // Uninstalled: the Installed list is empty again.
-        XCTAssertTrue(app.buttons["extensions.browse"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.descendants(matching: .any)["extensions.empty"].waitForExistence(timeout: 10))
 
     }
 

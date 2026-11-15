@@ -5,7 +5,6 @@ struct SourceBrowseView: View {
     let source: SourceExtension
     let openEntry: (MediaEntry) -> Void
     let close: () -> Void
-    @Environment(LibraryStore.self) private var library
     @Environment(\.presentSourceVerification) private var verify
     @State private var query = ""
     @State private var submitted = ""
@@ -23,8 +22,6 @@ struct SourceBrowseView: View {
         case popular = "Popular", latest = "Latest"
         var id: Self { self }
     }
-
-    private let columns = [GridItem(.adaptive(minimum: 104), spacing: 12)]
 
     var body: some View {
         ScrollView {
@@ -70,19 +67,7 @@ struct SourceBrowseView: View {
                         systemImage: "magnifyingglass",
                         description: Text("Nothing found."))
                 } else {
-                    LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
-                        ForEach(items) { item in
-                            Button { openEntry(item) } label: { card(item) }
-                                .buttonStyle(.plain)
-                                .accessibilityIdentifier("source.item.\(item.id)")
-                                .contextMenu {
-                                    Button("Open", systemImage: "book") { openEntry(item) }
-                                    Button("Copy Title", systemImage: "doc.on.doc") {
-                                        UIPasteboard.general.string = item.title
-                                    }
-                                }
-                        }
-                    }
+                    PosterGrid(entries: items, identifier: "source.item", open: openEntry)
                     if hasNext {
                         Button { Task { await load(reset: false) } } label: {
                             Group {
@@ -129,25 +114,6 @@ struct SourceBrowseView: View {
                 hiddenEmpty += 1
             }
         }
-    }
-
-    private func card(_ item: MediaEntry) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            CoverImage(url: item.coverURL, symbol: item.media.symbol)
-                .aspectRatio(2 / 3, contentMode: .fill)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .overlay(alignment: .topLeading) {
-                    if library.contains(item) {
-                        Text("Saved").font(.caption2.weight(.semibold))
-                            .padding(.horizontal, 6).padding(.vertical, 3)
-                            .background(NavigationStyle.accent, in: Capsule())
-                            .foregroundStyle(NavigationStyle.background)
-                            .padding(6)
-                    }
-                }
-            Text(item.title).font(.caption).lineLimit(2).foregroundStyle(.primary)
-        }
-        .accessibilityElement(children: .combine)
     }
 
     private func load(reset: Bool) async {

@@ -103,19 +103,8 @@ actor LiveMediaRepository: SearchRepository {
         return response.filterOptions
     }
 
-    func genres(for entry: MediaEntry) async throws -> [String] {
-        try await metadata(for: entry, refresh: false).genres
-    }
-
+    /// Page one of each matching source's popular list, interleaved and deduplicated like Android.
     func popular(options: SearchOptions) async throws -> DiscoveryPage {
-        try await discoveryListing(options: options, field: "popularManga")
-    }
-
-    func latest(options: SearchOptions) async throws -> DiscoveryPage {
-        try await discoveryListing(options: options, field: "latestUpdates")
-    }
-
-    private func discoveryListing(options: SearchOptions, field: String) async throws -> DiscoveryPage {
         let available = try await sources()
         let selected = available.filter {
             (options.media == .all || $0.media == options.media)
@@ -131,9 +120,9 @@ actor LiveMediaRepository: SearchRepository {
             do {
                 struct Response: Decodable, Sendable { let listing: SearchResponse.Page }
                 let response: Response = try await BackendAPI.shared.graphql(
-                    "{ listing: \(field)(extensionId: \(BackendAPI.literal(source.id)), page: 1) { results { id externalId title contentType thumbnailUrl } hasNextPage } }",
+                    "{ listing: popularManga(extensionId: \(BackendAPI.literal(source.id)), page: 1) { results { id externalId title contentType thumbnailUrl } hasNextPage } }",
                     cacheFor: 300)
-                return .success(response.listing.results.prefix(12).map {
+                return .success(response.listing.results.map {
                     MediaEntry(id: $0.id, title: $0.title, media: Self.media($0.contentType),
                         sourceName: source.name, coverURL: BackendAPI.coverURL($0.thumbnailUrl),
                         extensionID: source.id, externalID: $0.externalId)
@@ -142,17 +131,24 @@ actor LiveMediaRepository: SearchRepository {
             catch { return .failure(error) }
         }
         let pages = batches.compactMap { try? $0.get() }
+        if pages.isEmpty, case .failure(let error)? = batches.first { throw error }
         var entries: [MediaEntry] = []
         var seen = Set<String>()
-        // Interleave sources so a single catalog cannot fill the whole shelf.
-        for index in 0..<12 {
+        // Interleave sources so one catalog can't fill the top of the grid.
+        for index in 0..<(pages.map(\.count).max() ?? 0) {
             for page in pages where index < page.count {
                 let entry = page[index]
-                if seen.insert(DiscoveryRanking.key(entry)).inserted { entries.append(entry) }
+                if seen.insert(Self.dedupeKey(entry)).inserted { entries.append(entry) }
             }
         }
-        return DiscoveryPage(entries: Array(entries.prefix(36)), message: pages.count < batches.count
-            ? "Some sources couldn’t load. Try again to refresh discovery titles." : nil)
+        return DiscoveryPage(entries: entries, message: pages.count < batches.count
+            ? "Some sources couldn’t load. Pull to refresh." : nil)
+    }
+
+    /// Same type and title, ignoring case, accents and spacing, counts as one title.
+    static func dedupeKey(_ entry: MediaEntry) -> String {
+        entry.media.rawValue + ":" + entry.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "en_US_POSIX"))
     }
 
     private static func media(_ value: String) -> ContentMode {

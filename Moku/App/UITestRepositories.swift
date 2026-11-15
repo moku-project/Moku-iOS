@@ -9,16 +9,6 @@ import Foundation
             }
             return DiscoveryPage(entries: try await search(SearchRequest(query: "", options: options)))
         }
-        func latest(options: SearchOptions) async throws -> DiscoveryPage {
-            let entries = (1...8).map { index in
-                MediaEntry(id: "fresh-\(index)", title: "New adventure \(index)",
-                    media: index.isMultiple(of: 2) ? .novels : .manga,
-                    sourceName: "Test source", coverURL: nil)
-            }
-            return DiscoveryPage(entries: entries.filter { options.media == .all || options.media == $0.media })
-        }
-        func genres(for entry: MediaEntry) async throws -> [String] { ["Fantasy"] }
-
         func sources() async throws -> [SearchSource] {
             [
                 SearchSource(

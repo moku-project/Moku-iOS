@@ -248,10 +248,8 @@ private struct RootTabPage: View, Equatable {
         case .browse:
             if let model = navigation.globalSearchModel {
                 SearchView(
-                    model: model, openEntry: { openDetails($0) }, close: {},
-                    isPage: true, isActive: activity.isActive,
-                    readingSnapshot: homeStore.snapshot, savedEntries: library.entries
-                )
+                    model: model, openEntry: { openDetails($0) }, isActive: activity.isActive,
+                    openSources: { navigation.open(.more(.extensions), in: .browse) })
                 .id(ObjectIdentifier(model))
             }
         case .settings:
