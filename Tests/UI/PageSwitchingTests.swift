@@ -21,7 +21,9 @@ import XCTest
         XCTAssertTrue(app.buttons["tab.home"].waitForExistence(timeout: 10))
         if largeChapterList {
             app.buttons["tab.home"].tap()
-            XCTAssertTrue(app.staticTexts["Ch.1"].firstMatch.waitForExistence(timeout: 10))
+            // Home has loaded the long chapter list once the Continue card counts it.
+            let loaded = app.staticTexts.matching(NSPredicate(format: "label == %@", "2000 unread")).firstMatch
+            XCTAssertTrue(loaded.waitForExistence(timeout: 10))
         }
         let probe = app.otherElements["navigation.frameLatency"]
         for tab in ["home", "browse", "downloads", "settings", "library", "home", "browse", "settings", "library"] {
@@ -50,7 +52,7 @@ import XCTest
         XCTAssertTrue(app.buttons["tab.home"].waitForExistence(timeout: 10))
         for _ in 0..<3 {
             app.buttons["tab.home"].tap()
-            XCTAssertTrue(app.staticTexts["Nothing here yet"].exists || app.staticTexts["Nothing here yet"].waitForExistence(timeout: 1))
+            XCTAssertTrue(app.staticTexts["Start Your Library"].exists || app.staticTexts["Start Your Library"].waitForExistence(timeout: 1))
             app.buttons["tab.library"].tap()
             XCTAssertTrue(app.buttons["tab.library"].isSelected)
         }

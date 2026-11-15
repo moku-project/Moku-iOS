@@ -21,32 +21,22 @@ struct HomeStoreTests {
             completedUnits: units)
     }
 
-    @Test func emptyHomeHasFourSlotsAndNoInventedActivity() {
+    @Test func emptyHomeHasNoInventedActivity() {
         let store = HomeStore(fileURL: nil)
-        #expect(store.slots.count == 4)
-        #expect(store.slots.allSatisfy { $0.entry == nil })
         #expect(store.recentSessions.isEmpty)
         let stats = store.statistics(now: date(19), calendar: calendar)
         #expect(stats.units == 0 && stats.currentStreak == 0 && stats.bestStreak == 0)
         #expect(stats.firstRead == nil && stats.daily.isEmpty)
     }
 
-    @Test func resumeDeduplicatesRecentTitlesAndKeepsPinsInTheirSlots() {
+    @Test func recentTitlesAreDeduplicatedNewestFirst() {
         let store = HomeStore(fileURL: nil)
         let a = HomeEntry(id: "a", title: "A")
         let b = HomeEntry(id: "b", title: "B")
         store.record(session("a", day: 17), entry: a)
         store.record(session("b", day: 18), entry: b)
         store.record(session("a", day: 19), entry: a)
-        store.pin(b, slot: 2)
-        store.pin(b, slot: 0)
-        #expect(store.slots[0].entry?.id == "a")
-        #expect(store.slots[1].entry?.id == "b")
-        #expect(store.slots[2].entry?.id == "b")
-        #expect(store.slots[2].isPinned)
-        #expect(store.recentSessions.count == 2)
-        store.pin(nil, slot: 2)
-        #expect(!store.slots[2].isPinned)
+        #expect(store.recentSessions.map(\.entryID) == ["a", "b"])
     }
 
     @Test func statsUseCalendarDaysAndDoNotCountRepeatedSessionUpdates() {
@@ -67,23 +57,21 @@ struct HomeStoreTests {
         #expect(store.statistics(now: date(20), calendar: calendar).bestStreak == 2)
     }
 
-    @Test func historyAndPinsSurviveReload() async throws {
+    @Test func historySurvivesReload() async throws {
         let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let url = directory.appending(path: "home.json")
         let store = HomeStore(fileURL: url)
         let entry = HomeEntry(id: "a", title: "A")
         store.record(session("a", day: 19), entry: entry)
-        store.pin(entry, slot: 3)
         await store.flush()
         let restored = HomeStore(fileURL: url)
         await restored.load()
-        #expect(restored.slots[3].isPinned)
-        #expect(restored.slots[0].entry?.title == "A")
+        #expect(restored.recentSessions.first.flatMap { restored.entry($0.entryID) }?.title == "A")
         #expect(restored.snapshot.sessions.count == 1)
     }
 
-    @Test func editsDuringLoadingPreserveExistingHistoryAndLatestPin() async throws {
+    @Test func editsDuringLoadingPreserveExistingHistory() async throws {
         let url = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: url) }
         let first = HomeEntry(id: "a", title: "A")
@@ -92,28 +80,22 @@ struct HomeStoreTests {
         try JSONEncoder().encode(saved).write(to: url)
         let store = HomeStore(fileURL: url)
         store.record(session("b", day: 19), entry: second)
-        store.pin(first, slot: 1)
-        store.pin(second, slot: 1)
         await store.flush()
         let restored = HomeStore(fileURL: url)
         await restored.load()
         #expect(restored.snapshot.sessions.count == 2)
-        #expect(restored.slots[1].entry?.id == "b")
+        #expect(restored.recentSessions.first?.entryID == "b")
     }
 
-    @Test func pinningUnreadLibraryTitlePersistsWithoutInventingHistory() async throws {
+    @Test func savedSnapshotsWithPinsStillLoad() async throws {
         let url = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: url) }
-        let store = HomeStore(fileURL: url)
-        let media = MediaEntry(id: "saved", title: "Saved title", media: .manga,
-                               sourceName: "Source", coverURL: nil, extensionID: "ext", externalID: "book")
-        store.pin(HomeEntry(media), slot: 1)
-        await store.flush()
+        let legacy = #"{"entries":[{"id":"a","title":"A","media":"Manga","genres":[],"unreadCount":0,"chapters":[]}],"sessions":[],"pins":{"1":"a"}}"#
+        try Data(legacy.utf8).write(to: url)
         let restored = HomeStore(fileURL: url)
         await restored.load()
-        #expect(restored.slots[1].entry?.sourceEntry == media)
-        #expect(restored.snapshot.sessions.isEmpty)
-        #expect(restored.statistics().units == 0)
+        #expect(restored.storageError == nil)
+        #expect(restored.entry("a")?.title == "A")
     }
 
     @Test func recordingKeepsResolvedSourceAndMetadata() {

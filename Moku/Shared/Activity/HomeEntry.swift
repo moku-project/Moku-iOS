@@ -41,7 +41,6 @@ struct HomeSession: Codable, Identifiable, Sendable {
 struct HomeSnapshot: Codable, Sendable {
     var entries: [HomeEntry] = []
     var sessions: [HomeSession] = []
-    var pins: [Int: String] = [:]
 }
 
 extension HomeEntry {

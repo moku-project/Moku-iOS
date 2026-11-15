@@ -41,7 +41,7 @@ import Testing
         #expect(RecentViewModel.history(snapshot, query: "", mode: .anime).isEmpty)
     }
 
-    @Test func titleClearPersistsWithoutRemovingOtherActivityOrPins() async throws {
+    @Test func titleClearPersistsWithoutRemovingOtherActivity() async throws {
         let folder = URL.temporaryDirectory.appending(path: UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: folder) }
         let url = folder.appending(path: "home.json")
@@ -52,14 +52,12 @@ import Testing
                 HomeSession(
                     entryID: id, chapterID: "1", page: 4, endedAt: .now,
                     minutes: 5, completedUnits: 1), entry: entry)
-            store.pin(entry, slot: id == "a" ? 1 : 2)
         }
         await store.clearHistory(entryID: "a")
         let reloaded = HomeStore(fileURL: url)
         await reloaded.load()
         #expect(reloaded.snapshot.sessions.map(\.entryID) == ["b"])
         #expect(reloaded.snapshot.entries.count == 2)
-        #expect(reloaded.snapshot.pins[1] == "a")
         await reloaded.clearHistory()
         #expect(reloaded.snapshot.sessions.isEmpty)
     }

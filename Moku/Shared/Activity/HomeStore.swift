@@ -71,23 +71,6 @@ final class HomeStore {
         return ordered
     }
 
-    var slots: [HomeSlot] {
-        let recent = recentSessions
-        var next = 1
-        return (0..<4).map { index in
-            if index > 0, let id = snapshot.pins[index], let entry = entry(id) {
-                return HomeSlot(
-                    id: index, entry: entry, session: recent.first { $0.entryID == id },
-                    isPinned: true)
-            }
-            let position = index == 0 ? 0 : next
-            if index > 0 { next += 1 }
-            guard recent.indices.contains(position) else { return HomeSlot(id: index) }
-            let session = recent[position]
-            return HomeSlot(id: index, entry: entry(session.entryID), session: session)
-        }
-    }
-
     func entry(_ id: String) -> HomeEntry? { snapshot.entries.first { $0.id == id } }
 
     func record(_ session: HomeSession, entry: HomeEntry) {
@@ -102,21 +85,6 @@ final class HomeStore {
         } else {
             snapshot.sessions.append(session)
         }
-        persist()
-    }
-
-    func pin(_ entry: HomeEntry?, slot: Int) {
-        guard (1...3).contains(slot) else { return }
-        guard isLoaded else {
-            pending.append { $0.pin(entry, slot: slot) }
-            return
-        }
-        if let entry {
-            var saved = self.entry(entry.id) ?? entry
-            saved.sourceEntry = entry.sourceEntry ?? saved.sourceEntry
-            updateEntry(saved, shouldPersist: false)
-        }
-        snapshot.pins[slot] = entry?.id
         persist()
     }
 

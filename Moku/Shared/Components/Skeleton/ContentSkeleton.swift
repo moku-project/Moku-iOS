@@ -79,10 +79,11 @@ struct ContentSkeleton: View {
                     }
                 }
             case .home:
-                VStack(alignment: .leading, spacing: 24) {
-                    SkeletonBlock(height: 230, radius: 16)
-                    SkeletonBlock(width: 120, height: 20)
-                    rows(imageWidth: 42, imageHeight: 60)
+                VStack(alignment: .leading, spacing: 28) {
+                    SkeletonBlock(height: 175, radius: 18)
+                    SkeletonBlock(height: 76, radius: 18)
+                    SkeletonBlock(height: 130, radius: 18)
+                    rows(imageWidth: 36, imageHeight: 52)
                 }
             case .startup:
                 VStack(spacing: 24) {

@@ -12,7 +12,7 @@
                     chapters: (11...15).map { HomeChapter(id: "\($0)", title: "Chapter \($0)") },
                     summary: "A reluctant hero is mistaken for a formidable warrior. As rumors of his talent spread, he must navigate a world of rival factions, unexpected allies, and increasingly dangerous adventures."),
                 HomeEntry(
-                    id: "wild", title: "Monster But Wild", media: "Anime",
+                    id: "wild", title: "Monster But Wild", media: "Anime", unreadCount: 4,
                     chapters: [HomeChapter(id: "8", title: "Episode 8")]),
                 HomeEntry(
                     id: "overgeared", title: "Overgeared", media: "Novels",
@@ -44,7 +44,7 @@
         }
         func chapters(mediaID: String) async throws -> [Chapter] {
             if ProcessInfo.processInfo.arguments.contains("--ui-testing-home-large-chapters") {
-                // A missing resume ID forces Up next to scan the entire loaded list.
+                // A long list checks Home stays responsive when a title has thousands of chapters.
                 return (1...2_000).map { index in
                     Chapter(id: "large-\(index)", title: "Chapter \(index)", number: Double(index),
                             scanlator: "Preview group", completed: false, downloaded: false,

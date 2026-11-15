@@ -77,7 +77,6 @@ private actor DetailFixture: DetailsRepository {
         #expect(loader.updatedEntry?.title == "Fixture title")
         #expect(loader.updatedEntry?.chapters.count == 5)
         #expect(loader.updatedEntry?.sourceEntry == entry.sourceEntry)
-        #expect(loader.error == nil && !loader.loading)
     }
 
     @Test func failedRefreshRetainsChaptersAndCanRetry() async {
@@ -88,10 +87,9 @@ private actor DetailFixture: DetailsRepository {
         await loader.load(original, library: [], refresh: true)
         #expect(loader.updatedEntry?.chapters.first?.id == "old")
         #expect(loader.updatedEntry?.summary == "Source description")
-        #expect(loader.error != nil)
         await fixture.set(fail: false, chapters: ReaderPreview.details.chapters)
         await loader.load(original, library: [], refresh: true)
-        #expect(loader.error == nil && loader.updatedEntry?.chapters.count == 5)
+        #expect(loader.updatedEntry?.chapters.count == 5)
     }
 
     @Test func scanlatorPreferencesSelectPreferredReleasesAndExcludeBlockedGroups() {

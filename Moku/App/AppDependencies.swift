@@ -9,9 +9,6 @@ enum AppDependencies {
             if ProcessInfo.processInfo.arguments.contains("--ui-testing-home-one") {
                 return HomePreviewData.makeStore(titleCount: 1)
             }
-            if ProcessInfo.processInfo.arguments.contains("--ui-testing-home-two") {
-                return HomePreviewData.makeStore(titleCount: 2)
-            }
             if PreviewMode.isEnabled
                 || ProcessInfo.processInfo.arguments.contains("--ui-testing-home-populated")
             {

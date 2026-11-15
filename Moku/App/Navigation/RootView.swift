@@ -231,12 +231,7 @@ private struct RootTabPage: View, Equatable {
         case .home:
             HomeView(
                 store: homeStore, isActive: activity.isActive,
-                onOpenLibrary: { navigation.select(.library) },
-                onGenre: searchGenre,
-                onOpenLibraryTitle: { entry in
-                    mode = entry.media
-                    openDetails(entry)
-                },
+                onBrowse: { navigation.select(.browse, language: sourceLanguage) },
                 onOpenTitle: { entry, chapterID in openDetails(entry, chapterID: chapterID) })
         case .downloads:
             DownloadsView(model: downloadsModel, isActive: activity.isActive)
