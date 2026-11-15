@@ -64,7 +64,6 @@ import Observation
             resumeAt = pendingResume ?? resume.map { $0 >= 0.97 ? 0 : $0 }
             pendingResume = nil
             loading = false
-            Task { try? await BackendAPI.shared.chapterOpened(mediaID: details.id, chapterID: id) }
         } catch {
             guard !Task.isCancelled, generation == current else { return }
             loading = false

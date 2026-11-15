@@ -57,19 +57,6 @@ extension BackendController {
             return request
         }
 
-        public func chapterOpenRequest(mediaID: String, chapterID: String) throws -> URLRequest {
-            guard let media = Int64(mediaID), let chapter = Int64(chapterID), media > 0, chapter > 0
-            else {
-                throw BackendError.invalidEndpoint
-            }
-            var request = URLRequest(url: baseURL.appendingPathComponent("api/mobile/chapter-open"))
-            request.httpMethod = "POST"
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.httpBody = try JSONEncoder().encode(["mediaId": media, "chapterId": chapter])
-            return request
-        }
-
         func apiRequest(path: String, method: String = "GET", body: Data? = nil) throws -> URLRequest {
             guard let parts = URLComponents(string: path), parts.scheme == nil, parts.host == nil,
                 parts.fragment == nil, parts.path.hasPrefix("/api/"),

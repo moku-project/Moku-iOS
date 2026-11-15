@@ -32,6 +32,9 @@ actor Backend {
         guard !PreviewMode.isEnabled else {
             throw EmbeddedSearchError.message("Backend access is disabled in UI previews.")
         }
+        guard !PreviewMode.isUnitTestHost else {
+            throw EmbeddedSearchError.message("Backend access is disabled while hosting unit tests.")
+        }
         if startup == nil {
             guard
                 manualStart
@@ -62,6 +65,9 @@ actor Backend {
     func importLocalFile(_ url: URL, kind: String, series: String, chapter: String) async throws {
         _ = try await connection(requiresSourceRuntime: false)
         try await controller.importLocalFile(url, kind: kind, series: series, chapter: chapter, name: url.lastPathComponent)
+        // Tsunagu picks up local files on a scan, as with desktop Moku's imports.
+        let _: IgnoredGraphQLResult = try await BackendAPI.shared.graphql(
+            "mutation { rescanLocalMedia { id } }", requiresSourceRuntime: false)
     }
 
     func currentServerURL() async -> URL? {

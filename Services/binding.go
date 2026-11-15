@@ -4,15 +4,14 @@ package backend
 
 import (
 	"errors"
+	"io"
 	"net"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"tsunagu/backend/embedded"
 )
-
-// errNotPorted marks iOS features that ran on the old Tsunagu fork and have
-// not been rebuilt on upstream Tsunagu yet. They fail loudly instead of
-// pretending to work.
-var errNotPorted = errors.New("not available yet on upstream Tsunagu")
 
 // Service keeps the Swift API stable while the core underneath changes.
 // Tsunagu's embedded core is one per process, so every Service shares it.
@@ -88,15 +87,85 @@ func (a engineAdapter) Process(url, headersJSON, outputPath string, observer emb
 	return a.engine.Process(url, headersJSON, outputPath, observer)
 }
 
+// Browser verification: see SourceVerificationBrowser.swift.
 func (s *Service) BeginBrowserVerification(extensionID, url string) (string, error) {
-	return "", errNotPorted
+	return embedded.BeginBrowserVerification(extensionID, url)
 }
-func (s *Service) BrowserCookies(sessionID string) (string, error) { return "", errNotPorted }
+func (s *Service) BrowserCookies(sessionID string) (string, error) {
+	return embedded.BrowserCookies(sessionID)
+}
 func (s *Service) CompleteBrowserVerification(sessionID, stateJSON string) error {
-	return errNotPorted
+	return embedded.CompleteBrowserVerification(sessionID, stateJSON)
 }
-func (s *Service) CancelBrowserVerification(sessionID string) {}
+func (s *Service) CancelBrowserVerification(sessionID string) {
+	embedded.CancelBrowserVerification(sessionID)
+}
 
+// ImportLocalFile copies a file the user picked (still open under its
+// security scope) into Tsunagu's local-source folder:
+// <dir>/<kind>/<series>/<chapter>/<name>, or <dir>/manga/<series>/<name> for
+// a CBZ/ZIP that holds a whole chapter. The app then runs rescanLocalMedia.
+// Names must be plain names; nothing is overwritten.
 func (s *Service) ImportLocalFile(source, kind, series, chapter, name string) error {
-	return errNotPorted
+	if kind != "manga" && kind != "anime" && kind != "novels" {
+		return errors.New("invalid local content type")
+	}
+	for _, part := range []string{series, chapter, name} {
+		if part == "" || part == "." || part == ".." || filepath.Base(part) != part || strings.ContainsAny(part, `\/`) {
+			return errors.New("invalid import name")
+		}
+	}
+	root := embedded.LocalSourceDir()
+	if root == "" {
+		return errors.New("tsunagu is not running")
+	}
+	info, err := os.Lstat(source)
+	if err != nil {
+		return err
+	}
+	if !info.Mode().IsRegular() {
+		return errors.New("only regular files can be imported")
+	}
+	directory := filepath.Join(root, kind, series)
+	ext := strings.ToLower(filepath.Ext(name))
+	if kind != "manga" || (ext != ".cbz" && ext != ".zip") {
+		directory = filepath.Join(directory, chapter)
+	}
+	if err := os.MkdirAll(directory, 0o700); err != nil {
+		return err
+	}
+	canonical, err := filepath.EvalSymlinks(directory)
+	if err != nil {
+		return err
+	}
+	base, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return err
+	}
+	if rel, err := filepath.Rel(base, canonical); err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return errors.New("import destination escapes the local folder")
+	}
+	destination := filepath.Join(canonical, name)
+	in, err := os.Open(source)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.OpenFile(destination, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		if os.IsExist(err) {
+			return errors.New("a file with this name already exists")
+		}
+		return err
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		out.Close()
+		os.Remove(destination)
+		return err
+	}
+	if err := out.Close(); err != nil {
+		os.Remove(destination)
+		return err
+	}
+	return nil
 }

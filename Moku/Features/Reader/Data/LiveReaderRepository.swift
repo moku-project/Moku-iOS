@@ -1,9 +1,10 @@
 import Foundation
 
 struct LiveReaderRepository: ReaderRepository {
-    func opened(mediaID: String, chapterID: String) async throws {
-        try await BackendAPI.shared.chapterOpened(mediaID: mediaID, chapterID: chapterID)
-    }
+    /// Tsunagu runs download-ahead and delete-on-read when progress marks a
+    /// chapter read (updateReadingProgress), as on desktop and Android, so
+    /// opening a chapter needs no call.
+    func opened(mediaID: String, chapterID: String) async throws {}
     func pages(chapterID: String) async throws -> [String] {
         struct Response: Decodable, Sendable {
             struct Chapter: Decodable, Sendable { let pages: [String] }

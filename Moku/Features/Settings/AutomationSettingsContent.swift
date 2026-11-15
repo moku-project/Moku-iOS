@@ -12,6 +12,7 @@ struct DownloadPolicy: Codable, Equatable, Sendable {
 struct AutomationControls: Codable, Sendable {
     var enabled = true
     var enforceGlobal = false
+    var updateOnOpen = true
 }
 
 /// Automation rules live in Tsunagu (GraphQL `automationSettings` /
@@ -25,7 +26,7 @@ struct AutomationControls: Codable, Sendable {
     var notice: String?
 
     private struct Global: Decodable, Sendable {
-        let enabled, enforceGlobal, autoDownload, deleteOnRead: Bool
+        let enabled, enforceGlobal, updateOnOpen, autoDownload, deleteOnRead: Bool
         let downloadAhead, deleteDelayHours, maxKeepChapters: Int
         let refreshInterval: String
     }
@@ -39,7 +40,7 @@ struct AutomationControls: Codable, Sendable {
     private struct SeriesResult: Decodable, Sendable { let mediaAutomation: Series }
 
     private static let globalFields =
-        "enabled enforceGlobal autoDownload downloadAhead deleteOnRead deleteDelayHours maxKeepChapters refreshInterval"
+        "enabled enforceGlobal updateOnOpen autoDownload downloadAhead deleteOnRead deleteDelayHours maxKeepChapters refreshInterval"
 
     /// Series IDs are numeric; anything else is treated as the global defaults.
     private static func series(_ mediaID: String) -> Int64? {
@@ -54,7 +55,7 @@ struct AutomationControls: Codable, Sendable {
             let global: GlobalResult = try await BackendAPI.shared.graphql(
                 "{ automationSettings { \(Self.globalFields) } }", requiresSourceRuntime: false)
             let g = global.automationSettings
-            controls = AutomationControls(enabled: g.enabled, enforceGlobal: g.enforceGlobal)
+            controls = AutomationControls(enabled: g.enabled, enforceGlobal: g.enforceGlobal, updateOnOpen: g.updateOnOpen)
             if let id = Self.series(mediaID) {
                 let result: SeriesResult = try await BackendAPI.shared.graphql(
                     "{ mediaAutomation(mediaId: \"\(id)\") { effective { autoDownload downloadAhead deleteOnRead deleteDelayHours maxKeepChapters pauseUpdates refreshInterval } } }",
@@ -102,7 +103,7 @@ struct AutomationControls: Codable, Sendable {
         defer { busy = false }
         do {
             let _: IgnoredGraphQLResult = try await BackendAPI.shared.graphql(
-                "mutation { updateAutomationSettings(input: { enabled: \(value.enabled), enforceGlobal: \(value.enforceGlobal) }) { configured } }",
+                "mutation { updateAutomationSettings(input: { enabled: \(value.enabled), enforceGlobal: \(value.enforceGlobal), updateOnOpen: \(value.updateOnOpen) }) { configured } }",
                 requiresSourceRuntime: false)
             controls = value
             notice = nil
@@ -148,13 +149,12 @@ struct AutomationSettingsContent: View {
             Task { await model.saveControls(next) }
         })
     }
-    @AppStorage("automation.updateOnOpen") private var updateOnOpen = false
     @AppStorage("automation.backgroundUpdates") private var backgroundUpdates = false
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             GeneralSection("Library updates") {
                 GeneralRow("Update library on app open", detail: "Check every saved series for new chapters when Moku starts. Results appear in Recent → Updates.") {
-                    Toggle("Update library on app open", isOn: $updateOnOpen).toggleStyle(GeneralToggleStyle())
+                    Toggle("Update library on app open", isOn: controls(\.updateOnOpen)).toggleStyle(GeneralToggleStyle())
                 }
                 GeneralStyle.divider
                 GeneralRow("Update in the background", detail: "iOS runs this while your iPhone is idle on a network, and Moku notifies you about new chapters.") {

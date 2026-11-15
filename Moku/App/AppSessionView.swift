@@ -40,12 +40,14 @@ struct AppSessionView: View {
         }
     }
 
-    /// Desktop "Update library on app open": the server checks every saved series.
+    /// "Update library on app open" is a Tsunagu setting shared with desktop and
+    /// Android; APP_OPEN makes the core honour it, its cooldown and paused series.
     private func updateLibraryOnOpen() {
-        guard preferences.bool(forKey: "automation.updateOnOpen"), !PreviewMode.isEnabled else { return }
+        guard !PreviewMode.isEnabled else { return }
         Task {
             try? await Task.sleep(for: .seconds(5))
-            let _: IgnoredGraphQLResult? = try? await BackendAPI.shared.graphql("mutation { startLibraryUpdate }")
+            let _: IgnoredGraphQLResult? = try? await BackendAPI.shared.graphql(
+                "mutation { startLibraryUpdate(trigger: APP_OPEN) }")
         }
     }
 

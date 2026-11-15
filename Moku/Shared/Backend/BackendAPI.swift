@@ -150,15 +150,6 @@ actor BackendAPI {
         return data
     }
 
-    func chapterOpened(mediaID: String, chapterID: String) async throws {
-        let connection = try await backend.connection()
-        let request = try connection.chapterOpenRequest(mediaID: mediaID, chapterID: chapterID)
-        let (_, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw EmbeddedSearchError.message("Couldn’t apply chapter download policies.")
-        }
-    }
-
     /// Novel chapter text from `/content/{media}/{chapter}/text`. The server sanitizes HTML.
     func chapterText(mediaID: String, chapterID: String) async throws -> (text: String, isHTML: Bool) {
         let connection = try await backend.connection()

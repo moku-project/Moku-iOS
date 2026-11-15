@@ -110,7 +110,6 @@ struct ContentSettingsContent: View {
     @State private var confirmingReset = false
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            SourceOverridesContent()
             GeneralSection("Content level") {
                 if let value = server.values.first(where: { $0.key == "content_filter_level" }) {
                     ServerPreferenceRow(setting: value, model: server)
