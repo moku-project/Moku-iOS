@@ -12,7 +12,7 @@ struct SettingsSectionView: View {
     @AppStorage("preferences.interfaceScale") private var interfaceScale = 100.0
     @AppStorage("preferences.idleTimeout") private var idleTimeout = 5
     @AppStorage("preferences.animations") private var animations = true
-    @AppStorage("preferences.theme") private var theme = "midnight"
+    @AppStorage("preferences.theme") private var theme = "dark"
     @AppStorage("preferences.solidSurfaces") private var solidSurfaces = false
     @AppStorage("preferences.cropCovers") private var cropCovers = true
     @AppStorage("library.listLayout") private var listLayout = false
@@ -334,7 +334,7 @@ struct SettingsSectionView: View {
             idleTimeout = 5
             language = "all"
             animations = true
-            theme = "midnight"
+            theme = "dark"
             solidSurfaces = false
             cropCovers = true
             listLayout = false

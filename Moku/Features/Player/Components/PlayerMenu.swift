@@ -7,7 +7,7 @@ struct PlayerMenu: View {
     let close: () -> Void
     let reveal: () -> Void
     let changeEpisode: (Int) -> Void
-    private let accent = Color(red: 122 / 255, green: 170 / 255, blue: 122 / 255)
+    private var accent: Color { NavigationStyle.accent }
     var body: some View { panelContent(panel) }
     @ViewBuilder private func panelContent(_ panel: Kind) -> some View {
         ScrollView {

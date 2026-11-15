@@ -12,14 +12,13 @@ struct NativeTheme: Codable, Identifiable, Equatable, Sendable {
     var muted = "#9b9b9b"
     var border = "#252525"
     var isLight = false
+    // Same tokens as desktop themes.css and Android MokuThemes.kt.
     static let builtins: [NativeTheme] = [
-        .init(id: "midnight", name: "Midnight"),
-        .init(id: "original", name: "Original", background: "#101010", surface: "#151515", accent: "#a8c4a8", text: "#f0efec"),
-        .init(id: "dark", name: "Dark", background: "#080808", surface: "#111111", accent: "#bcd8bc", text: "#ffffff"),
-        .init(id: "light", name: "Light", background: "#f4f2ee", surface: "#faf8f4", accent: "#2a5a2a", text: "#1a1916", secondary: "#44433f", muted: "#65645f", border: "#d4d2cd", isLight: true),
-        .init(id: "warm", name: "Warm", background: "#16130c", surface: "#1c1810", accent: "#e0b860", text: "#f5f0e0"),
-        .init(id: "charcoal", name: "Charcoal", background: "#1a1a1a", surface: "#262626", accent: "#8cb3db"),
-        .init(id: "sepia", name: "Sepia", background: "#1a160f", surface: "#262118", accent: "#d1a65c"),
+        .init(id: "dark", name: "Dark", background: "#080808", surface: "#111111", accent: "#7aaa7a", text: "#ffffff", secondary: "#e8e6e0", muted: "#b0aea8", border: "#252525"),
+        .init(id: "light", name: "Light", background: "#e2deda", surface: "#f5f2ec", accent: "#3f9142", text: "#080806", secondary: "#181612", muted: "#38342e", border: "#c4c0b8", isLight: true),
+        .init(id: "midnight", name: "Midnight", background: "#080c18", surface: "#101428", accent: "#6a7ab8", text: "#eeeef8", secondary: "#c0c4d8", muted: "#808498", border: "#1a2035"),
+        .init(id: "original", name: "Original", background: "#0c0c0c", surface: "#151515", accent: "#6b8f6b", text: "#f0efec", secondary: "#c8c6c0", muted: "#8a8880", border: "#1c1c1c"),
+        .init(id: "warm", name: "Warm", background: "#100e08", surface: "#1c1810", accent: "#c0902a", text: "#f5f0e0", secondary: "#d8d0b0", muted: "#988c60", border: "#201c10"),
     ]
     static func custom(_ data: Data) -> [NativeTheme] { (try? JSONDecoder().decode([NativeTheme].self, from: data)) ?? [] }
     static func resolve(_ id: String, custom: Data) -> NativeTheme {
@@ -39,9 +38,9 @@ extension Color {
     }
 }
 struct AppearanceSettingsContent: View {
-    @AppStorage("preferences.theme") private var theme = "midnight"
+    @AppStorage("preferences.theme") private var theme = "dark"
     @AppStorage("preferences.systemTheme") private var system = false
-    @AppStorage("preferences.darkTheme") private var darkTheme = "midnight"
+    @AppStorage("preferences.darkTheme") private var darkTheme = "dark"
     @AppStorage("preferences.lightTheme") private var lightTheme = "light"
     @AppStorage("preferences.customThemes") private var custom = Data()
     @AppStorage("preferences.solidSurfaces") private var solid = false
@@ -142,8 +141,8 @@ struct AppearanceSettingsContent: View {
     }
     private func delete(_ item: NativeTheme) {
         saveThemes(NativeTheme.custom(custom).filter { $0.id != item.id })
-        if theme == item.id { theme = "midnight" }
-        if darkTheme == item.id { darkTheme = "midnight" }
+        if theme == item.id { theme = "dark" }
+        if darkTheme == item.id { darkTheme = "dark" }
         if lightTheme == item.id { lightTheme = "light" }
     }
     private func saveThemes(_ value: [NativeTheme]) { if let data = try? JSONEncoder().encode(value) { custom = data } }

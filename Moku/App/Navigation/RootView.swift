@@ -42,10 +42,10 @@ struct RootView: View {
     @State private var downloadsModel = DownloadsViewModel.makeDefault()
     @Environment(\.colorScheme) private var colorScheme
     @AppStorage("preferences.systemTheme") private var systemTheme = false
-    @AppStorage("preferences.darkTheme") private var darkTheme = "midnight"
+    @AppStorage("preferences.darkTheme") private var darkTheme = "dark"
     @AppStorage("preferences.lightTheme") private var lightTheme = "light"
     @AppStorage("preferences.customThemes") private var customThemes = Data()
-    @AppStorage("preferences.theme") private var theme = "midnight"
+    @AppStorage("preferences.theme") private var theme = "dark"
     private var effectiveTheme: String { systemTheme ? (colorScheme == .dark ? darkTheme : lightTheme) : theme }
     private var palette: NativeTheme { NativeTheme.resolve(effectiveTheme, custom: customThemes) }
 

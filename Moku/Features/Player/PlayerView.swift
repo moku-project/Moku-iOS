@@ -34,7 +34,7 @@ struct PlayerView: View {
     @State private var scrubbing = false
     @State private var scrubPosition = 0.0
     @State private var previousIdleTimer = false
-    private let accent = Color(red: 122 / 255, green: 170 / 255, blue: 122 / 255)
+    private var accent: Color { NavigationStyle.accent }
     private typealias Panel = PlayerMenu.Kind
 
     /// Cues sharing a screen position, each in its own ASS style.

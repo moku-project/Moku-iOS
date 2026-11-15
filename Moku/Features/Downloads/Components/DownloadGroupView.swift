@@ -158,7 +158,7 @@ struct DownloadGroupView: View {
             if entry.status == .queued {
                 Button { model.move(entryID: entry.id, to: .top) } label: {
                     Label("Move to Top", systemImage: "arrow.up.to.line")
-                }.tint(.blue)
+                }.tint(NavigationStyle.accent)
             }
         }
         .contextMenu {

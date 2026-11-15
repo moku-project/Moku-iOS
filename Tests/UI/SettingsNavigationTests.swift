@@ -19,12 +19,12 @@ import XCTest
         let theme = app.buttons["settings.picker.App theme"]
         XCTAssertTrue(theme.waitForExistence(timeout: 3))
         theme.tap()
-        XCTAssertTrue(app.buttons["Sepia"].firstMatch.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Warm"].firstMatch.waitForExistence(timeout: 3))
         // The theme swatches below also carry the name; pick the menu's row.
-        let sepia = app.buttons.matching(NSPredicate(format: "label == %@ OR identifier == %@", "Sepia", "Sepia")).allElementsBoundByIndex
-        (sepia.last(where: \.isHittable) ?? sepia.last!).tap()
-        XCTAssertTrue(theme.shows("Sepia") || theme.shows("sepia"),
-            "Theme picker should show Sepia: \(theme.label) / \(String(describing: theme.value))")
+        let warm = app.buttons.matching(NSPredicate(format: "label == %@ OR identifier == %@", "Warm", "Warm")).allElementsBoundByIndex
+        (warm.last(where: \.isHittable) ?? warm.last!).tap()
+        XCTAssertTrue(theme.shows("Warm") || theme.shows("warm"),
+            "Theme picker should show Warm: \(theme.label) / \(String(describing: theme.value))")
         keepScreenshot("Settings appearance")
         app.goBack()
         app.openSettingsRow("settings.category.Library")

@@ -10,7 +10,7 @@ struct PlayerTimeline: UIViewRepresentable {
 
     func makeUIView(context: Context) -> UISlider {
         let slider = PlayerSlider()
-        let sage = UIColor(red: 122 / 255, green: 170 / 255, blue: 122 / 255, alpha: 1)
+        let sage = UIColor(NavigationStyle.accent)
         let thumb = UIGraphicsImageRenderer(size: CGSize(width: 12, height: 12)).image { _ in
             sage.setFill()
             UIBezierPath(ovalIn: CGRect(x: 0, y: 0, width: 12, height: 12)).fill()

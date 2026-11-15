@@ -785,7 +785,7 @@ struct DetailsView: View {
                     } label: {
                         Label("Download", systemImage: "arrow.down.circle")
                     }
-                    .tint(.blue)
+                    .tint(NavigationStyle.accent)
                 }
             }
         }

@@ -92,7 +92,7 @@ struct LibraryCard: View {
         Image(systemName: "antenna.radiowaves.left.and.right.circle.fill")
             .font(compact ? .caption : .subheadline)
             .symbolRenderingMode(.palette)
-            .foregroundStyle(.white, Color.blue)
+            .foregroundStyle(.white, NavigationStyle.accent)
     }
 
     private var accessibilityStats: String {
