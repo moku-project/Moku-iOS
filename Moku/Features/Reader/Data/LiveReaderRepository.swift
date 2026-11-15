@@ -52,7 +52,6 @@ struct LiveReaderRepository: ReaderRepository {
     }
 }
 
-/// Chapter progress calls shared by the manga and novel readers.
 enum ChapterSync {
     static func state(chapterID: String) async throws -> ReaderChapterState? {
         struct Response: Decodable, Sendable {

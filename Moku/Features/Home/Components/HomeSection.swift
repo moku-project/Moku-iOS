@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// A titled Home section: small heading with an optional icon and trailing note.
 struct HomeSection<Content: View>: View {
     let title: String
     var systemImage: String?
@@ -28,7 +27,6 @@ struct HomeSection<Content: View>: View {
 }
 
 extension View {
-    /// The rounded surface every Home block sits on.
     func homeCard(padding: EdgeInsets = EdgeInsets(top: 14, leading: 16, bottom: 14, trailing: 16)) -> some View {
         self.padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)

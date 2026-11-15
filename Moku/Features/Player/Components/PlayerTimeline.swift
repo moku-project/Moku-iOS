@@ -1,7 +1,6 @@
 import SwiftUI
 import UIKit
 
-/// Native slider with a thin white track, like the system player.
 struct PlayerTimeline: UIViewRepresentable {
     let value: Double
     let duration: Double

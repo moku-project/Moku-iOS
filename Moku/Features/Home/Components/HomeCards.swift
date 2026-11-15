@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// A title with its latest session, as Home shows it.
 struct HomeItem: Identifiable {
     let entry: HomeEntry
     let session: HomeSession
@@ -17,7 +16,6 @@ struct HomeItem: Identifiable {
     }
 }
 
-/// The most recent title, with a blurred cover backdrop and a Resume button.
 struct HomeContinueCard: View {
     let item: HomeItem
     var opening = false
@@ -74,7 +72,6 @@ struct HomeContinueCard: View {
     }
 }
 
-/// Shown before anything has been read: points to Browse and Extensions.
 struct HomeWelcomeCard: View {
     let browse: () -> Void
 
@@ -110,7 +107,6 @@ struct HomeWelcomeCard: View {
     }
 }
 
-/// A compact title row for Up Next and Recent.
 struct HomeMediaRow: View {
     let item: HomeItem
     let open: () -> Void

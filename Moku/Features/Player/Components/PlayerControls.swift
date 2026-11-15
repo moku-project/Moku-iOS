@@ -1,7 +1,6 @@
 import AVFoundation
 import SwiftUI
 
-/// Apple-style player chrome: top bar, centre transport and a bottom scrubber, with native menus.
 struct PlayerControls: View {
     @AppStorage("keybinds.player.play") private var playKey = " "
     @AppStorage("keybinds.player.previous") private var previousKey = "["

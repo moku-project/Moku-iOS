@@ -148,7 +148,6 @@ struct HomeView: View {
         }
     }
 
-    /// Refreshes the Continue title's cover, chapters and unread count.
     private func refreshFeatured(refresh: Bool = false) async {
         guard let entry = items.first?.entry else { return }
         await library?.load()

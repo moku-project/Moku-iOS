@@ -1080,7 +1080,6 @@ struct DetailsView: View {
     }
 }
 
-/// A checklist of a title's scanlator groups, meant to sit inside a Menu.
 struct ScanlatorFilterItems: View {
     let groups: [String]
     let mediaID: String
