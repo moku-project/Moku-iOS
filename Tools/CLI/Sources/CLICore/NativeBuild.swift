@@ -357,6 +357,15 @@ final class NativeBuild {
       "CFBundleShortVersionString": "1.0", "CFBundlePackageType": "APPL",
       "MinimumOSVersion": "18.2", "UIDeviceFamily": [1],
       "NSAppTransportSecurity": ["NSAllowsLocalNetworking": true],
+      // iOS 27 terminates apps without a scene manifest (see ProbeScene).
+      "UIApplicationSceneManifest": [
+        "UIApplicationSupportsMultipleScenes": false,
+        "UISceneConfigurations": [
+          "UIWindowSceneSessionRoleApplication": [
+            ["UISceneConfigurationName": "Default", "UISceneDelegateClassName": "ProbeScene"]
+          ]
+        ],
+      ],
     ]
     try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0).write(
       to: app.appendingPathComponent("Info.plist"))

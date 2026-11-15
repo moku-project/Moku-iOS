@@ -128,10 +128,10 @@ extension NativeBuild {
         try require(
           prefs.count == 1 && prefs[0]["key"].s == "fixture_option"
             && prefs[0]["currentValue"].s == "custom", "Preferences lost on relaunch")
-        let policy = try checks.api.request("/api/mobile/automation?mediaId=0")
         try require(
-          policy.status == 200 && JSON(data: policy.body)["downloadAhead"].n == 2,
-          "Policy lost on relaunch")
+          try checks.api.gql("{automationSettings{downloadAhead}}")["automationSettings"][
+            "downloadAhead"
+          ].n == 2, "Policy lost on relaunch")
         try jvm("restored-cookie-results", args: ["cookies-restored"], timeout: 30)
         if let pid = launched.split(separator: ":").last,
           let number = Int(pid.trimmingCharacters(in: .whitespacesAndNewlines))

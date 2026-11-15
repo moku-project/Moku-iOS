@@ -3,6 +3,14 @@
 #import "TSJavaRuntime.h"
 #import "TSVideoEngine.h"
 
+// iOS 27 terminates UIKit apps that have not adopted the scene lifecycle.
+// The probe has no UI; this scene only satisfies that requirement.
+@interface ProbeScene : UIResponder <UIWindowSceneDelegate>
+@property (strong, nonatomic) UIWindow *window;
+@end
+@implementation ProbeScene
+@end
+
 @interface Probe : UIResponder <UIApplicationDelegate>
 @end
 @implementation Probe

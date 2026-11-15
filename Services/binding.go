@@ -72,13 +72,20 @@ type VideoEngine interface {
 	Process(url, headersJSON, outputPath string, observer VideoObserver) error
 }
 
-// SetVideoEngine is accepted but unused: video downloads are moving into the
-// app (as Moku-Android does) instead of being driven by the core.
+// SetVideoEngine has the core download episodes with the app's in-process
+// FFmpeg (TSVideoEngine): iOS cannot run ffmpeg as a program. Call before Start.
 func (s *Service) SetVideoEngine(engine VideoEngine) error {
 	if engine == nil {
 		return errors.New("native video engine is required")
 	}
+	embedded.SetVideoEngine(engineAdapter{engine})
 	return nil
+}
+
+type engineAdapter struct{ engine VideoEngine }
+
+func (a engineAdapter) Process(url, headersJSON, outputPath string, observer embedded.VideoObserver) error {
+	return a.engine.Process(url, headersJSON, outputPath, observer)
 }
 
 func (s *Service) BeginBrowserVerification(extensionID, url string) (string, error) {

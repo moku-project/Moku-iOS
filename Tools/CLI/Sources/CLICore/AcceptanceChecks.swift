@@ -195,10 +195,9 @@ extension AcceptanceSuite {
     _ = try api.gql(
       "mutation($m:ID!,$f:ID!){addMediaToFolder(mediaId:$m,folderId:$f)}", ["m": old, "f": folder])
     try require(
-      try api.request(
-        "/api/mobile/automation?mediaId=" + old, payload: JSON(["downloadAhead": 3]).data(),
-        method: "PUT"
-      ).status == 204, "Source policy save failed")
+      try api.gql(
+        "mutation($m:ID!){setMediaAutomation(mediaId:$m,input:{downloadAhead:3}){downloadAhead}}",
+        ["m": old])["setMediaAutomation"]["downloadAhead"].n == 3, "Source policy save failed")
     try require(
       try api.gql("query($id:ID!){media(id:$id){downloadedCount}}", ["id": old])["media"][
         "downloadedCount"
@@ -211,10 +210,11 @@ extension AcceptanceSuite {
     try require(migrated["folders"].a.contains { $0["id"].s == folder }, "Migration lost folders")
     try require(
       migrated["readingProgress"].a.contains { $0["progress"].n == 0.5 }, "Migration lost progress")
-    let policy = try api.request("/api/mobile/automation?mediaId=" + migrated["id"].s)
     try require(
-      policy.status == 200 && JSON(data: policy.body)["downloadAhead"].n == 3,
-      "Migration lost policy")
+      try api.gql(
+        "query($m:ID!){mediaAutomation(mediaId:$m){downloadAhead}}", ["m": migrated["id"].s])[
+          "mediaAutomation"
+        ]["downloadAhead"].n == 3, "Migration lost policy")
     let rows = try api.gql(
       "{library(filter:{contentType:MANGA,query:\"Acceptance\"},sort:{by:TITLE,ascending:true}){items{id}}}"
     )["library"]["items"].a

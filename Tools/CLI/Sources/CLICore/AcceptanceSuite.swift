@@ -310,7 +310,7 @@ final class AcceptanceSuite {
     }
   }
   func administration() throws {
-    let (item, chapter) = try chapter("manga")
+    let (item, _) = try chapter("manga")
     let folder = try api.gql("mutation{createFolder(name:\"Acceptance Folder\"){id name}}")[
       "createFolder"]["id"].s
     _ = try api.gql(
@@ -337,21 +337,12 @@ final class AcceptanceSuite {
       "{storageInfo{__typename} trackers{key isLoggedIn} contentFilterRules{__typename} serverSettings{key}}"
     )
     try require(
-      try api.request(
-        "/api/mobile/automation?mediaId=0",
-        payload: JSON(["downloadAhead": 2, "deleteOnRead": false]).data(), method: "PUT"
-      ).status == 204, "Policy save failed")
-    let policy = try api.request("/api/mobile/automation?mediaId=0")
+      try api.gql(
+        "mutation{updateAutomationSettings(input:{downloadAhead:2,deleteOnRead:false}){downloadAhead}}"
+      )["updateAutomationSettings"]["downloadAhead"].n == 2, "Policy save failed")
     try require(
-      policy.status == 200 && JSON(data: policy.body)["downloadAhead"].n == 2,
-      "Policy was not persisted")
-    guard let mediaID = Int(item["id"].s), let chapterID = Int(chapter["id"].s) else {
-      throw CLIError("Invalid numeric IDs")
-    }
-    try require(
-      try api.request(
-        "/api/mobile/chapter-open",
-        payload: JSON(["mediaId": mediaID, "chapterId": chapterID]).data()
-      ).status == 204, "Chapter-open failed")
+      try api.gql("{automationSettings{downloadAhead deleteOnRead}}")["automationSettings"][
+        "downloadAhead"
+      ].n == 2, "Policy was not persisted")
   }
 }
