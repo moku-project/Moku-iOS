@@ -438,11 +438,13 @@ struct DetailsView: View {
             Button {
                 if let target { open(target.chapter) }
             } label: {
-                Label(
-                    target?.label ?? "Loading chapters",
-                    systemImage: entry.media == .anime ? "play.fill" : "book.fill")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity, minHeight: 36)
+                // An HStack, not a Label: list rows pin a Label's icon to a leading column.
+                HStack(spacing: 8) {
+                    Image(systemName: entry.media == .anime ? "play.fill" : "book.fill")
+                    Text(target?.label ?? "Loading chapters")
+                }
+                .font(.headline)
+                .frame(maxWidth: .infinity, minHeight: 36)
             }
             .buttonStyle(.borderedProminent)
             .disabled(target == nil)
@@ -451,9 +453,12 @@ struct DetailsView: View {
             Button {
                 Task { await toggleLibrary() }
             } label: {
-                Label("Add to Library", systemImage: "bookmark")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity, minHeight: 36)
+                HStack(spacing: 8) {
+                    Image(systemName: "bookmark")
+                    Text("Add to Library")
+                }
+                .font(.headline)
+                .frame(maxWidth: .infinity, minHeight: 36)
             }
             .buttonStyle(.bordered)
             .disabled(saving)
