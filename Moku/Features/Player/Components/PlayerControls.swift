@@ -159,7 +159,30 @@ struct PlayerControls: View {
                 reveal()
                 if !editing { model.seek(scrubPosition) }
             }
-        ).frame(minHeight: 44)
+        )
+        .frame(minHeight: 44)
+        .overlay { skipMarkers }
+    }
+
+    /// Desktop seek-bar markers: intro, outro and recap ranges drawn on the track.
+    private var skipMarkers: some View {
+        GeometryReader { proxy in
+            let inset = 6.0
+            let width = max(0, proxy.size.width - inset * 2)
+            let total = model.duration
+            if total.isFinite, total > 0 {
+                ForEach(Array(model.skipMarkers.enumerated()), id: \.offset) { _, marker in
+                    let start = min(1, max(0, marker.start / total))
+                    let end = min(1, max(start, marker.end / total))
+                    Capsule()
+                        .fill(Color.white.opacity(0.55))
+                        .frame(width: max(2, (end - start) * width), height: 3)
+                        .position(x: inset + (start + end) / 2 * width, y: proxy.size.height / 2)
+                }
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 
     private func icon(_ name: String, label: String, id: String = "", action: @escaping () -> Void)

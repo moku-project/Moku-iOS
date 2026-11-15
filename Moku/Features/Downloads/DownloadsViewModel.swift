@@ -39,6 +39,7 @@ final class DownloadsViewModel {
             let snapshot = try await loader.load()
             try Task.checkCancellation()
             if entries != snapshot.entries { entries = snapshot.entries }
+            DownloadAlerts.shared.observe(snapshot.entries.map { .init(titleID: $0.titleID, chapterID: $0.id, title: $0.title, status: $0.status) })
             applyingSnapshot = true
             isPaused = !snapshot.running
             applyingSnapshot = false
@@ -98,6 +99,54 @@ final class DownloadsViewModel {
                 }
                 await refresh()
             } catch { Toaster.shared.show("Couldn’t reorder the queue", kind: .error) }
+        }
+    }
+
+    /// Desktop "Reverse chapter order": the series' queued chapters swap places in the queue.
+    func reverse(titleID: String) {
+        let queue = entries.filter { $0.status == .queued || $0.status == .downloading }
+        let slots = queue.indices.filter { queue[$0].titleID == titleID && queue[$0].status == .queued }
+        guard slots.count > 1 else { return }
+        let reversed = slots.reversed().map { queue[$0] }
+        if !live {
+            var next = queue
+            for (slot, entry) in zip(slots, reversed) { next[slot] = entry }
+            entries = next + entries.filter { $0.status != .queued && $0.status != .downloading }
+            return
+        }
+        reorder(Array(zip(reversed, slots)))
+    }
+
+    /// Desktop "Move selected to top / bottom"; a chapter that is downloading stays first.
+    func move(entryIDs: Set<String>, toTop: Bool) {
+        let queue = entries.filter { $0.status == .queued || $0.status == .downloading }
+        let first = queue.first?.status == .downloading ? 1 : 0
+        let movable = queue.dropFirst(first)
+        let pinned = movable.filter { entryIDs.contains($0.id) }
+        guard !pinned.isEmpty else { return }
+        let rest = movable.filter { !entryIDs.contains($0.id) }
+        if !live {
+            let ordered = Array(queue.prefix(first)) + (toTop ? pinned + rest : rest + pinned)
+            entries = ordered + entries.filter { $0.status != .queued && $0.status != .downloading }
+            return
+        }
+        let start = toTop ? first : queue.count - pinned.count
+        reorder(pinned.enumerated().map { ($0.element, start + $0.offset) })
+    }
+
+    private func reorder(_ moves: [(DownloadEntry, Int)]) {
+        Task {
+            do {
+                for (entry, position) in moves {
+                    let _: IgnoredGraphQLResult = try await BackendAPI.shared.graphql(
+                        "mutation { reorderDownload(mediaId: \(BackendAPI.literal(entry.titleID)), chapterId: \(BackendAPI.literal(entry.id)), position: \(position)) }",
+                        requiresSourceRuntime: false)
+                }
+                await refresh()
+            } catch {
+                await refresh()
+                Toaster.shared.show("Couldn’t reorder the queue", kind: .error)
+            }
         }
     }
 

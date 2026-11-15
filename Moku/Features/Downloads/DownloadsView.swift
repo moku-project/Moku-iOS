@@ -9,6 +9,8 @@ struct DownloadsView: View {
     @State private var expanded: Set<String> = []
     @State private var confirmClear = false
     @AppStorage("downloads.autoRetry") private var autoRetry = false
+    @AppStorage(DownloadAlerts.enabledKey) private var notifications = true
+    @State private var selection: Set<String>?
 
     private var emptyDetail: String {
         if history { return "Finished and removed downloads will appear here." }
@@ -40,7 +42,7 @@ struct DownloadsView: View {
                 }
                 ForEach(model.groups(section: section, history: history)) { group in
                     DownloadGroupView(
-                        group: group, model: model, section: section,
+                        group: group, model: model, section: section, selection: selectionBinding,
                         expanded: Binding(
                             get: { expanded.contains(group.id) },
                             set: { open in
@@ -76,10 +78,26 @@ struct DownloadsView: View {
             .padding(.vertical, 8)
             .onChange(of: section) { _, _ in expanded = [] }
         }
-        .navigationTitle("Downloads")
+        .navigationTitle(selection.map { $0.isEmpty ? "Select Chapters" : "\($0.count) Selected" } ?? "Downloads")
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) { toolsMenu }
+            if selection != nil {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(allSelected ? "Deselect All" : "Select All") {
+                        selection = allSelected ? [] : Set(selectable.map(\.id))
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { endSelection() }.fontWeight(.semibold)
+                        .accessibilityIdentifier("downloads.select.done")
+                }
+                ToolbarItemGroup(placement: .bottomBar) { selectionActions }
+            } else {
+                ToolbarItem(placement: .topBarTrailing) { toolsMenu }
+            }
         }
+        .onChange(of: section) { _, _ in if selection != nil { selection = [] } }
+        .onChange(of: isActive) { _, active in if !active { endSelection() } }
+        .onDisappear { TabBarState.shared.hidden = false }
         .task(id: isActive && scenePhase == .active) {
             guard isActive && scenePhase == .active else { return }
             model.autoRetry = autoRetry
@@ -107,6 +125,51 @@ struct DownloadsView: View {
                     ? "Remove completed records from history. Downloaded files will be kept."
                     : "Remove all \(section.rawValue.lowercased()) chapters from this view.")
         }
+    }
+
+    private var selectable: [DownloadEntry] {
+        model.groups(section: section, history: history).flatMap(\.entries)
+    }
+    private var allSelected: Bool { !selectable.isEmpty && selection?.count == selectable.count }
+    private var selectionBinding: Binding<Set<String>>? {
+        guard selection != nil else { return nil }
+        return Binding(get: { selection ?? [] }, set: { selection = $0 })
+    }
+    private var selectedEntries: [DownloadEntry] { selectable.filter { selection?.contains($0.id) == true } }
+
+    private func beginSelection() {
+        selection = []
+        expanded = Set(model.groups(section: section, history: history).map(\.id))
+        TabBarState.shared.hidden = true
+    }
+
+    private func endSelection() {
+        selection = nil
+        TabBarState.shared.hidden = false
+    }
+
+    @ViewBuilder private var selectionActions: some View {
+        let queued = Set(selectedEntries.filter { $0.status == .queued }.map(\.id))
+        Button("Move to Top", systemImage: "arrow.up.to.line") {
+            model.move(entryIDs: queued, toTop: true)
+            endSelection()
+        }
+        .disabled(queued.isEmpty)
+        .accessibilityIdentifier("downloads.select.top")
+        Spacer()
+        Button("Move to Bottom", systemImage: "arrow.down.to.line") {
+            model.move(entryIDs: queued, toTop: false)
+            endSelection()
+        }
+        .disabled(queued.isEmpty)
+        .accessibilityIdentifier("downloads.select.bottom")
+        Spacer()
+        Button("Remove", systemImage: "trash", role: .destructive) {
+            model.remove(selectedEntries)
+            endSelection()
+        }
+        .disabled(selectedEntries.isEmpty)
+        .accessibilityIdentifier("downloads.select.remove")
     }
 
     private var queueStatus: String {
@@ -156,6 +219,18 @@ struct DownloadsView: View {
                 Toggle(isOn: $autoRetry) {
                     Label("Auto Retry", systemImage: "repeat")
                 }
+                Toggle(isOn: Binding(get: { notifications }, set: { value in
+                    notifications = value
+                    if value { Task { _ = await BackgroundWork.requestNotificationPermission() } }
+                })) {
+                    Label("Download Notifications", systemImage: "bell")
+                }
+                .accessibilityIdentifier("downloads.notifications")
+            }
+            if !history {
+                Button("Select Chapters", systemImage: "checkmark.circle") { beginSelection() }
+                    .disabled(isEmpty)
+                    .accessibilityIdentifier("downloads.select")
             }
             if section != .completed || history {
                 Section {

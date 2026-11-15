@@ -5,7 +5,10 @@ struct DownloadGroupView: View {
     let group: DownloadGroup
     let model: DownloadsViewModel
     let section: DownloadsSection
+    var selection: Binding<Set<String>>? = nil
     @Binding var expanded: Bool
+
+    private var queuedCount: Int { group.entries.filter { $0.status == .queued }.count }
 
     var body: some View {
         DisclosureGroup(isExpanded: $expanded) {
@@ -56,6 +59,9 @@ struct DownloadGroupView: View {
             if section != .completed {
                 Button("Move to Top", systemImage: "arrow.up") { model.move(titleID: group.id, toTop: true) }
                 Button("Move to Bottom", systemImage: "arrow.down") { model.move(titleID: group.id, toTop: false) }
+                if queuedCount > 1 {
+                    Button("Reverse Order", systemImage: "arrow.up.arrow.down") { model.reverse(titleID: group.id) }
+                }
             }
             if group.failures > 0 {
                 Button("Retry Failed", systemImage: "arrow.clockwise") { model.retry(titleID: group.id) }
@@ -82,6 +88,13 @@ struct DownloadGroupView: View {
 
     private func chapterRow(_ entry: DownloadEntry) -> some View {
         HStack(spacing: 8) {
+            if let selection {
+                let selected = selection.wrappedValue.contains(entry.id)
+                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(selected ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                    .accessibilityHidden(true)
+            }
             VStack(alignment: .leading, spacing: 4) {
                 Text(entry.chapter).font(.subheadline)
                 if entry.status == .completed {
@@ -116,6 +129,20 @@ struct DownloadGroupView: View {
             }
         }
         .contentShape(Rectangle())
+        .overlay {
+            if let selection {
+                let selected = selection.wrappedValue.contains(entry.id)
+                Button {
+                    if selected { selection.wrappedValue.remove(entry.id) } else { selection.wrappedValue.insert(entry.id) }
+                } label: {
+                    Color.clear.contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(entry.chapter)
+                .accessibilityAddTraits(selected ? .isSelected : [])
+                .accessibilityIdentifier("downloads.select.\(entry.id)")
+            }
+        }
         .listRowBackground(Color.clear)
         .swipeActions(edge: .trailing) {
             Button(role: .destructive) { model.remove([entry]) } label: {

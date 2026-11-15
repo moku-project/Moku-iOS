@@ -8,11 +8,13 @@ struct LocalLibrarySheet: View {
     @State private var items: [Item] = []
     @State private var loading = true
     @State private var deleting: Item?
+    @State private var renaming: Item?
+    @State private var newTitle = ""
     @State private var error: String?
 
     struct Item: Decodable, Identifiable, Sendable {
         let id: String
-        let title: String
+        var title: String
         let contentType: String
         let thumbnailUrl: String?
         var media: ContentMode { contentType == "ANIME" ? .anime : contentType == "NOVEL" ? .novels : .manga }
@@ -38,8 +40,10 @@ struct LocalLibrarySheet: View {
                     }
                     .swipeActions {
                         Button("Delete", role: .destructive) { deleting = item }
+                        Button("Rename") { startRename(item) }
                     }
                     .contextMenu {
+                        Button("Rename", systemImage: "pencil") { startRename(item) }
                         Button("Delete", systemImage: "trash", role: .destructive) { deleting = item }
                     }
                 }
@@ -63,6 +67,13 @@ struct LocalLibrarySheet: View {
                 Button("Delete files", role: .destructive) { if let deleting { Task { await delete(deleting) } } }
             } message: {
                 Text("Its imported files are removed from this device.")
+            }
+            .alert("Rename Series", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
+                TextField("Title", text: $newTitle)
+                Button("Cancel", role: .cancel) {}
+                Button("Rename") { if let renaming { Task { await rename(renaming) } } }
+            } message: {
+                Text("The series folder on this device is renamed too.")
             }
             .task { await load() }
         }
@@ -95,6 +106,27 @@ struct LocalLibrarySheet: View {
         let _: IgnoredGraphQLResult? = try? await BackendAPI.shared.graphql(
             "mutation { rescanLocalMedia { id } }", requiresSourceRuntime: false)
         await load()
+    }
+
+    private func startRename(_ item: Item) {
+        newTitle = item.title
+        renaming = item
+    }
+
+    private func rename(_ item: Item) async {
+        let title = newTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty, title != item.title else { return }
+        do {
+            let _: IgnoredGraphQLResult = try await BackendAPI.shared.graphql(
+                "mutation { renameLocalSeries(mediaId: \(BackendAPI.literal(item.id)), newTitle: \(BackendAPI.literal(title))) { id } }",
+                requiresSourceRuntime: false)
+            if let index = items.firstIndex(where: { $0.id == item.id }) { items[index].title = title }
+            library.invalidateServerVisibility()
+            _ = await library.refreshFromServer()
+            Toaster.shared.show("Renamed to \(title)")
+        } catch {
+            self.error = "Couldn’t rename \(item.title). Try again."
+        }
     }
 
     private func delete(_ item: Item) async {

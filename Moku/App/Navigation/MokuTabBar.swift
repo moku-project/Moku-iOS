@@ -28,6 +28,7 @@ struct MokuTabBar: View {
         }
         .padding(.horizontal, 16)
         .dynamicTypeSize(...DynamicTypeSize.xxLarge)
+        .onChange(of: savedModes, initial: true) { if !modes.contains(mode) { mode = .all } }
     }
 
     private var tabs: some View {

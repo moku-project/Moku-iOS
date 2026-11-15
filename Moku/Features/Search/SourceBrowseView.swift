@@ -18,15 +18,29 @@ struct SourceBrowseView: View {
     @State private var generation = 0
     /// Typed searches hide titles with no chapters at the source, as in Search.
     @State private var hiddenEmpty = 0
+    @State private var feed: Feed = .popular
+
+    private enum Feed: String, CaseIterable, Identifiable {
+        case popular = "Popular", latest = "Latest"
+        var id: Self { self }
+    }
 
     private let columns = [GridItem(.adaptive(minimum: 104), spacing: 12)]
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                Text(submitted.isEmpty ? "Popular" : "Results for “\(submitted)”")
-                    .font(.title3.weight(.semibold))
-                    .accessibilityAddTraits(.isHeader)
+                if submitted.isEmpty && source.supportsLatest == true {
+                    Picker("Feed", selection: $feed) {
+                        ForEach(Feed.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    .accessibilityIdentifier("source.feed")
+                } else {
+                    Text(submitted.isEmpty ? "Popular" : "Results for “\(submitted)”")
+                        .font(.title3.weight(.semibold))
+                        .accessibilityAddTraits(.isHeader)
+                }
                 if hiddenEmpty > 0 {
                     Text("Hid \(hiddenEmpty) title\(hiddenEmpty == 1 ? "" : "s") with no chapters at the source.")
                         .font(.footnote).foregroundStyle(.secondary)
@@ -100,6 +114,7 @@ struct SourceBrowseView: View {
         .autocorrectionDisabled()
         .background(NavigationStyle.background.ignoresSafeArea())
         .task(id: source.packageName) { await load(reset: true) }
+        .onChange(of: feed) { Task { await load(reset: true) } }
     }
 
     private func hideEmpty(_ entries: [MediaEntry], generation current: Int) async {
@@ -150,6 +165,7 @@ struct SourceBrowseView: View {
         }
         struct Response: Decodable, Sendable {
             let popularManga: Page?
+            let latestUpdates: Page?
             let search: Page?
         }
         if reset {
@@ -166,13 +182,14 @@ struct SourceBrowseView: View {
         defer { if generation == current { loading = false } }
         let id = BackendAPI.literal(source.packageName)
         let fields = "results { id externalId title contentType thumbnailUrl } hasNextPage"
+        let listing = feed == .latest && source.supportsLatest == true ? "latestUpdates" : "popularManga"
         let request = submitted.isEmpty
-            ? "{ popularManga(extensionId: \(id), page: \(page)) { \(fields) } }"
+            ? "{ \(listing)(extensionId: \(id), page: \(page)) { \(fields) } }"
             : "{ search(extensionId: \(id), query: \(BackendAPI.literal(submitted)), page: \(page)) { \(fields) } }"
         do {
             let response: Response = try await BackendAPI.shared.graphql(request, cacheFor: 60)
             guard generation == current else { return }
-            let result = response.popularManga ?? response.search
+            let result = response.popularManga ?? response.latestUpdates ?? response.search
             let fresh = (result?.results ?? []).map {
                 MediaEntry(id: $0.id, title: $0.title, media: source.media, sourceName: source.displayName,
                            coverURL: BackendAPI.coverURL($0.thumbnailUrl),

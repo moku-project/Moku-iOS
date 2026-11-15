@@ -8,6 +8,8 @@ struct AppSessionView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var appLock: AppLockStore
     @State private var readerPreferences: ReaderPreferences
+    @State private var crashes = CrashReports.shared
+    @State private var reportingCrash = false
 
     init(storage: AppDataStore) {
         preferences = storage.preferences
@@ -74,6 +76,15 @@ struct AppSessionView: View {
                 syncWithDesktop()
                 updateLibraryOnOpen()
             }
+            .alert("Moku Closed Unexpectedly", isPresented: Binding(
+                get: { crashes.pending && appLock.loaded }, set: { if !$0 { crashes.pending = false } })
+            ) {
+                Button("Report a Problem") { reportingCrash = true }
+                Button("Not Now", role: .cancel) {}
+            } message: {
+                Text("Moku quit unexpectedly last time. A bug report helps fix it.")
+            }
+            .sheet(isPresented: $reportingCrash) { BugReportSheet() }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
                 Task { await BackendAPI.shared.trimMemory() }
             }

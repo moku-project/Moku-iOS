@@ -11,6 +11,7 @@ struct MokuApp: App {
     init() {
         ServerLog.shared.start()
         BackgroundWork.register()
+        CrashReports.shared.start()
     }
     var body: some Scene {
         WindowGroup {

@@ -46,6 +46,8 @@ import UserNotifications
                 if UIApplication.shared.applicationState == .active { break }
                 if ((try? await pendingDownloads()) ?? 0) == 0 { break }
             }
+            // Leaves time for the completion notification to post.
+            try? await Task.sleep(for: .seconds(1))
             end()
         }
     }
@@ -88,11 +90,20 @@ import UserNotifications
 
     private static func pendingDownloads() async throws -> Int {
         struct Response: Decodable, Sendable {
-            struct Item: Decodable, Sendable { let status: String }
+            struct Item: Decodable, Sendable { let mediaId: String; let chapterId: String; let status: String }
             let downloadQueue: [Item]
         }
         let response: Response = try await BackendAPI.shared.graphql(
-            "{ downloadQueue { status } }", refresh: true, requiresSourceRuntime: false)
+            "{ downloadQueue { mediaId chapterId status } }", refresh: true, requiresSourceRuntime: false)
+        DownloadAlerts.shared.observe(response.downloadQueue.map { item in
+            let status: DownloadStatus = switch item.status {
+            case "DOWNLOADING": .downloading
+            case "FAILED": .failed
+            case "DONE": .completed
+            default: .queued
+            }
+            return .init(titleID: item.mediaId, chapterID: item.chapterId, status: status)
+        })
         return response.downloadQueue.filter { $0.status == "QUEUED" || $0.status == "DOWNLOADING" }.count
     }
 
@@ -106,7 +117,7 @@ import UserNotifications
         try? await center.add(UNNotificationRequest(identifier: "library-updates", content: content, trigger: nil))
     }
 
-    /// Asked when the user turns background updates on.
+    /// Asked when the user turns background updates or download notifications on.
     static func requestNotificationPermission() async -> Bool {
         (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])) ?? false
     }

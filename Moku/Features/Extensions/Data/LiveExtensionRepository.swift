@@ -3,7 +3,7 @@ import Foundation
 struct LiveExtensionRepository: ExtensionRepository {
     private let api = BackendAPI.shared
     private static let fields =
-        "id repositoryId packageName displayName version installedVersion lang contentType installed enabled needsUpdate isNsfw iconUrl"
+        "id repositoryId packageName displayName version installedVersion lang contentType installed enabled needsUpdate isNsfw iconUrl supportsLatest"
     private static let preferenceFields =
         "key title summary type entries entryValues currentValue defaultValue"
     private struct Repositories: Decodable, Sendable { let repositories: [ExtensionRepositoryInfo] }

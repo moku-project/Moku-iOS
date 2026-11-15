@@ -21,6 +21,7 @@ struct SourceExtension: Decodable, Identifiable, Sendable {
     let needsUpdate: Bool?
     let isNsfw: Bool
     var iconUrl: String? = nil
+    var supportsLatest: Bool? = nil
     var iconURL: URL? { BackendAPI.coverURL(iconUrl) }
     var subtitle: String {
         "\(GeneralPreferences.languageName(GeneralPreferences.canonicalLanguage(lang))) · \(contentType.capitalized) · v\(installedVersion ?? version)"

@@ -21,6 +21,7 @@ struct ExtensionsView: View {
     @State private var rename = ""
     @State private var installingURL = false
     @State private var externalURL = ""
+    @State private var importingFile = false
     @AppStorage("preferences.modeTabs") private var savedModes = ""
     private var modes: [ContentMode] { ModeTabConfiguration(storage: savedModes).visible }
     private var updatable: [SourceExtension] { model.visibleInstalled.filter { $0.needsUpdate == true } }
@@ -82,6 +83,8 @@ struct ExtensionsView: View {
                         externalURL = ""
                         installingURL = true
                     }
+                    Button("Install from File…", systemImage: "doc.badge.plus") { importingFile = true }
+                        .accessibilityIdentifier("extensions.installFile")
                 } label: {
                     Label("Add", systemImage: "plus")
                 } primaryAction: {
@@ -172,6 +175,12 @@ struct ExtensionsView: View {
             }
         } message: {
             Text("Only install extensions from sources you trust. They run on this device with network access.")
+        }
+        .fileImporter(isPresented: $importingFile, allowedContentTypes: ExtensionFileInstaller.contentTypes) { result in
+            switch result {
+            case .success(let url): installFile(url)
+            case .failure: model.error = "Couldn’t open this file."
+            }
         }
         .sheet(item: $verification) { SourceVerificationView(request: $0) }
         .accessibilityElement(children: .contain)
@@ -406,6 +415,15 @@ struct ExtensionsView: View {
                 for package in packages { try await repository.extensionAction(.updateExtension, package: package) }
             }) {
                 Toaster.shared.show(packages.count == 1 ? "Extension updated" : "\(packages.count) extensions updated")
+            }
+        }
+    }
+
+    private func installFile(_ url: URL) {
+        Task {
+            await model.perform { _ in
+                let name = try await ExtensionFileInstaller.install(url)
+                await Toaster.shared.show("Extension installed", detail: name.isEmpty ? nil : name)
             }
         }
     }

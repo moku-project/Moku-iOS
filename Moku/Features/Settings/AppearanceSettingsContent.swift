@@ -119,6 +119,16 @@ struct AppearanceSettingsContent: View {
             Section("Interface") {
                 SettingsToggle("Solid interface", detail: "Use opaque navigation, reader, and player controls.", isOn: $solid)
             }
+            Section {
+                NavigationLink {
+                    ContentTypesSettingsView()
+                } label: {
+                    Label("Content Types", systemImage: "square.stack")
+                }
+                .accessibilityIdentifier("settings.appearance.contentTypes")
+            } footer: {
+                Text("Choose which types the content button offers, and in what order.")
+            }
             Section("Covers") {
                 SettingsToggle("Crop cover images", detail: "Fill the cover frame.", isOn: $cropCovers)
             }
