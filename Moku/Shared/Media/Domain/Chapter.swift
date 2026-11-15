@@ -154,7 +154,7 @@ struct ChapterDisplayPreferences: Codable, Equatable {
             let group = $0.scanlator ?? ""
             return !excluded.contains(group) && (included.isEmpty || included.contains(group))
         }.sorted(by: ordered)
-        guard hideDuplicates || !preferred.isEmpty else { return list }
+        guard hideDuplicates else { return list }
         // One chapter per number; the preferred group's release wins.
         let chosen = Self.unique(list.filter { $0.scanlator == preferred } + list.filter { $0.scanlator != preferred })
         return chosen.sorted(by: ordered)

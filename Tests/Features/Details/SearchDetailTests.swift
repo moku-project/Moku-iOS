@@ -101,7 +101,7 @@ private actor DetailFixture: DetailsRepository {
         ]
         var prefs = ChapterDisplayPreferences(included: ["B"])
         #expect(Set(prefs.apply(chapters).map(\.id)) == ["b", "d"])
-        prefs = ChapterDisplayPreferences(preferred: "B")
+        prefs = ChapterDisplayPreferences(preferred: "B", hideDuplicates: true)
         #expect(Set(prefs.apply(chapters).map(\.id)) == ["b", "c", "d"])
         prefs = ChapterDisplayPreferences(excluded: ["B"])
         #expect(Set(prefs.apply(chapters).map(\.id)) == ["a", "c"])

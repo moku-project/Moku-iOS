@@ -1080,7 +1080,7 @@ struct DetailsView: View {
     }
 }
 
-/// Scanlator choices for a title, meant to sit inside a Menu; empty when no chapter names a group.
+/// A checklist of a title's scanlator groups, meant to sit inside a Menu.
 struct ScanlatorFilterItems: View {
     let groups: [String]
     let mediaID: String
@@ -1095,53 +1095,22 @@ struct ScanlatorFilterItems: View {
         if let encoded = try? JSONEncoder().encode(all) { data = encoded }
     }
 
-    private func toggle(_ group: String, in keyPath: WritableKeyPath<ChapterDisplayPreferences, [String]>) -> Binding<Bool> {
-        Binding(get: { preferences[keyPath: keyPath].contains(group) }, set: { enabled in
-            update { value in
-                value[keyPath: keyPath].removeAll { $0 == group }
-                if enabled { value[keyPath: keyPath].append(group) }
-            }
-        })
-    }
-
     var body: some View {
-        Picker("Preferred Group", selection: Binding(get: { preferences.preferred }, set: { new in update { $0.preferred = new } })) {
-            Text("Any Group").tag("")
-            ForEach(groups, id: \.self) { Text($0).tag($0) }
+        // Ticked groups are shown; at least one stays ticked so the list never empties.
+        ForEach(groups, id: \.self) { group in
+            Toggle(group, isOn: Binding(get: { !preferences.excluded.contains(group) }, set: { shown in
+                update { value in
+                    value.included = []
+                    value.excluded.removeAll { $0 == group }
+                    if !shown && groups.filter({ !value.excluded.contains($0) }).count > 1 { value.excluded.append(group) }
+                }
+            }))
         }
-        Menu("Show Only") {
-            ForEach(groups, id: \.self) { Toggle($0, isOn: toggle($0, in: \.included)) }
-        }
-        Menu("Hide") {
-            ForEach(groups, id: \.self) { Toggle($0, isOn: toggle($0, in: \.excluded)) }
-        }
-        Button("Reset Scanlators", role: .destructive) {
-            update { value in
-                let duplicates = value.hideDuplicates
-                value = ChapterDisplayPreferences()
-                value.hideDuplicates = duplicates
-            }
-        }
+        Divider()
+        Button("Show All") { update { $0.excluded = []; $0.included = []; $0.preferred = "" } }
     }
 
     static func groups(in chapters: [Chapter]) -> [String] { Array(Set(chapters.compactMap(\.scanlator))).sorted() }
-}
-
-/// Standalone scanlator button for places without a chapter filter menu.
-struct ChapterScanlatorMenu: View {
-    let chapters: [Chapter]
-    let mediaID: String
-
-    var body: some View {
-        let groups = ScanlatorFilterItems.groups(in: chapters)
-        if !groups.isEmpty {
-            Menu {
-                ScanlatorFilterItems(groups: groups, mediaID: mediaID)
-            } label: {
-                Label("Scanlators", systemImage: "person.2").font(.subheadline).frame(minHeight: 44)
-            }
-        }
-    }
 }
 
 /// Wraps chips onto as many rows as they need.
