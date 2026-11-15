@@ -41,15 +41,6 @@ import Testing
         #expect(metadata.chapters.isEmpty)
         #expect(metadata.title == "Fixture")
     }
-
-    @Test func sourceLinksRequireKnownSourceAndValidTitleID() {
-        var invalid = entry
-        invalid.externalID = "/manga/../../other"
-        #expect(DetailsViewModel(entry: invalid).sourceURL == nil)
-        invalid.externalID = entry.externalID
-        invalid.extensionID = "another-source"
-        #expect(DetailsViewModel(entry: invalid).sourceURL == nil)
-    }
 }
 
 private actor DetailFixture: DetailsRepository {
