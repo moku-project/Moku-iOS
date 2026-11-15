@@ -27,8 +27,7 @@ struct Chapter: Decodable, Sendable, Identifiable, Equatable {
         var progress: Double = 0
     }
 
-    /// What a chapter row shows for downloads. A finished job only counts while
-    /// the files are still there, so a deleted download reads as not downloaded.
+    /// A finished job counts only while its files exist, so a deleted download reads as not downloaded.
     enum DownloadState: Equatable, Sendable {
         case none, queued, downloading(Double), failed, downloaded
     }
@@ -90,7 +89,7 @@ extension Chapter {
     }
 }
 
-/// Android's chapter list filter (All / Unread / Downloaded), plus Mihon's bookmarks.
+/// Chapter list filter: All / Unread / Downloaded / Bookmarked.
 enum ChapterStateFilter: String, CaseIterable, Identifiable, Sendable {
     case all, unread, downloaded, bookmarked
     var id: Self { self }
@@ -136,7 +135,7 @@ struct ChapterDisplayPreferences: Codable, Equatable {
     var included: [String] = []
     var excluded: [String] = []
     var onlyIncluded = false
-    /// Android "Hide duplicate chapters": one chapter per number, preferring the chosen group.
+    /// "Hide duplicate chapters": one chapter per number, preferring the chosen group.
     var hideDuplicates = false
 
     static func read(_ data: Data, id: String) -> Self {
@@ -195,7 +194,6 @@ extension ChapterDisplayPreferences {
     }
 }
 
-/// Desktop SeriesActions sort modes.
 enum ChapterSort: String, CaseIterable, Identifiable, Sendable {
     case number, source, uploaded
     var id: Self { self }

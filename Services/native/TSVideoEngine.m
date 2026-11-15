@@ -8,13 +8,11 @@
 #include <libavutil/time.h>
 #include <libavutil/pixdesc.h>
 
-// No global job state: contexts belong to a single invocation. Conversion is
-// serialized by the engine semaphore, and waiting jobs remain cancellable.
+// Contexts are per invocation; the engine semaphore serializes conversion, and waiting jobs stay cancellable.
 static int interrupted(void *opaque) {
     return [(__bridge id<BackendVideoObserver>)opaque cancelled] ? 1 : 0;
 }
-// Compatible MP4 is copied byte-for-byte, then demuxed locally before success.
-// This avoids a muxing pass without trusting HTTP success or content length alone.
+// Compatible MP4 is copied byte-for-byte, then demuxed locally to verify it before reporting success.
 static int copyCompatibleMP4(NSString *url, NSString *headers, NSString *path, id<BackendVideoObserver> observer) {
     AVIOContext *source = NULL, *destination = NULL;
     AVFormatContext *validation = NULL;
@@ -236,8 +234,7 @@ static int configureTrack(TSTrack *track, AVFormatContext *input, AVFormatContex
     }
     if ((result = avformat_open_input(&input, url.UTF8String, NULL, &options)) < 0) goto finish;
     av_dict_free(&options);
-    // HLS/DASH advertise a finite duration in their manifest. Reject live
-    // manifests before stream probing, which could otherwise wait indefinitely.
+    // Reject live HLS/DASH manifests before probing, which could otherwise wait indefinitely.
     if (input->duration == AV_NOPTS_VALUE && (strstr(input->iformat->name, "hls") || strstr(input->iformat->name, "dash"))) { failureReason = @"Unbounded live streams cannot be downloaded; a finite HLS or DASH manifest is required."; result = AVERROR(ENOTSUP); goto finish; }
     if ((result = avformat_find_stream_info(input, NULL)) < 0) goto finish;
     if (strstr(input->iformat->name, "mov")) {
@@ -309,8 +306,7 @@ static int configureTrack(TSTrack *track, AVFormatContext *input, AVFormatContex
         }
     }
     if (result != AVERROR_EOF) goto finish;
-    // Some demuxers report EOF for a truncated transport. Do not finalize a
-    // known-duration asset when its final media timestamps were never reached.
+    // Some demuxers report EOF on truncated input; require the final timestamps before finalizing.
     if (input->duration > 0 && position + 500000 < input->duration) { result = AVERROR_INVALIDDATA; goto finish; }
     result = 0;
     for (int i = 0; i < 2; i++) {

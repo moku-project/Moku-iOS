@@ -27,8 +27,7 @@
         func importTitle(_ item: TrackingImportItem, key: String, media: ContentMode) async throws
             -> MediaEntry
         {
-            // Never a numeric ID: the library would treat it as a server title and
-            // call the real backend from a UI test.
+            // Never numeric: the library would treat it as a server title and call the real backend.
             MediaEntry(
                 id: "preview-\(key)-\(item.id)", title: item.remote.title, media: media, sourceName: "AniList",
                 coverURL: nil,

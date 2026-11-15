@@ -85,8 +85,7 @@ public final class Workflow {
     let selected = try Simulator.select(Simulator.devices(json), requested: requested)
     if selected.state != "Booted" { try runner.run(["xcrun", "simctl", "boot", selected.udid]) }
     try runner.run(["xcrun", "simctl", "bootstatus", selected.udid, "-b"])
-    // The window is only a viewer; the device runs without it. Some Xcode
-    // installs have no Simulator app registered.
+    // The window is only a viewer, and some Xcode installs have no Simulator app registered.
     do { try runner.run(["open", "-a", "Simulator"]) } catch {
       print("Simulator window unavailable; \(selected.name) is running without it.")
     }

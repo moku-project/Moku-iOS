@@ -1,9 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// Justified paragraphs. SwiftUI `Text` has no justified alignment, so this
-/// renders the same attributed run (bold and italic kept) through UIKit, with
-/// light hyphenation so justified lines don't open wide gaps.
+/// Justified paragraphs through UIKit (SwiftUI `Text` can't justify), with light hyphenation to avoid wide gaps.
 struct NovelParagraph: UIViewRepresentable {
     let text: AttributedString
     let font: NovelFont

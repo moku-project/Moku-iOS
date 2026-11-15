@@ -1,8 +1,7 @@
 import Foundation
 import Tsunagu
 
-/// Own one controller for the app's embedded backend. Blocking native calls use
-/// a dedicated serial queue; neither MainActor nor Swift's cooperative pool waits on Go.
+/// Owns the embedded backend; blocking native calls run on a serial queue, never MainActor or the cooperative pool.
 public actor BackendController {
     public enum State: String, Sendable {
         case stopped, starting, running, stopping, failed
@@ -76,8 +75,7 @@ public actor BackendController {
 
     public init() {}
 
-    /// Call on foreground loss. The JVM remains alive; workers stop and unfinished
-    /// downloads become retryable. Resume returns a fresh authenticated connection.
+    /// Call on foreground loss: the JVM stays alive, workers stop and unfinished downloads become retryable.
     public func suspend() async throws { try await stop() }
     @discardableResult
     public func resume() async throws -> Connection {
@@ -86,8 +84,7 @@ public actor BackendController {
     }
 
 
-    /// Supply an app-owned Application Support directory. The caller decides
-    /// when startup happens; blocking native work always runs on the worker queue.
+    /// `dataDirectory` must be app-owned Application Support; blocking native work runs on the worker queue.
     @discardableResult
     public func start(dataDirectory: URL, sandbox: EmbeddedSandbox? = nil, deferSandbox: Bool = false) async throws
         -> Connection
@@ -102,8 +99,7 @@ public actor BackendController {
             try await Self.checkHealth(result)
             try Task.checkCancellation()
             connection = result
-            // Tsunagu's StartWithSandbox only records the address; it is
-            // confirmed on first use. Deferred starts attach later.
+            // StartWithSandbox only records the address (confirmed on first use); deferred starts attach later.
             extensionsAttached = sandbox != nil
             state = .running
             return result
@@ -155,8 +151,7 @@ public actor BackendController {
     }
 
     private static func checkHealth(_ connection: Connection) async throws {
-        // The local server doesn't redirect. Refuse redirects so its credential
-        // can never be forwarded to another endpoint.
+        // The local server never redirects; refusing redirects keeps its credential from reaching another endpoint.
         let session = URLSession(
             configuration: .ephemeral, delegate: NoRedirects(), delegateQueue: nil)
         defer { session.invalidateAndCancel() }
@@ -180,8 +175,7 @@ private final class NoRedirects: NSObject, URLSessionTaskDelegate, Sendable {
     }
 }
 
-/// All access to the non-Sendable gomobile object is confined to `queue`.
-/// The unchecked conformance transfers the worker, never the native service.
+/// Confines the non-Sendable gomobile object to `queue`; the unchecked conformance only transfers the worker.
 private final class NativeServiceWorker: @unchecked Sendable {
     private let queue = DispatchQueue(label: "moku.go.lifecycle", qos: .utility)
     private var service: BackendService?

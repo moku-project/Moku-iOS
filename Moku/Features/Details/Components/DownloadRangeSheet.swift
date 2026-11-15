@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Desktop SeriesActions custom range: queue every missing chapter from one chapter to another.
+/// Queues every missing chapter in a chosen range.
 struct DownloadRangeSheet: View {
     /// Reading order, oldest first.
     let chapters: [Chapter]

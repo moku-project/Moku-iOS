@@ -1,9 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// Desktop BugReporter: a prefilled GitHub issue (bug or feature request) with
-/// the app, iOS and server versions, plus only the settings groups you tick.
-/// Secrets, PINs, keybinds, themes, bookmarks and per-title data never leave.
+/// A prefilled GitHub issue with versions and only the ticked settings groups; secrets and per-title data never leave.
 struct BugReportSheet: View {
     @Environment(AppDataStore.self) private var appData
     @Environment(\.dismiss) private var dismiss

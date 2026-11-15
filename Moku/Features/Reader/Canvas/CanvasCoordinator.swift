@@ -80,7 +80,7 @@ final class CanvasCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogniz
         if changed {
             let animate =
                 !paths.isEmpty && paths == model.pages && !model.isStrip && !parent.reduceMotion
-            // A page turn starts unzoomed, like Android.
+            // A page turn starts unzoomed.
             if !model.isStrip && scroll.zoomScale != 1 { scroll.setZoomScale(1, animated: false) }
             for task in work.values { task.cancel() }
             work.removeAll()
@@ -121,8 +121,7 @@ final class CanvasCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogniz
             lastLandscape = model.landscape
             if !changed { layout(anchor: model.page) }
         }
-        // Double-tap zoom works in paged layouts whether or not pinching is on;
-        // the "Pinch to zoom" setting only governs the pinch gesture.
+        // Double-tap zoom works in paged layouts regardless; "Pinch to zoom" only governs pinching.
         scroll.maximumZoomScale = model.behaviour.pinchZoom ? 3 : (model.isStrip ? 1 : Self.doubleTapZoom)
         scroll.minimumZoomScale = 1
         scroll.pinchGestureRecognizer?.isEnabled = model.behaviour.pinchZoom
@@ -242,8 +241,7 @@ final class CanvasCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogniz
         for page in Array(work.keys) where !keep.contains(page) {
             work.removeValue(forKey: page)?.cancel()
         }
-        // Keep UIKit views bounded too. Long chapters previously allocated an
-        // image view, animated skeleton and label for every page before opening.
+        // Bound UIKit page views too, not only decoded images.
         let displayed = parent.model.isStrip ? keep : keep.intersection(pageNumbers)
         for page in Array(views.keys) where !displayed.contains(page) {
             skeletons.removeValue(forKey: page)?.setAnimating(false)
@@ -354,8 +352,7 @@ final class CanvasCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogniz
                 }
             }
         }
-        // loadWindow walks the cache and every page view; only rerun it when the
-        // visible range moves to another page, not on every scrolled frame.
+        // loadWindow walks the cache and every page view, so rerun it only when the visible page changes.
         let first = firstPageIndex(below: visibleRect.minY)
         let window = first...max(first, firstPageIndex(below: visibleRect.maxY))
         guard window != scrolledWindow else { return }
@@ -398,9 +395,7 @@ final class CanvasCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogniz
             if !model.behaviour.tapToToggleBar { parent.toggleChrome() }
             return
         }
-        // Paged: 30/40/30 zones. The edge zones turn pages (mirrored for right to
-        // left); the middle, or the whole screen with tap-to-turn off, toggles the
-        // controls, since double-tap zooms in paged layouts.
+        // Paged: 30/40/30 zones; edges turn pages (mirrored for RTL), the middle toggles controls since double-tap zooms.
         if model.behaviour.tapToTurn, let scroll {
             let x = gesture.location(in: scroll).x - scroll.contentOffset.x
             let fraction = x / max(1, scroll.bounds.width)

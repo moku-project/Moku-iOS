@@ -3,9 +3,7 @@ import Foundation
 import UIKit
 import UserNotifications
 
-/// iOS counterpart of desktop's always-on server: downloads keep going for a
-/// while after leaving the app, and a processing task (idle, on network)
-/// updates the library, notifies about new chapters and drains the queue.
+/// Keeps downloads going briefly after backgrounding; a processing task updates the library, notifies and drains the queue.
 @MainActor enum BackgroundWork {
     static let maintenanceID = "com.moku.app.maintenance"
     private static var foregroundTask: UIBackgroundTaskIdentifier = .invalid
@@ -18,7 +16,6 @@ import UserNotifications
         }
     }
 
-    /// Called when the app goes to the background.
     static func didEnterBackground(defaults: UserDefaults) {
         let updates = defaults.bool(forKey: "automation.backgroundUpdates")
         Task {

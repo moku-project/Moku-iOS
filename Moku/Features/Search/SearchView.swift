@@ -63,7 +63,7 @@ struct SearchView: View {
                 prompt: model.isLibrary ? "Search your library" : "Titles, authors, genres"
             )
             .onSubmit(of: .search) { model.submit() }
-            // The bar's content button chooses what Search looks for, as on Android.
+            // The bar's content button chooses what Search looks for.
             .onChange(of: contentMode, initial: true) { _, mode in
                 if !model.isLibrary { model.selectMode(mode) }
             }

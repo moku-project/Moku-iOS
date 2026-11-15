@@ -35,8 +35,7 @@ import UIKit
         }
     }
 
-    /// The system extrapolates elapsed time from the rate, so this only needs
-    /// to run when something other than the clock changes.
+    /// The system extrapolates elapsed time from the rate, so call only when something besides the clock changes.
     func update(title: String, episode: String, position: Double, duration: Double, rate: Float, playing: Bool) {
         let key = "\(title)|\(episode)|\(Int(duration))|\(playing)|\(rate)|\(Int(position / 5))"
         guard key != lastKey else { return }

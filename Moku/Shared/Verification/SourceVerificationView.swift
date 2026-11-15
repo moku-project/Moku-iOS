@@ -14,9 +14,7 @@ struct SourceVerificationRequest: Identifiable {
     var onComplete: (@MainActor () -> Void)?
 }
 
-/// `@Environment(\.presentSourceVerification) var verify` then
-/// `verify(extensionID: source.packageName, url: url) { retry() }`.
-/// Works under any view with `.sourceVerificationHost()` above it.
+/// Call `verify(extensionID:url:) { retry() }` from any view under a `.sourceVerificationHost()`.
 struct SourceVerificationAction {
     fileprivate var present: @MainActor (SourceVerificationRequest) -> Void = { _ in }
     /// False when no `.sourceVerificationHost()` is installed above this view.
@@ -112,8 +110,7 @@ struct SourceVerificationView: View {
                 .interactiveDismissDisabled(model.session != nil)
         }
         .task {
-            // The caller's page first, then the source's own site as Tsunagu reports it,
-            // then the address used last time.
+            // Prefer the caller's page, then the source's site from Tsunagu, then the last used address.
             var url = request.url
             if url == nil { url = await Self.sourceSite(request.extensionID) }
             address = url?.absoluteString

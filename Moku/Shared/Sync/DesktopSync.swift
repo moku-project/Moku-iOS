@@ -1,18 +1,7 @@
 import Foundation
 import Observation
 
-/// Two-way sync between this phone's embedded server and a paired desktop.
-///
-/// - Titles match across devices by extension package plus the source's
-///   external ID (database IDs differ per device).
-/// - Library membership is a 3-way merge against the titles both sides had at
-///   the last sync, so a removal on either device carries over instead of
-///   coming back. A title missing from one side's list is only removed once
-///   that side confirms `inLibrary: false`: the content filter also hides
-///   titles from lists, and a stricter level must never delete anything.
-/// - Reading progress matches chapters by external ID; the newer `updatedAt`
-///   wins and is written to the other side.
-/// - Folders sync by name and only ever add membership.
+/// Two-way desktop sync: titles match by package + external ID, library is a 3-way merge, newer progress wins, folders only add.
 @MainActor @Observable final class DesktopSync {
     static let shared = DesktopSync()
 
@@ -92,8 +81,7 @@ import Observation
         try? await document.write(snapshot)
     }
 
-    /// Foreground trigger: at most every five minutes, and silent on failure
-    /// (the desktop may simply be asleep or on another network).
+    /// Runs at most every five minutes and fails silently; the desktop may be asleep or away.
     func syncIfDue(library: LibraryStore) async {
         await load()
         guard isPaired, !syncing else { return }
@@ -181,8 +169,7 @@ import Observation
         let items: [String: Item]
     }
 
-    /// Lists the library, then reads `known` paired titles the list left out:
-    /// the content filter hides titles from `library`, never from `media(id:)`.
+    /// Lists the library, then reads known pairs it hid (the content filter hides from `library`, not `media(id:)`).
     private nonisolated static func side(remote: DesktopClient?, known: Set<String>) async throws -> Side {
         struct Extensions: Decodable, Sendable {
             struct Item: Decodable, Sendable { let id: String; let packageName: String }
@@ -233,8 +220,7 @@ import Observation
 
     // MARK: - Library
 
-    /// Returns pairs known after the merge: kept ones and newly added ones, so
-    /// later steps and the next sync can read them even if a list hides them.
+    /// Returns kept and newly added pairs, so later steps and the next sync can read titles a list hides.
     private func mergeLibrary(
         phone: Side, desktop: Side, remote: DesktopClient, library: LibraryStore, report: inout Report
     ) async throws -> [String: Pair] {
@@ -496,8 +482,7 @@ import Observation
     }
 }
 
-/// Decodes either a `resolveMedia` or a mutation result, so `add` can use one
-/// runner for both the phone and the desktop.
+/// Decodes a `resolveMedia` or mutation result, so `add` uses one runner for both devices.
 struct IgnoredGraphQLResultHolder: Decodable, Sendable {
     let resolvedID: String?
     let inLibrary: Bool

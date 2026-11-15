@@ -6,9 +6,7 @@ import SwiftUI
     var hidden = false
 }
 
-/// Android's bottom bar on iOS: the tabs in one glass capsule, with the content
-/// switcher as its own glass button beside it. Tapping the switcher steps to the
-/// next content type; holding it lists them all.
+/// Tabs in one glass capsule beside a content switcher: tap steps to the next content type, hold lists them all.
 struct MokuTabBar: View {
     @Binding var selection: AppTab
     let reselect: (AppTab) -> Void

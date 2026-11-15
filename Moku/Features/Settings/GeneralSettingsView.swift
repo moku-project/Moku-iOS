@@ -94,8 +94,7 @@ struct BundledServerSection: View {
 
     var body: some View {
         Section {
-            // The loopback address changes every launch and is private to the app,
-            // so show what it means rather than the URL.
+            // The loopback address changes each launch and is app-private, so describe it instead of showing it.
             LabeledContent("Bundled server") {
                 Text(serverURL == nil ? "Not started" : "Running")
                     .foregroundStyle(serverURL == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(NavigationStyle.accent))

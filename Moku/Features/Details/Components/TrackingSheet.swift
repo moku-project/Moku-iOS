@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// Desktop TrackerPanel: link a title to each signed-in tracker, then edit
-/// status, progress and score, pull from the tracker, or unlink.
+/// Links a title to each signed-in tracker to edit status, progress and score, pull, or unlink.
 struct TrackingSheet: View {
     let mediaID: String
     let title: String

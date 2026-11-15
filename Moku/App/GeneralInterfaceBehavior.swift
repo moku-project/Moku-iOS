@@ -2,10 +2,9 @@ import Observation
 import SwiftUI
 import UIKit
 
-/// Scales layout proposals as well as artwork, so larger controls remain scrollable.
-/// Reader/player full-screen presentations keep their independent sizing.
 extension Notification.Name { static let mokuPreviewIdle = Notification.Name("moku.previewIdle") }
 
+/// Scales layout as well as artwork so larger controls stay scrollable; reader and player keep their own sizing.
 struct GeneralInterfaceBehavior: ViewModifier {
     @AppStorage("preferences.interfaceScale") private var percentage = 100.0
     @AppStorage("preferences.idleTimeout") private var idleMinutes = 5
@@ -94,8 +93,7 @@ struct GeneralInterfaceBehavior: ViewModifier {
     }
 }
 
-/// A passive window recognizer observes touches without competing with scrolling,
-/// controls, or reader gestures. It is removed with this profile's view hierarchy.
+/// A passive window recognizer that sees touches without competing with scrolling, controls or reader gestures.
 private struct IdleActivityObserver: UIViewRepresentable {
     let activity: () -> Void
     let blocked: (Bool) -> Void

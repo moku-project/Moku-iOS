@@ -18,7 +18,7 @@ import Observation
     var chromeVisible = true
     var landscape = false
     var jumpID = UUID()
-    /// Desktop resume banner: the saved page this chapter reopened at.
+    /// The saved page this chapter reopened at, for the resume banner.
     var resumedPage: Int?
     /// Server chapter bookmarks (Mihon-style), separate from the local page bookmark.
     private(set) var chapterBookmarks: [String: Bool] = [:]
@@ -29,8 +29,7 @@ import Observation
     private var loadedChapterID: String?
     private var completedChapters = Set<String>()
     private var loadGeneration = UUID()
-    /// The next chapter's first pages, fetched near the end of this one so the
-    /// chapter turn shows pages at once instead of a skeleton.
+    /// The next chapter's first pages, prefetched near the end so the turn shows pages instead of a skeleton.
     @ObservationIgnored private var prefetched: [String: Data] = [:]
     @ObservationIgnored private var prefetchedChapter: String?
     @ObservationIgnored private var prefetchTask: Task<Void, Never>?
@@ -132,10 +131,7 @@ import Observation
             loading = false
         }
     }
-    /// Synced server progress is the source of truth (page = progress × count;
-    /// completed chapters start over). The device-only position is used when the
-    /// server has nothing, or when it was saved after the server's last update
-    /// (for example, progress that couldn't sync while offline).
+    /// Synced progress wins unless the server has none or the device position is newer; completed chapters start over.
     private func resumePage(chapterID id: String, count: Int, remote: ReaderChapterState?) -> Int {
         let saved = preferences.document.positions[details.id]
         let local = saved?.chapterID == id ? saved.map { min(max($0.page, 1), count) } : nil

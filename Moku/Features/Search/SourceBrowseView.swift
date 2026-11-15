@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// Desktop SourceTab for one source: its popular titles, a search inside the
-/// source, and Load more while the source reports another page.
+/// One source's popular titles, an in-source search, and Load more while the source has another page.
 struct SourceBrowseView: View {
     let source: SourceExtension
     let openEntry: (MediaEntry) -> Void

@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// Desktop NovelReader counterpart: one chapter at a time, continuous scroll or
-/// tap-to-turn paging, typography and paper themes, and synced progress.
+/// One chapter at a time: continuous scroll or tap-to-turn paging, typography, paper themes and synced progress.
 struct NovelReaderView: View {
     @State var model: NovelReaderViewModel
     @Environment(\.dismiss) private var dismiss
@@ -68,7 +67,7 @@ struct NovelReaderView: View {
         }
         .onChange(of: scenePhase) { _, phase in if phase != .active { model.flush() } }
         .onAppear {
-            // Keep the screen on while reading, like the player and Android.
+            // Keep the screen on while reading.
             previousIdleTimer = UIApplication.shared.isIdleTimerDisabled
             UIApplication.shared.isIdleTimerDisabled = true
         }
@@ -121,7 +120,7 @@ struct NovelReaderView: View {
                 }
             }
             .onScrollPhaseChange { _, phase in
-                // Like desktop, touching the text pauses auto scroll for a moment.
+                // Touching the text pauses auto scroll for a moment.
                 if phase == .interacting || phase == .tracking {
                     autoScrollPausedUntil = .now + .seconds(2.5)
                 }
@@ -223,8 +222,7 @@ struct NovelReaderView: View {
         bookmarkData = NovelBookmark.encode(all)
     }
 
-    /// Desktop reading guide: a tinted band across the middle of the screen,
-    /// one to eight lines tall, to keep your place while reading.
+    /// A tinted band of one to eight lines across the middle of the screen, to keep your place.
     private var readingGuide: some View {
         let height = bodySize * lineHeight * CGFloat(guideLines) + 4
         return Rectangle()
@@ -237,8 +235,7 @@ struct NovelReaderView: View {
             .accessibilityHidden(true)
     }
 
-    /// Desktop auto scroll: a steady glide, from 1 (slow) to 30 (fast). Any tap
-    /// that shows the bars pauses it; it stops at the end of the chapter.
+    /// Glides at speed 1 (slow) to 30 (fast); pauses when the bars show and stops at the chapter end.
     private func runAutoScroll() async {
         guard autoScrolling else { return }
         chromeVisible = false

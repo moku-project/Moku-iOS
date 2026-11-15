@@ -1,9 +1,6 @@
 import Foundation
 
-/// Checks search results for chapters before they are trusted. Sources such as
-/// the source still list titles whose chapters were removed (licensed series);
-/// those come back with no chapters and are hidden from typed searches.
-/// A few checks run at once, and answers are kept for six hours.
+/// Hides typed-search results with no chapters (e.g. licensed the source titles); few checks at once, cached six hours.
 actor ContentProbe {
     enum Verdict: Equatable, Sendable { case content, empty, unknown }
 

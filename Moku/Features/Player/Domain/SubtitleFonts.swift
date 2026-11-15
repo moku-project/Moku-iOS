@@ -2,9 +2,7 @@ import CoreText
 import Foundation
 import UIKit
 
-/// Fonts embedded in an ASS file's `[Fonts]` section. Desktop's libass loads
-/// them; here they are decoded and registered for the app, so the script's
-/// style font names resolve.
+/// Decodes and registers fonts embedded in an ASS `[Fonts]` section so style font names resolve.
 enum SubtitleFonts {
     private static let lock = NSLock()
     nonisolated(unsafe) private static var registered: Set<String> = []
@@ -55,8 +53,7 @@ enum SubtitleFonts {
         return fonts
     }
 
-    /// SSA uuencoding: each character is 33 + six bits; four characters make
-    /// three bytes, and a short final group makes one or two.
+    /// SSA uuencoding: each character is 33 + six bits; four characters make three bytes, a short final group one or two.
     static func decode(_ text: String) -> Data? {
         let values = text.unicodeScalars.map { Int($0.value) - 33 }
         guard values.allSatisfy({ (0...63).contains($0) }) else { return nil }

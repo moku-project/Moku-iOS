@@ -2,8 +2,7 @@ import Foundation
 import ImageIO
 import UIKit
 
-/// Full-resolution artwork is never decoded on the UI executor. Prepared
-/// thumbnails are shared across Home, search, details and the library.
+/// Decodes artwork off the UI executor; prepared thumbnails are shared across Home, search, details and the library.
 actor CoverImagePipeline {
     static let shared = CoverImagePipeline()
     private nonisolated static let images = CoverMemoryCache()
@@ -90,8 +89,7 @@ actor CoverImagePipeline {
         return UIImage(cgImage: image)
     }
 
-    /// Only warm the first screenful, with at most three requests per batch.
-    /// Visible cells share this exact pipeline rather than fetching a second copy.
+    /// Warms only the first screenful, at most three requests per batch, through the pipeline visible cells use.
     func prefetch(_ urls: [URL]) async {
         var seen = Set<URL>()
         let unique = urls.filter { seen.insert($0).inserted }.prefix(12)
@@ -117,8 +115,7 @@ actor CoverImagePipeline {
     }
 }
 
-/// NSCache supports concurrent lookup/eviction. Its decoded images are immutable.
-/// A synchronous hit lets a revisited cell display its cover on its first frame.
+/// NSCache is thread-safe and images are immutable; a synchronous hit shows a revisited cover on its first frame.
 private final class CoverMemoryCache: @unchecked Sendable {
     let cache: NSCache<NSURL, UIImage> = {
         let cache = NSCache<NSURL, UIImage>()

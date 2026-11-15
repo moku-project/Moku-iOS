@@ -1,8 +1,6 @@
 import SwiftUI
 
-/// Thin read/total bar for a continue-reading title. Uses the series' chapter
-/// list when Home has it; otherwise nothing is drawn (the text already says where
-/// reading stopped).
+/// Thin read/total bar for a continue-reading title, drawn only when Home has its chapter list.
 struct HomeSeriesProgress: View {
     let entry: HomeEntry
 

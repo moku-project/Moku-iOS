@@ -1,8 +1,7 @@
 import Foundation
 import WebKit
 
-/// Service bridge for a host-presented, manually completed source challenge.
-/// This type owns no product navigation or buttons.
+/// Service bridge for a host-presented, manually completed source challenge; owns no navigation or buttons.
 @MainActor
 public final class SourceVerificationBrowser {
     public let webView: WKWebView
@@ -31,8 +30,7 @@ public final class SourceVerificationBrowser {
         webView.load(URLRequest(url: session.url))
     }
 
-    /// The host calls this after the user finishes verification. Cookie transfer
-    /// does not assert success: the original source operation is retried once.
+    /// Call after the user finishes; cookie transfer doesn't prove success, so the source operation is retried once.
     public func complete(retry: @Sendable () async throws -> Void) async throws {
         guard !finished else { throw BackendController.BackendError.invalidEndpoint }
         let agent = try await webView.evaluateJavaScript("navigator.userAgent") as? String ?? ""

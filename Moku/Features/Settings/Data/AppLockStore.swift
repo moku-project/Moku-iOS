@@ -5,8 +5,7 @@ import Observation
 import Security
 import SwiftUI
 
-/// Where the PIN credential lives. The app uses the Keychain; tests inject an
-/// in-memory vault because unsigned simulator test hosts have no Keychain entitlement.
+/// Holds the PIN credential: Keychain in the app, in memory in tests (unsigned hosts lack the entitlement).
 protocol AppLockVault: Sendable {
     /// `nil` when nothing has been saved.
     func read(account: String) throws -> Data?
@@ -24,8 +23,7 @@ struct KeychainAppLockVault: AppLockVault {
         q[kSecMatchLimit as String] = kSecMatchLimitOne
         var result: CFTypeRef?
         let status = SecItemCopyMatching(q as CFDictionary, &result)
-        // Without keychain access (unsigned Simulator builds) no PIN can ever have been saved;
-        // failing closed here would lock the app with no way to unlock it.
+        // Unsigned Simulator builds can't have saved a PIN; failing closed would lock the app for good.
         if status == errSecItemNotFound || status == errSecMissingEntitlement { return nil }
         guard status == errSecSuccess, let data = result as? Data else { throw AppLockStore.LockError.storage }
         return data

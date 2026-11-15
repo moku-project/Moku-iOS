@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// Desktop metadata match: link a title to its AniList entry, so the server can
-/// fill in missing details, alternate covers and MyAnimeList links.
+/// Links a title to its AniList entry so the server can fill in details, alternate covers and MyAnimeList links.
 struct MetadataSheet: View {
     let mediaID: String
     let title: String

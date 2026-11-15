@@ -97,7 +97,7 @@ import Observation
         }
     }
 
-    /// Moving to the next chapter counts the current one as read, like desktop.
+    /// Moving to the next chapter counts the current one as read.
     func advance() {
         guard let next else { return }
         progress = 1
@@ -163,7 +163,7 @@ import Observation
     }
 }
 
-/// Desktop's novel bookmark: one saved spot per series, separate from progress.
+/// One saved spot per series, separate from progress.
 struct NovelBookmark: Codable, Equatable, Sendable {
     var chapterID: String
     var fraction: Double

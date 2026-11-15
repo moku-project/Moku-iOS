@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// Desktop "Switch source" (MigrateModal): move a series to another installed
-/// source. Read progress carries over by chapter number; downloads stay behind.
+/// Moves a series to another installed source; progress carries over by chapter number, downloads stay behind.
 struct MigrateSheet: View {
     let mediaID: String
     let title: String

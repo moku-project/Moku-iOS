@@ -3,8 +3,7 @@ import Foundation
 import ImageIO
 import UIKit
 
-/// Bounds decoded pixels independently of source resolution, away from the main actor.
-/// Stateless, so concurrent prefetches decode in parallel rather than queueing on one actor.
+/// Bounds decoded pixels off the main actor; stateless so concurrent prefetches decode in parallel.
 struct PageDecoder: Sendable {
     static let shared = PageDecoder()
     private static let context = CIContext(options: [.cacheIntermediates: false])
@@ -41,9 +40,7 @@ struct PageDecoder: Sendable {
         return UIImage(cgImage: image, scale: scale, orientation: .up)
     }
 
-    /// The thumbnail limit applies to the longest side. A fixed 2048 shrank tall
-    /// webtoon strips to about 130 px wide, so bound the short side and the pixel
-    /// count instead (about 32 MB decoded at most).
+    /// Bounds the short side and pixel count (~32 MB) rather than the long side, so webtoon strips stay readable.
     private static func maxPixelSize(_ source: CGImageSource) -> Int {
         let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
         let width = (properties?[kCGImagePropertyPixelWidth] as? NSNumber)?.doubleValue ?? 0

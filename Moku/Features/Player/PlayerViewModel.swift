@@ -168,8 +168,7 @@ final class PlayerViewModel {
         resumePosition = resume.isFinite ? max(0, resume) : 0
         finished = false
         playing = isActive && shouldPlay
-        // Normal playback preserves AVPlayer's automatic stall
-        // avoidance. playImmediately bypasses that policy on slow streams.
+        // Keep AVPlayer's stall avoidance; playImmediately would bypass it on slow streams.
         if playing {
             player.defaultRate = speed
             player.play()
@@ -183,7 +182,7 @@ final class PlayerViewModel {
         return "\(resolution) · \(source)"
     }
 
-    /// Desktop remembers the picked source per series (`preferredVideoSource`).
+    /// Remembers the picked source per series (`preferredVideoSource`).
     private var preferredSources: [String: String] {
         get { (UserDefaults.standard.dictionary(forKey: "player.preferredSources") as? [String: String]) ?? [:] }
         set { UserDefaults.standard.set(newValue, forKey: "player.preferredSources") }
@@ -275,8 +274,7 @@ final class PlayerViewModel {
         let token = UUID()
         seekGeneration = token
         seeking = true
-        // Keep the requested thumb position until this seek completes; a superseded
-        // completion must not release a newer seek or move the timeline backwards.
+        // Hold the requested position until this seek completes; a superseded completion must not release a newer seek.
         player.seek(
             to: CMTime(seconds: position, preferredTimescale: 600),
             toleranceBefore: .zero, toleranceAfter: .zero

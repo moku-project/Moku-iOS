@@ -326,8 +326,7 @@ struct HomeView: View {
     }
 
     private var upcoming: some View {
-        // Resolve chapter preferences once, outside the chapter search and row closures.
-        // Re-reading the computed property in firstIndex rebuilds the full list per chapter.
+        // Resolve chapter preferences once; reading the computed property per chapter rebuilds the whole list.
         let slot = self.slot
         return VStack(spacing: 12) {
             HomeSectionHeading(

@@ -1,9 +1,6 @@
 import Foundation
 
-/// Desktop's server log counterpart. The embedded server (Go's `log` and the
-/// source sandbox) writes to stdout and stderr, which iOS discards outside Xcode.
-/// Both are teed into a size-capped file in Caches, and still reach the original
-/// descriptors so the Xcode console keeps working.
+/// Tees stdout/stderr (Go and the sandbox) into a capped Caches file, since iOS discards them outside Xcode.
 final class ServerLog: @unchecked Sendable {
     static let shared = ServerLog()
     /// About 1 MB on disk; older output is trimmed to half when the cap is reached.

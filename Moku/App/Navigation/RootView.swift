@@ -30,7 +30,7 @@ struct SourceRoute: Hashable {
 
 struct RootView: View {
     @State private var navigation: RootNavigation = {
-        // Desktop "Default view". Read once at launch; changing it applies next time.
+        // Read once at launch; a changed default view applies next time.
         let navigation = RootNavigation()
         let stored = AppDataStore.shared.preferences.string(forKey: "preferences.startTab")
         if let tab = stored.flatMap(AppTab.init(rawValue:)) {
@@ -138,8 +138,7 @@ struct RootView: View {
     }
 }
 
-/// Each page observes only its own activity. The stable reference inputs keep
-/// Library data and unrelated route changes out of other tabs' view dependencies.
+/// Observes only its own activity; stable inputs keep Library data and other routes out of each tab's dependencies.
 private struct RootTabPage: View, Equatable {
     let tab: AppTab
     let activity: TabActivity

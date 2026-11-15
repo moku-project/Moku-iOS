@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// Settings → Sync: pair with Moku desktop over the local network and keep the
-/// library, folders and reading progress in step.
+/// Pairs with Moku desktop over the local network to sync library, folders and reading progress.
 struct SyncSettingsContent: View {
     @Environment(LibraryStore.self) private var library
     @State private var sync = DesktopSync.shared

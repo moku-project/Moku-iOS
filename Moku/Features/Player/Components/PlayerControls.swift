@@ -164,7 +164,7 @@ struct PlayerControls: View {
         .overlay { skipMarkers }
     }
 
-    /// Desktop seek-bar markers: intro, outro and recap ranges drawn on the track.
+    /// Intro, outro and recap ranges drawn on the track.
     private var skipMarkers: some View {
         GeometryReader { proxy in
             let inset = 6.0

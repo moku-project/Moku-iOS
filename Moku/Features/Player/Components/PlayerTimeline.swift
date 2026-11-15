@@ -77,8 +77,7 @@ struct PlayerTimeline: UIViewRepresentable {
     }
 }
 
-/// Seek bars accept a touch anywhere on the track, including when playback has
-/// moved the small visual thumb since the user began reaching for it.
+/// Accepts a touch anywhere on the track, since playback may move the small thumb while the user reaches for it.
 private final class PlayerSlider: UISlider {
     override func beginTracking(_ touch: UITouch, with event: UIEvent?) -> Bool {
         guard isEnabled else { return false }

@@ -86,8 +86,7 @@ import Testing
     }
 }
 
-/// Unsigned simulator test hosts have no Keychain entitlement, so the lock's
-/// storage is exercised in memory; KeychainAppLockVault is the shipping path.
+/// In-memory vault: unsigned simulator test hosts have no Keychain entitlement.
 final class MemoryAppLockVault: AppLockVault, @unchecked Sendable {
     private let lock = NSLock()
     private var items: [String: Data] = [:]

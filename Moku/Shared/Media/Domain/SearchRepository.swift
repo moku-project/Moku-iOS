@@ -10,8 +10,7 @@ protocol SearchRepository: Sendable {
         _ request: SearchRequest,
         onUpdate: @escaping @Sendable ([MediaEntry]) async -> Void
     ) async throws -> [MediaEntry]
-    /// How many chapters a result really has at its source, or nil when that
-    /// can't be known (fixtures, library search).
+    /// The result's chapter count at its source, or nil when unknowable (fixtures, library search).
     func chapterCount(_ entry: MediaEntry) async throws -> Int?
 }
 

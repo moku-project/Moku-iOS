@@ -17,8 +17,7 @@ struct MediaDetails: Decodable, Sendable {
     }
 }
 
-// Metadata is fetched independently of chapters so a chapter failure cannot hide
-// the title, cover, or description. Full responses still decode the chapter list.
+// Metadata loads apart from chapters so a chapter failure can't hide the title; full responses still decode chapters.
 extension MediaDetails {
     private enum CodingKeys: String, CodingKey {
         case id, title, thumbnailUrl, description, author, artist, status, genres, inLibrary,

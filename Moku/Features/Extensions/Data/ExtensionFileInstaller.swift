@@ -1,7 +1,7 @@
 import Foundation
 import UniformTypeIdentifiers
 
-/// Desktop "Install from file": uploads an .apk, .jar or .js extension to the embedded server.
+/// Uploads an .apk, .jar or .js extension to the embedded server.
 enum ExtensionFileInstaller {
     static let contentTypes: [UTType] = ["apk", "jar", "js"].compactMap { UTType(filenameExtension: $0) } + [.data]
 

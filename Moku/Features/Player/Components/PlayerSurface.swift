@@ -3,8 +3,7 @@ import AVKit
 import Observation
 import SwiftUI
 
-/// Picture in Picture for the player layer. Starts automatically when the app
-/// goes home while a video plays, or from the player's PiP button.
+/// Picture in Picture for the player layer; starts when the app goes home mid-video, or from the PiP button.
 @MainActor @Observable final class PictureInPicture: NSObject, AVPictureInPictureControllerDelegate {
     private(set) var isActive = false
     private(set) var isPossible = false
@@ -53,8 +52,7 @@ import SwiftUI
 struct PlayerSurface: UIViewRepresentable {
     let player: AVPlayer
     var qualityScaling = false
-    /// In the background without PiP, iOS pauses a player that drives a layer;
-    /// detaching it keeps the audio playing.
+    /// Without PiP, iOS pauses a background player that drives a layer; detaching keeps audio playing.
     var detached = false
     var pictureInPicture: PictureInPicture?
 

@@ -1,9 +1,7 @@
 import Foundation
 import Security
 
-/// A paired desktop: its server address plus credentials kept in the Keychain.
-/// The password is stored so an expired 30-day session can renew itself
-/// without asking the user to pair again.
+/// A paired desktop; the Keychain-held password lets an expired 30-day session renew without re-pairing.
 struct DesktopPairing: Codable, Equatable, Sendable {
     var name: String
     var baseURL: URL

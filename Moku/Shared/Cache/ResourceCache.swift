@@ -1,9 +1,7 @@
 import CryptoKit
 import Foundation
 
-/// Disposable data only. User records remain in the backend database/profile stores.
-/// Shares concurrent requests, bounds memory, and prevents cleared requests from
-/// repopulating the cache when they finish later.
+/// Disposable data only: shares concurrent requests, bounds memory, and keeps cleared requests from repopulating it.
 actor ResourceCache {
     struct Entry: Codable, Sendable {
         let data: Data
@@ -189,8 +187,7 @@ private actor ResourceDisk {
         totalBytes = 0
     }
 
-    /// Enumerate once, then account incrementally. Previously every downloaded
-    /// cover scanned and sorted the entire cache directory before being returned.
+    /// Enumerates the directory once, then accounts incrementally.
     private func indexIfNeeded() {
         guard records == nil else { return }
         let files = (try? FileManager.default.contentsOfDirectory(

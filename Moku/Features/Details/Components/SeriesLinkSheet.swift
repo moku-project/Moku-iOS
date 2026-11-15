@@ -1,8 +1,6 @@
 import SwiftUI
 
-/// Desktop SeriesLinkPanel: mark library titles as the same series (for
-/// example one manga on two sources). Linked titles share covers in the cover
-/// picker. Stored on this device only, like desktop.
+/// Marks library titles as the same series (e.g. one manga on two sources); stored on this device only.
 struct SeriesLinkSheet: View {
     let entry: MediaEntry
     @Environment(LibraryStore.self) private var library

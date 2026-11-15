@@ -39,8 +39,7 @@ struct SearchOptions: Equatable, Sendable {
     var statuses: Set<Status> = []
     var match: Match = .all
     var sort: Sort = .sourceOrder
-    /// Typed searches drop results whose source has no chapters (for example
-    /// licensed the source titles). Not counted as a filter: it's the default.
+    /// Typed searches drop results with no chapters at their source; on by default, so not counted as a filter.
     var hidesEmpty = true
 
     var filterCount: Int {

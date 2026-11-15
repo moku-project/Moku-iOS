@@ -40,9 +40,7 @@ static JNIEnv *startVM(NSString *runtimeHome, NSString *classPath, NSString *tem
         [@"-Djava.class.path=" stringByAppendingString:classPath],
         // NIO caches this at JVM initialization; setting it from Kotlin is too late.
         [@"-Djava.io.tmpdir=" stringByAppendingString:temporaryDirectory],
-        // The interpreter shares the app process with SwiftUI and Go. Keep
-        // background worker sizing independent of the device's CPU count and
-        // bound native NIO buffers separately from the extension heap.
+        // The JVM shares the app process: fix its worker count and cap NIO buffers apart from the heap.
         @"-Xms16m", @"-Xmx512m", @"-Xss2m",
         @"-XX:ActiveProcessorCount=2", @"-XX:MaxDirectMemorySize=64m",
         @"-Dkotlinx.coroutines.io.parallelism=4",

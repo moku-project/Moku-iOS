@@ -23,13 +23,11 @@ struct ReaderBehaviour: Codable, Equatable, Sendable {
     var autoScrollSpeed = 5.0
     var tapToToggleBar = false
     var containerized = false
-    /// Paged layouts: left and right 30 % of the screen turn pages (mirrored
-    /// for right to left), the middle 40 % shows or hides the controls.
+    /// Paged layouts: the outer 30 % on each side turns pages (mirrored for RTL), the middle 40 % toggles controls.
     var tapToTurn = true
 }
 
-/// Keys added after release decode with their defaults, so an older saved
-/// document never fails to decode (which would reset every reader setting).
+/// Newer keys decode with defaults, so an older document never fails and resets every setting.
 extension ReaderBehaviour {
     init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -66,8 +64,7 @@ struct ReaderPreferenceDocument: Codable, Sendable {
     var presets: [MangaReaderPreset] = []
     var positions: [String: ReaderPosition] = [:]
     var bookmarks: [String: ReaderPosition] = [:]
-    /// When each entry in `positions` was saved, to compare with the server's
-    /// progress `updatedAt` (the newer one wins when reopening a chapter).
+    /// When each position was saved; compared with the server's `updatedAt` on reopen, newer wins.
     var positionDates: [String: Date] = [:]
 }
 

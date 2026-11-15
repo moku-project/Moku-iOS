@@ -2,12 +2,7 @@ import Foundation
 import Tsunagu
 import WebKit
 
-/// Bridge to Tsunagu's browser verification calls (embedded/browser.go).
-///
-/// The Go core is one per process and the binding's `Service` is stateless
-/// (`type Service struct{}`), so a separate gomobile handle reaches the same
-/// running core as `Backend.shared` without touching its private controller.
-/// Calls run on their own serial queue, never on the main actor.
+/// Bridge to Tsunagu's browser verification; the stateless gomobile `Service` reaches the shared core on its own serial queue.
 enum BrowserVerification {
     struct Session: Decodable, Sendable, Identifiable {
         let id: String
@@ -16,8 +11,7 @@ enum BrowserVerification {
         let state: String
     }
 
-    /// `BrowserCookies` / `CompleteBrowserVerification` payload. Field names match
-    /// the sandbox's `BrowserState` and `BrowserCookie` (PersistentCookieStore.kt).
+    /// Field names match the sandbox's `BrowserState` / `BrowserCookie` (PersistentCookieStore.kt).
     struct State: Codable, Sendable {
         var cookies: [Cookie]
         var userAgent: String
@@ -82,8 +76,7 @@ enum BrowserVerification {
         var errorDescription: String? { "The source runtime isn’t available. Restart the app and try again." }
     }
 
-    /// True for the message `BackendAPI` shows for a `SOURCE_CLOUDFLARE` error
-    /// (a challenge page or a 403 from the source).
+    /// True for `BackendAPI`'s `SOURCE_CLOUDFLARE` message (a challenge page or a 403).
     static func isChallenge(_ message: String?) -> Bool {
         guard let message else { return false }
         return message.localizedCaseInsensitiveContains("Cloudflare")

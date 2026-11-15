@@ -5,8 +5,7 @@ import Foundation
 #endif
 
 #if DEBUG
-    /// Measures a background-to-main hop, not service/network duration. Keep this
-    /// enabled in development so on-device stalls have an actionable console signal.
+    /// Measures a background-to-main hop, not service time; kept on in development to flag on-device stalls.
     @MainActor final class UIResponsivenessMonitor {
         static let shared = UIResponsivenessMonitor()
         private static let logger = Logger(subsystem: "com.moku.app", category: "UIResponsiveness")
@@ -40,8 +39,7 @@ import Foundation
 import SwiftUI
 import UIKit
 
-/// In-app timing excludes XCTest's tap/idle overhead. Two display ticks allow the
-/// selection transaction to be presented before recording the next frame.
+/// Timed in-app to exclude XCTest overhead; two display ticks let the selection transaction present first.
 @MainActor enum NavigationTiming {
     private static let logger = Logger(subsystem: "com.moku.app", category: "Navigation")
     static var pending: (tab: AppTab, started: CFTimeInterval)?

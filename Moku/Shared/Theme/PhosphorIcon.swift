@@ -6,8 +6,7 @@ struct PhosphorIcon: View {
     let weight: String
     private let base: CGFloat
     @ScaledMetric private var scaled: CGFloat
-    /// Icons follow Dynamic Type, but stop at 1.6× so accessibility sizes enlarge
-    /// text without icons overrunning their rows.
+    /// Follows Dynamic Type but caps at 1.6× so icons don't overrun rows at accessibility sizes.
     private var size: CGFloat { min(scaled, base * 1.6) }
 
     init(_ name: String, size: CGFloat = 18, weight: String = "regular") {

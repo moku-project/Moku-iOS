@@ -4,7 +4,6 @@ import UIKit
 
 @testable import Moku
 
-/// Desktop features ported in the final parity pass.
 struct RemainingParityTests {
     @Test func parsesASSStylesOverridesAndPositions() {
         let cues = SubtitleCue.parse(
@@ -24,7 +23,7 @@ struct RemainingParityTests {
             Dialogue: 0,0:00:05.00,0:00:06.00,Default,,0,0,0,,{\\i1\\c&H0000FF&}Red italic
             Dialogue: 0,0:00:07.00,0:00:08.00,Default,,0,0,0,,{\\p1}m 0 0 l 10 10{\\p0}
             """)
-        // The \p1 drawing is now a shape cue rather than skipped.
+        // A \p1 drawing becomes a shape cue.
         #expect(cues.count == 4)
         #expect(cues[3].text.isEmpty && cues[3].shape.count == 2)
         #expect(cues[0].text == "Hello, world\nsecond line")

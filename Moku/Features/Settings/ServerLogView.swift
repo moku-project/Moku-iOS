@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// Settings › Server › Server log: the newest embedded-server output, with
-/// filter, share and clear, like desktop's log viewer.
+/// The newest embedded-server output, with filter, share and clear.
 struct ServerLogView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var lines: [String] = []

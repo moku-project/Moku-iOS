@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-/// Presentation state for saved titles. Supply items when the library repository is connected.
+/// Presentation state for saved titles.
 @MainActor @Observable
 final class LibraryViewModel {
     var items: [LibraryItem] = [] { didSet { if items != oldValue { invalidateResults() } } }

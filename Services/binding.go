@@ -1,5 +1,4 @@
-// Package backend is the native binding surface for Moku's embedded Go core.
-// It wraps Tsunagu's upstream embedded package, the same API Moku-Android uses.
+// Package backend is the gomobile binding over Tsunagu's embedded package, the API Moku-Android also uses.
 package backend
 
 import (
@@ -13,8 +12,7 @@ import (
 	"tsunagu/backend/embedded"
 )
 
-// Service keeps the Swift API stable while the core underneath changes.
-// Tsunagu's embedded core is one per process, so every Service shares it.
+// Service keeps the Swift API stable; every Service shares Tsunagu's one-per-process core.
 type Service struct{}
 
 func NewService() *Service { return &Service{} }
@@ -45,8 +43,7 @@ func (s *Service) AttachSandbox(address, token string) error {
 	return embedded.AttachSandbox(address, token)
 }
 
-// checkHost only allows the app's own JVM on IPv4 loopback, so the host
-// token is never sent off the device.
+// checkHost only allows the app's own JVM on IPv4 loopback, so the host token never leaves the device.
 func checkHost(address string) error {
 	host, port, err := net.SplitHostPort(address)
 	if err != nil || port == "" || port == "0" {
@@ -71,8 +68,7 @@ type VideoEngine interface {
 	Process(url, headersJSON, outputPath string, observer VideoObserver) error
 }
 
-// SetVideoEngine has the core download episodes with the app's in-process
-// FFmpeg (TSVideoEngine): iOS cannot run ffmpeg as a program. Call before Start.
+// SetVideoEngine routes episode downloads through the in-process FFmpeg, since iOS can't spawn ffmpeg; call before Start.
 func (s *Service) SetVideoEngine(engine VideoEngine) error {
 	if engine == nil {
 		return errors.New("native video engine is required")
@@ -101,11 +97,7 @@ func (s *Service) CancelBrowserVerification(sessionID string) {
 	embedded.CancelBrowserVerification(sessionID)
 }
 
-// ImportLocalFile copies a file the user picked (still open under its
-// security scope) into Tsunagu's local-source folder:
-// <dir>/<kind>/<series>/<chapter>/<name>, or <dir>/manga/<series>/<name> for
-// a CBZ/ZIP that holds a whole chapter. The app then runs rescanLocalMedia.
-// Names must be plain names; nothing is overwritten.
+// ImportLocalFile copies a picked file into <dir>/<kind>/<series>/<chapter>/<name> (a chapter CBZ: <dir>/manga/<series>/<name>), never overwriting.
 func (s *Service) ImportLocalFile(source, kind, series, chapter, name string) error {
 	if kind != "manga" && kind != "anime" && kind != "novels" {
 		return errors.New("invalid local content type")

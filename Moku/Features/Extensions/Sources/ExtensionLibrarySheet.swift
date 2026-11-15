@@ -1,9 +1,6 @@
 import SwiftUI
 
-/// Desktop per-extension library: the saved titles that come from one source,
-/// and bulk migration of all of them to another installed source. Each title is
-/// matched by searching the target and keeping only a confident title match;
-/// the rest are listed so you can switch them one by one from Details.
+/// One source's saved titles with bulk migration; titles without a confident match are listed to switch by hand.
 struct ExtensionLibrarySheet: View {
     let source: SourceExtension
     @Environment(LibraryStore.self) private var library

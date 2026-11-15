@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// Desktop CoverPickerPanel: choose this title's cover from its own source,
-/// linked or similarly named library titles, or its AniList match.
+/// Picks the cover from its source, linked or similarly named library titles, or its AniList match.
 struct CoverPickerSheet: View {
     let entry: MediaEntry
     let sourceCover: String?

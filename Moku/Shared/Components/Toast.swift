@@ -2,9 +2,7 @@ import Observation
 import SwiftUI
 import UIKit
 
-/// Desktop Toaster counterpart: short, non-blocking confirmations and failures.
-/// Toasts render in their own pass-through window so they stay visible above the
-/// reader, the player and sheets without taking touches from them.
+/// Short toasts in a pass-through window, so they show above the reader, player and sheets without taking touches.
 @MainActor @Observable final class Toaster {
     enum Kind: Sendable { case success, error, info, download }
     struct Toast: Identifiable, Equatable {

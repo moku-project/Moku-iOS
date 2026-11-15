@@ -1,8 +1,7 @@
 #import <Foundation/Foundation.h>
 
 NS_ASSUME_NONNULL_BEGIN
-/// Embedded interpreter prototype. Start only once per app process, off the main
-/// thread. This object does not download code, create subprocesses, or enable JIT.
+/// Embedded JVM: start once per process, off the main thread; no code download, subprocesses or JIT.
 @interface TSJavaRuntime : NSObject
 + (nullable NSString *)probeWithRuntimeHome:(NSString *)runtimeHome
                                 classPath:(NSString *)classPath

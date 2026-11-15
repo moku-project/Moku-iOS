@@ -125,7 +125,7 @@ struct ReaderView: View {
         .onKeyPress(phases: [.down, .repeat]) { press in handleKey(press) }
         .onAppear {
             keyboardFocused = true
-            // Keep the screen on while reading, like the player and Android.
+            // Keep the screen on while reading.
             previousIdleTimer = UIApplication.shared.isIdleTimerDisabled
             UIApplication.shared.isIdleTimerDisabled = true
         }
@@ -241,7 +241,7 @@ struct ReaderView: View {
             id: "reader.bookmark"
         ) { model.toggleBookmark() }
     }
-    /// Synced chapter bookmark, as on Android and Mihon.
+    /// Synced chapter bookmark.
     private var chapterBookmarkButton: some View {
         icon(
             model.chapterBookmarked ? "Bookmark.fill" : "Bookmark",

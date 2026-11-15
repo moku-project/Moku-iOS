@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// One extension in the Extensions list. Tapping an installed source browses it;
-/// the trailing button installs or updates, and the rest lives in the context menu.
+/// Tap an installed source to browse it; the trailing button installs or updates, the rest is in the context menu.
 struct ExtensionRow: View {
     let item: SourceExtension
     let search: (SourceExtension) -> Void

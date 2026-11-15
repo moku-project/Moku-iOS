@@ -51,8 +51,7 @@ actor LiveMediaRepository: SearchRepository {
             },
             transform: { source in
                 do {
-                    // Desktop TagTab: genres map onto each source's own filter tree.
-                    // "Match any" runs one filtered search per genre and merges them.
+                    // Genres map onto each source's filter tree; "Match any" runs one search per genre and merges them.
                     var filterSets: [String] = [""]
                     if tagSearch {
                         let nodes = try await self.filterOptions(source.id)
@@ -62,8 +61,7 @@ actor LiveMediaRepository: SearchRepository {
                             let built = FilterBuilder.inputs(nodes, genres: genres, statuses: Set(statuses.map(\.rawValue)))
                             return built.matchedAll ? built.literal : nil
                         }
-                        // A source that has no such genre can't answer; skip it rather than
-                        // returning unfiltered results.
+                        // A source without this genre is skipped rather than returning unfiltered results.
                         if filterSets.isEmpty { return .success([]) }
                     }
                     var entries: [MediaEntry] = []
@@ -190,7 +188,7 @@ actor LiveMediaRepository: SearchRepository {
 }
 
 
-/// Desktop `pinnedSourceIds`: pinned sources sort first in pickers and search.
+/// Pinned sources sort first in pickers and search.
 enum SourcePins {
     private static let key = "search.pinnedSources"
     nonisolated static var all: Set<String> {
@@ -203,9 +201,7 @@ enum SourcePins {
     }
 }
 
-/// Port of desktop `buildGenreFilterInputs`, extended to status: tri-state and
-/// checkbox filters named after a genre are switched on, and a select filter
-/// named "Status" picks the matching value.
+/// Genre and status filter inputs: matching tri-state/checkbox filters on, and a "Status" select set.
 enum FilterBuilder {
     struct Node: Decodable, Sendable {
         let typename: String

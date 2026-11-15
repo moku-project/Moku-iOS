@@ -12,7 +12,7 @@ protocol ExtensionRepository: Sendable {
     func preferences(package: String) async throws -> [SourcePreference]
     func savePreference(package: String, key: String, value: String) async throws
         -> [SourcePreference]
-    /// Desktop "Install from URL": an APK/JAR outside any repository.
+    /// Installs an APK/JAR from outside any repository.
     func installExternal(url: String) async throws
 }
 

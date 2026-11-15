@@ -2,17 +2,14 @@ import Foundation
 import PDFKit
 import UIKit
 
-/// Desktop pdfRender counterpart. A PDF-backed chapter lists its pages as
-/// `/content/{media}/{chapter}/pdfpage/{n}`: nothing is served at those paths.
-/// The whole file comes once from `/content/{media}/{chapter}/pdf`, and each page
-/// is drawn here, then handed to the reader as image data like any other page.
+/// Renders `pdfpage/{n}` pages (nothing is served there) from the chapter's `/pdf` file, fetched once.
 actor PDFPageSource {
     static let shared = PDFPageSource()
     /// Pages are drawn at most this wide; tall pages are capped by pixel count.
     private static let maxWidth: CGFloat = 1600
     private static let maxPixels: CGFloat = 8_000_000
 
-    /// One chapter at a time, like desktop clearing its document cache on leave.
+    /// Holds one chapter's document at a time.
     private var document: (path: String, pdf: PDFDocument)?
     private var loading: (path: String, task: Task<Data, any Error>)?
 

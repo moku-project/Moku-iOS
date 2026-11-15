@@ -54,8 +54,7 @@
     struct StreamingPlayerTestRepository: PlayerRepository {
         private let embedded = LivePlayerRepository()
         func stream(chapterID: String) async throws -> (EpisodeStream, Double) {
-            // Imported fixtures have no extension metadata; use their real
-            // content route while keeping source choices deterministic.
+            // Imported fixtures lack extension metadata: use their real content route with deterministic source choices.
             let path = "/content/1/\(chapterID)/video"
             return (
                 EpisodeStream(
@@ -101,8 +100,7 @@
                             if ProcessInfo.processInfo.arguments.contains(
                                 "--ui-testing-player-signals")
                             {
-                                // Network cancellation can deliver these to any native thread.
-                                // Before the runtime fix, the first signal aborted the process.
+                                // Network cancellation can deliver these on any native thread; they must not abort the process.
                                 raise(SIGPIPE)
                                 raise(SIGXFSZ)
                             }

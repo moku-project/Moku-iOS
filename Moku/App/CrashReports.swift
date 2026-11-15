@@ -2,7 +2,7 @@ import MetricKit
 import Observation
 import UIKit
 
-/// Android CrashReports: notices that the last session ended in a crash and offers a bug report.
+/// Notices that the last session ended in a crash and offers a bug report.
 @MainActor @Observable final class CrashReports: NSObject, MXMetricManagerSubscriber {
     static let shared = CrashReports()
     private static let runningKey = "session.running"

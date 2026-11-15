@@ -24,8 +24,7 @@
             })
     }
     struct PreviewReaderRepository: ReaderRepository {
-        /// `--ui-testing-reader-pdf`: pages are PDF pages, drawn by PDFPageSource
-        /// from a generated three-page file, exactly as for a PDF-backed chapter.
+        /// `--ui-testing-reader-pdf`: pages come from a generated three-page PDF via PDFPageSource.
         var pdf = ProcessInfo.processInfo.arguments.contains("--ui-testing-reader-pdf")
         func pages(chapterID: String) async throws -> [String] {
             if pdf { return (1...3).map { "/content/1/\(chapterID)/pdfpage/\($0)" } }

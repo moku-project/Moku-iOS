@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Desktop ChangelogModal: what changed, shown once after an update.
+/// What changed, shown once after an update.
 enum WhatsNew {
     struct Release: Identifiable {
         let version: String

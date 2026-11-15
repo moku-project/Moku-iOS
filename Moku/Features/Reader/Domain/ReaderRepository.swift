@@ -27,8 +27,7 @@ struct ReaderChapterState: Equatable, Sendable {
     var progress: Progress?
     var bookmarked: Bool
 
-    /// The page to reopen at, from synced progress (page = progress × count).
-    /// Completed chapters start over.
+    /// The page to reopen at (progress × count); completed chapters start over.
     func page(count: Int) -> Int? {
         guard let progress, !progress.completed, count > 0 else { return nil }
         return min(max(Int((progress.progress * Double(count)).rounded()), 1), count)

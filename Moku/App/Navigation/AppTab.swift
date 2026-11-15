@@ -54,8 +54,7 @@ enum MoreDestination: String, CaseIterable, Identifiable, Hashable {
     }
 }
 
-/// A page observes its own activity instead of the global selected-tab value.
-/// Once mounted, its identity survives every subsequent navigation change.
+/// Per-page activity, so pages don't observe the global selected tab; identity survives navigation once mounted.
 @MainActor @Observable final class TabActivity {
     fileprivate(set) var isActive = false
     fileprivate(set) var hasVisited = false

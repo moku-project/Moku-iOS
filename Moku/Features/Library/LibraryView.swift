@@ -444,8 +444,7 @@ struct LibraryView: View {
         }
     }
 
-    /// Desktop "Update every series in the library": runs on the server, which
-    /// skips folders excluded from updates; results land in History → Updates.
+    /// Updates every series on the server, which skips excluded folders; results land in History → Updates.
     private func updateLibrary() async {
         let repository = LiveRecentRepository()
         Toaster.shared.show("Updating library", detail: "New chapters will appear in History → Updates.", kind: .info)

@@ -338,7 +338,7 @@ final class SearchViewModel {
                 }
                 guard let self, !Task.isCancelled, self.generation == current else { return }
                 var sorted = await Self.sorted(entries, by: request.options.sort)
-                // Desktop genre drill: matching library titles come first.
+                // Genre drill: matching library titles come first.
                 if !request.options.genres.isEmpty {
                     let saved = await Self.libraryMatches(request.options)
                     let ids = Set(saved.map(\.id))
@@ -423,10 +423,7 @@ final class SearchViewModel {
         state = .results(sorted.filter { !emptyIDs.contains($0.id) })
     }
 
-    /// Forward fetching for typed searches: each result's chapters are checked in
-    /// the background, and titles confirmed empty at their source are removed.
-    /// Results stay visible while checking, and a failed check keeps the title.
-    /// Checks start once every source has answered, so they never slow the search.
+    /// After every source answers, checks results' chapters in the background and drops confirmed-empty ones; failures keep the title.
     private func probeForContent(_ entries: [MediaEntry], request: SearchRequest, generation: Int) {
         guard request.options.hidesEmpty, !request.query.isEmpty, !isLibrary else { return }
         let fresh = entries.filter { probedIDs.insert($0.id).inserted }
@@ -552,8 +549,7 @@ enum DiscoveryRotation {
             DiscoveryShelf(id: "recommended", title: "Recommended for you", entries: take(recommended)),
             DiscoveryShelf(id: "popular", title: "Popular right now", entries: take(popular)),
         ]
-        // Reserve some unseen titles for the second shelf when the latest feed
-        // is the only available source of extra titles.
+        // Reserve unseen titles for the second shelf when the latest feed is the only source of extras.
         let unseenLatest = latest.filter { !seen.contains(DiscoveryRanking.key($0)) }
         let fresh = take(unseenLatest, limit: min(12, max(1, unseenLatest.count / 2)))
         let explore = take(popular + latest)

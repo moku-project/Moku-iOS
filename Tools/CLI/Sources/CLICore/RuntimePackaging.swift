@@ -12,8 +12,7 @@ enum RuntimePackaging {
 
   static func syncRuntime(_ source: URL, to output: URL, runner: Runner) throws {
     try mkdir(output)
-    // Dereference certificates/configuration links before entering the signed app bundle.
-    // OpenJDK's _the.* files are make bookkeeping, not runtime resources.
+    // Dereference links before entering the signed bundle; OpenJDK's _the.* files are make bookkeeping.
     try runner.run([
       "rsync", "-a", "--copy-links", "--delete", "--delete-excluded", "--exclude=_the.*",
       source.path + "/", output.path + "/",

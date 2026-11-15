@@ -84,7 +84,6 @@ final class DownloadsViewModel {
         }
     }
 
-    /// Desktop "Move series to top / bottom": reorders each queued chapter of a title.
     func move(titleID: String, toTop: Bool) {
         let queue = entries.filter { $0.status == .queued || $0.status == .downloading }
         let mine = queue.filter { $0.titleID == titleID }
@@ -102,7 +101,6 @@ final class DownloadsViewModel {
         }
     }
 
-    /// Desktop "Reverse chapter order": the series' queued chapters swap places in the queue.
     func reverse(titleID: String) {
         let queue = entries.filter { $0.status == .queued || $0.status == .downloading }
         let slots = queue.indices.filter { queue[$0].titleID == titleID && queue[$0].status == .queued }
@@ -117,7 +115,7 @@ final class DownloadsViewModel {
         reorder(Array(zip(reversed, slots)))
     }
 
-    /// Desktop "Move selected to top / bottom"; a chapter that is downloading stays first.
+    /// A chapter that is downloading stays first.
     func move(entryIDs: Set<String>, toTop: Bool) {
         let queue = entries.filter { $0.status == .queued || $0.status == .downloading }
         let first = queue.first?.status == .downloading ? 1 : 0
@@ -152,7 +150,6 @@ final class DownloadsViewModel {
 
     enum Placement { case top, up, down, bottom }
 
-    /// Desktop "Move up / down / to top / to bottom" for one queued chapter.
     func move(entryID: String, to placement: Placement) {
         let queue = entries.filter { $0.status == .queued || $0.status == .downloading }
         guard let index = queue.firstIndex(where: { $0.id == entryID }) else { return }
@@ -279,8 +276,7 @@ final class DownloadsViewModel {
     }
 }
 
-/// Decode and join queue data away from the UI; fetch title names in batches only
-/// when missing or expired, rather than one serial query per title every poll.
+/// Joins queue data off the UI, fetching title names in batches only when missing or expired.
 private actor DownloadSnapshotLoader {
     struct Snapshot: Sendable { let entries: [DownloadEntry]; let running: Bool }
     private var names: [String: (title: String, cover: URL?, expires: Date)] = [:]

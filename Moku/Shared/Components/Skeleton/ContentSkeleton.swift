@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// Content-shaped placeholders. Motion is decorative; assistive technology gets
-/// one status element rather than fake titles, buttons, or repeating announcements.
+/// Content-shaped placeholders; assistive technology gets one status element instead of fake content.
 struct SkeletonBlock: View {
     var width: CGFloat? = nil
     var height: CGFloat = 16

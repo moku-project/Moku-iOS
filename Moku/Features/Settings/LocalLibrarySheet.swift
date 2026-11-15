@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// Desktop's Local source library: the series imported from files, with
-/// rescan and delete (which removes the files from this device).
+/// Series imported from files, with rescan and delete (which removes the files from this device).
 struct LocalLibrarySheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(LibraryStore.self) private var library

@@ -1,9 +1,6 @@
 import Foundation
 
-/// Tsunagu is built from a checkout next to this repository, as Moku-Android
-/// does (`git clone https://github.com/moku-project/Tsunagu ../Tsunagu`).
-/// Paths are relative to the Moku-iOS root. Services/go.mod's `replace`
-/// line points at the same place.
+/// Tsunagu is built from a sibling checkout (../Tsunagu), the path Services/go.mod's `replace` also uses.
 enum TsunaguSource {
   static let root = "../Tsunagu"
   static let backend = root + "/backend"

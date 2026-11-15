@@ -2,8 +2,7 @@ import Foundation
 import Network
 import Observation
 
-/// Finds Moku desktops that advertise `_moku._tcp` (desktop Settings → Auth →
-/// Phone sync), and resolves each to an IPv4 address the client can reach.
+/// Finds desktops advertising `_moku._tcp` (Settings → Auth → Phone sync) and resolves each to IPv4.
 @MainActor @Observable final class DesktopDiscovery {
     struct Desktop: Identifiable, Equatable, Sendable {
         let name: String

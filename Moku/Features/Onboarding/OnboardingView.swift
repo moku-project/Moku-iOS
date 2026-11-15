@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// First-run walkthrough (desktop Onboarding + tour). Moku ships with no
-/// sources, so the flow ends at the two ways to get content and at desktop sync.
+/// First-run walkthrough; Moku ships with no sources, so it ends at the ways to get content and desktop sync.
 struct OnboardingView: View {
     let openExtensions: () -> Void
     let openSettings: () -> Void

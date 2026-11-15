@@ -18,8 +18,7 @@ import Observation
                 try? JSONDecoder().decode(ReaderPreferenceDocument.self, from: $0)
             } ?? ReaderPreferenceDocument()
     }
-    // Page turns can arrive faster than storage. Encode only the latest snapshot,
-    // off the UI executor, and retain an explicit durability boundary on dismissal.
+    // Encode only the latest snapshot, off the UI executor, with an explicit durability boundary on dismissal.
     private func scheduleSave() {
         saveTask?.cancel()
         let snapshot = document

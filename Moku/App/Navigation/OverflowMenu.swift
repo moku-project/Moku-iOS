@@ -12,8 +12,7 @@ import SwiftUI
     }
 }
 
-/// Geometry is needed when opening a menu, but moving a closed anchor must not
-/// invalidate its SwiftUI row on every navigation-animation frame.
+/// A reference box so a moving closed anchor doesn't invalidate its row on every navigation-animation frame.
 @MainActor private final class OverflowMenuAnchor {
     var frame = CGRect.zero
 }

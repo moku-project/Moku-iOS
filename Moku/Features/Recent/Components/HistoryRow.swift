@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// One title in History: tap resumes, swipe clears, the context menu holds the rest.
-/// When expanded, its chapters follow as indented rows.
+/// One title in History: tap resumes, swipe clears, the context menu holds the rest; expanded, its chapters follow.
 struct HistoryRow: View {
     let item: RecentHistoryTitle
     let expanded: Bool

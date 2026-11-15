@@ -1,9 +1,7 @@
 import Foundation
 
 struct LiveReaderRepository: ReaderRepository {
-    /// Tsunagu runs download-ahead and delete-on-read when progress marks a
-    /// chapter read (updateReadingProgress), as on desktop and Android, so
-    /// opening a chapter needs no call.
+    /// No call needed: Tsunagu runs download-ahead and delete-on-read when progress marks a chapter read.
     func opened(mediaID: String, chapterID: String) async throws {}
     func pages(chapterID: String) async throws -> [String] {
         struct Response: Decodable, Sendable {

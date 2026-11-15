@@ -53,6 +53,7 @@ actor Backend {
         let connection = try await startup!.value
         try Task.checkCancellation()
         if requiresSourceRuntime {
+            // A failed start stays cached: this process must never start a second JVM; SQLite stays usable.
             if sourceStartup == nil {
                 sourceStartup = Task { try await self.startSourceRuntime() }
             }
@@ -65,7 +66,7 @@ actor Backend {
     func importLocalFile(_ url: URL, kind: String, series: String, chapter: String) async throws {
         _ = try await connection(requiresSourceRuntime: false)
         try await controller.importLocalFile(url, kind: kind, series: series, chapter: chapter, name: url.lastPathComponent)
-        // Tsunagu picks up local files on a scan, as with desktop Moku's imports.
+        // Tsunagu picks up local files on a scan.
         let _: IgnoredGraphQLResult = try await BackendAPI.shared.graphql(
             "mutation { rescanLocalMedia { id } }", requiresSourceRuntime: false)
     }
@@ -132,8 +133,6 @@ actor Backend {
             throw EmbeddedSearchError.message(
                 "The source runtime is not ready. Restart the app.")
         }
-        // sourceStartup retains failure too: this process must never start a second JVM.
-        // The independent SQLite connection remains usable after a JVM failure.
     }
 
 }

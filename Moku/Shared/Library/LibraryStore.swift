@@ -134,8 +134,7 @@ final class LibraryStore {
         _ = await saveOrganization(next)
     }
 
-    /// Desktop "Series link": links or unlinks two titles as the same series,
-    /// in both directions.
+    /// Links or unlinks two titles as the same series, in both directions.
     func setLinked(_ id: String, _ other: String, linked: Bool) async {
         await loadOrganization()
         guard id != other else { return }
@@ -217,7 +216,7 @@ final class LibraryStore {
             if old == nil || old?.includeInUpdate != folder.includeInUpdate || old?.includeInDownload != folder.includeInDownload {
                 try await mutate("updateFolderFlags(folderId: \(id), includeInUpdate: \(folder.includeInUpdate ?? true), includeInDownload: \(folder.includeInDownload ?? true)) { id }")
             }
-            // Tsunagu 0.6.0 stores content types per folder, as desktop does; empty means all.
+            // Content types are stored per folder (Tsunagu 0.6.0+); empty means all.
             if (old?.contentTypes ?? []) != (folder.contentTypes ?? []) {
                 let types = (folder.contentTypes ?? []).map(\.graphQLType).joined(separator: ", ")
                 try await mutate("setFolderContentTypes(folderId: \(id), contentTypes: [\(types)]) { id }")

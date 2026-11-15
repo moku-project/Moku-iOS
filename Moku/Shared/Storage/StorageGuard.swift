@@ -1,10 +1,8 @@
 import UIKit
 
-/// Desktop StorageWarningDialog: before queueing downloads, estimate their size
-/// and ask first when the queue would use more than 95% of the free space.
+/// Before queueing downloads, asks first when their estimated size exceeds 95% of free space.
 @MainActor enum StorageGuard {
-    /// Desktop estimates 1.5 MB a page; a chapter is taken as 20 pages, and an
-    /// episode as about 300 MB.
+    /// Desktop's estimate: 1.5 MB a page and 20 pages a chapter; about 300 MB an episode.
     static func estimate(count: Int, media: ContentMode) -> Int64 {
         Int64(count) * (media == .anime ? 300_000_000 : media == .novels ? 200_000 : 30_000_000)
     }
@@ -15,8 +13,7 @@ import UIKit
         return values?.volumeAvailableCapacityForImportantUsage
     }
 
-    /// True when downloading can go ahead: there is room, or the user chose
-    /// "Download anyway".
+    /// True when there is room or the user chose "Download anyway".
     static func allow(count: Int, media: ContentMode) async -> Bool {
         guard let free = freeBytes(), estimate(count: count, media: media) > Int64(Double(free) * 0.95) else { return true }
         guard let presenter = topController() else { return true }

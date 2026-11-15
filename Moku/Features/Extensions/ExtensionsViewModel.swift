@@ -61,8 +61,7 @@ final class ExtensionsViewModel {
                     group.cancelAll()
                     return
                 }
-                // Publish each independent SQLite read immediately. A slow catalog
-                // must never hold the saved repository list behind a spinner.
+                // Publish each SQLite read as it lands so a slow catalog never hides the saved repositories.
                 switch result {
                 case .repositories(.success(let loaded)): repositories = loaded
                 case .installed(.success(let loaded)):
@@ -100,8 +99,7 @@ final class ExtensionsViewModel {
             do { return .success(try await operation()) } catch let error as URLError
                 where [.networkConnectionLost, .cannotConnectToHost, .timedOut].contains(error.code)
             {
-                // These are read-only catalog requests. Retry a stale loopback
-                // connection once, without restarting the embedded JVM.
+                // Read-only catalog request: retry a stale loopback connection once, without restarting the JVM.
                 try await Task.sleep(for: .milliseconds(250))
                 return .success(try await operation())
             }

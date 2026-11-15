@@ -1,16 +1,7 @@
 import SwiftUI
 import WebKit
 
-/// How a tracker's authorization page hands back its credential.
-///
-/// Tsunagu builds the authorization URL (`Tracker.authUrl`) with the same public
-/// client ids Moku-Android uses: AniList client 49724 (implicit grant, the token
-/// arrives in the redirect's `#access_token=` fragment) and MyAnimeList (PKCE code,
-/// `?code=&state=` on Tsunagu's callback). Neither registration redirects to an
-/// app URL scheme, so the redirect is caught in an in-app web view and the
-/// redirected URL is passed to `trackerLogin` exactly as a pasted one would be.
-/// If a tracker's `authUrl` ever carries a custom-scheme `redirect_uri`, the
-/// system web authentication session is used instead.
+/// Tracker redirects target web URLs, not an app scheme, so a web view catches them and passes them to `trackerLogin`.
 enum TrackerSignIn {
     /// The custom URL scheme of the authorization URL's `redirect_uri`, if any.
     static func callbackScheme(for url: URL) -> String? {

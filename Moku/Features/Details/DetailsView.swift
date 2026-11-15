@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// Native counterpart of desktop SeriesHeader + ChapterList.
 struct DetailsView: View {
     @Environment(LibraryStore.self) private var library
     @Environment(ReaderPreferences.self) private var readerPreferences
@@ -107,8 +106,7 @@ struct DetailsView: View {
         }
         .task(id: entry.id) {
             ascending = defaultAscending
-            // The saved library is only needed for links and the bookmark state,
-            // so reading it from disk never delays the title itself.
+            // The saved library only feeds links and bookmark state, so reading it never delays the title.
             let saved = Task {
                 await library.load()
                 await library.loadOrganization()
@@ -128,8 +126,7 @@ struct DetailsView: View {
             guard !Task.isCancelled else { return }
             filteredChapters = result
         }
-        // Light poll while something on this page is queued or downloading. The
-        // task ends when downloads settle or the page goes away.
+        // Light poll while something here is queued or downloading; ends when downloads settle or the page goes away.
         .task(id: model.hasActiveDownloads) {
             guard model.hasActiveDownloads else { return }
             while !Task.isCancelled {
@@ -257,8 +254,7 @@ struct DetailsView: View {
         }
     }
 
-    /// The server knows when a title is saved even if a content level hides it
-    /// from the Library list, so prefer its answer.
+    /// Prefers the server, which knows a title is saved even when a content level hides it from Library.
     private var isSaved: Bool { details?.inLibrary ?? library.contains(entry) }
 
     private var coverURL: URL? { details.flatMap { BackendAPI.coverURL($0.thumbnailUrl) } ?? entry.coverURL }
@@ -271,8 +267,7 @@ struct DetailsView: View {
         .accessibilityHidden(true)
     }
 
-    /// A soft wash of the cover behind the top of the page. It is blurred once
-    /// into a flat layer, so scrolling only moves a texture.
+    /// A soft cover wash behind the top of the page, blurred once into a flat layer so scrolling only moves a texture.
     @ViewBuilder private var backdrop: some View {
         if let coverURL {
             CoverImage(url: coverURL, contentMode: .fill, symbol: entry.media.symbol)
@@ -290,8 +285,7 @@ struct DetailsView: View {
         }
     }
 
-    /// the source reports its content rating and original language as genres;
-    /// they read better as badges beside the status.
+    /// the source reports content rating and original language as genres; they read better as badges.
     private var tags: (badges: [String], genres: [String]) {
         var badges: [String] = []
         var genres: [String] = []
@@ -334,7 +328,6 @@ struct DetailsView: View {
 
     private func metadata(wide: Bool) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Desktop SeriesHeader: cover beside the title.
             HStack(alignment: .top, spacing: 16) {
                 cover(width: wide ? 180 : 128)
                 identity.frame(maxWidth: .infinity, alignment: .leading)
@@ -438,8 +431,7 @@ struct DetailsView: View {
         .accessibilityHint(long ? (expanded ? "Shows less" : "Shows the full description") : "")
     }
 
-    /// The main read button. Before chapters arrive it holds a placeholder so
-    /// the header doesn't jump. Saving to the library lives in the toolbar.
+    /// The main read button, with a placeholder until chapters arrive so the header doesn't jump.
     @ViewBuilder private var actions: some View {
         let target = model.continueTarget(preferences: chapterPreferences)
         if target != nil || (loading && (details?.chapters.isEmpty ?? true)) {
@@ -830,7 +822,7 @@ struct DetailsView: View {
         return parts.joined(separator: ", ")
     }
 
-    /// Desktop SeriesHeader "Manage" drawer, as the toolbar's More menu.
+    /// The toolbar's More menu.
     private func manageMenu(_ details: MediaDetails) -> some View {
         Menu {
             Section {
@@ -886,7 +878,7 @@ struct DetailsView: View {
         .accessibilityIdentifier("details.manage")
     }
 
-    /// Desktop chapter rows show where an unfinished chapter stopped.
+    /// Where an unfinished chapter stopped.
     private func resumeLabel(_ chapter: Chapter) -> String? {
         guard !chapter.completed, let progress = chapter.readingProgress else { return nil }
         if entry.media == .anime, let seconds = progress.positionSeconds, seconds >= 5 {
@@ -1187,15 +1179,13 @@ private struct ChipFlow: Layout {
 }
 
 extension EnvironmentValues {
-    /// Shows a Close button on a Details page that is the root of a sheet or
-    /// full-screen cover. Pushed Details pages use the system back button.
+    /// Shows Close when Details is the root of a sheet or cover; pushed pages use the system back button.
     @Entry var detailsShowsClose = false
     /// Opens Search filtered by a genre; nil where no search is reachable.
     @Entry var searchGenre: (@MainActor (String) -> Void)? = nil
 }
 
-/// Trailing download state on a chapter row: queued, a small determinate ring
-/// while downloading, failed (retry from the swipe or context menu), or done.
+/// Trailing download state on a chapter row: queued, a progress ring, failed, or done.
 struct ChapterDownloadIndicator: View {
     let state: Chapter.DownloadState
     @ScaledMetric(relativeTo: .body) private var ring: CGFloat = 17

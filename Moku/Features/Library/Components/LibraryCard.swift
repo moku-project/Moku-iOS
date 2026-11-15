@@ -166,8 +166,7 @@ struct LibraryCard: View {
         }
     }
 
-    /// Temporary book-jacket artwork is native drawing, never downloaded media or
-    /// fake saved content. No media-type badges are placed on the covers.
+    /// Placeholder book-jacket artwork drawn natively; no media-type badges on covers.
     private var artwork: some View {
         GeometryReader { geometry in
             let colors: [Color] = [.indigo, .brown, .teal, .purple, .blue, .orange]

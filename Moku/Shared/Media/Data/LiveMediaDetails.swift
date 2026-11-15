@@ -30,8 +30,7 @@ extension LiveMediaRepository {
         let result: Response = try await BackendAPI.shared.graphql(
             "{ resolveMedia(extensionId: \(BackendAPI.literal(extensionID)), externalId: \(BackendAPI.literal(externalID)), syncChapters: true) { id chapterCount } }",
             cacheFor: 600)
-        // The chapters were just synced, so opening this title reads them from
-        // the database instead of asking the source again.
+        // Chapters were just synced, so opening the title reads them from the database.
         chaptersSyncedAt[result.resolveMedia.id] = .now
         return result.resolveMedia.chapterCount
     }
@@ -62,8 +61,7 @@ extension LiveMediaRepository: DetailsRepository {
         try Task.checkCancellation()
         if let existing = chapterRequests[mediaID] { return try await existing.value }
         if !refresh, let synced = chaptersSyncedAt[mediaID], Date.now.timeIntervalSince(synced) < 600 {
-            // Reopening a title reads current progress from SQLite without asking
-            // the extension to rescrape the entire chapter catalog.
+            // Reopening reads progress from SQLite without having the extension rescrape the chapters.
             struct Stored: Decodable, Sendable {
                 struct Media: Decodable, Sendable { let chapters: [Chapter] }
                 let media: Media?
@@ -73,8 +71,7 @@ extension LiveMediaRepository: DetailsRepository {
                 requiresSourceRuntime: false)
             if let media = stored.media { return media.chapters }
         }
-        // Keep the underlying source call alive when a view disappears. A new
-        // consumer joins it instead of starting an overlapping extension update.
+        // Outlive the view: a new consumer joins this call instead of starting an overlapping extension update.
         let request = Task {
             struct Response: Decodable, Sendable { let syncChapters: [Chapter] }
             let result: Response = try await BackendAPI.shared.graphql(

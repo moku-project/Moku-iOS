@@ -68,8 +68,7 @@ struct FloatingSurface: ViewModifier {
 }
 
 extension View {
-    /// Sheets and popups follow the app theme instead of forcing dark, so the
-    /// light themes don't show dark panels with light text.
+    /// Sheets and popups follow the app theme so light themes don't get dark panels.
     func themedColorScheme() -> some View {
         modifier(ThemedColorScheme())
     }

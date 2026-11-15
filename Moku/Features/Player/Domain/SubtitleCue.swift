@@ -5,9 +5,7 @@ struct SubtitleCue: Equatable, Sendable {
     let start: Double
     let end: Double
     let text: String
-    /// ASS styling. Desktop renders with libass; iOS draws the same style
-    /// fields natively: font, size, weight, slant, colours, outline, alignment
-    /// and `\pos`. Animated tags (`\move`, `\t`, karaoke) are not drawn.
+    // ASS style fields, drawn natively in place of libass.
     var bold = false
     var italic = false
     /// Primary colour as 0xRRGGBB; nil is white.
@@ -26,8 +24,7 @@ struct SubtitleCue: Equatable, Sendable {
     /// `\fad(in, out)` in seconds.
     var fadeIn = 0.0
     var fadeOut = 0.0
-    /// `\move(x1, y1, x2, y2[, t1, t2])`: `anchor` is the start; times are
-    /// seconds after the cue starts, and nil means the whole cue.
+    /// `\move(x1, y1, x2, y2[, t1, t2])`: `anchor` is the start; times are seconds into the cue, nil means the whole cue.
     var moveTo: CGPoint? = nil
     var moveTimes: ClosedRange<Double>? = nil
 
@@ -343,8 +340,7 @@ struct SubtitleCue: Equatable, Sendable {
             .replacingOccurrences(of: "\\h", with: " ")
     }
 
-    /// ASS drawing commands (`m`, `n`, `l`, `b`, `c`) in script fractions.
-    /// Splines (`s`, `p`) are drawn as straight lines through their points.
+    /// ASS drawing commands in script fractions; splines (`s`, `p`) become straight segments.
     private static func shape(_ text: String, scale: Double, resX: Double, resY: Double) -> [ShapeCommand] {
         var commands: [ShapeCommand] = []
         var mode: Character = "m"

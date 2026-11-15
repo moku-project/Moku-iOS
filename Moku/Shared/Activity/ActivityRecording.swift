@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// A session is replaced as progress changes, and split when its chapter changes.
-/// Only foreground reading / actual playback contributes elapsed time.
+/// Sessions are replaced as progress changes and split on chapter change; only foreground reading or playback counts.
 @MainActor final class ActivityRecorder {
     private var session: HomeSession?
     private var entry: HomeEntry?
@@ -42,8 +41,7 @@ import SwiftUI
         let units = max(session?.completedUnits ?? 0, completed ? 1 : 0)
         let completedChanged = units != session?.completedUnits
         session?.completedUnits = units
-        // Positions change every page or second; writing Home activity that often
-        // re-renders every screen observing it. The modifier's 5 s tick flushes the rest.
+        // Throttle Home writes, which re-render every observer; the modifier's 5 s tick flushes the rest.
         if isNew || completedChanged || activeChanged || lastPersisted.map({ now.timeIntervalSince($0) >= 5 }) ?? true {
             persist(home: home, now: now)
         }

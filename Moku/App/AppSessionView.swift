@@ -42,8 +42,7 @@ struct AppSessionView: View {
         }
     }
 
-    /// "Update library on app open" is a Tsunagu setting shared with desktop and
-    /// Android; APP_OPEN makes the core honour it, its cooldown and paused series.
+    /// APP_OPEN makes the core honour the shared "Update library on app open" setting, its cooldown and paused series.
     private func updateLibraryOnOpen() {
         guard !PreviewMode.isEnabled else { return }
         Task {

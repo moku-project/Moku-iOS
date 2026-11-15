@@ -88,9 +88,7 @@ import Observation
 
     var currentTitle: String?
 
-    /// Desktop behaviour: the server updates the whole library (respecting
-    /// folder "include in updates" flags) and records what was new.
-    /// Returns nil when the repository has no server feed.
+    /// Updates the whole library on the server (honouring folder update flags); nil when there is no server feed.
     private func loadFromServer(refresh: Bool) async -> Bool? {
         do {
             if refresh {

@@ -57,7 +57,7 @@ import Observation
     /// Titles pulled from their trackers recently, so reopening a title doesn't pull again.
     private static var trackerPulledAt: [String: Date] = [:]
 
-    /// Desktop maybePullTracker: quietly bring read progress in from linked trackers, then reread it.
+    /// Quietly pulls read progress from linked trackers, then rereads it.
     func pullTrackerIfNeeded() async {
         guard let mediaID = details?.id, Int64(mediaID) != nil else { return }
         if let last = Self.trackerPulledAt[mediaID], Date.now.timeIntervalSince(last) < 600 { return }
@@ -103,8 +103,7 @@ import Observation
         }
     }
 
-    /// Desktop "Start / Continue · Ch X / Read again": the chapter after the last
-    /// completed one in reading order.
+    /// "Start / Continue · Ch X / Read again": the chapter after the last completed one in reading order.
     func continueTarget(preferences: Data) -> (chapter: Chapter, label: String)? {
         guard let details else { return nil }
         let ordered = ChapterPresentation.readingOrder(details.chapters, preferences: preferences, mediaID: entry.id)
@@ -125,8 +124,7 @@ import Observation
         guard var updated = details, !ids.isEmpty else { return }
         let mediaID = updated.id
         let previous = updated.chapters
-        // Update rows immediately; the server confirms or the list is restored.
-        // Build the new value first: reading `details` inside its own mutation traps.
+        // Optimistic (restored on failure); build the value first, as reading `details` inside its own mutation traps.
         updated.chapters = previous.map { chapter in
             var chapter = chapter
             if ids.contains(chapter.id) { chapter.completed = read }
@@ -147,9 +145,7 @@ import Observation
         }
     }
 
-    /// Desktop pushTrackerProgress: after marking read on the series page, raise
-    /// each linked tracker to the highest read chapter number. The server also
-    /// syncs in the background; this makes the tracker update immediate.
+    /// Raises each linked tracker to the highest read chapter now instead of waiting for the server's background sync.
     private func pushTrackerProgress(mediaID: String, chapters: [Chapter]) async {
         guard let highest = chapters.filter(\.completed).compactMap(\.number).max() else { return }
         struct Response: Decodable, Sendable {
@@ -328,8 +324,7 @@ import Observation
         chapterError = nil
         sourceChallenge = false
         defer { if generation == current { loading = false } }
-        // Search and library titles already carry the server's media ID, so the
-        // chapters load alongside the title info instead of after it.
+        // Search and library titles carry the media ID, so chapters load alongside the title info.
         let early: Task<[Chapter], Error>? =
             details == nil || details?.id == entry.id
             ? Task { [repository, entry] in try await repository.chapters(mediaID: entry.id, refresh: refresh) }

@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// Search filters and sort as a native grouped form. Edits `model.draft`;
-/// the presenting sheet applies or cancels them.
+/// Search filters and sort as a grouped form; edits `model.draft`, which the presenting sheet applies or cancels.
 struct SearchOptionsView: View {
     @Bindable var model: SearchViewModel
     /// Kept for source compatibility; the presenting sheet owns the title.

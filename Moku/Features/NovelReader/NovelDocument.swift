@@ -1,8 +1,6 @@
 import Foundation
 
-/// A chapter as typeset blocks. The server already sanitizes novel HTML, so this
-/// keeps only structure (paragraphs, headings, rules) and inline emphasis, and
-/// never needs WebKit, which would block the main thread for long chapters.
+/// A chapter as typeset blocks; the server already sanitizes HTML, so no WebKit (which blocks the main thread).
 struct NovelDocument: Sendable, Equatable {
     enum Block: Sendable, Equatable {
         case paragraph(AttributedString)

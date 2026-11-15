@@ -6,8 +6,7 @@ private let log = Logger(subsystem: "com.moku.app", category: "graphql")
 
 actor BackendAPI {
     static let shared = BackendAPI()
-    // Actor initializers run on their caller. Defer session/cache setup until
-    // an actor-isolated request, so creating a screen never does service setup.
+    // Actor initializers run on the caller, so session/cache setup waits for the first isolated request.
     private lazy var coverCache = ResourceCache(
         memoryLimit: 24 * 1024 * 1024, cancelWhenUnused: true,
         directory: URL.cachesDirectory.appending(path: "Moku/Covers-v1"))
@@ -15,8 +14,7 @@ actor BackendAPI {
         memoryLimit: 8 * 1024 * 1024, cancelWhenUnused: true,
         directory: URL.cachesDirectory.appending(path: "Moku/Results-v1"),
         diskLimit: 32 * 1024 * 1024)
-    /// Reads that include read state. Progress saves (every page turn and every
-    /// 10 s of playback) invalidate only these, in memory, instead of every result.
+    /// Reads that include read state; frequent progress saves invalidate only these, in memory.
     private lazy var progressQueries = ResourceCache(memoryLimit: 4 * 1024 * 1024, cancelWhenUnused: true)
     private let backend = Backend.shared
     private lazy var session = URLSession(
@@ -29,8 +27,7 @@ actor BackendAPI {
             configuration: configuration, delegate: LocalRedirectPolicy(), delegateQueue: nil)
     }()
 
-    /// Only explicitly opted-in reads are cached. Mutations invalidate metadata
-    /// before and after completion, including reads started while a write ran.
+    /// Caches only opted-in reads; mutations invalidate metadata before and after, covering reads started mid-write.
     func graphql<T: Decodable & Sendable>(
         _ query: String, cacheFor lifetime: TimeInterval = 0,
         refresh: Bool = false, requiresSourceRuntime: Bool = true

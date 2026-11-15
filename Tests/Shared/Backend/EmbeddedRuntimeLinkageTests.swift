@@ -3,8 +3,7 @@ import Testing
 
 struct EmbeddedRuntimeLinkageTests {
     @Test func jvmBootstrapSymbolsAreVisibleAcrossAppImages() throws {
-        // Match the iOS OpenJDK process handle: Debug stores JNI symbols in
-        // Moku.debug.dylib, while Release stores them in the main executable.
+        // Like the OpenJDK process handle: JNI symbols are in Moku.debug.dylib in Debug, the main executable in Release.
         let executable = try #require(dlopen(nil, RTLD_LAZY))
         defer { dlclose(executable) }
 

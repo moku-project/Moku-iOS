@@ -163,8 +163,7 @@ struct PlayerView: View {
     }
 
     private func textCaption(_ cue: SubtitleCue, landscape: Bool, picture: CGFloat, time: Double) -> some View {
-        // libass sizes text against the picture height; plain cues keep the app's size.
-        // A small portrait picture would make script sizes unreadable, so they have a floor.
+        // libass sizes script text against picture height; floored so small portrait pictures stay readable.
         let points = (cue.size(at: time).map { min(64, max(landscape ? 16 : 14, CGFloat($0) * picture)) } ?? (landscape ? 18 : 16))
             * model.subtitleScale
         // Style fonts by name or family, including fonts embedded in the file.
@@ -181,8 +180,7 @@ struct PlayerView: View {
         let text = words.font(font).fontWeight(cue.bold ? .bold : .regular).italic(cue.italic)
             .multilineTextAlignment(Self.textAlignment(cue.horizontal))
         let width = min(4, max(1, CGFloat(cue.outlineWidth(at: time)) * picture))
-        // A border from four stacked zero-blur shadows, close to libass's outline.
-        // Shadows add no extra text, so VoiceOver reads each line once.
+        // Border from four zero-blur shadows (close to libass's outline); shadows don't make VoiceOver repeat the line.
         let border = cue.outline.map(Self.color) ?? .clear
         return text
             .opacity(cue.alpha(at: time))
@@ -274,8 +272,7 @@ struct PlayerView: View {
                     pictureInPicture: pictureInPicture
                 ).ignoresSafeArea()
                     .contentShape(Rectangle())
-                    // Double-tap the edges to seek like other players; the centre
-                    // toggles bars in manual mode and play/pause otherwise.
+                    // Double-tap the edges to seek; the centre toggles bars in manual mode, otherwise play/pause.
                     .gesture(
                         SpatialTapGesture(count: 2).onEnded { value in
                             doubleTap(at: value.location.x, width: geometry.size.width)
@@ -484,7 +481,7 @@ struct PlayerView: View {
                 break
             }
         }
-        // Remember what the viewer picks, like desktop does.
+        // Remember what the viewer picks.
         .onChange(of: model.subtitleScale) { _, value in defaultSubtitleScale = value }
         .onChange(of: model.subtitleHeight) { _, value in defaultSubtitleHeight = value }
         .onChange(of: model.subtitleBackground) { _, value in defaultSubtitleBackground = value }

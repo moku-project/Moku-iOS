@@ -85,7 +85,6 @@ struct PlayerMenu: View {
                             }
                         }
                     }
-                    // Desktop "Stream info".
                     Text("Stream").font(.footnote.weight(.semibold)).foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(12)

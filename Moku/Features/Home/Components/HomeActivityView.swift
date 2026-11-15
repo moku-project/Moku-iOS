@@ -108,8 +108,7 @@ struct HomeActivityView: View {
                 }
             }.padding(.top, 20).accessibilityHidden(true)
             ScrollView(.horizontal) {
-                // Lazy columns and plain cells: a year is 364 views, so no per-cell
-                // buttons or popovers; one readout shows the selected day.
+                // A year is 364 cells: plain lazy cells without per-cell buttons or popovers; one readout shows the selected day.
                 let days = (0..<(weeks * 7)).map { calendar.date(byAdding: .day, value: $0, to: start)! }
                 LazyHStack(spacing: 4) {
                     ForEach(0..<weeks, id: \.self) { week in

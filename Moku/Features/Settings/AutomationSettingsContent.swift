@@ -15,9 +15,7 @@ struct AutomationControls: Codable, Sendable {
     var updateOnOpen = true
 }
 
-/// Automation rules live in Tsunagu (GraphQL `automationSettings` /
-/// `mediaAutomation`), shared with desktop and Android. Media ID "0" means the
-/// global defaults.
+/// Automation rules live in Tsunagu, shared with desktop and Android; media ID "0" is the global defaults.
 @MainActor @Observable final class AutomationPreferences {
     var policy = DownloadPolicy()
     var controls = AutomationControls()

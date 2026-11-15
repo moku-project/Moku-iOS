@@ -37,8 +37,7 @@ struct CoverImage: View {
         .clipped()
         .accessibilityHidden(true)
         .task(id: url) {
-            // A warm reappearance does not reset state, start a load, or flash
-            // a placeholder. The weak handle leaves eviction to the shared cache.
+            // A warm reappearance shows the cached image without a load or placeholder flash; eviction is left to the shared cache.
             if let image = resolvedImage {
                 if loaded?.url != url || loaded?.image == nil {
                     loaded = LoadedCover(url: url, image: image)
@@ -67,8 +66,7 @@ struct CoverImage: View {
     }
 }
 
-/// Lazy containers retain view state after disappearance. Holding pixels weakly
-/// avoids both unbounded image retention and per-cell teardown on every tab exit.
+/// Holds pixels weakly: lazy containers keep view state, so this avoids unbounded retention without per-cell teardown.
 private final class LoadedCover {
     let url: URL?
     weak var image: UIImage?
