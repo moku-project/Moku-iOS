@@ -34,6 +34,11 @@ struct DetailsView: View {
     @AppStorage("preferences.chapterSort") private var chapterSort: ChapterSort = .number
     /// All / Unread / Downloaded / Bookmarked, kept per title like release groups.
     @AppStorage("chapter.stateFilters") private var stateFilters = Data()
+    private var scanlatorFiltered: Bool {
+        var value = ChapterDisplayPreferences.read(chapterPreferences, id: entry.id)
+        value.hideDuplicates = false
+        return value != ChapterDisplayPreferences()
+    }
     private var stateFilter: ChapterStateFilter { ChapterStateFilter.read(stateFilters, id: entry.id) }
     private var stateFilterBinding: Binding<ChapterStateFilter> {
         Binding(get: { stateFilter }, set: { stateFilters = $0.write(into: stateFilters, id: entry.id) })
@@ -495,12 +500,6 @@ struct DetailsView: View {
             .listRowInsets(EdgeInsets(top: 4, leading: 20, bottom: 4, trailing: 12))
             .listRowSeparator(.hidden)
             .listRowBackground(Color.clear)
-        if let details {
-            ChapterScanlatorMenu(chapters: details.chapters, mediaID: entry.id)
-                .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-        }
         if (details?.chapters.count ?? 0) > 20 || !chapterQuery.isEmpty {
             chapterFilterField
                 .listRowInsets(EdgeInsets(top: 4, leading: 20, bottom: 8, trailing: 20))
@@ -601,8 +600,17 @@ struct DetailsView: View {
                 }
                 .pickerStyle(.inline)
                 Toggle("Hide Duplicate Chapters", systemImage: "square.on.square", isOn: hideDuplicatesBinding)
+                let groups = ScanlatorFilterItems.groups(in: details?.chapters ?? [])
+                if !groups.isEmpty {
+                    Menu {
+                        ScanlatorFilterItems(groups: groups, mediaID: entry.id)
+                    } label: {
+                        Label("Scanlators", systemImage: "person.2")
+                    }
+                    .accessibilityIdentifier("details.scanlators")
+                }
             } label: {
-                Image(systemName: stateFilter == .all
+                Image(systemName: stateFilter == .all && !scanlatorFiltered
                       ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
                     .frame(width: 44, height: 44).contentShape(Rectangle())
             }
@@ -1072,74 +1080,67 @@ struct DetailsView: View {
     }
 }
 
-struct ChapterScanlatorMenu: View {
-    let chapters: [Chapter]
+/// Scanlator choices for a title, meant to sit inside a Menu; empty when no chapter names a group.
+struct ScanlatorFilterItems: View {
+    let groups: [String]
     let mediaID: String
     @AppStorage("chapter.displayPreferences") private var data = Data()
-    @State private var groups: [String] = []
-    @State private var preferences = ChapterDisplayPreferences()
-    private func save(_ value: ChapterDisplayPreferences) {
+    private var preferences: ChapterDisplayPreferences { .read(data, id: mediaID) }
+
+    private func update(_ change: (inout ChapterDisplayPreferences) -> Void) {
         var all = (try? JSONDecoder().decode([String: ChapterDisplayPreferences].self, from: data)) ?? [:]
+        var value = all[mediaID] ?? ChapterDisplayPreferences()
+        change(&value)
         all[mediaID] = value
         if let encoded = try? JSONEncoder().encode(all) { data = encoded }
     }
+
+    private func toggle(_ group: String, in keyPath: WritableKeyPath<ChapterDisplayPreferences, [String]>) -> Binding<Bool> {
+        Binding(get: { preferences[keyPath: keyPath].contains(group) }, set: { enabled in
+            update { value in
+                value[keyPath: keyPath].removeAll { $0 == group }
+                if enabled { value[keyPath: keyPath].append(group) }
+            }
+        })
+    }
+
     var body: some View {
-        Group {
-        if !groups.isEmpty {
-            Menu {
-                Picker("Preferred group", selection: Binding(
-                    get: { preferences.preferred },
-                    set: { var value = preferences; value.preferred = $0; save(value) }
-                )) {
-                    Text("Any group").tag("")
-                    ForEach(groups, id: \.self) { Text($0).tag($0) }
-                }
-                Menu("Release groups") {
-                    ForEach(groups, id: \.self) { group in
-                        Toggle(group, isOn: Binding(
-                            get: { preferences.included.contains(group) },
-                            set: { enabled in
-                                var value = preferences
-                                value.included.removeAll { $0 == group }
-                                if enabled { value.included.append(group) }
-                                save(value)
-                            }))
-                    }
-                }
-                Toggle("Only selected groups", isOn: Binding(
-                    get: { preferences.onlyIncluded },
-                    set: { var value = preferences; value.onlyIncluded = $0; save(value) }))
-                Menu("Hide groups") {
-                    ForEach(groups, id: \.self) { group in
-                        Toggle(group, isOn: Binding(
-                            get: { preferences.excluded.contains(group) },
-                            set: { enabled in
-                                var value = preferences
-                                value.excluded.removeAll { $0 == group }
-                                if enabled { value.excluded.append(group) }
-                                save(value)
-                            }))
-                    }
-                }
-                Button("Reset") { save(ChapterDisplayPreferences()) }
-            } label: {
-                Label("Scanlators", systemImage: "line.3.horizontal.decrease.circle").font(.subheadline).frame(minHeight: 44)
+        Picker("Preferred Group", selection: Binding(get: { preferences.preferred }, set: { new in update { $0.preferred = new } })) {
+            Text("Any Group").tag("")
+            ForEach(groups, id: \.self) { Text($0).tag($0) }
+        }
+        Menu("Show Only") {
+            ForEach(groups, id: \.self) { Toggle($0, isOn: toggle($0, in: \.included)) }
+        }
+        Toggle("Only Selected Groups", isOn: Binding(get: { preferences.onlyIncluded }, set: { new in update { $0.onlyIncluded = new } }))
+        Menu("Hide") {
+            ForEach(groups, id: \.self) { Toggle($0, isOn: toggle($0, in: \.excluded)) }
+        }
+        Button("Reset Scanlators", role: .destructive) {
+            update { value in
+                let duplicates = value.hideDuplicates
+                value = ChapterDisplayPreferences()
+                value.hideDuplicates = duplicates
             }
         }
-        }
-        .task(id: chapters) {
-            let chapters = chapters
-            let result = await Task.detached(priority: .userInitiated) {
-                Array(Set(chapters.compactMap(\.scanlator))).sorted()
-            }.value
-            guard !Task.isCancelled else { return }
-            groups = result
-        }
-        .onChange(of: data, initial: true) { _, value in
-            preferences = ChapterDisplayPreferences.read(value, id: mediaID)
-        }
-        .onChange(of: mediaID) { _, id in
-            preferences = ChapterDisplayPreferences.read(data, id: id)
+    }
+
+    static func groups(in chapters: [Chapter]) -> [String] { Array(Set(chapters.compactMap(\.scanlator))).sorted() }
+}
+
+/// Standalone scanlator button for places without a chapter filter menu.
+struct ChapterScanlatorMenu: View {
+    let chapters: [Chapter]
+    let mediaID: String
+
+    var body: some View {
+        let groups = ScanlatorFilterItems.groups(in: chapters)
+        if !groups.isEmpty {
+            Menu {
+                ScanlatorFilterItems(groups: groups, mediaID: mediaID)
+            } label: {
+                Label("Scanlators", systemImage: "person.2").font(.subheadline).frame(minHeight: 44)
+            }
         }
     }
 }
