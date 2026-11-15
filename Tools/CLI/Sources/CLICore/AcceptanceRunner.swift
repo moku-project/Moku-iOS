@@ -147,6 +147,8 @@ extension NativeBuild {
       if live {
         let package = "example.source"
         var found: JSON?
+        // Popular titles always have chapters in the source language; a searched title may be licensed away.
+        var popular: JSON?
         try checks.check("live.example.repository") {
           _ = try checks.api.gql(
             "mutation{addRepository(indexUrl:\"https://example.com/repo/index.pb\"){id}}"
@@ -176,9 +178,15 @@ extension NativeBuild {
               Data([255, 216, 255]), Data([137, 80, 78, 71]), Data("RIFF".utf8), Data("GIF8".utf8),
             ].contains { response.body.starts(with: $0) }, "Cover response is not an image")
         }
+        try checks.check("live.example.popular") {
+          popular = try checks.api.gql(
+            "query($e:ID!){popularManga(extensionId:$e){results{id externalId title}}}",
+            ["e": package])["popularManga"]["results"].a.first
+          try require(popular != nil, "No live popular titles")
+        }
         try checks.check("live.example.metadata_runner") {
-          guard let found else { throw Blocked(description: "Live search failed") }
-          try jvm("live-jvm-results", args: [package, found["externalId"].s], timeout: 100)
+          guard let popular else { throw Blocked(description: "Live popular failed") }
+          try jvm("live-jvm-results", args: [package, popular["externalId"].s], timeout: 100)
         }
       }
       checks.complete = true
