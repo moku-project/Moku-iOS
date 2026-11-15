@@ -106,8 +106,8 @@ import XCTest
         wait(firstMatch("reader."), 30, "reader")
         sleep(8)
         shot("10-reader")
-        app.tap()
         let close = app.buttons["reader.close"]
+        if !close.exists { app.tap() }
         wait(close, 10, "reader close")
         close.tap()
 

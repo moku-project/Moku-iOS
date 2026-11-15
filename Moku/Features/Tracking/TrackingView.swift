@@ -164,7 +164,7 @@ struct TrackingView: View {
                             importing = true
                         }
                     } label: {
-                        LabeledContent("Continue Saved Import", value: "\(model.items.count) titles")
+                        LabeledContent("Continue Saved Import", value: counted(model.items.count, "title"))
                     }
                 }
                 Button("Import List…") { startImport() }

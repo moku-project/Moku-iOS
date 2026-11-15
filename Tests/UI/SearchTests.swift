@@ -104,8 +104,10 @@ final class SearchTests: XCTestCase {
     /// Search looks for the content type chosen with the tab bar's content button.
     func testGlobalSearchFollowsContentButton() {
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-testing-search", "-contentMode", "novels", "--ui-testing-storage", "-mokuStorageTestID", UUID().uuidString]
+        // A launch-argument contentMode would shadow every later change, so choose it with the button.
+        app.launchArguments = ["--ui-testing-search", "--ui-testing-storage", "-mokuStorageTestID", UUID().uuidString]
         app.launch()
+        NavigationTests.chooseMode("Novels", in: app)
         app.buttons["tab.browse"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         let input = app.searchFields.firstMatch
         XCTAssertTrue(input.waitForExistence(timeout: 5))
@@ -122,8 +124,9 @@ final class SearchTests: XCTestCase {
 
     func testDebouncedSearchPanelsAndTopBar() {
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-testing-search", "-contentMode", "all", "--ui-testing-storage", "-mokuStorageTestID", UUID().uuidString]
+        app.launchArguments = ["--ui-testing-search", "--ui-testing-storage", "-mokuStorageTestID", UUID().uuidString]
         app.launch()
+        NavigationTests.chooseMode("All", in: app)
         app.buttons["tab.browse"].tap()
         let input = app.searchFields.firstMatch
         XCTAssertTrue(input.waitForExistence(timeout: 5))
@@ -155,30 +158,23 @@ final class SearchTests: XCTestCase {
         XCTAssertTrue(app.buttons["search.result.moon"].waitForExistence(timeout: 5))
         dismissKeyboard(app)
         screenshot("Search results")
-        // BUG: while the search field is active the navigation bar shows only the field
-        // and Close, so filters can't be changed for a typed query.
-        let options = XCTExpectedFailure.Options()
-        options.isStrict = false
-        XCTExpectFailure("Filter button is hidden while a search query is active", options: options) {
-            XCTAssertTrue(filter.exists && filter.isHittable)
-        }
-        // BUG: leaving the tab while the search field is active dismisses the search,
-        // which clears the query and its results.
+        // Filters stay reachable while the search field is active.
+        XCTAssertTrue((filter.exists && filter.isHittable) || app.buttons["search.filter.inline"].isHittable)
+        // Leaving the tab keeps the query and its results.
         app.buttons["tab.library"].tap()
         app.buttons["tab.browse"].tap()
         XCTAssertTrue(app.buttons["tab.browse"].isSelected)
-        XCTExpectFailure("Switching tabs clears the active search query", options: options) {
-            XCTAssertEqual(input.value as? String, "moon")
-            XCTAssertTrue(app.buttons["search.result.moon"].waitForExistence(timeout: 3))
-        }
+        XCTAssertEqual(input.value as? String, "moon")
+        XCTAssertTrue(app.buttons["search.result.moon"].waitForExistence(timeout: 3))
         // The applied Manga filter is kept either way.
         XCTAssertFalse(app.buttons["search.result.garden"].exists)
     }
 
     private func dismissKeyboard(_ app: XCUIApplication) {
         guard app.keyboards.firstMatch.exists else { return }
-        let results = app.scrollViews.containing(.button, identifier: "search.result.moon").firstMatch
-        (results.exists ? results : app.scrollViews.firstMatch).swipeDown(velocity: .slow)
+        // Dragging the results dismisses the keyboard and keeps the search.
+        let result = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'search.result.'")).firstMatch
+        if result.exists { result.swipeDown(velocity: .slow) }
         if app.keyboards.firstMatch.exists {
             app.visibleNavigationBar.buttons["Close"].tap()
         }

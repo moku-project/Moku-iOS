@@ -80,13 +80,7 @@ import XCTest
         for title in ["Manga", "Novels", "All"] {
             Self.chooseMode(title, in: app)
         }
-        // BUG: the menu's last row (Anime) opens right over the content button;
-        // tapping it highlights the row but doesn't choose it.
-        let options = XCTExpectedFailure.Options()
-        options.isStrict = false
-        XCTExpectFailure("Content menu's last row (Anime) overlaps the content button and ignores taps", options: options) {
-            Self.chooseMode("Anime", in: app)
-        }
+        Self.chooseMode("Anime", in: app)
         keepScreenshot("Content menu after choosing Anime")
     }
 

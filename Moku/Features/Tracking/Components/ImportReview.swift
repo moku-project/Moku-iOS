@@ -40,7 +40,7 @@ struct ImportReview: View {
                         }
                 }
             } header: {
-                Text("\(model.items.count) titles")
+                Text(counted(model.items.count, "title"))
             }
             Section {
                 Toggle("Dry Run", isOn: $dryRun).disabled(model.working)

@@ -21,9 +21,8 @@ struct DownloadGroupView: View {
             }
             ForEach(group.entries) { entry in chapterRow(entry) }
         } label: {
-            header
+            header.accessibilityIdentifier("downloads.group.\(group.id)")
         }
-        .accessibilityIdentifier("downloads.group.\(group.id)")
         .accessibilityValue(expanded ? "Expanded" : "Collapsed")
         .listRowBackground(Color.clear)
     }
@@ -74,16 +73,16 @@ struct DownloadGroupView: View {
     private var groupSummary: String {
         if section == .completed {
             return
-                "\(group.entries.count) chapters · \(ByteCountFormatter.string(fromByteCount: group.entries.reduce(0) { $0 + $1.bytes }, countStyle: .file))"
+                "\(counted(group.entries.count, "chapter")) · \(ByteCountFormatter.string(fromByteCount: group.entries.reduce(0) { $0 + $1.bytes }, countStyle: .file))"
         }
         if section == .pending && model.isPaused {
-            return "\(group.entries.count) chapters · Paused"
+            return "\(counted(group.entries.count, "chapter")) · Paused"
         }
         if group.failures > 0 {
-            return "\(group.entries.count) chapters · \(group.failures) failed"
+            return "\(counted(group.entries.count, "chapter")) · \(group.failures) failed"
         }
         if let active = group.active { return "\(active.chapter) · \(Int(active.progress * 100))%" }
-        return "\(group.entries.count) chapters · Queued"
+        return "\(counted(group.entries.count, "chapter")) · Queued"
     }
 
     private func chapterRow(_ entry: DownloadEntry) -> some View {
@@ -122,6 +121,7 @@ struct DownloadGroupView: View {
                 Button("Retry", systemImage: "arrow.clockwise") { model.retry(entryID: entry.id) }
                     .labelStyle(.iconOnly)
                     .buttonStyle(.borderless)
+                    .accessibilityLabel("Retry \(entry.title)")
                     .accessibilityIdentifier("downloads.retry.\(entry.id)")
             } else if entry.status == .completed {
                 Image(systemName: "checkmark.circle.fill").foregroundStyle(.tint)

@@ -67,13 +67,16 @@ struct SearchView: View {
             .onChange(of: contentMode, initial: true) { _, mode in
                 if !model.isLibrary { model.selectMode(mode) }
             }
+            // A type chosen in the filter sheet moves the content button too, so the two never disagree.
+            .onChange(of: model.options.media) { _, media in
+                if !model.isLibrary, media != contentMode { contentMode = media }
+            }
             .toolbar { toolbarContent }
             .sheet(isPresented: panelPresented) { optionsSheet }
             .background(NavigationStyle.background.ignoresSafeArea())
             .accessibilityIdentifier(isPage ? "search.page" : "search.overlay")
             .onChange(of: isActive) { _, active in
                 model.setActive(active)
-                if !active { searchPresented = false }
             }
             .onDisappear { model.setActive(false) }
             .onAppear {
@@ -130,6 +133,22 @@ struct SearchView: View {
         }
     }
 
+    private var inlineFilterButton: some View {
+        Button {
+            prepareOptions?()
+            model.open(.filters)
+        } label: {
+            Label(
+                model.options.filterCount > 0 ? "Filters (\(model.options.filterCount))" : "Filter and Sort",
+                systemImage: filtersActive
+                    ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+            .font(.subheadline.weight(.medium))
+        }
+        .buttonStyle(.bordered)
+        .buttonBorderShape(.capsule)
+        .accessibilityIdentifier("search.filter.inline")
+    }
+
     private var panelPresented: Binding<Bool> {
         Binding(
             get: { isActive && model.panel != nil },
@@ -180,6 +199,8 @@ struct SearchView: View {
     private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
+                // The toolbar's filter button is hidden while the search field is active.
+                if searchPresented { inlineFilterButton }
                 if let message = model.searchMessage {
                     Text(message).font(.footnote).foregroundStyle(.secondary)
                 }
@@ -207,7 +228,7 @@ struct SearchView: View {
             .padding(.vertical, 8)
         }
         .onScrollPhaseChange { _, phase in pageScrolling = phase != .idle }
-        .scrollDismissesKeyboard(.interactively)
+        .scrollDismissesKeyboard(.immediately)
         .simultaneousGesture(TapGesture().onEnded { lastInteraction = .now })
         .simultaneousGesture(DragGesture().updating($interacting) { _, touching, _ in
             touching = true

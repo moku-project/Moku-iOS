@@ -1,5 +1,21 @@
 import SwiftUI
 
+extension EnvironmentValues {
+    @Entry var tabBarInset: CGFloat = 0
+}
+
+extension View {
+    /// Scroll content inside a navigation stack ends above the floating tab bar.
+    func clearsTabBar() -> some View { modifier(TabBarClearance()) }
+}
+
+private struct TabBarClearance: ViewModifier {
+    @Environment(\.tabBarInset) private var inset
+    func body(content: Content) -> some View {
+        content.safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: inset) }
+    }
+}
+
 /// Hides the tab bar while a page needs the bottom edge, such as Library's selection bar.
 @MainActor @Observable final class TabBarState {
     static let shared = TabBarState()
@@ -13,6 +29,7 @@ struct MokuTabBar: View {
     @AppStorage("contentMode") private var mode: ContentMode = .all
     @AppStorage("preferences.modeTabs") private var savedModes = ""
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.openContentTypes) private var openContentTypes
     @Namespace private var highlight
 
     static let height: CGFloat = 60
@@ -66,12 +83,18 @@ struct MokuTabBar: View {
 
     private var modeButton: some View {
         Menu {
-            Picker("Content", selection: $mode) {
-                ForEach(modes) { choice in
-                    Label(choice.title, systemImage: choice.systemImage).tag(choice)
-                        .accessibilityIdentifier("mode.\(choice.rawValue)")
+            ForEach(modes) { choice in
+                Button {
+                    mode = choice
+                } label: {
+                    Label(choice.title, systemImage: choice == mode ? "checkmark" : choice.systemImage)
                 }
+                .accessibilityAddTraits(choice == mode ? .isSelected : [])
+                .accessibilityIdentifier("mode.\(choice.rawValue)")
             }
+            Divider()
+            Button("Customize…", systemImage: "slider.horizontal.3", action: openContentTypes)
+                .accessibilityIdentifier("mode.customize")
         } label: {
             Image(systemName: mode.systemImage)
                 .font(.system(size: 21, weight: .semibold))
@@ -87,7 +110,7 @@ struct MokuTabBar: View {
         }
         .menuOrder(.fixed)
         .buttonStyle(.plain)
-        .glassSurface(Circle())
+        .glassSurface(Circle(), interactive: false)
         .sensoryFeedback(.selection, trigger: mode)
         .accessibilityLabel("Content type")
         .accessibilityValue(mode.title)
@@ -121,9 +144,9 @@ private struct GlassGroup<Content: View>: View {
 
 extension View {
     /// Liquid Glass on iOS 26 and later, a blurred material before that.
-    @ViewBuilder func glassSurface<S: Shape>(_ shape: S) -> some View {
+    @ViewBuilder func glassSurface<S: Shape>(_ shape: S, interactive: Bool = true) -> some View {
         if #available(iOS 26.0, *) {
-            glassEffect(.regular.interactive(), in: shape)
+            glassEffect(interactive ? .regular.interactive() : .regular, in: shape)
         } else {
             background(.regularMaterial, in: shape)
                 .overlay(shape.stroke(.white.opacity(0.08), lineWidth: 0.5))

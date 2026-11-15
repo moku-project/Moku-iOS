@@ -10,7 +10,7 @@ import SwiftUI
 
         var body: some View {
             NavigationStack {
-                LibraryView(mode: $mode, onBrowse: {}, onSearch: {}, onOpen: { _ in })
+                LibraryView(mode: $mode, onBrowse: {}, onSearch: { _ in }, onOpen: { _ in })
                     .environment(library)
                     .environment(home)
                     .background(NavigationStyle.background)

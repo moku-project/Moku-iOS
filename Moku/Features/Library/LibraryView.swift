@@ -6,7 +6,7 @@ struct LibraryView: View {
     var isActive = true
     var downloadedIDs: Set<String> = []
     var onBrowse: () -> Void
-    var onSearch: () -> Void
+    var onSearch: (String) -> Void
     var onOpen: (MediaEntry) -> Void
     @Environment(LibraryStore.self) private var library
     @Environment(HomeStore.self) private var home
@@ -142,6 +142,10 @@ struct LibraryView: View {
             } actions: {
                 if model.hasFilters {
                     Button("Clear Filters") { model.clearFilters() }
+                }
+                if !model.query.isEmpty {
+                    Button("Search Sources for “\(model.query)”") { onSearch(model.query) }
+                        .accessibilityIdentifier("library.searchSources")
                 }
             }
             .frame(minHeight: 280)
@@ -428,6 +432,7 @@ struct LibraryView: View {
                 .buttonStyle(.borderedProminent)
                 .accessibilityIdentifier("library.browse")
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("library.empty")
     }
 
@@ -458,7 +463,7 @@ struct LibraryView: View {
             }
             let count = status.newChapterCount
             if !status.failedTitles.isEmpty {
-                Toaster.shared.show("\(status.failedTitles.count) series failed to update", detail: status.failedTitles.prefix(3).joined(separator: ", "), kind: .error)
+                Toaster.shared.show("\(counted(status.failedTitles.count, "series", "series")) failed to update", detail: status.failedTitles.prefix(3).joined(separator: ", "), kind: .error)
             } else {
                 Toaster.shared.show(count == 0 ? "Nothing new" : "Library update complete",
                                     detail: count == 0 ? nil : "\(count) new chapter\(count == 1 ? "" : "s") or episode\(count == 1 ? "" : "s").")

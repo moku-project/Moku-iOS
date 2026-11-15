@@ -6,13 +6,9 @@ import XCTest
         app.launchArguments = ["--ui-testing-downloads"]
         app.launch()
         app.buttons["tab.downloads"].tap()
-        // BUG: DisclosureGroup's `downloads.group.<id>` identifier is inherited by every
-        // row inside it, hiding `downloads.retry.<id>` / `downloads.retryAll.<id>`.
-        // Until that's fixed, find the controls by label inside the group.
-        let inGroup = app.buttons.matching(identifier: "downloads.group.monster")
-        let title = inGroup.matching(NSPredicate(format: "label BEGINSWITH 'Monster But Wild'")).firstMatch
-        let retries = inGroup.matching(NSPredicate(format: "label == 'Retry'"))
-        let retryAll = inGroup.matching(NSPredicate(format: "label BEGINSWITH 'Retry ' AND label ENDSWITH 'Failed'")).firstMatch
+        let title = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Monster But Wild'")).firstMatch
+        let retries = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'downloads.retry.'"))
+        let retryAll = app.buttons["downloads.retryAll.monster"]
         XCTAssertTrue(title.waitForExistence(timeout: 5))
         XCTAssertEqual(retries.count, 0)
         XCTAssertFalse(retryAll.exists)
@@ -20,12 +16,7 @@ import XCTest
         title.tap()
         XCTAssertTrue(retryAll.waitForExistence(timeout: 3))
         XCTAssertEqual(retries.count, 2)
-        let options = XCTExpectedFailure.Options()
-        options.isStrict = false
-        XCTExpectFailure("Retry buttons lose their identifiers inside the DisclosureGroup", options: options) {
-            XCTAssertTrue(app.buttons["downloads.retry.3"].exists)
-            XCTAssertTrue(app.buttons["downloads.retryAll.monster"].exists)
-        }
+        XCTAssertTrue(app.buttons["downloads.retry.3"].exists)
         capture("Downloads failed title expanded")
         retries.element(boundBy: 0).tap()
         expectation(for: NSPredicate(format: "count == 1"), evaluatedWith: retries)
@@ -40,7 +31,7 @@ import XCTest
         XCTAssertTrue(menuItem(app, "downloads.queue", "Queue").exists)
         capture("Downloads tools menu")
         history.tap()
-        let group = app.buttons.matching(identifier: "downloads.group.history").firstMatch
+        let group = app.descendants(matching: .any).matching(identifier: "downloads.group.history").firstMatch
         XCTAssertTrue(group.waitForExistence(timeout: 3))
         group.tap()
         XCTAssertTrue(app.staticTexts["Chapter 12"].exists)

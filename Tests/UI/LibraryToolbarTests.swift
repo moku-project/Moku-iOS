@@ -99,9 +99,6 @@ import XCTest
         keepScreenshot("Library search empty")
         // The old library search handed an unmatched query to Search ("Browse
         // sources"). LibraryView still receives `onSearch` but never calls it.
-        XCTExpectFailure("Library search no longer offers to search sources for an unmatched query") {
-            XCTAssertTrue(app.buttons["search.browseSources"].exists
-                || app.buttons.containing(NSPredicate(format: "label CONTAINS[c] 'search sources' OR label CONTAINS[c] 'browse sources'")).firstMatch.exists)
-        }
+        XCTAssertTrue(app.buttons["library.searchSources"].waitForExistence(timeout: 3))
     }
 }

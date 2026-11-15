@@ -218,7 +218,7 @@ import Observation
             return
         }
         if dryRun {
-            notice = "\(importable.count) titles ready to import. No changes were made."
+            notice = "\(counted(importable.count, "title")) ready to import. No changes were made."
             return
         }
         working = true

@@ -74,10 +74,7 @@ struct RootView: View {
                         homeStore: homeStore, downloadsModel: downloadsModel
                     )
                     .equatable()
-                    // Pages scroll under the bar, as under a system tab bar.
-                    .safeAreaInset(edge: .bottom, spacing: 0) {
-                        Color.clear.frame(height: barVisible ? MokuTabBar.height + 8 : 0)
-                    }
+                    .environment(\.tabBarInset, barVisible ? MokuTabBar.height + 8 : 0)
                     .toolbar(.hidden, for: .tabBar)
                     .accessibilityIdentifier("page.\(tab.rawValue)")
                 }
@@ -121,6 +118,7 @@ struct RootView: View {
             }
         }
         .environment(\.openSettings) { navigation.select(.settings) }
+        .environment(\.openContentTypes) { navigation.open(.settings(.appearance), in: .settings) }
         .tint(NavigationStyle.accent)
         .preferredColorScheme(systemTheme ? nil : (palette.isLight ? .light : .dark))
         .onChange(of: palette, initial: true) { _, value in
@@ -165,11 +163,13 @@ private struct RootTabPage: View, Equatable {
                 if activity.hasVisited { page } else { Color.clear }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clearsTabBar()
             .background(NavigationStyle.background.ignoresSafeArea())
             .navigationDestination(for: Route.self) { route in
                 destination(route)
                     .environment(\.searchGenre, searchGenre)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clearsTabBar()
                     .background(NavigationStyle.background.ignoresSafeArea())
             }
         }
@@ -239,7 +239,11 @@ private struct RootTabPage: View, Equatable {
                 mode: $mode, isActive: activity.isActive,
                 downloadedIDs: downloadsModel.completedTitleIDs,
                 onBrowse: { navigation.select(.browse, language: sourceLanguage) },
-                onSearch: { navigation.select(.browse, language: sourceLanguage) },
+                onSearch: { query in
+                    navigation.select(.browse, language: sourceLanguage)
+                    navigation.globalSearchModel?.query = query
+                    navigation.globalSearchModel?.submit()
+                },
                 onOpen: { openDetails($0) })
         case .browse:
             if let model = navigation.globalSearchModel {

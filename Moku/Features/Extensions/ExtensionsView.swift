@@ -270,7 +270,7 @@ struct ExtensionsView: View {
                         .disabled(model.isLoading)
                 }
             } header: {
-                Text("\(model.total.formatted()) extensions")
+                Text(counted(model.total, "extension"))
             }
         } else if !model.isLoading {
             emptyState
@@ -287,7 +287,7 @@ struct ExtensionsView: View {
             }
             .accessibilityIdentifier("extensions.addRepository.row")
         } header: {
-            Text("\(visibleRepositories.count) repositories")
+            Text(counted(visibleRepositories.count, "repository", "repositories"))
         } footer: {
             Text("Tap a repository to browse its extensions. A repository can be removed once its sources are uninstalled.")
         }
