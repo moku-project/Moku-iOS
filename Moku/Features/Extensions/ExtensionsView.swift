@@ -22,8 +22,7 @@ struct ExtensionsView: View {
     @State private var installingURL = false
     @State private var externalURL = ""
     @State private var importingFile = false
-    @AppStorage("preferences.modeTabs") private var savedModes = ""
-    private var modes: [ContentMode] { ModeTabConfiguration(storage: savedModes).visible }
+    @AppStorage("contentMode") private var contentMode: ContentMode = .all
     private var updatable: [SourceExtension] { model.visibleInstalled.filter { $0.needsUpdate == true } }
     private var upToDate: [SourceExtension] { model.visibleInstalled.filter { $0.needsUpdate != true } }
     private var visibleRepositories: [ExtensionRepositoryInfo] {
@@ -33,7 +32,7 @@ struct ExtensionsView: View {
         }
     }
     private var filterCount: Int {
-        (model.repositoryID == nil ? 0 : 1) + (model.language == nil ? 0 : 1) + (model.media == .all ? 0 : 1)
+        (model.repositoryID == nil ? 0 : 1) + (model.language == nil ? 0 : 1)
     }
 
     var body: some View {
@@ -103,6 +102,8 @@ struct ExtensionsView: View {
             }
         }
         .disabled(model.isWorking && model.busyPackage == nil)
+        // The tab bar's content button decides which extensions show.
+        .onChange(of: contentMode, initial: true) { _, mode in model.media = mode }
         .task(id: [
             model.query, model.repositoryID ?? "", model.language ?? "", model.media.rawValue,
         ]) {
@@ -192,9 +193,6 @@ struct ExtensionsView: View {
 
     private var filterMenu: some View {
         Menu {
-            Picker("Content", selection: $model.media) {
-                ForEach(modes) { Text($0.title).tag($0) }
-            }
             if section != .repositories {
                 Picker(selection: $model.repositoryID) {
                     Text("All Repositories").tag(String?.none)
@@ -221,7 +219,6 @@ struct ExtensionsView: View {
                 Button("Reset Filters", systemImage: "arrow.counterclockwise") {
                     model.repositoryID = nil
                     model.language = nil
-                    model.media = .all
                 }
             }
         } label: {
@@ -301,9 +298,10 @@ struct ExtensionsView: View {
     private var emptyState: EmptyState {
         if !model.query.isEmpty { return EmptyState(systemImage: "magnifyingglass", message: "No results for “\(model.query)”") }
         if filterCount > 0 { return EmptyState(systemImage: "line.3.horizontal.decrease.circle", message: "No extensions match these filters") }
-        if section == .installed { return EmptyState(systemImage: "puzzlepiece.extension", message: "No extensions installed") }
+        let kind = switch contentMode { case .all: ""; case .manga: "manga "; case .novels: "novel "; case .anime: "anime " }
+        if section == .installed { return EmptyState(systemImage: "puzzlepiece.extension", message: "No \(kind)extensions installed") }
         if model.repositories.isEmpty { return EmptyState(systemImage: "shippingbox", message: "Add a repository to find extensions") }
-        return EmptyState(systemImage: "puzzlepiece.extension", message: "No extensions found")
+        return EmptyState(systemImage: "puzzlepiece.extension", message: "No \(kind)extensions found")
     }
 
     private func row(_ item: SourceExtension) -> some View {
