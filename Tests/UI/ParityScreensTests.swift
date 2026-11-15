@@ -103,7 +103,6 @@ import XCTest
         XCTAssertLessThan(sign.midY, line.midY, "The {\\an8} sign belongs above the dialogue")
         // Karaoke lines read as one line of text.
         XCTAssertTrue(app.staticTexts["Sing along"].exists)
-        app.buttons["player.panel.close"].tap()
         capture("Player ASS subtitles")
     }
 

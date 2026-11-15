@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// Native slider behavior and accessibility with the desktop's thin sage track.
+/// Native slider with a thin white track, like the system player.
 struct PlayerTimeline: UIViewRepresentable {
     let value: Double
     let duration: Double
@@ -10,14 +10,14 @@ struct PlayerTimeline: UIViewRepresentable {
 
     func makeUIView(context: Context) -> UISlider {
         let slider = PlayerSlider()
-        let sage = UIColor(NavigationStyle.accent)
+        let fill = UIColor.white
         let thumb = UIGraphicsImageRenderer(size: CGSize(width: 12, height: 12)).image { _ in
-            sage.setFill()
+            fill.setFill()
             UIBezierPath(ovalIn: CGRect(x: 0, y: 0, width: 12, height: 12)).fill()
         }
         slider.setThumbImage(thumb, for: .normal)
         slider.setThumbImage(thumb, for: .highlighted)
-        for (color, minimum) in [(sage, true), (UIColor(white: 0.25, alpha: 1), false)] {
+        for (color, minimum) in [(fill, true), (UIColor(white: 1, alpha: 0.3), false)] {
             let image = UIGraphicsImageRenderer(size: CGSize(width: 3, height: 3)).image { _ in
                 color.setFill()
                 UIBezierPath(

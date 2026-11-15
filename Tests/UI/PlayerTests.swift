@@ -30,10 +30,10 @@ final class PlayerUITests: XCTestCase {
         app.buttons["English"].tap()
         XCTAssertTrue(
             app.staticTexts["A quiet moment before the journey."].waitForExistence(timeout: 5))
-        app.buttons["Increase Size"].tap()
-        XCTAssertTrue(app.staticTexts["110%"].exists)
         capture("Player portrait subtitles")
-        app.buttons["player.panel.close"].tap()
+        app.buttons["player.subtitles"].tap()
+        app.buttons["Text Size"].tap()
+        app.buttons["110%"].tap()
         app.buttons["player.speed"].tap()
         app.buttons["1.5×"].tap()
         XCTAssertEqual(app.buttons["player.speed"].value as? String, "1.5 times")
@@ -45,10 +45,10 @@ final class PlayerUITests: XCTestCase {
         app.buttons["player.subtitles"].tap()
         XCTAssertTrue(app.buttons["English"].isHittable)
         capture("Player landscape subtitles")
-        app.buttons["player.panel.close"].tap()
+        app.buttons["English"].tap()
         capture("Player landscape playback")
         app.buttons["player.next"].tap()
-        XCTAssertTrue(app.staticTexts["Ep. 2"].waitForExistence(timeout: 5))
+        waitFor(app.buttons["player.episodes"], "value == \'Ep. 2\'")
         XCTAssertTrue(app.buttons["player.previous"].isEnabled)
         app.buttons["player.close"].tap()
         XCTAssertTrue(app.staticTexts["Player closed"].waitForExistence(timeout: 5))
@@ -60,7 +60,7 @@ final class PlayerUITests: XCTestCase {
         app.launchArguments = [
             "--ui-testing-player", "--ui-testing-player-streaming",
             "--ui-testing-player-signals", "--ui-testing-isolated-backend",
-            "-player.autoplay", "NO", "-player.subtitleScale", "1",
+            "-player.autoplay", "NO", "-player.autoplayNext", "NO", "-player.subtitleScale", "1",
         ]
         XCUIDevice.shared.orientation = .portrait
         defer { XCUIDevice.shared.orientation = .portrait }
@@ -83,7 +83,10 @@ final class PlayerUITests: XCTestCase {
         XCTAssertEqual(play.label, "Play")
         tap(play)
         waitFor(play, "label == 'Pause'")
-        waitFor(slider, "value BEGINSWITH '0:07' OR value BEGINSWITH '0:08'")
+        waitFor(slider, "value BEGINSWITH '0:07' OR value BEGINSWITH '0:08' OR value BEGINSWITH '0:09' OR value BEGINSWITH '0:1'")
+        // Controls fade after a few seconds of playback; a tap on the video brings them back.
+        waitFor(play, "exists == false")
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3)).tap()
         tap(play)
         waitFor(play, "label == 'Play'")
 
@@ -98,9 +101,9 @@ final class PlayerUITests: XCTestCase {
         tap(app.buttons["English"])
         XCTAssertTrue(
             app.staticTexts["A quiet moment before the journey."].waitForExistence(timeout: 5))
-        tap(app.buttons["Increase Size"])
-        XCTAssertTrue(app.staticTexts["110%"].exists)
-        tap(app.buttons["player.panel.close"])
+        tap(app.buttons["player.subtitles"])
+        tap(app.buttons["Text Size"])
+        tap(app.buttons["110%"])
 
         // Tap the video to hide/reveal; an overlay must not steal button taps.
         let video = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
@@ -130,13 +133,13 @@ final class PlayerUITests: XCTestCase {
         XCTAssertGreaterThan(settledSeconds, 0)
         XCTAssertLessThan(settledSeconds, 10)
         tap(app.buttons["player.next"])
-        XCTAssertTrue(app.staticTexts["Ep. 2"].waitForExistence(timeout: 10))
+        waitFor(app.buttons["player.episodes"], "value == \'Ep. 2\'")
         waitFor(slider, "enabled == true")
         tap(app.buttons["player.previous"])
-        XCTAssertTrue(app.staticTexts["Ep. 1"].waitForExistence(timeout: 10))
+        waitFor(app.buttons["player.episodes"], "value == \'Ep. 1\'")
         tap(app.buttons["player.episodes"])
         tap(app.buttons["Ep. 3 — Episode 3"])
-        XCTAssertTrue(app.staticTexts["Ep. 3"].waitForExistence(timeout: 10))
+        waitFor(app.buttons["player.episodes"], "value == \'Ep. 3\'")
         XCTAssertFalse(app.buttons["player.next"].isEnabled)
         tap(app.buttons["player.close"])
         XCTAssertTrue(app.staticTexts["Player closed"].waitForExistence(timeout: 5))

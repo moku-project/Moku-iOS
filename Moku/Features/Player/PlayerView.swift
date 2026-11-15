@@ -29,13 +29,11 @@ struct PlayerView: View {
     private struct SeekFlash: Equatable { let seconds: Int; let leading: Bool; let id = UUID() }
     @State private var appliedDefaults = false
     @State private var controlsVisible = true
-    @State private var panel: Panel?
     @State private var lastInteraction = Date()
     @State private var scrubbing = false
     @State private var scrubPosition = 0.0
     @State private var previousIdleTimer = false
     private var accent: Color { NavigationStyle.accent }
-    private typealias Panel = PlayerMenu.Kind
 
     /// Cues sharing a screen position, each in its own ASS style.
     @ViewBuilder private func captionGroup(_ position: SubtitleCue.Position, landscape: Bool, picture: CGFloat, time: Double) -> some View {
@@ -204,14 +202,14 @@ struct PlayerView: View {
         anchoredCaptions(in: size, landscape: landscape, time: time)
         VStack(spacing: 0) {
             captionGroup(.top, landscape: landscape, picture: picture, time: time)
-                .padding(.top, controlsVisible ? (landscape ? 66 : 110) : 24)
+                .padding(.top, controlsVisible ? (landscape ? 70 : 110) : 24)
             Spacer()
             captionGroup(.middle, landscape: landscape, picture: picture, time: time)
             Spacer()
             captionGroup(.bottom, landscape: landscape, picture: picture, time: time)
                 .padding(
                     .bottom,
-                    max(size.height * model.subtitleHeight / 100, controlsVisible ? (landscape ? 66 : 128) : 16))
+                    max(size.height * model.subtitleHeight / 100, controlsVisible ? (landscape ? 110 : 128) : 16))
         }
         .padding(.horizontal, 24)
         }
@@ -309,22 +307,17 @@ struct PlayerView: View {
                         captionLayer(size: geometry.size, landscape: landscape, time: model.position)
                     }
                 }
-                if model.loading {
-                    ContentSkeleton(style: .player)
-                } else if model.buffering {
-                    VStack {
-                        Spacer()
-                        SkeletonBlock(height: 4, radius: 2)
-                            .skeletonMotion("Video is buffering")
-                            .padding(.horizontal, 24).padding(.bottom, 100)
-                    }.allowsHitTesting(false)
+                if (model.loading || model.buffering) && !controlsVisible {
+                    ProgressView().controlSize(.large).tint(.white)
+                        .accessibilityLabel(model.loading ? "Loading video" : "Video is buffering")
+                        .allowsHitTesting(false)
                 }
                 if let error = model.error {
                     VStack(spacing: 12) {
                         Text(error).multilineTextAlignment(.center).font(.subheadline)
                         Button("Try again") { Task { await model.load() } }
                             .frame(minHeight: 44).tint(accent)
-                    }.padding(20).frame(maxWidth: 340).playerPanel()
+                    }.padding(20).frame(maxWidth: 340).glassSurface(RoundedRectangle(cornerRadius: 22, style: .continuous))
                 }
                 if let marker = model.activeSkip, model.error == nil {
                     VStack {
@@ -332,69 +325,53 @@ struct PlayerView: View {
                         HStack {
                             Spacer()
                             Button { model.skip(marker) } label: {
-                                Label(marker.label, phosphor: "SkipForward")
+                                Label(marker.label, systemImage: "forward.fill")
                                     .font(.subheadline.weight(.semibold))
-                                    .padding(.horizontal, 16).frame(minHeight: 44)
-                                    .background(.black.opacity(0.7), in: Capsule())
-                                    .overlay(Capsule().strokeBorder(.white.opacity(0.25)))
+                                    .padding(.horizontal, 18).frame(minHeight: 44)
                             }
+                            .glassSurface(Capsule())
                             .accessibilityIdentifier("player.skip")
                         }
                         .padding(.trailing, 16)
-                        .padding(.bottom, controlsVisible ? (landscape ? 76 : 140) : 28)
+                        .padding(.bottom, controlsVisible ? (landscape ? 96 : 120) : 28)
                     }
                     .transition(.opacity)
                 }
+                if let notice = model.notice {
+                    VStack {
+                        HStack {
+                            Text(notice).font(.caption)
+                            Button("Dismiss") { model.notice = nil }.frame(minHeight: 44)
+                        }
+                        .padding(.horizontal, 14).glassSurface(Capsule())
+                        .padding(.top, landscape ? 64 : 70)
+                        Spacer()
+                    }
+                }
                 if controlsVisible || model.error != nil {
-                    VStack(spacing: 8) {
+                    ZStack {
+                        // Apple's player dims the picture behind its controls.
+                        LinearGradient(colors: [.black.opacity(0.55), .clear, .clear, .black.opacity(0.6)],
+                                       startPoint: .top, endPoint: .bottom)
+                            .ignoresSafeArea().allowsHitTesting(false)
                         PlayerControls(
-                            model: model, landscape: landscape, headerOnly: true,
+                            model: model, landscape: landscape,
                             scrubbing: $scrubbing, scrubPosition: $scrubPosition,
-                            toggle: toggle, reveal: reveal, changeEpisode: changeEpisode,
+                            reveal: reveal, changeEpisode: changeEpisode,
                             dismiss: { dismiss() },
                             pictureInPicture: PictureInPicture.isSupported && pictureInPicture.isPossible
                                 ? { pictureInPicture.toggle() } : nil)
-                        if let panel {
-                            HStack {
-                                Spacer(minLength: 0)
-                                PlayerMenu(
-                                    model: model, panel: panel, close: { self.panel = nil },
-                                    reveal: reveal, changeEpisode: changeEpisode
-                                )
-                                .frame(width: min(320, geometry.size.width - 24))
-                                .frame(
-                                    maxHeight: min(
-                                        panelHeight(panel),
-                                        max(
-                                            120, geometry.size.height - (landscape ? 128 : 210))
-                                    )
-                                )
-                                .playerPanel()
-                            }
-                        }
-                        Spacer(minLength: 0)
-                        if let notice = model.notice {
-                            HStack {
-                                Text(notice).font(.caption)
-                                Button("Dismiss") { model.notice = nil }.frame(minHeight: 44)
-                            }.padding(.horizontal, 12).playerPanel()
-                        }
-                        PlayerControls(
-                            model: model, landscape: landscape || compactControls, headerOnly: false,
-                            scrubbing: $scrubbing, scrubPosition: $scrubPosition,
-                            toggle: toggle, reveal: reveal, changeEpisode: changeEpisode,
-                            dismiss: { dismiss() })
-                    }.padding(.horizontal, landscape ? 12 : 10)
-                        .padding(.top, 8).padding(.bottom, 8)
-                        .transition(.opacity)
+                    }
+                    .transition(.opacity)
                 }
             }
-            .foregroundStyle(Color(white: 0.86))
+            .foregroundStyle(.white)
             .font(.footnote)
             .tint(accent)
             .buttonStyle(.plain)
             .preferredColorScheme(.dark)
             .statusBarHidden(landscape || !controlsVisible)
+            .persistentSystemOverlays(controlsVisible ? .automatic : .hidden)
         }
         .recordActivity(
             entry: model.activityEntry,
@@ -436,7 +413,7 @@ struct PlayerView: View {
                 nowPlaying.update(
                     title: model.title, episode: model.episodeLabel, position: model.position,
                     duration: model.duration, rate: model.speed, playing: model.playing)
-                if !manualControls && model.playing && !model.buffering && panel == nil && !scrubbing && !voiceOver
+                if !manualControls && model.playing && !model.buffering && !scrubbing && !voiceOver
                     && Date().timeIntervalSince(lastInteraction) > 4
                 {
                     withAnimation(reduceMotion ? nil : .easeOut(duration: 0.18)) {
@@ -498,20 +475,9 @@ struct PlayerView: View {
         }
     }
 
-    private func panelHeight(_ panel: Panel) -> CGFloat {
-        let rows: Int
-        switch panel {
-        case .subtitles: rows = 4 + max(1, model.stream?.subtitles.count ?? 0)
-        case .episodes: rows = model.chapters.count
-        case .speed: rows = 6
-        case .more: rows = 2 + (model.stream?.sources.count ?? 0) + 3
-        }
-        return CGFloat(rows * 44 + 56)
-    }
     private func toggleControls() {
         withAnimation(reduceMotion ? nil : .easeOut(duration: 0.18)) {
             controlsVisible.toggle()
-            panel = nil
             lastInteraction = Date()
         }
     }
@@ -532,10 +498,6 @@ struct PlayerView: View {
         }
     }
 
-    private func toggle(_ value: Panel) {
-        panel = panel == value ? nil : value
-        reveal()
-    }
     private func reveal() {
         controlsVisible = true
         lastInteraction = Date()
@@ -547,7 +509,6 @@ struct PlayerView: View {
         }
         model.player.pause()
         model.playing = false
-        panel = nil
         reveal()
         model.saveSnapshot()
         model.chapterID = model.chapters[index].id
