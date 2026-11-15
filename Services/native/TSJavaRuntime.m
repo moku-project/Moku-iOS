@@ -114,4 +114,32 @@ static JNIEnv *startVM(NSString *runtimeHome, NSString *classPath, NSString *tem
     (*vm)->DetachCurrentThread(vm);
     return port;
 }
++ (NSInteger)restartSandboxWithDataDirectory:(NSString *)directory token:(NSString *)token error:(NSError **)error {
+    if (error) *error=nil;
+    JNIEnv *env=NULL;
+    if (!vm || (*vm)->AttachCurrentThread(vm,(void **)&env,NULL)!=JNI_OK || !env) {
+        if(error) *error=[NSError errorWithDomain:@"Moku.JVM" code:5 userInfo:@{NSLocalizedDescriptionKey:@"The JVM is not running"}];
+        return 0;
+    }
+    jclass cls=(*env)->FindClass(env,"tsunagu/Embedded");
+    jmethodID stop=cls ? (*env)->GetStaticMethodID(env,cls,"stop","()V") : NULL;
+    jmethodID start=cls ? (*env)->GetStaticMethodID(env,cls,"start","(Ljava/lang/String;Ljava/lang/String;Z)I") : NULL;
+    jstring path=NULL, credential=NULL;
+    jint port=0;
+    if (stop && start && !(*env)->ExceptionCheck(env)) {
+        (*env)->CallStaticVoidMethod(env,cls,stop);
+        path=(*env)->NewStringUTF(env,directory.UTF8String);
+        credential=(*env)->NewStringUTF(env,token.UTF8String);
+        if(!(*env)->ExceptionCheck(env) && path && credential) port=(*env)->CallStaticIntMethod(env,cls,start,path,credential,JNI_TRUE);
+    }
+    if ((*env)->ExceptionCheck(env)) {
+        if(error) *error=[NSError errorWithDomain:@"Moku.JVM" code:6 userInfo:@{NSLocalizedDescriptionKey:exceptionMessage(env)}];
+        port=0;
+    }
+    if(path) (*env)->DeleteLocalRef(env,path);
+    if(credential) (*env)->DeleteLocalRef(env,credential);
+    if(cls) (*env)->DeleteLocalRef(env,cls);
+    (*vm)->DetachCurrentThread(vm);
+    return port;
+}
 @end

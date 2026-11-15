@@ -76,8 +76,16 @@ actor BackendAPI {
     }
 
     private func fetchGraphQL(_ query: String, requiresSourceRuntime: Bool) async throws -> Data {
-        let connection = try await backend.connection(requiresSourceRuntime: requiresSourceRuntime)
-        let (data, response) = try await session.data(for: connection.graphqlRequest(query: query))
+        var connection = try await backend.connection(requiresSourceRuntime: requiresSourceRuntime)
+        let data: Data, response: URLResponse
+        do {
+            (data, response) = try await session.data(for: connection.graphqlRequest(query: query))
+        } catch let error as URLError where [.cannotConnectToHost, .networkConnectionLost, .notConnectedToInternet].contains(error.code) {
+            // A suspended app can come back to a dead loopback server; restart it and retry once.
+            await backend.recoverIfNeeded()
+            connection = try await backend.connection(requiresSourceRuntime: requiresSourceRuntime)
+            (data, response) = try await session.data(for: connection.graphqlRequest(query: query))
+        }
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             throw EmbeddedSearchError.message(
                 "The embedded backend could not complete the request. Try again.")

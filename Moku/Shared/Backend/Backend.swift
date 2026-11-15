@@ -1,4 +1,7 @@
 import Foundation
+import OSLog
+
+private let log = Logger(subsystem: "com.moku.app", category: "backend")
 
 /// One runtime per process. JVM startup runs on a dedicated queue, never on MainActor.
 actor Backend {
@@ -80,6 +83,46 @@ actor Backend {
 
     private var sourceStartup: Task<Void, Error>?
     private var directory: URL?
+    private var sandboxToken: String?
+    private var recovery: Task<Void, Never>?
+
+    /// iOS reclaims loopback listeners while the app is suspended; rebind both servers if they stopped answering.
+    func recoverIfNeeded() async {
+        if let recovery { return await recovery.value }
+        guard let startup, (try? await startup.value) != nil else { return }
+        if (try? await controller.status()) != nil { return }
+        let task = Task { await self.restartServers() }
+        recovery = task
+        await task.value
+        recovery = nil
+    }
+
+    private func restartServers() async {
+        log.notice("backend stopped answering after suspension; restarting")
+        try? await controller.stop()
+        guard let directory else { return }
+        let controller = controller
+        let restarted = Task { try await controller.start(dataDirectory: directory, deferSandbox: true) }
+        startup = restarted
+        guard (try? await restarted.value) != nil else { return }
+        guard sourceStartup != nil, let token = sandboxToken else { return }
+        let path = directory.path
+        let source = Task {
+            let port: Int = try await withCheckedThrowingContinuation { continuation in
+                DispatchQueue(label: "moku.jvm.restart", qos: .userInitiated).async {
+                    var failure: NSError?
+                    let port = TSJavaRuntime.restartSandbox(withDataDirectory: path, token: token, error: &failure)
+                    if port > 0 { continuation.resume(returning: port) } else {
+                        continuation.resume(throwing: EmbeddedSearchError.message(
+                            "The source runtime could not restart. Close and reopen the app. (\(failure?.code ?? 0))"))
+                    }
+                }
+            }
+            try await controller.attachSandbox(.init(address: "127.0.0.1:\(port)", token: token))
+        }
+        sourceStartup = source
+        _ = try? await source.value
+    }
 
     private func dataDirectory() throws -> URL {
         if let directory { return directory }
@@ -109,6 +152,7 @@ actor Backend {
         let directory = try dataDirectory()
         let jar = home.appendingPathComponent("Sandbox.jar")
         let token = UUID().uuidString + UUID().uuidString
+        sandboxToken = token
         let port: Int = try await withCheckedThrowingContinuation { continuation in
             DispatchQueue(label: "moku.jvm.startup", qos: .utility).async {
                 dispatchPrecondition(condition: .notOnQueue(.main))

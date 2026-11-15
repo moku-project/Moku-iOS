@@ -12,5 +12,9 @@ NS_ASSUME_NONNULL_BEGIN
                           dataDirectory:(NSString *)directory
                                   token:(NSString *)token
                                   error:(NSError **)error;
+/// Rebinds the sandbox's listener after iOS reclaimed it in the background; returns the new port.
++ (NSInteger)restartSandboxWithDataDirectory:(NSString *)directory
+                                      token:(NSString *)token
+                                      error:(NSError **)error;
 @end
 NS_ASSUME_NONNULL_END

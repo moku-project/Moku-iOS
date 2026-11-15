@@ -97,6 +97,7 @@ struct AppSessionView: View {
                     Task { await readerPreferences.flush(); await home.flush() }
                 }
                 if phase == .active {
+                    Task { await Backend.shared.recoverIfNeeded() }
                     appLock.showIfLocked()
                     syncWithDesktop()
                 }
