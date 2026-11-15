@@ -1,7 +1,8 @@
 import Observation
 
+/// The app's tabs. Search is last: on iOS it takes the system search slot.
 enum AppTab: String, CaseIterable, Identifiable {
-    case home, library, browse, downloads, more
+    case home, library, downloads, settings, browse
 
     var id: Self { self }
 
@@ -11,33 +12,37 @@ enum AppTab: String, CaseIterable, Identifiable {
         case .library: "Library"
         case .browse: "Search"
         case .downloads: "Downloads"
-        case .more: "More"
+        case .settings: "Settings"
         }
     }
 
-    var symbol: String {
+    var systemImage: String {
         switch self {
-        case .home: "House"
-        case .library: "Books"
-        case .browse: "MagnifyingGlass"
-        case .downloads: "DownloadSimple"
-        case .more: "DotsThreeCircle"
+        case .home: "house"
+        case .library: "books.vertical"
+        case .browse: "magnifyingglass"
+        case .downloads: "arrow.down.circle"
+        case .settings: "gearshape"
         }
     }
+
+    /// Tabs a user can choose to open the app on.
+    static let startChoices: [AppTab] = [.home, .library, .browse, .downloads]
 }
 
-enum MoreDestination: String, CaseIterable, Identifiable {
-    case recent = "Recent"
-    case tracking = "Tracking"
+/// Places reached from the Settings tab, beside the settings categories.
+enum MoreDestination: String, CaseIterable, Identifiable, Hashable {
     case extensions = "Extensions"
+    case tracking = "Tracking"
+    case recent = "History"
     case about = "About"
     var id: Self { self }
-    var symbol: String {
+    var systemImage: String {
         switch self {
-        case .tracking: "TrendUp"
-        case .recent: "ClockCounterClockwise"
-        case .extensions: "PuzzlePiece"
-        case .about: "Info"
+        case .extensions: "puzzlepiece.extension"
+        case .tracking: "chart.line.uptrend.xyaxis"
+        case .recent: "clock.arrow.circlepath"
+        case .about: "info.circle"
         }
     }
 }

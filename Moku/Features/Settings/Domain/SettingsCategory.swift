@@ -28,26 +28,25 @@ enum SettingsCategory: String, CaseIterable, Hashable {
         #endif
     }
 
-    var symbol: String {
+    var systemImage: String {
         switch self {
-        case .general: "Gear"
-        case .appearance: "PaintBrush"
-        case .reader: "Book"
-        case .player: "FilmSlate"
-        case .library: "Image"
-        case .automation: "Robot"
-        case .tracking: "Broadcast"
-        case .sync: "ArrowsClockwise"
-        case .performance: "Sliders"
-        case .keybinds: "Keyboard"
-        case .storage: "HardDrives"
-        case .folders: "FolderSimple"
-        case .content: "ShieldCheck"
-        case .server: "Database"
-        case .auth: "LockKey"
-        case .about: "Info"
-        case .devTools: "Wrench"
+        case .general: "gear"
+        case .appearance: "paintbrush"
+        case .reader: "book"
+        case .player: "play.rectangle"
+        case .library: "photo.on.rectangle"
+        case .automation: "wand.and.stars"
+        case .tracking: "person.crop.circle.badge.checkmark"
+        case .sync: "arrow.triangle.2.circlepath"
+        case .performance: "slider.horizontal.3"
+        case .keybinds: "keyboard"
+        case .storage: "internaldrive"
+        case .folders: "folder"
+        case .content: "checkmark.shield"
+        case .server: "server.rack"
+        case .auth: "lock"
+        case .about: "info.circle"
+        case .devTools: "wrench.and.screwdriver"
         }
     }
-
 }

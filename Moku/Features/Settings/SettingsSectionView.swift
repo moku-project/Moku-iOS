@@ -93,10 +93,8 @@ struct SettingsSectionView: View {
         }
         .tracksNavigationScroll().accessibilityIdentifier("settings.scroll")
         .background(NavigationStyle.background)
-        .toolbar(.hidden, for: .navigationBar)
-        .safeAreaInset(edge: .top, spacing: 0) {
-            BackHeader(title: category.rawValue, backLabel: "Back to Settings") { dismiss() }
-        }
+        .navigationTitle(category.rawValue)
+        .navigationBarTitleDisplayMode(.inline)
         .font(.footnote)
         .confirmationDialog(
             confirmation?.rawValue ?? "",

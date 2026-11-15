@@ -110,7 +110,7 @@ struct GeneralSettingsView: View {
                     GeneralRow("Default view", detail: "The tab Moku opens to.") {
                         ChoicePicker(
                             title: "", selection: $startTab,
-                            options: AppTab.allCases.filter { $0 != .more }.map { ($0.rawValue, $0.title) }
+                            options: AppTab.startChoices.map { ($0.rawValue, $0.title) }
                         ).font(.subheadline)
                     }
                 }

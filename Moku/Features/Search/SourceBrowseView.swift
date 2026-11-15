@@ -76,10 +76,8 @@ struct SourceBrowseView: View {
             .padding(.horizontal, NavigationStyle.pagePadding).padding(.vertical, 12)
         }
         .refreshable { await load(reset: true) }
-        .safeAreaInset(edge: .top, spacing: 0) {
-            BackHeader(title: source.displayName, backLabel: "Back to Browse", identifier: "source.back", back: close)
-                .background(NavigationStyle.background)
-        }
+        .navigationTitle(source.displayName)
+        .navigationBarTitleDisplayMode(.inline)
         .background(NavigationStyle.background.ignoresSafeArea())
         .task(id: source.packageName) { await load(reset: true) }
     }
