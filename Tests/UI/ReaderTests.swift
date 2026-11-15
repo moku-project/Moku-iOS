@@ -7,7 +7,7 @@ import XCTest
         app.launchArguments = ["--ui-testing-reader"]
         app.launch()
         XCTAssertTrue(app.buttons["reader.settings"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.buttons["reader.page"].exists)
+        XCTAssertTrue(app.sliders["reader.page"].exists)
         capture("reader-reading")
         app.buttons["reader.settings"].tap()
         // Let the settings sheet finish presenting.
@@ -19,7 +19,7 @@ import XCTest
         app.buttons["reader.option.rtl"].tap()
         app.buttons["reader.drawer.close"].tap()
         app.buttons["reader.previous"].tap()
-        XCTAssertTrue(app.buttons["reader.page"].label.contains("2 of 12"))
+        XCTAssertTrue((app.sliders["reader.page"].value as? String ?? "").contains("2 of 12"))
         app.buttons["reader.settings"].tap()
         // Let the settings sheet finish presenting.
         Thread.sleep(forTimeInterval: 0.35)
@@ -37,7 +37,7 @@ import XCTest
         app.launchArguments = ["--ui-testing-reader", "--reader-keep-preferences"]
         app.launch()
         XCTAssertTrue(app.buttons["reader.settings"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.buttons["reader.page"].label.contains("2 of 12"))
+        XCTAssertTrue((app.sliders["reader.page"].value as? String ?? "").contains("2 of 12"))
         app.buttons["reader.settings"].tap()
         // Let the settings sheet finish presenting.
         Thread.sleep(forTimeInterval: 0.35)

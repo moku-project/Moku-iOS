@@ -57,7 +57,7 @@ import XCTest
         app.buttons["reader.option.single"].tap()
         app.buttons["reader.drawer.close"].tap()
         for _ in 0..<3 { app.buttons["reader.next"].tap() }
-        XCTAssertTrue(app.buttons["reader.page"].label.contains("4 of 12"))
+        XCTAssertTrue((app.sliders["reader.page"].value as? String ?? "").contains("4 of 12"))
         app.buttons["reader.close"].tap()
         app.terminate()
         app.launchArguments = ["--ui-testing-reader", "--reader-keep-preferences"]
@@ -76,9 +76,9 @@ import XCTest
         let app = XCUIApplication()
         app.launchArguments = ["--ui-testing-reader", "--ui-testing-reader-pdf"]
         app.launch()
-        let page = app.buttons["reader.page"]
+        let page = app.sliders["reader.page"]
         XCTAssertTrue(page.waitForExistence(timeout: 10))
-        XCTAssertTrue(page.label.contains("of 3"), page.label)
+        XCTAssertTrue((page.value as? String ?? "").contains("of 3"))
         XCTAssertFalse(app.staticTexts["Page 1 unavailable. Tap to retry."].waitForExistence(timeout: 3))
         capture("Reader PDF chapter")
     }

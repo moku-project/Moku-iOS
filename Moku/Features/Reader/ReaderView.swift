@@ -11,8 +11,6 @@ struct ReaderView: View {
     @FocusState private var keyboardFocused: Bool
     @State private var pickerOpen = false
     @State private var downloadsOpen = false
-    @State private var pageEntryOpen = false
-    @State private var pageDraft = ""
     @State private var filter = ""
     @State private var nextCount = 5
     @State private var actionTask: Task<Void, Never>?
@@ -47,7 +45,7 @@ struct ReaderView: View {
                         ReaderCanvas(
                             model: model,
                             active: scenePhase == .active && !model.drawerOpen && !pickerOpen
-                                && !pageEntryOpen && !downloadsOpen,
+                                && !downloadsOpen,
                             reduceMotion: !motion, toggleChrome: toggleChrome
                         )
                         .ignoresSafeArea()
@@ -137,13 +135,6 @@ struct ReaderView: View {
             DownloadPicker(
                 model: model, nextCount: $nextCount, downloadsOpen: $downloadsOpen, queue: queue)
         }
-        .alert("Go to page", isPresented: $pageEntryOpen) {
-            TextField("Page", text: $pageDraft).keyboardType(.numberPad)
-            Button("Cancel", role: .cancel) {}
-            Button("Go") { if let page = Int(pageDraft) { model.jump(page) } }
-        } message: {
-            Text("1–\(model.pages.count)")
-        }
         .alert(
             "Reader",
             isPresented: Binding(
@@ -157,7 +148,7 @@ struct ReaderView: View {
         .accessibilityIdentifier("reader.screen")
     }
     private func handleKey(_ press: KeyPress) -> KeyPress.Result {
-        guard !model.loading, !pageEntryOpen, !pickerOpen, !downloadsOpen, !model.drawerOpen else { return .ignored }
+        guard !model.loading, !pickerOpen, !downloadsOpen, !model.drawerOpen else { return .ignored }
         let values = ReaderShortcut.values(readerShortcuts)
         guard let action = ReaderShortcut.all.first(where: { ReaderShortcut.matches(values[$0.id] ?? $0.defaultValue, press: press) }) else { return .ignored }
         if press.phase == .repeat && !["pageRight", "pageLeft"].contains(action.id) { return .handled }
@@ -214,18 +205,6 @@ struct ReaderView: View {
     private var rtl: Bool { model.settings.readingDirection == "rtl" && !model.isStrip }
     private var bottomBar: some View {
         VStack(spacing: 2) {
-            Button {
-                pageDraft = String(model.page)
-                pageEntryOpen = true
-            } label: {
-                Text("\(model.page) of \(model.pages.count)")
-                    .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
-                    .padding(.horizontal, 10).frame(minHeight: 22)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Page \(model.page) of \(model.pages.count)")
-            .accessibilityHint("Go to a page")
-            .accessibilityIdentifier("reader.page")
             HStack(spacing: 4) {
                 pageButton("chevron.backward", label: "Previous Page", id: "reader.previous", forward: rtl)
                     .disabled(model.loading || (rtl ? !model.canNext : !model.canPrevious))
@@ -237,6 +216,7 @@ struct ReaderView: View {
                 .disabled(model.pages.count < 2)
                 .accessibilityLabel("Page")
                 .accessibilityValue("\(model.page) of \(model.pages.count)")
+                .accessibilityIdentifier("reader.page")
                 pageButton("chevron.forward", label: "Next Page", id: "reader.next", forward: !rtl)
                     .disabled(model.loading || (rtl ? !model.canPrevious : !model.canNext))
             }
