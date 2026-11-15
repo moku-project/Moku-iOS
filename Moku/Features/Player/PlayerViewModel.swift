@@ -154,7 +154,8 @@ final class PlayerViewModel {
     }
 
     private func replace(path: String, resume: Double, token: UUID, shouldPlay: Bool) async throws {
-        let request = try await repository.request(path: path)
+        // AVPlayer can't play DASH; Tsunagu serves those streams as HLS when asked.
+        let request = try await repository.request(path: path + (path.contains("?") ? "&" : "?") + "format=hls")
         try Task.checkCancellation()
         guard generation == token, let url = request.url else { return }
         // All remote URLs come from Connection.contentRequest: authenticated loopback content only.
@@ -296,6 +297,10 @@ final class PlayerViewModel {
     func tick() async {
         guard let item = player.currentItem else { return }
         if item.status == .failed {
+            if error == nil {
+                let detail = item.errorLog()?.events.last.map { "\($0.errorStatusCode) \($0.errorComment ?? "") \($0.uri ?? "")" } ?? ""
+                FileHandle.standardError.write(Data("playback failed: \(String(describing: item.error)) \(detail)\n".utf8))
+            }
             error = "This video couldn’t be played. Try another source or retry."
             playing = false
             buffering = false
