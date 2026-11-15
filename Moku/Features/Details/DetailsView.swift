@@ -1112,7 +1112,6 @@ struct ScanlatorFilterItems: View {
         Menu("Show Only") {
             ForEach(groups, id: \.self) { Toggle($0, isOn: toggle($0, in: \.included)) }
         }
-        Toggle("Only Selected Groups", isOn: Binding(get: { preferences.onlyIncluded }, set: { new in update { $0.onlyIncluded = new } }))
         Menu("Hide") {
             ForEach(groups, id: \.self) { Toggle($0, isOn: toggle($0, in: \.excluded)) }
         }

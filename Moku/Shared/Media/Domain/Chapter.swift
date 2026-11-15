@@ -134,6 +134,7 @@ struct ChapterDisplayPreferences: Codable, Equatable {
     var preferred = ""
     var included: [String] = []
     var excluded: [String] = []
+    /// Unused since Show Only always filters; kept so saved preferences still decode.
     var onlyIncluded = false
     /// "Hide duplicate chapters": one chapter per number, preferring the chosen group.
     var hideDuplicates = false
@@ -149,26 +150,14 @@ struct ChapterDisplayPreferences: Codable, Equatable {
             }
             return (lhs.number ?? -1) < (rhs.number ?? -1)
         }
-        var list = chapters.filter { !excluded.contains($0.scanlator ?? "") }.sorted(by: ordered)
-        if !preferred.isEmpty {
-            list = list.filter { $0.scanlator == preferred } + list.filter { $0.scanlator != preferred }
-        }
-        guard !included.isEmpty else { return hideDuplicates ? Self.unique(list).sorted(by: ordered) : list }
-        var numbered: [Double: Chapter] = [:]
-        var unnumbered: [Chapter] = []
-        for chapter in list {
-            let priority = included.firstIndex(of: chapter.scanlator ?? "")
-            guard !onlyIncluded || priority != nil else { continue }
-            guard let number = chapter.number, number >= 0 else {
-                unnumbered.append(chapter)
-                continue
-            }
-            if let existing = numbered[number] {
-                let previous = included.firstIndex(of: existing.scanlator ?? "")
-                if let priority, previous == nil || priority < previous! { numbered[number] = chapter }
-            } else { numbered[number] = chapter }
-        }
-        return (Array(numbered.values) + unnumbered).sorted(by: ordered)
+        let list = chapters.filter {
+            let group = $0.scanlator ?? ""
+            return !excluded.contains(group) && (included.isEmpty || included.contains(group))
+        }.sorted(by: ordered)
+        guard hideDuplicates || !preferred.isEmpty else { return list }
+        // One chapter per number; the preferred group's release wins.
+        let chosen = Self.unique(list.filter { $0.scanlator == preferred } + list.filter { $0.scanlator != preferred })
+        return chosen.sorted(by: ordered)
     }
 
     /// Keeps the first chapter seen for each number; unnumbered chapters all stay.

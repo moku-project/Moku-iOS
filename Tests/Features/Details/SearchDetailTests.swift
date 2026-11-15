@@ -100,10 +100,12 @@ private actor DetailFixture: DetailsRepository {
             Chapter(id: "d", title: "Extra", number: nil, scanlator: "B", completed: false, downloaded: false)
         ]
         var prefs = ChapterDisplayPreferences(included: ["B"])
-        #expect(Set(prefs.apply(chapters).map(\.id)) == ["b", "c", "d"])
-        prefs.onlyIncluded = true
         #expect(Set(prefs.apply(chapters).map(\.id)) == ["b", "d"])
-        prefs.excluded = ["B"]
+        prefs = ChapterDisplayPreferences(preferred: "B")
+        #expect(Set(prefs.apply(chapters).map(\.id)) == ["b", "c", "d"])
+        prefs = ChapterDisplayPreferences(excluded: ["B"])
+        #expect(Set(prefs.apply(chapters).map(\.id)) == ["a", "c"])
+        prefs.included = ["B"]
         #expect(prefs.apply(chapters).isEmpty)
     }
 }
