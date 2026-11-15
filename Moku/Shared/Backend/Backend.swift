@@ -20,6 +20,8 @@ actor Backend {
                     video, kind: "anime", series: "Player Fixture",
                     chapter: "Episode \(episode)", name: "episode.mp4")
             }
+            let _: IgnoredGraphQLResult = try await BackendAPI.shared.graphql(
+                "mutation { rescanLocalMedia { id } }", requiresSourceRuntime: false)
         }
     #endif
 

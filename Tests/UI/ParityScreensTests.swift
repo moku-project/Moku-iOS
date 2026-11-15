@@ -31,8 +31,9 @@ import XCTest
 
         app.openSettingsRow("settings.category.Storage")
         let local = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Local titles")).firstMatch
-        XCTAssertTrue(local.waitForExistence(timeout: 5), "step 5")
+        // The Storage list builds rows lazily, so scroll to the row before checking it.
         app.reveal(local, in: app.collectionViews["settings.scroll"])
+        XCTAssertTrue(local.waitForExistence(timeout: 5), "step 5")
         local.tap()
         XCTAssertTrue(app.navigationBars["Local titles"].waitForExistence(timeout: 5), "step 6")
         sleep(1)

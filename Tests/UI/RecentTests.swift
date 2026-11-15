@@ -71,8 +71,9 @@ import XCTest
         let confirm = app.buttons["recent.confirmClear"]
         XCTAssertTrue(confirm.waitForExistence(timeout: 3))
         // Dismiss without clearing.
+        // From a toolbar menu the dialog is a popover with no Cancel button: tap outside it.
         if app.buttons["Cancel"].exists { app.buttons["Cancel"].tap() } else {
-            app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15)).tap()
+            app.otherElements["PopoverDismissRegion"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9)).tap()
         }
         XCTAssertTrue(confirm.waitForNonExistence(timeout: 3))
         XCTAssertTrue(row.exists)
@@ -118,7 +119,8 @@ import XCTest
         XCTAssertTrue(start.waitForExistence(timeout: 5))
         keepScreenshot("Tracking import review")
         start.tap()
-        XCTAssertTrue(app.staticTexts["Imported 1"].waitForExistence(timeout: 5))
+        // The fixture import finishes at once, so check the row's final state rather than the progress text.
+        XCTAssertTrue(app.staticTexts["Imported"].waitForExistence(timeout: 5))
         app.buttons["Save & Close"].tap()
         XCTAssertTrue(app.buttons["Save & Close"].waitForNonExistence(timeout: 5))
         // Disconnecting asks first; dismissing the dialog keeps the account.

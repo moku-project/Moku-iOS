@@ -155,7 +155,7 @@ struct TrackingView: View {
     @ViewBuilder private var importSection: some View {
         if !connected.isEmpty || !model.items.isEmpty {
             Section {
-                if !model.items.isEmpty {
+                if model.hasUnfinished {
                     Button {
                         if let tracker = model.services.first(where: { $0.key == model.trackerKey }) {
                             chooseImport(tracker)
@@ -362,7 +362,8 @@ struct TrackingView: View {
     private func closeImport() {
         if model.working { model.stopRequested = true }
         matchingID = nil
-        model.persist()
+        // A finished import leaves nothing to continue.
+        if !model.working && !model.hasUnfinished { model.discard() } else { model.persist() }
     }
 
     private var importService: String {
