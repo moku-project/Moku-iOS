@@ -4,50 +4,44 @@ import XCTest
 /// each, so layout can be reviewed without driving the app by hand.
 @MainActor final class ParityScreensTests: XCTestCase {
     func testNewSettingsScreensOpenAndClose() {
-        let app = XCUIApplication()
-        app.launchArguments = [
-            "--ui-testing-storage", "-mokuStorageTestID", UUID().uuidString, "--ui-testing-search", "--ui-testing-isolated-backend",
-        ]
+        let app = XCUIApplication.fresh(["--ui-testing-search", "--ui-testing-isolated-backend"])
         app.launch()
-        XCTAssertTrue(app.buttons["tab.home"].waitForExistence(timeout: 10))
-        app.buttons["tab.home"].tap()
-        app.buttons.matching(identifier: "header.settings").allElementsBoundByIndex.first(where: \.isHittable)?.tap()
+        app.openSettings()
 
-        open(app, category: "Server")
+        app.openSettingsRow("settings.category.Server")
         let logButton = app.buttons["server.log.open"]
-        XCTAssertTrue(logButton.waitForExistence(timeout: 10))
+        XCTAssertTrue(logButton.waitForExistence(timeout: 10), "step 1")
         capture("Server settings with log row")
         logButton.tap()
-        XCTAssertTrue(app.navigationBars["Server log"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Server log"].waitForExistence(timeout: 5), "step 2")
         sleep(1)
         capture("Server log")
         app.navigationBars["Server log"].buttons["Done"].tap()
-        app.buttons["settings.back"].tap()
+        app.goBack()
 
-        open(app, category: "About")
-        let report = app.buttons["Open"].firstMatch
-        if report.waitForExistence(timeout: 3) {
-            scrollTo(report, in: app)
-            report.tap()
-            XCTAssertTrue(app.navigationBars["Report an issue"].waitForExistence(timeout: 5))
-            capture("Report an issue")
-            app.navigationBars["Report an issue"].buttons["Cancel"].tap()
-        }
-        app.buttons["settings.back"].tap()
+        app.openSettingsRow("more.category.About")
+        let report = app.buttons["Report an Issue"].firstMatch
+        XCTAssertTrue(report.waitForExistence(timeout: 5), "step 3")
+        app.reveal(report, in: app.collectionViews.firstMatch)
+        report.tap()
+        XCTAssertTrue(app.navigationBars["Report an issue"].waitForExistence(timeout: 5), "step 4")
+        capture("Report an issue")
+        app.navigationBars["Report an issue"].buttons["Cancel"].tap()
+        app.goBack()
 
-        open(app, category: "Storage")
-        let manage = app.buttons["Manage"].firstMatch
-        scrollTo(manage, in: app)
-        if manage.exists {
-            manage.tap()
-            XCTAssertTrue(app.navigationBars["Local titles"].waitForExistence(timeout: 5))
-            sleep(1)
-            capture("Local titles")
-            app.navigationBars["Local titles"].buttons["Done"].tap()
-        }
-        app.buttons["settings.back"].tap()
+        app.openSettingsRow("settings.category.Storage")
+        let local = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Local titles")).firstMatch
+        XCTAssertTrue(local.waitForExistence(timeout: 5), "step 5")
+        app.reveal(local, in: app.collectionViews["settings.scroll"])
+        local.tap()
+        XCTAssertTrue(app.navigationBars["Local titles"].waitForExistence(timeout: 5), "step 6")
+        sleep(1)
+        capture("Local titles")
+        app.navigationBars["Local titles"].buttons["Done"].tap()
+        app.goBack()
 
-        open(app, category: "Folders")
+        app.openSettingsRow("settings.category.Folders")
+        XCTAssertTrue(app.navigationBars["Folders"].waitForExistence(timeout: 5), "step 7")
         capture("Folders")
     }
 
@@ -110,20 +104,6 @@ import XCTest
         XCTAssertTrue(app.staticTexts["Sing along"].exists)
         app.buttons["player.panel.close"].tap()
         capture("Player ASS subtitles")
-    }
-
-    private func open(_ app: XCUIApplication, category: String) {
-        let row = app.buttons["settings.category.\(category)"]
-        for _ in 0..<5 where !(row.isHittable && row.frame.maxY < app.frame.maxY - 130) {
-            app.scrollViews["settings.index"].swipeUp()
-        }
-        XCTAssertTrue(row.waitForExistence(timeout: 5), "Missing \(category)")
-        row.tap()
-        XCTAssertTrue(app.buttons["settings.back"].waitForExistence(timeout: 5))
-    }
-
-    private func scrollTo(_ element: XCUIElement, in app: XCUIApplication) {
-        for _ in 0..<6 where !element.isHittable { app.scrollViews["settings.scroll"].swipeUp() }
     }
 
     private func capture(_ name: String) {

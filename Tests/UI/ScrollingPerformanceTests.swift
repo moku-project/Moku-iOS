@@ -9,12 +9,8 @@ import XCTest
         ]
         app.launch()
         XCTAssertTrue(app.buttons["tab.home"].waitForExistence(timeout: 15))
-        app.buttons["tab.home"].tap()
-        let settings = app.buttons.matching(identifier: "header.settings").allElementsBoundByIndex.first(where: \.isHittable)
-        XCTAssertNotNil(settings)
-        settings?.tap()
-        let scroll = app.scrollViews["settings.index"]
-        XCTAssertTrue(scroll.waitForExistence(timeout: 5))
+        app.openSettings()
+        let scroll = app.settingsIndex
         let options = XCTMeasureOptions()
         options.iterationCount = 3
         measure(metrics: [XCTCPUMetric(application: app), XCTMemoryMetric(application: app), XCTOSSignpostMetric.scrollDecelerationMetric], options: options) {
@@ -23,8 +19,7 @@ import XCTest
             scroll.swipeDown()
             scroll.swipeDown()
         }
-        XCTAssertTrue(app.buttons["settings.category.General"].isHittable)
-        app.buttons["settings.category.General"].tap()
-        XCTAssertTrue(app.buttons["settings.back"].waitForExistence(timeout: 5))
+        app.openSettingsRow("settings.category.General")
+        XCTAssertTrue(app.navigationBars["General"].waitForExistence(timeout: 5))
     }
 }

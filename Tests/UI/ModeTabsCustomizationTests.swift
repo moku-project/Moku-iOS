@@ -1,66 +1,35 @@
 import XCTest
 
+/// The per-page mode tabs and their customization popover were removed with the
+/// native tab bar; a saved mode configuration still decides what the content button offers.
 @MainActor final class ModeTabsCustomizationTests: XCTestCase {
-    func testVisibilityDragOrderAndPersistenceAcrossPages() {
-        let app = XCUIApplication()
-        app.launchArguments = ["--ui-testing-storage", "-mokuStorageTestID", UUID().uuidString,
-            "--ui-testing-isolated-backend", "--ui-testing-search", "--ui-testing-extensions"]
+    func testSavedModeOrderAndHiddenModesDriveTheContentButton() {
+        let app = XCUIApplication.fresh([
+            "--ui-testing-isolated-backend", "--ui-testing-search", "--ui-testing-extensions",
+            // Launch arguments are parsed as property lists: quote the JSON so it stays a string.
+            "-preferences.modeTabs",
+            #""{\"order\":[\"all\",\"anime\",\"novels\",\"manga\"],\"hidden\":[\"manga\"]}""#,
+        ])
         app.launch()
-        let customize = app.buttons["library.mode.customize"]
-        XCTAssertTrue(customize.waitForExistence(timeout: 10))
-        let all = app.buttons["library.mode.all"]
-        let manga = app.buttons["library.mode.manga"]
-        XCTAssertEqual(all.frame.width, manga.frame.width, accuracy: 1)
-        manga.tap()
-        customize.tap()
-        XCTAssertFalse(app.buttons["modes.visible.all"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["modes.reorder.all"].exists)
-        app.buttons["modes.edit"].tap()
-        app.buttons["modes.visible.manga"].tap()
-        XCTAssertEqual(app.buttons["modes.visible.manga"].label, "Show Manga")
-        let handle = app.descendants(matching: .any)["modes.reorder.anime"].firstMatch
-        XCTAssertTrue(handle.exists)
-        handle.press(forDuration: 0.6, thenDragTo: app.descendants(matching: .any)["modes.reorder.novels"].firstMatch)
-        let shot = XCTAttachment(screenshot: app.screenshot())
-        shot.name = "Mode customization dropdown"
-        shot.lifetime = .keepAlways
-        add(shot)
-        app.buttons["modes.close"].tap()
-        XCTAssertFalse(manga.exists)
-        XCTAssertTrue(all.isSelected)
-        XCTAssertLessThan(abs(customize.frame.minX - all.frame.midX), 12)
-        XCTAssertLessThan(all.frame.midX, app.buttons["library.mode.anime"].frame.midX)
-        XCTAssertLessThan(app.buttons["library.mode.anime"].frame.midX, app.buttons["library.mode.novels"].frame.midX)
-        app.tabBars.buttons["Settings"].tap()
-        app.buttons["more.category.History"].tap()
-        XCTAssertTrue(app.buttons["recent.mode.all"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.buttons["recent.mode.manga"].exists)
-        XCTAssertLessThan(app.buttons["recent.mode.all"].frame.midX, app.buttons["recent.mode.anime"].frame.midX)
-        XCTAssertLessThan(app.buttons["recent.mode.anime"].frame.midX, app.buttons["recent.mode.novels"].frame.midX)
-        app.buttons["more.back"].tap()
-        app.buttons["more.category.Extensions"].tap()
-        XCTAssertTrue(app.buttons["extensions.mode.all"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.buttons["extensions.mode.manga"].exists)
-        app.buttons["tab.browse"].tap()
-        XCTAssertTrue(app.buttons["search.mode.all"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.buttons["search.mode.manga"].exists)
-        app.buttons["search.mode.customize"].tap()
-        XCTAssertEqual(app.buttons["modes.visible.manga"].label, "Show Manga")
-        XCTAssertTrue(app.staticTexts["Pinned"].exists)
-        XCTAssertTrue(app.staticTexts["Available"].exists)
-        let settled = XCTAttachment(screenshot: app.screenshot())
-        settled.name = "Shared mode menu in Search"
-        settled.lifetime = .keepAlways
-        add(settled)
-        app.terminate()
-        app.launch()
-        XCTAssertTrue(customize.waitForExistence(timeout: 10))
-        XCTAssertFalse(manga.exists)
-        XCTAssertLessThan(all.frame.midX, app.buttons["library.mode.anime"].frame.midX)
-        XCTAssertLessThan(app.buttons["library.mode.anime"].frame.midX, app.buttons["library.mode.novels"].frame.midX)
-        customize.tap()
-        app.buttons["modes.visible.manga"].tap()
-        app.buttons["modes.close"].tap()
-        XCTAssertTrue(manga.exists)
+        let mode = app.buttons["mode.button"]
+        XCTAssertTrue(mode.waitForExistence(timeout: 10))
+        XCTAssertEqual(mode.value as? String, "All")
+        // Tapping follows the saved order and skips the hidden type.
+        for title in ["Anime", "Novels", "All"] {
+            mode.tap()
+            expectation(for: NSPredicate(format: "value == %@", title), evaluatedWith: mode)
+            waitForExpectations(timeout: 3)
+        }
+        mode.press(forDuration: 0.8)
+        let anime = app.buttons["mode.anime"].waitForExistence(timeout: 2)
+            ? app.buttons["mode.anime"] : app.buttons["Anime"].firstMatch
+        XCTAssertTrue(anime.waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["Manga"].exists)
+        XCTAssertFalse(app.buttons["mode.manga"].exists)
+        let novels = app.buttons["mode.novels"].exists ? app.buttons["mode.novels"] : app.buttons["Novels"].firstMatch
+        XCTAssertLessThan(anime.frame.midY, novels.frame.midY)
+        keepScreenshot("Content menu with saved order")
+        anime.tap()
+        XCTAssertEqual(mode.value as? String, "Anime")
     }
 }

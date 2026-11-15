@@ -8,70 +8,83 @@ import XCTest
             "-mokuStorageTestID", UUID().uuidString,
         ]
         app.launch()
-        XCTAssertTrue(app.tabBars.buttons["Settings"].waitForExistence(timeout: 10))
-        app.tabBars.buttons["Settings"].tap()
-        app.buttons["more.category.History"].tap()
-        XCTAssertTrue(app.buttons["recent.activeView"].firstMatch.waitForExistence(timeout: 5))
+        app.openSettings()
+        app.openSettingsRow("more.category.History")
+        XCTAssertTrue(app.segmentedControls["recent.activeView"].waitForExistence(timeout: 5))
         return app
     }
+
     func testHistorySearchExpansionUpdatesAndModes() {
         let app = launch()
+        let row = app.buttons["Resume I’m Not That Kind of Talent"].firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
         capture("Recent history")
-        app.buttons["Actions for I’m Not That Kind of Talent"].firstMatch.tap()
-        app.buttons["Show chapters"].tap()
-        XCTAssertTrue(app.buttons["Clear title history"].firstMatch.exists)
+        // Row actions live in the context menu.
+        row.press(forDuration: 1.0)
+        app.buttons["Show Chapters"].firstMatch.tap()
+        row.press(forDuration: 1.0)
+        XCTAssertTrue(app.buttons["Hide Chapters"].firstMatch.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Clear Title History"].firstMatch.exists)
         capture("Recent expanded history")
-        app.buttons["recent.fab"].tap()
-        app.buttons["recent.action.Search"].tap()
-        let search = app.textFields["recent.search"]
+        app.buttons["Hide Chapters"].firstMatch.tap()
+        // The system search field filters history.
+        let search = app.searchFields.firstMatch
         XCTAssertTrue(search.waitForExistence(timeout: 3))
         search.tap()
         search.typeText("No matching fixture")
-        app.buttons["Apply"].tap()
-        XCTAssertTrue(app.staticTexts["No matching activity"].waitForExistence(timeout: 3))
-        app.buttons["Search active"].tap()
-        app.buttons["Reset"].tap()
-        app.buttons["Apply"].tap()
-        app.buttons["recent.activeView"].firstMatch.tap()
-        app.buttons["recent.view.Updates"].tap()
+        XCTAssertTrue(app.staticTexts["No Results for “No matching fixture”"].waitForExistence(timeout: 3)
+            || app.staticTexts["No Results"].waitForExistence(timeout: 1))
+        XCTAssertFalse(row.exists)
+        // Clearing the query brings the history back.
+        search.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 24))
+        XCTAssertTrue(row.waitForExistence(timeout: 3))
+        // Leave the search field so the view picker returns to the bar.
+        let close = app.visibleNavigationBar.buttons["Close"]
+        if close.exists { close.tap() }
+        app.segmentedControls["recent.activeView"].buttons["Updates"].tap()
         let expand = app.buttons["Expand I’m Not That Kind of Talent updates"]
-        XCTAssertTrue(expand.waitForExistence(timeout: 3))
+        XCTAssertTrue(expand.waitForExistence(timeout: 5))
         expand.tap()
-        XCTAssertTrue(app.buttons["Download Chapter 14"].exists)
+        let download = app.buttons["Download Chapter 14"]
+        XCTAssertTrue(download.waitForExistence(timeout: 3))
         capture("Recent updates")
-        app.buttons["Download Chapter 14"].tap()
-        XCTAssertTrue(app.staticTexts["Download queued."].waitForExistence(timeout: 3))
-        app.alerts.buttons["OK"].tap()
-        app.buttons["recent.mode.anime"].tap()
+        download.tap()
+        XCTAssertTrue(app.buttons["Download queued"].firstMatch.waitForExistence(timeout: 3))
+        // The type filter is in the toolbar menu.
+        app.menuItem(app.buttons["recent.tools"], "Anime").tap()
         XCTAssertFalse(expand.exists)
         let anime = app.buttons["Expand Monster But Wild updates"]
         XCTAssertTrue(anime.waitForExistence(timeout: 3))
         anime.tap()
-        XCTAssertTrue(app.buttons["Open Episode 12"].exists)
+        XCTAssertTrue(app.buttons["Open Episode 12"].waitForExistence(timeout: 3))
         capture("Recent anime updates")
-        app.buttons["recent.fab"].tap()
-        app.buttons["recent.action.Refresh"].tap()
-        XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 5))
+        app.menuItem(app.buttons["recent.tools"], "Check for Updates").tap()
+        XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 10))
         app.alerts.buttons["OK"].tap()
     }
+
     func testClearHistoryRequiresConfirmation() {
         let app = launch()
-        app.buttons["recent.fab"].tap()
-        app.buttons["recent.action.Clear history"].tap()
-        app.buttons["Cancel"].tap()
-        XCTAssertTrue(app.buttons["Resume I’m Not That Kind of Talent"].exists)
-        app.buttons["recent.fab"].tap()
-        app.buttons["recent.action.Clear history"].tap()
-        app.buttons["recent.confirmClear"].tap()
-        XCTAssertTrue(app.staticTexts["Nothing here yet"].waitForExistence(timeout: 3))
+        let row = app.buttons["Resume I’m Not That Kind of Talent"].firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        app.menuItem(app.buttons["recent.tools"], "Clear All History").tap()
+        let confirm = app.buttons["recent.confirmClear"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: 3))
+        // Dismiss without clearing.
+        if app.buttons["Cancel"].exists { app.buttons["Cancel"].tap() } else {
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15)).tap()
+        }
+        XCTAssertTrue(confirm.waitForNonExistence(timeout: 3))
+        XCTAssertTrue(row.exists)
+        app.menuItem(app.buttons["recent.tools"], "Clear All History").tap()
+        XCTAssertTrue(confirm.waitForExistence(timeout: 3))
+        app.buttons.matching(identifier: "recent.confirmClear").allElementsBoundByIndex
+            .last(where: \.isHittable)?.tap()
+        XCTAssertTrue(app.staticTexts["No History Yet"].waitForExistence(timeout: 5))
         capture("Recent empty history")
     }
-    private func capture(_ name: String) {
-        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        attachment.name = name
-        attachment.lifetime = .keepAlways
-        add(attachment)
-    }
+
+    private func capture(_ name: String) { keepScreenshot(name) }
 }
 
 @MainActor final class TrackingUITests: XCTestCase {
@@ -82,42 +95,66 @@ import XCTest
             "-mokuStorageTestID", UUID().uuidString,
         ]
         app.launch()
-        XCTAssertTrue(app.tabBars.buttons["Settings"].waitForExistence(timeout: 10))
-        app.tabBars.buttons["Settings"].tap()
-        app.buttons["more.category.Tracking"].tap()
-        XCTAssertTrue(app.staticTexts["Connected"].waitForExistence(timeout: 5))
+        app.openSettings()
+        app.openSettingsRow("more.category.Tracking")
+        let anilist = app.buttons["tracking.service.anilist"]
+        XCTAssertTrue(anilist.waitForExistence(timeout: 5))
+        XCTAssertTrue(anilist.label.contains("Connected"), anilist.label)
         // Trackers the server can't sign in to are hidden rather than shown as "Coming soon".
-        XCTAssertFalse(app.staticTexts["Coming soon"].exists)
-        capture("Tracking services")
+        XCTAssertFalse(app.buttons.containing(NSPredicate(format: "label CONTAINS 'Coming soon'")).firstMatch.exists)
+        keepScreenshot("Tracking services")
         app.buttons["tracking.fab"].tap()
-        XCTAssertTrue(app.buttons["tracking.action.Import list"].waitForExistence(timeout: 3))
-        capture("Tracking radial menu")
-        app.buttons["tracking.action.Import list"].tap()
-        XCTAssertTrue(app.buttons["Continue"].waitForExistence(timeout: 3))
-        capture("Tracking import setup")
-        app.buttons["Continue"].tap()
-        XCTAssertTrue(app.staticTexts["Ready to import"].waitForExistence(timeout: 3))
-        capture("Tracking import review")
-        app.buttons["Import 1"].tap()
-        XCTAssertTrue(app.staticTexts["Imported"].waitForExistence(timeout: 5))
-        app.buttons["Save & close"].tap()
-        app.buttons["Actions for AniList"].tap()
-        app.buttons["Disconnect"].tap()
-        app.buttons["Cancel"].tap()
-        XCTAssertTrue(app.staticTexts["Connected"].exists)
-        app.buttons["Actions for AniList"].tap()
-        app.buttons["Disconnect"].tap()
-        app.buttons["Disconnect"].tap()
-        XCTAssertTrue(app.staticTexts["Not connected"].waitForExistence(timeout: 3))
-        app.buttons["Actions for AniList"].tap()
-        app.buttons["Connect"].tap()
-        XCTAssertTrue(app.secureTextFields["tracking.token"].waitForExistence(timeout: 3))
-        app.buttons["Cancel"].tap()
+        let importAction = app.buttons["tracking.action.Import list"].waitForExistence(timeout: 2)
+            ? app.buttons["tracking.action.Import list"] : app.buttons["Import List…"].firstMatch
+        XCTAssertTrue(importAction.waitForExistence(timeout: 3))
+        keepScreenshot("Tracking actions menu")
+        importAction.tap()
+        if app.buttons["AniList"].waitForExistence(timeout: 2) { app.buttons["AniList"].tap() }
+        let next = app.buttons["Continue"]
+        XCTAssertTrue(next.waitForExistence(timeout: 5))
+        keepScreenshot("Tracking import setup")
+        next.tap()
+        let start = app.buttons["Import 1"]
+        XCTAssertTrue(start.waitForExistence(timeout: 5))
+        keepScreenshot("Tracking import review")
+        start.tap()
+        XCTAssertTrue(app.staticTexts["Imported 1"].waitForExistence(timeout: 5))
+        app.buttons["Save & Close"].tap()
+        XCTAssertTrue(app.buttons["Save & Close"].waitForNonExistence(timeout: 5))
+        // Disconnecting asks first; dismissing the dialog keeps the account.
+        openDisconnect(app, anilist)
+        XCTAssertTrue(app.buttons.matching(identifier: "Disconnect").firstMatch.waitForExistence(timeout: 3))
+        if app.buttons["Cancel"].exists { app.buttons["Cancel"].tap() } else {
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.12)).tap()
+        }
+        XCTAssertTrue(anilist.waitForExistence(timeout: 3))
+        XCTAssertTrue(anilist.label.contains("Connected"), anilist.label)
+        openDisconnect(app, anilist)
+        let confirm = app.buttons["Disconnect"].firstMatch
+        XCTAssertTrue(confirm.waitForExistence(timeout: 3))
+        confirm.tap()
+        expectation(for: NSPredicate(format: "label CONTAINS 'Not connected'"), evaluatedWith: anilist)
+        waitForExpectations(timeout: 5)
+        // A disconnected service can still connect with a pasted token.
+        let useToken = app.buttons["Use a Token"].firstMatch
+        for _ in 0..<2 where !useToken.exists {
+            anilist.press(forDuration: 1.2)
+            _ = useToken.waitForExistence(timeout: 2)
+        }
+        useToken.tap()
+        XCTAssertTrue(app.secureTextFields["tracking.token"].waitForExistence(timeout: 3)
+            || app.textFields["tracking.token"].waitForExistence(timeout: 1))
+        app.buttons["Cancel"].firstMatch.tap()
     }
-    private func capture(_ name: String) {
-        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        attachment.name = name
-        attachment.lifetime = .keepAlways
-        add(attachment)
+
+    /// Starts a disconnect from the row's swipe action, or its context menu.
+    private func openDisconnect(_ app: XCUIApplication, _ row: XCUIElement) {
+        let action = app.buttons["Disconnect"].firstMatch
+        row.swipeLeft()
+        if !action.waitForExistence(timeout: 2) {
+            row.press(forDuration: 1.2)
+            XCTAssertTrue(action.waitForExistence(timeout: 3), "No Disconnect action")
+        }
+        action.tap()
     }
 }

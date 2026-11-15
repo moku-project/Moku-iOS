@@ -1,181 +1,175 @@
 import XCTest
 
 @MainActor final class SettingsNavigationTests: XCTestCase {
-    func testSettingsPreferencesPersist() {
-        let app = XCUIApplication()
-        app.launchArguments = [
-            "--ui-testing-storage", "-mokuStorageTestID", UUID().uuidString, "--ui-testing-search", "--ui-testing-isolated-backend",
-        ]
+    private func launch() -> XCUIApplication {
+        let app = XCUIApplication.fresh(["--ui-testing-search", "--ui-testing-isolated-backend"])
         app.launch()
-        openSettings(app)
-        capture("Settings sections")
-        app.buttons["settings.category.General"].tap()
-        XCTAssertTrue(app.staticTexts["Interface scale"].waitForExistence(timeout: 5))
-        capture("Settings general")
-        app.buttons["settings.back"].tap()
-        app.buttons["settings.category.Appearance"].tap()
-        XCTAssertTrue(app.buttons["settings.picker.App theme"].waitForExistence(timeout: 3))
-        app.buttons["settings.picker.App theme"].tap()
-        app.buttons["Sepia"].tap()
-        XCTAssertEqual(app.buttons["settings.picker.App theme"].value as? String, "sepia")
-        capture("Settings appearance")
-        app.buttons["settings.back"].tap()
-        app.buttons["settings.category.Library"].tap()
-        capture("Settings library")
-        app.switches["List layout"].tap()
-        XCTAssertEqual(app.switches["List layout"].value as? String, "1")
-        app.buttons["settings.back"].tap()
-        app.buttons["settings.category.Storage"].tap()
-        XCTAssertTrue(app.staticTexts["Storage usage"].waitForExistence(timeout: 3))
-        capture("Settings storage")
-        app.buttons["settings.back"].tap()
-        app.buttons["account.back"].tap()
-        app.terminate()
-        app.launch()
-        openSettings(app)
-        app.buttons["settings.category.Library"].tap()
-        XCTAssertEqual(app.switches["List layout"].value as? String, "1")
+        return app
     }
 
-    func testEveryDesktopSectionHasADestinationAndBackButton() {
-        let app = XCUIApplication()
-        app.launchArguments = [
-            "--ui-testing-storage", "-mokuStorageTestID", UUID().uuidString, "--ui-testing-search", "--ui-testing-isolated-backend",
-        ]
+    func testSettingsPreferencesPersist() {
+        let app = launch()
+        app.openSettings()
+        keepScreenshot("Settings sections")
+        app.openSettingsRow("settings.category.General")
+        XCTAssertTrue(app.staticTexts["Interface scale"].waitForExistence(timeout: 5))
+        keepScreenshot("Settings general")
+        app.goBack()
+        app.openSettingsRow("settings.category.Appearance")
+        let theme = app.buttons["settings.picker.App theme"]
+        XCTAssertTrue(theme.waitForExistence(timeout: 3))
+        theme.tap()
+        XCTAssertTrue(app.buttons["Sepia"].firstMatch.waitForExistence(timeout: 3))
+        // The theme swatches below also carry the name; pick the menu's row.
+        let sepia = app.buttons.matching(NSPredicate(format: "label == %@ OR identifier == %@", "Sepia", "Sepia")).allElementsBoundByIndex
+        (sepia.last(where: \.isHittable) ?? sepia.last!).tap()
+        XCTAssertTrue(theme.shows("Sepia") || theme.shows("sepia"),
+            "Theme picker should show Sepia: \(theme.label) / \(String(describing: theme.value))")
+        keepScreenshot("Settings appearance")
+        app.goBack()
+        app.openSettingsRow("settings.category.Library")
+        keepScreenshot("Settings library")
+        let list = app.switches["List layout"]
+        XCTAssertTrue(list.waitForExistence(timeout: 3))
+        list.flip()
+        XCTAssertEqual(list.value as? String, "1")
+        app.goBack()
+        app.openSettingsRow("settings.category.Storage")
+        XCTAssertTrue(app.buttons["Refresh storage usage"].waitForExistence(timeout: 5))
+        keepScreenshot("Settings storage")
+        app.goBack()
+        app.terminate()
         app.launch()
-        openSettings(app)
-        for name in [
-            "General", "Appearance", "Reader", "Player", "Library", "Automation", "Tracking",
-            "Performance", "Keybinds", "Storage", "Folders", "Content", "Server", "Auth", "About",
-            "Dev tools",
-        ] {
-            let row = app.buttons["settings.category.\(name)"]
-            for _ in 0..<4 {
-                if row.isHittable && row.frame.maxY < app.frame.maxY - 130 { break }
-                app.scrollViews["settings.index"].swipeUp()
-            }
-            XCTAssertTrue(row.isHittable, "Missing section: \(name)")
-            row.tap()
-            let back = app.buttons["settings.back"]
-            XCTAssertTrue(back.waitForExistence(timeout: 3))
-            XCTAssertTrue(app.staticTexts[name].exists)
-            capture("Settings \(name)")
-            back.tap()
-            XCTAssertTrue(app.scrollViews["settings.index"].waitForExistence(timeout: 3))
+        app.openSettings()
+        app.openSettingsRow("settings.category.Library")
+        XCTAssertTrue(list.waitForExistence(timeout: 3))
+        XCTAssertEqual(list.value as? String, "1")
+    }
+
+    /// Every settings category and Settings-tab destination opens as a pushed page
+    /// with its title in the navigation bar and a working back button.
+    func testEverySectionHasADestinationAndBackButton() {
+        let app = launch()
+        app.openSettings()
+        let rows: [(String, String)] = [
+            ("more.category.Extensions", "Extensions"), ("more.category.Tracking", "Tracking"),
+            ("more.category.History", "History"),
+        ] + [
+            "General", "Appearance", "Reader", "Player", "Library", "Folders", "Content",
+            "Automation", "Performance", "Keybinds", "Sync", "Storage", "Server", "Auth",
+        ].map { ("settings.category.\($0)", $0) } + [
+            ("settings.category.Tracking", "Tracker Accounts"), ("more.category.About", "About"),
+            ("settings.category.Dev tools", "Dev tools"),
+        ]
+        for (id, title) in rows {
+            app.openSettingsRow(id)
+            XCTAssertTrue(app.navigationBars[title].waitForExistence(timeout: 5), "No page titled \(title)")
+            keepScreenshot("Settings \(title)")
+            app.goBack()
+            XCTAssertTrue(app.settingsIndex.waitForExistence(timeout: 3), "Back from \(title)")
         }
     }
 
     func testPlayerDefaultsAndKeyboardPreferencePersist() {
-        let app = XCUIApplication()
-        app.launchArguments = [
-            "--ui-testing-storage", "-mokuStorageTestID", UUID().uuidString, "--ui-testing-search", "--ui-testing-isolated-backend",
-        ]
-        app.launch()
-        openSettings(app)
-        app.buttons["settings.category.Player"].tap()
+        let app = launch()
+        app.openSettings()
+        app.openSettingsRow("settings.category.Player")
         let autoplay = app.switches["Autoplay"]
         XCTAssertTrue(autoplay.waitForExistence(timeout: 5))
-        autoplay.tap()
+        autoplay.flip()
         XCTAssertEqual(autoplay.value as? String, "0")
-        app.buttons["Playback speed"].tap()
+        let speed = app.buttons["settings.picker.Playback speed"]
+        speed.tap()
         app.buttons["1.5×"].tap()
-        XCTAssertEqual(app.buttons["Playback speed"].value as? String, "1.5×")
-        app.buttons["settings.back"].tap()
-        let keybinds = app.buttons["settings.category.Keybinds"]
-        for _ in 0..<4 where !keybinds.isHittable { app.scrollViews["settings.index"].swipeUp() }
-        keybinds.tap()
-        for _ in 0..<6 where !app.buttons["settings.picker.Play or pause"].isHittable { app.scrollViews["settings.scroll"].swipeUp() }
-        app.buttons["settings.picker.Play or pause"].tap()
+        XCTAssertTrue(speed.shows("1.5×"), "\(speed.label) \(String(describing: speed.value))")
+        app.goBack()
+        app.openSettingsRow("settings.category.Keybinds")
+        let play = app.buttons["settings.picker.Play or pause"]
+        app.reveal(play, in: app.collectionViews["settings.scroll"])
+        play.tap()
         app.buttons["K"].tap()
+        XCTAssertEqual(play.value as? String, "k")
         app.terminate()
         app.launch()
-        openSettings(app)
-        app.buttons["settings.category.Player"].tap()
+        app.openSettings()
+        app.openSettingsRow("settings.category.Player")
+        XCTAssertTrue(autoplay.waitForExistence(timeout: 5))
         XCTAssertEqual(autoplay.value as? String, "0")
-        XCTAssertEqual(app.buttons["Playback speed"].value as? String, "1.5×")
-        app.buttons["settings.back"].tap()
-        for _ in 0..<4 where !keybinds.isHittable { app.scrollViews["settings.index"].swipeUp() }
-        keybinds.tap()
-        for _ in 0..<6 where !app.buttons["settings.picker.Play or pause"].isHittable { app.scrollViews["settings.scroll"].swipeUp() }
-        XCTAssertEqual(app.buttons["settings.picker.Play or pause"].value as? String, "k")
+        XCTAssertTrue(speed.shows("1.5×"), "\(speed.label) \(String(describing: speed.value))")
+        app.goBack()
+        app.openSettingsRow("settings.category.Keybinds")
+        app.reveal(play, in: app.collectionViews["settings.scroll"])
+        XCTAssertEqual(play.value as? String, "k")
     }
 
     func testLiveAutomationAndContentSettingsSave() {
-        let app = XCUIApplication()
-        app.launchArguments = ["--ui-testing-storage", "-mokuStorageTestID", UUID().uuidString, "--ui-testing-search", "--ui-testing-isolated-backend"]
-        app.launch()
-        openSettings(app)
-        app.buttons["settings.category.Automation"].tap()
+        let app = launch()
+        app.openSettings()
+        app.openSettingsRow("settings.category.Automation")
         let toggle = app.switches["Enable automation"]
         XCTAssertTrue(toggle.waitForExistence(timeout: 20))
         let ready = NSPredicate(format: "enabled == true")
         expectation(for: ready, evaluatedWith: toggle)
         waitForExpectations(timeout: 20)
         XCTAssertEqual(toggle.value as? String, "1")
-        toggle.tap()
+        toggle.flip()
         expectation(for: NSPredicate(format: "value == '0' AND enabled == true"), evaluatedWith: toggle)
         waitForExpectations(timeout: 10)
-        app.buttons["settings.back"].tap()
-        app.buttons["settings.category.Automation"].tap()
+        app.goBack()
+        app.openSettingsRow("settings.category.Automation")
         expectation(for: NSPredicate(format: "value == '0' AND enabled == true"), evaluatedWith: toggle)
         waitForExpectations(timeout: 10)
-        capture("Live automation settings")
-        app.buttons["settings.back"].tap()
-        let content = app.buttons["settings.category.Content"]
-        for _ in 0..<5 where !content.isHittable { app.scrollViews["settings.index"].swipeUp() }
-        content.tap()
-        let overrides = app.switches["Per-source overrides"]
-        XCTAssertTrue(overrides.waitForExistence(timeout: 10))
-        expectation(for: ready, evaluatedWith: overrides)
+        keepScreenshot("Live automation settings")
+        app.goBack()
+        // Content: the server's content level and rules load live, and a change saves.
+        app.openSettingsRow("settings.category.Content")
+        let level = app.buttons["settings.picker.Content level"]
+        XCTAssertTrue(level.waitForExistence(timeout: 15))
+        XCTAssertTrue(app.staticTexts["gore"].waitForExistence(timeout: 10), "Rules should load")
+        level.tap()
+        let strict = app.buttons["Strict"].firstMatch
+        XCTAssertTrue(strict.waitForExistence(timeout: 3))
+        strict.tap()
+        expectation(for: NSPredicate(format: "(label CONTAINS 'Strict' OR value CONTAINS 'Strict') AND enabled == true"), evaluatedWith: level)
         waitForExpectations(timeout: 10)
-        overrides.tap()
-        expectation(for: NSPredicate(format: "value == '1' AND enabled == true"), evaluatedWith: overrides)
-        waitForExpectations(timeout: 10)
-        capture("Live content settings")
+        app.goBack()
+        app.openSettingsRow("settings.category.Content")
+        expectation(for: NSPredicate(format: "label CONTAINS 'Strict' OR value CONTAINS 'Strict'"), evaluatedWith: level)
+        waitForExpectations(timeout: 15)
+        keepScreenshot("Live content settings")
     }
 
-    func testAccountPagesReturnToOriginAndNestedSettings() {
-        let app = XCUIApplication()
-        app.launchArguments = ["--ui-testing-storage", "-mokuStorageTestID", UUID().uuidString]
+    /// Settings is a tab now: leaving it and coming back must not reset the page the
+    /// user was on in another tab.
+    func testSettingsTabKeepsOtherTabsState() {
+        let app = XCUIApplication.fresh()
         app.launch()
-        app.buttons["Downloads"].tap()
-        // History lives in the view switcher; open it, then pick History.
-        XCTAssertTrue(app.buttons["downloads.activeView"].waitForExistence(timeout: 5))
-        app.buttons["downloads.activeView"].tap()
-        XCTAssertTrue(app.buttons["downloads.history"].waitForExistence(timeout: 3))
-        app.buttons["downloads.history"].tap()
-        XCTAssertEqual(app.buttons["downloads.activeView"].value as? String, "History")
-        app.buttons["Settings"].firstMatch.tap()
-        let back = app.buttons["account.back"]
-        XCTAssertTrue(back.waitForExistence(timeout: 3))
-        XCTAssertEqual(back.label, "Back to Downloads")
-        XCTAssertFalse(
-            app.buttons.matching(NSPredicate(format: "label == %@", "Open profile"))
-                .allElementsBoundByIndex.contains { $0.isHittable })
-        capture("Settings spacious index")
-        back.tap()
-        XCTAssertEqual(app.buttons["downloads.activeView"].value as? String, "History")
-        XCTAssertFalse(app.buttons["header.profile"].exists)
-        app.buttons["Settings"].firstMatch.tap()
-        app.buttons["settings.category.General"].tap()
-        app.buttons["settings.back"].tap()
-        back.tap()
-        XCTAssertEqual(app.buttons["downloads.activeView"].value as? String, "History")
+        app.openTab("downloads")
+        let tools = app.buttons["downloads.activeView"]
+        XCTAssertTrue(tools.waitForExistence(timeout: 5))
+        tools.tap()
+        menuItem(app, "downloads.history", "History").tap()
+        let historyEmpty = app.staticTexts["Finished and removed downloads will appear here."]
+        XCTAssertTrue(historyEmpty.waitForExistence(timeout: 5))
+        app.openSettings()
+        app.openSettingsRow("settings.category.General")
+        XCTAssertTrue(app.navigationBars["General"].waitForExistence(timeout: 5))
+        keepScreenshot("Settings general from Downloads")
+        app.openTab("downloads")
+        XCTAssertTrue(historyEmpty.waitForExistence(timeout: 3))
+        // Settings keeps its own stack too.
+        app.openTab("settings")
+        XCTAssertTrue(app.navigationBars["General"].waitForExistence(timeout: 3))
+        // Re-selecting the open tab pops to its root.
+        app.buttons["tab.settings"].tap()
+        XCTAssertTrue(app.settingsIndex.waitForExistence(timeout: 3))
     }
 
-    private func openSettings(_ app: XCUIApplication) {
-        XCTAssertTrue(app.buttons["tab.home"].waitForExistence(timeout: 5))
-        app.buttons["tab.home"].tap()
-        let settings = app.buttons.matching(identifier: "header.settings").allElementsBoundByIndex
-            .first(where: \.isHittable)
-        XCTAssertNotNil(settings)
-        settings?.tap()
-    }
-
-    private func capture(_ name: String) {
-        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        attachment.name = name
-        attachment.lifetime = .keepAlways
-        add(attachment)
+    private func menuItem(_ app: XCUIApplication, _ id: String, _ label: String) -> XCUIElement {
+        let byID = app.buttons[id]
+        if byID.waitForExistence(timeout: 2) { return byID }
+        let byLabel = app.buttons[label].firstMatch
+        XCTAssertTrue(byLabel.waitForExistence(timeout: 3), "Missing menu item \(label)")
+        return byLabel
     }
 }

@@ -24,7 +24,7 @@ import XCTest
             XCTAssertTrue(app.staticTexts["Ch.1"].firstMatch.waitForExistence(timeout: 10))
         }
         let probe = app.otherElements["navigation.frameLatency"]
-        for tab in ["home", "browse", "downloads", "more", "library", "home", "browse", "more", "library"] {
+        for tab in ["home", "browse", "downloads", "settings", "library", "home", "browse", "settings", "library"] {
             app.buttons["tab.\(tab)"].tap()
             let ready = NSPredicate(format: "value BEGINSWITH %@", tab + ":")
             expectation(for: ready, evaluatedWith: probe)
