@@ -214,10 +214,10 @@ struct NovelReaderView: View {
         var all = NovelBookmark.all(bookmarkData)
         if bookmarkedHere {
             all.removeValue(forKey: model.details.id)
-            Toaster.shared.show("Page bookmark removed", kind: .info)
+            Toaster.shared.show("Saved place removed", kind: .info)
         } else {
             all[model.details.id] = NovelBookmark(chapterID: model.chapterID, fraction: model.progress)
-            Toaster.shared.show("Page bookmark saved", detail: "\(model.chapter?.label ?? "This chapter") · \(Int(model.progress * 100))%")
+            Toaster.shared.show("Place saved", detail: "\(model.chapter?.label ?? "This chapter") · \(Int(model.progress * 100))%")
         }
         bookmarkData = NovelBookmark.encode(all)
     }
@@ -270,56 +270,67 @@ struct NovelReaderView: View {
 
     private var chrome: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 4) {
-                iconButton("X", label: "Close reader") { dismiss() }
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(model.details.title).font(.subheadline.weight(.semibold)).lineLimit(1)
-                    Text(model.chapter?.label ?? "").font(.caption).foregroundStyle(theme.secondary).lineLimit(1)
+            HStack(spacing: 10) {
+                barButton("xmark", label: "Close") { dismiss() }
+                Button { chaptersOpen = true } label: {
+                    VStack(spacing: 1) {
+                        Text(model.details.title).font(.subheadline.weight(.semibold)).lineLimit(1)
+                        HStack(spacing: 3) {
+                            Text(model.chapter?.label ?? "").lineLimit(1)
+                            Image(systemName: "chevron.down").font(.caption2.weight(.semibold))
+                        }
+                        .font(.caption).foregroundStyle(theme.secondary)
+                    }
+                    .padding(.horizontal, 16).frame(minHeight: 44).frame(maxWidth: .infinity)
+                    .glassSurface(Capsule())
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                iconButton(bookmarkedHere ? "PushPin.fill" : "PushPin",
-                           label: bookmarkedHere ? "Remove page bookmark" : "Add page bookmark") { toggleBookmark() }
-                    .foregroundStyle(bookmarkedHere ? NavigationStyle.accent : theme.text)
-                    .accessibilityIdentifier("novel.bookmark")
-                iconButton(model.chapterBookmarked ? "Bookmark.fill" : "Bookmark",
-                           label: model.chapterBookmarked ? "Remove chapter bookmark" : "Bookmark chapter") {
-                    model.toggleChapterBookmark()
-                }
-                .foregroundStyle(model.chapterBookmarked ? NavigationStyle.accent : theme.text)
-                .accessibilityAddTraits(model.chapterBookmarked ? .isSelected : [])
-                .disabled(!model.ready)
-                .accessibilityIdentifier("novel.chapterBookmark")
-                iconButton("ListBullets", label: "Chapters") { chaptersOpen = true }
-                iconButton("Sliders", label: "Reader settings") { settingsOpen = true }
+                .buttonStyle(.plain)
+                .accessibilityElement(children: .combine)
+                .accessibilityHint("Choose a chapter")
+                .accessibilityIdentifier("novel.chapters")
+                barButton("textformat.size", label: "Reader Settings") { settingsOpen = true }
                     .accessibilityIdentifier("novel.settings")
             }
-            .padding(.horizontal, 8).padding(.vertical, 4)
-            .background(theme.background.opacity(0.94))
+            .padding(.horizontal, 12).padding(.vertical, 4)
             Spacer()
             HStack(spacing: 4) {
-                iconButton("CaretLeft", label: "Previous chapter") { if let previous = model.previous { model.open(previous) } }
-                    .disabled(model.previous == nil)
+                pageButton("chevron.backward", label: "Previous Chapter") {
+                    if let previous = model.previous { model.open(previous) }
+                }
+                .disabled(model.previous == nil)
                 ProgressView(value: model.progress).tint(NavigationStyle.accent)
                     .accessibilityLabel("Chapter progress")
                     .accessibilityValue("\(Int(model.progress * 100)) percent")
                 Text("\(Int(model.progress * 100))%").font(.caption.monospacedDigit())
                     .foregroundStyle(theme.secondary).frame(width: 40)
-                iconButton(autoScrolling ? "Pause" : "Play", label: autoScrolling ? "Pause auto scroll" : "Auto scroll") {
+                pageButton(autoScrolling ? "pause.fill" : "play.fill", label: autoScrolling ? "Pause Auto Scroll" : "Auto Scroll") {
                     autoScrolling.toggle()
                     if autoScrolling { chromeVisible = false }
                 }
                 .accessibilityIdentifier("novel.autoScroll")
-                iconButton("CaretRight", label: "Next chapter") { model.advance() }
+                pageButton("chevron.forward", label: "Next Chapter") { model.advance() }
                     .disabled(model.next == nil)
             }
             .padding(.horizontal, 8).padding(.vertical, 4)
-            .background(theme.background.opacity(0.94))
+            .glassSurface(RoundedRectangle(cornerRadius: 26, style: .continuous))
+            .padding(.horizontal, 12).padding(.bottom, 4)
         }
+        .foregroundStyle(theme.text)
     }
 
-    private func iconButton(_ icon: String, label: String, action: @escaping () -> Void) -> some View {
+    private func barButton(_ symbol: String, label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            PhosphorIcon(icon).frame(width: 44, height: 44).contentShape(Rectangle())
+            Image(systemName: symbol).font(.body.weight(.semibold))
+                .frame(width: 44, height: 44).glassSurface(Circle()).contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+    }
+
+    private func pageButton(_ symbol: String, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol).font(.body.weight(.semibold))
+                .frame(width: 44, height: 44).contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
@@ -382,7 +393,7 @@ struct NovelReaderView: View {
                 } header: { Text("Preview") }
             }
             .textCase(nil)
-            .navigationTitle("Reader settings")
+            .navigationTitle("Reader Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { settingsOpen = false } } }
         }
@@ -406,19 +417,26 @@ struct NovelReaderView: View {
         NavigationStack {
             ScrollViewReader { proxy in
                 List {
-                    if let bookmark, let marked = model.chapters.first(where: { $0.id == bookmark.chapterID }) {
-                        Section {
+                    Section {
+                        Button {
+                            toggleBookmark()
+                        } label: {
+                            Label(bookmarkedHere ? "Forget Saved Place" : "Save Place Here",
+                                  systemImage: bookmarkedHere ? "mappin.slash" : "mappin.and.ellipse")
+                        }
+                        .accessibilityIdentifier("novel.bookmark")
+                        if let bookmark, !bookmarkedHere, let marked = model.chapters.first(where: { $0.id == bookmark.chapterID }) {
                             Button {
                                 model.open(bookmark)
                                 chaptersOpen = false
                             } label: {
                                 Label {
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text("Go to page bookmark")
+                                        Text("Go to Saved Place")
                                         Text("\(marked.label) · \(Int(bookmark.fraction * 100))%")
                                             .font(.caption).foregroundStyle(.secondary)
                                     }
-                                } icon: { PhosphorIcon("PushPin.fill").foregroundStyle(NavigationStyle.accent) }
+                                } icon: { Image(systemName: "mappin.and.ellipse").foregroundStyle(NavigationStyle.accent) }
                                 .frame(minHeight: 44)
                             }
                             .accessibilityIdentifier("novel.gotoBookmark")
@@ -434,7 +452,7 @@ struct NovelReaderView: View {
                             Text(chapter.label).foregroundStyle(chapter.completed ? .secondary : .primary)
                             Spacer()
                             if chapter.id == model.chapterID {
-                                PhosphorIcon("BookOpen").foregroundStyle(NavigationStyle.accent)
+                                Image(systemName: "book.fill").foregroundStyle(NavigationStyle.accent)
                             }
                         }
                         .frame(minHeight: 44)

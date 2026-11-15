@@ -37,9 +37,6 @@ struct LiveReaderRepository: ReaderRepository {
     func chapterState(chapterID: String) async throws -> ReaderChapterState? {
         try await ChapterSync.state(chapterID: chapterID)
     }
-    func setBookmarked(mediaID: String, chapterID: String, bookmarked: Bool) async throws {
-        try await ChapterSync.setBookmarked(mediaID: mediaID, chapterIDs: [chapterID], bookmarked: bookmarked)
-    }
     func download(mediaID: String, chapterIDs: [String]) async throws {
         struct Response: Decodable, Sendable {
             struct Download: Decodable, Sendable { let chapterId: String }
@@ -55,7 +52,7 @@ struct LiveReaderRepository: ReaderRepository {
     }
 }
 
-/// Chapter progress and bookmark calls shared by the manga and novel readers.
+/// Chapter progress calls shared by the manga and novel readers.
 enum ChapterSync {
     static func state(chapterID: String) async throws -> ReaderChapterState? {
         struct Response: Decodable, Sendable {
@@ -65,33 +62,19 @@ enum ChapterSync {
                     let completed: Bool
                     let updatedAt: String?
                 }
-                let bookmarked: Bool?
                 let readingProgress: Progress?
             }
             let chapter: Chapter?
         }
         // Never cached: another device may have moved on since the last read.
         let response: Response = try await BackendAPI.shared.graphql(
-            "{ chapter(id: \(BackendAPI.literal(chapterID))) { bookmarked readingProgress { progress completed updatedAt } } }",
+            "{ chapter(id: \(BackendAPI.literal(chapterID))) { readingProgress { progress completed updatedAt } } }",
             requiresSourceRuntime: false)
         guard let chapter = response.chapter else { return nil }
         return ReaderChapterState(
             progress: chapter.readingProgress.map {
                 .init(progress: $0.progress, completed: $0.completed, updatedAt: date($0.updatedAt))
-            },
-            bookmarked: chapter.bookmarked ?? false)
-    }
-
-    static func setBookmarked(mediaID: String, chapterIDs: [String], bookmarked: Bool) async throws {
-        struct Response: Decodable, Sendable {
-            struct Chapter: Decodable, Sendable { let id: String }
-            let setChaptersBookmarked: [Chapter]
-        }
-        let ids = chapterIDs.map(BackendAPI.literal).joined(separator: ",")
-        let _: Response = try await BackendAPI.shared.graphql(
-            """
-            mutation { setChaptersBookmarked(mediaId: \(BackendAPI.literal(mediaID)), chapterIds: [\(ids)], bookmarked: \(bookmarked)) { id } }
-            """, requiresSourceRuntime: false)
+            })
     }
 
     /// Go encodes times as RFC 3339 with up to nine fractional digits.

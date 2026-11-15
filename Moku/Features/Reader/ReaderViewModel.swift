@@ -20,9 +20,6 @@ import Observation
     var jumpID = UUID()
     /// The saved page this chapter reopened at, for the resume banner.
     var resumedPage: Int?
-    /// Server chapter bookmarks (Mihon-style), separate from the local page bookmark.
-    private(set) var chapterBookmarks: [String: Bool] = [:]
-    @ObservationIgnored private var bookmarkTasks: [String: Task<Void, Never>] = [:]
     private var committedProgress: [String: (Double, Bool)] = [:]
     private var pendingProgress: [String: (Double, Bool)] = [:]
     private var progressTask: Task<Void, Never>?
@@ -63,12 +60,6 @@ import Observation
             count: pages.count, double: isDouble, offset: settings.offsetDoubleSpreads)
     }
     var visiblePages: [Int] { groups.first { $0.contains(page) } ?? [page] }
-    var chapterBookmarked: Bool { chapterBookmarks[chapterID] ?? false }
-    /// The local page bookmark ("Page bookmark" in the UI).
-    var bookmarked: Bool {
-        preferences.document.bookmarks[details.id]
-            == ReaderPosition(chapterID: chapterID, page: page)
-    }
     var chapterIndex: Int { details.chapters.firstIndex { $0.id == chapterID } ?? 0 }
     var canPrevious: Bool { (!isStrip && page > 1) || chapterIndex > 0 }
     var canNext: Bool {
@@ -109,7 +100,6 @@ import Observation
             pages = result
             prefetched = prefetched.filter { result.contains($0.key) }
             if let state {
-                if bookmarkTasks[id] == nil { chapterBookmarks[id] = state.bookmarked }
                 if state.progress?.completed == true { completedChapters.insert(id) }
             }
             page = resumePage(chapterID: id, count: result.count, remote: state)
@@ -138,7 +128,7 @@ import Observation
         let fallback = details.chapters.first { $0.id == id }.flatMap { chapter -> Int? in
             guard !chapter.completed, let progress = chapter.readingProgress?.progress else { return nil }
             return ReaderChapterState(
-                progress: .init(progress: progress, completed: false), bookmarked: false
+                progress: .init(progress: progress, completed: false)
             ).page(count: count)
         }
         guard let progress = remote?.progress else { return local ?? fallback ?? 1 }
@@ -148,26 +138,6 @@ import Observation
             return local
         }
         return remote?.page(count: count) ?? 1
-    }
-    func toggleChapterBookmark() {
-        let id = chapterID
-        let value = !(chapterBookmarks[id] ?? false)
-        let previous = chapterBookmarks[id] ?? false
-        chapterBookmarks[id] = value
-        bookmarkTasks[id]?.cancel()
-        let repository = repository, mediaID = details.id
-        bookmarkTasks[id] = Task { [weak self] in
-            do {
-                try await repository.setBookmarked(mediaID: mediaID, chapterID: id, bookmarked: value)
-            } catch is CancellationError {
-                return
-            } catch {
-                guard let self, !Task.isCancelled else { return }
-                self.chapterBookmarks[id] = previous
-                self.notice = "Couldn’t update the chapter bookmark. Try again."
-            }
-            if !Task.isCancelled { self?.bookmarkTasks[id] = nil }
-        }
     }
     func image(path: String) async throws -> Data {
         if let data = prefetched.removeValue(forKey: path) { return data }
@@ -228,14 +198,6 @@ import Observation
         chapterID = id
         loading = true
         page = 1
-    }
-    func toggleBookmark() {
-        if bookmarked {
-            preferences.document.bookmarks.removeValue(forKey: details.id)
-        } else {
-            preferences.document.bookmarks[details.id] = ReaderPosition(
-                chapterID: chapterID, page: page)
-        }
     }
     func recordProgress(forceComplete: Bool = false) {
         guard loadedChapterID == chapterID, !pages.isEmpty else { return }

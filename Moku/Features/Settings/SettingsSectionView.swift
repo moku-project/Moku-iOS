@@ -108,14 +108,7 @@ struct SettingsSectionView: View {
         case .general: GeneralSettingsView(openExtensions: openExtensions)
         case .appearance: AppearanceSettingsContent()
         case .reader:
-            // Shared with the reader drawer, so it keeps its own layout.
-            ScrollView {
-                ReaderSettingsView(preferences: readerPreferences, settingsPage: true)
-                    .padding(.horizontal, 20).padding(.vertical, 16)
-                    .frame(maxWidth: 640).frame(maxWidth: .infinity)
-            }
-            .background(NavigationStyle.background.ignoresSafeArea())
-            .accessibilityIdentifier("settings.scroll")
+            SettingsForm { ReaderSettingsView(preferences: readerPreferences) }
         case .library: SettingsForm { library; SettingsNotice(text: notice) }
         case .storage: StorageSettingsContent()
         case .about: SettingsForm { about; SettingsNotice(text: notice) }

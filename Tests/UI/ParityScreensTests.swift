@@ -57,14 +57,14 @@ import XCTest
         app.buttons["reader.option.single"].tap()
         app.buttons["reader.drawer.close"].tap()
         for _ in 0..<3 { app.buttons["reader.next"].tap() }
-        XCTAssertTrue(app.buttons["reader.page"].label.contains("4 / 12"))
+        XCTAssertTrue(app.buttons["reader.page"].label.contains("4 of 12"))
         app.buttons["reader.close"].tap()
         app.terminate()
         app.launchArguments = ["--ui-testing-reader", "--reader-keep-preferences"]
         app.launch()
         let banner = app.buttons["reader.resumed"]
         XCTAssertTrue(banner.waitForExistence(timeout: 10))
-        XCTAssertTrue(banner.label.contains("Bookmark at page 4"))
+        XCTAssertTrue(banner.label.contains("Resumed on page 4"))
         capture("Reader resume banner")
         let gone = NSPredicate(format: "exists == false")
         expectation(for: gone, evaluatedWith: banner)
@@ -78,7 +78,7 @@ import XCTest
         app.launch()
         let page = app.buttons["reader.page"]
         XCTAssertTrue(page.waitForExistence(timeout: 10))
-        XCTAssertTrue(page.label.contains("/ 3"), page.label)
+        XCTAssertTrue(page.label.contains("of 3"), page.label)
         XCTAssertFalse(app.staticTexts["Page 1 unavailable. Tap to retry."].waitForExistence(timeout: 3))
         capture("Reader PDF chapter")
     }

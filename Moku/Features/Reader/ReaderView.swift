@@ -17,7 +17,7 @@ struct ReaderView: View {
     @State private var nextCount = 5
     @State private var actionTask: Task<Void, Never>?
     @State private var closing = false
-    @State private var drawerDrag: CGFloat = 0
+    @State private var downloadsAfterSettings = false
     @State private var previousIdleTimer = false
 
     init(
@@ -55,66 +55,34 @@ struct ReaderView: View {
                 }
                 .firstLoadSkeleton(
                     "reader-\(model.chapterID)", loading: model.loading, style: .reader)
-                if model.chromeVisible && !model.drawerOpen {
-                    if model.settings.barPosition == "top" {
-                        VStack {
-                            topBar
-                            Spacer()
-                            progressBar
-                        }.padding(12)
-                    } else {
-                        HStack {
-                            if model.settings.barPosition == "right" { Spacer() }
-                            sideBar
-                            if model.settings.barPosition == "left" { Spacer() }
-                        }.padding(12)
+                if model.chromeVisible {
+                    VStack(spacing: 0) {
+                        topBar
+                        Spacer(minLength: 0)
+                        bottomBar
                     }
+                    .padding(.horizontal, 12).padding(.vertical, 4)
+                    .transition(.opacity)
                 }
-                if let resumed = model.resumedPage, model.page == resumed, model.chromeVisible, !model.drawerOpen {
+                if let resumed = model.resumedPage, model.page == resumed, model.chromeVisible {
                     VStack {
                         Spacer()
                         Button { model.resumedPage = nil } label: {
-                            Label("Bookmark at page \(resumed)", phosphor: "Bookmark")
+                            Label("Resumed on page \(resumed)", systemImage: "book")
                                 .font(.footnote.weight(.medium))
                                 .padding(.horizontal, 14).padding(.vertical, 10)
-                                .modifier(ReaderSurface())
+                                .glassSurface(Capsule())
                         }
                         .buttonStyle(.plain)
                         .accessibilityHint("Dismisses this notice")
                         .accessibilityIdentifier("reader.resumed")
-                        .padding(.bottom, model.settings.barPosition == "top" ? 120 : 32)
+                        .padding(.bottom, 96)
                     }
                     .transition(.opacity)
                     .task(id: resumed) {
                         try? await Task.sleep(for: .seconds(2.5))
                         withAnimation(motion ? .easeOut(duration: 0.4) : nil) { model.resumedPage = nil }
                     }
-                }
-                if model.drawerOpen {
-                    Color.black.opacity(0.42).ignoresSafeArea()
-                        .onTapGesture { drawer(false) }
-                        .accessibilityLabel("Close reader settings")
-                    HStack(spacing: 0) {
-                        Spacer(minLength: 0)
-                        ReaderDrawer(model: model, downloadsOpen: $downloadsOpen, drawer: drawer)
-                            .frame(width: min(380, geometry.size.width * 0.88))
-                            .offset(x: drawerDrag)
-                            .simultaneousGesture(
-                                DragGesture(minimumDistance: 24).onChanged { value in
-                                    if value.startLocation.x < 24
-                                        && value.translation.width > abs(value.translation.height)
-                                    {
-                                        drawerDrag = max(0, value.translation.width)
-                                    }
-                                }.onEnded { value in
-                                    if value.startLocation.x < 24 && value.translation.width > 90 {
-                                        drawer(false)
-                                    }
-                                    withAnimation(motion ? .easeOut(duration: 0.2) : nil) {
-                                        drawerDrag = 0
-                                    }
-                                })
-                    }.transition(motion ? .move(edge: .trailing) : .opacity)
                 }
             }
             .onChange(of: geometry.size, initial: true) { _, size in
@@ -129,7 +97,6 @@ struct ReaderView: View {
             previousIdleTimer = UIApplication.shared.isIdleTimerDisabled
             UIApplication.shared.isIdleTimerDisabled = true
         }
-        .onChange(of: model.drawerOpen) { _, open in if !open { keyboardFocused = true } }
         .onChange(of: pickerOpen) { _, open in if !open { keyboardFocused = true } }
         .onChange(of: downloadsOpen) { _, open in if !open { keyboardFocused = true } }
         .preference(key: GeneralMediaPresentedKey.self, value: true)
@@ -153,6 +120,16 @@ struct ReaderView: View {
             active: !model.drawerOpen && !pickerOpen && !downloadsOpen,
             valid: model.activityReady
         )
+        .sheet(
+            isPresented: Binding(get: { model.drawerOpen }, set: { model.drawerOpen = $0 }),
+            onDismiss: {
+                keyboardFocused = true
+                if downloadsAfterSettings {
+                    downloadsAfterSettings = false
+                    downloadsOpen = true
+                }
+            }
+        ) { settingsSheet }
         .sheet(isPresented: $pickerOpen) {
             ChapterPicker(model: model, filter: $filter, pickerOpen: $pickerOpen)
         }
@@ -198,7 +175,6 @@ struct ReaderView: View {
             model.settings.pageStyle = layouts[((layouts.firstIndex(of: model.settings.pageStyle) ?? 0) + 1) % layouts.count]
         case "fullscreen": toggleChrome()
         case "settings": drawer(true)
-        case "bookmark": model.toggleBookmark()
         case "scroll": model.preferences.document.behaviour.autoScroll.toggle()
         default: return .ignored
         }
@@ -210,127 +186,115 @@ struct ReaderView: View {
         } else { model.navigate(forward: forward) }
     }
     private var topBar: some View {
-        HStack(spacing: 0) {
-            icon("X", label: "Close reader", id: "reader.close", action: close)
-            Rectangle().fill(.white.opacity(0.12)).frame(width: 1, height: 26)
+        HStack(spacing: 10) {
+            barButton("xmark", label: "Close", id: "reader.close", action: close)
             Button {
                 pickerOpen = true
             } label: {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(model.details.title).font(.subheadline.weight(.medium)).lineLimit(1)
-                    HStack(spacing: 5) {
+                VStack(spacing: 1) {
+                    Text(model.details.title).font(.subheadline.weight(.semibold)).lineLimit(1)
+                    HStack(spacing: 3) {
                         Text(model.chapter?.label ?? "Chapter").lineLimit(1)
-                        PhosphorIcon("CaretDown", size: 11)
-                    }.font(.caption).foregroundStyle(.secondary)
-                }.frame(maxWidth: .infinity, minHeight: 48, alignment: .leading).padding(
-                    .leading, 12)
-            }.accessibilityLabel("Select chapter").accessibilityIdentifier("reader.chapters")
-            pageBookmarkButton
-                .foregroundStyle(model.bookmarked ? NavigationStyle.accent : Color(white: 0.8))
-            chapterBookmarkButton
-                .foregroundStyle(model.chapterBookmarked ? NavigationStyle.accent : Color(white: 0.8))
-            icon("Sliders", label: "Reader settings", id: "reader.settings") { drawer(true) }
+                        Image(systemName: "chevron.down").font(.caption2.weight(.semibold))
+                    }
+                    .font(.caption).foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 16).frame(minHeight: 44)
+                .frame(maxWidth: .infinity)
+                .glassSurface(Capsule())
+            }
+            .buttonStyle(.plain)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(model.details.title), \(model.chapter?.label ?? "Chapter")")
+            .accessibilityHint("Choose a chapter")
+            .accessibilityIdentifier("reader.chapters")
+            barButton("textformat.size", label: "Reader Settings", id: "reader.settings") { drawer(true) }
         }
-        .padding(4).modifier(ReaderSurface()).buttonStyle(.plain)
     }
-    /// Device-only saved page ("Page bookmark"), distinct from the chapter bookmark.
-    private var pageBookmarkButton: some View {
-        icon(
-            model.bookmarked ? "PushPin.fill" : "PushPin",
-            label: model.bookmarked ? "Remove page bookmark" : "Add page bookmark",
-            id: "reader.bookmark"
-        ) { model.toggleBookmark() }
-    }
-    /// Synced chapter bookmark.
-    private var chapterBookmarkButton: some View {
-        icon(
-            model.chapterBookmarked ? "Bookmark.fill" : "Bookmark",
-            label: model.chapterBookmarked ? "Remove chapter bookmark" : "Bookmark chapter",
-            id: "reader.chapterBookmark"
-        ) { model.toggleChapterBookmark() }
-        .accessibilityAddTraits(model.chapterBookmarked ? .isSelected : [])
-        .disabled(model.loading)
-    }
-    private var progressBar: some View {
-        VStack(spacing: 0) {
+    private var rtl: Bool { model.settings.readingDirection == "rtl" && !model.isStrip }
+    private var bottomBar: some View {
+        VStack(spacing: 2) {
             Button {
                 pageDraft = String(model.page)
                 pageEntryOpen = true
             } label: {
-                Text("\(model.page) / \(model.pages.count)").font(
-                    .caption.monospacedDigit()
-                )
-                .frame(minHeight: 36)
-            }.accessibilityIdentifier("reader.page")
+                Text("\(model.page) of \(model.pages.count)")
+                    .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                    .padding(.horizontal, 10).frame(minHeight: 22)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Page \(model.page) of \(model.pages.count)")
+            .accessibilityHint("Go to a page")
+            .accessibilityIdentifier("reader.page")
             HStack(spacing: 4) {
-                icon("ArrowLeft", label: "Previous", id: "reader.previous", weight: "light") {
-                    model.navigate(forward: model.settings.readingDirection == "rtl")
-                }.disabled(
-                    model.loading
-                        || (model.settings.readingDirection == "rtl"
-                            ? !model.canNext : !model.canPrevious)
-                )
-                ReaderSlider(
-                    value: Binding(get: { Double(model.page) }, set: { model.jump(Int($0)) }),
+                pageButton("chevron.backward", label: "Previous Page", id: "reader.previous", forward: rtl)
+                    .disabled(model.loading || (rtl ? !model.canNext : !model.canPrevious))
+                Slider(
+                    value: Binding(get: { Double(model.page) }, set: { model.jump(Int($0.rounded())) }),
                     in: 1...Double(max(2, model.pages.count)), step: 1
                 )
-                .environment(
-                    \.layoutDirection,
-                    model.settings.readingDirection == "rtl" ? .rightToLeft : .leftToRight
-                )
-                .disabled(model.pages.count < 2).accessibilityLabel("Page progress")
-                icon("ArrowRight", label: "Next", id: "reader.next", weight: "light") {
-                    model.navigate(forward: model.settings.readingDirection != "rtl")
-                }.disabled(
-                    model.loading
-                        || (model.settings.readingDirection == "rtl"
-                            ? !model.canPrevious : !model.canNext)
-                )
+                .environment(\.layoutDirection, rtl ? .rightToLeft : .leftToRight)
+                .disabled(model.pages.count < 2)
+                .accessibilityLabel("Page")
+                .accessibilityValue("\(model.page) of \(model.pages.count)")
+                pageButton("chevron.forward", label: "Next Page", id: "reader.next", forward: !rtl)
+                    .disabled(model.loading || (rtl ? !model.canPrevious : !model.canNext))
             }
-        }.padding(.horizontal, 4).padding(.bottom, 4)
-            .modifier(ReaderSurface()).buttonStyle(.plain)
-    }
-    private var sideBar: some View {
-        VStack(spacing: 2) {
-            icon("X", label: "Close reader", id: "reader.close", action: close)
-            icon("CaretUp", label: "Previous chapter", id: "reader.previousChapter") {
-                model.changeChapter(forward: false)
-            }
-            icon("BookOpen", label: "Select chapter", id: "reader.chapters") { pickerOpen = true }
-            icon("CaretDown", label: "Next chapter", id: "reader.nextChapter") {
-                model.changeChapter(forward: true)
-            }
-            Spacer(minLength: 0)
-            Text("\(model.page)").font(.caption.monospacedDigit())
-            icon("ArrowLeft", label: "Previous", id: "reader.previous", weight: "light") {
-                model.navigate(forward: false)
-            }
-            icon("ArrowRight", label: "Next", id: "reader.next", weight: "light") {
-                model.navigate(forward: true)
-            }
-            Spacer(minLength: 0)
-            pageBookmarkButton
-                .foregroundStyle(model.bookmarked ? NavigationStyle.accent : Color(white: 0.8))
-            chapterBookmarkButton
-                .foregroundStyle(model.chapterBookmarked ? NavigationStyle.accent : Color(white: 0.8))
-            icon("Sliders", label: "Reader settings", id: "reader.settings") { drawer(true) }
-        }.padding(4).modifier(ReaderSurface())
-    }
-    private func icon(
-        _ name: String, label: String, id: String, weight: String = "regular",
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            PhosphorIcon(name, size: 20, weight: weight).frame(width: 44, height: 44).contentShape(
-                Rectangle())
         }
+        .padding(.horizontal, 8).padding(.top, 6).padding(.bottom, 8)
+        .glassSurface(RoundedRectangle(cornerRadius: 26, style: .continuous))
+    }
+    private func pageButton(_ symbol: String, label: String, id: String, forward: Bool) -> some View {
+        Button { model.navigate(forward: forward) } label: {
+            Image(systemName: symbol).font(.body.weight(.semibold)).frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
         .accessibilityLabel(label).accessibilityIdentifier(id)
     }
-    private func drawer(_ open: Bool) {
-        withAnimation(motion ? .easeInOut(duration: 0.24) : nil) {
-            model.drawerOpen = open
-            model.chromeVisible = true
+    private func barButton(
+        _ symbol: String, label: String, id: String, action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol).font(.body.weight(.semibold))
+                .foregroundStyle(Color(white: 0.92))
+                .frame(width: 44, height: 44)
+                .glassSurface(Circle())
+                .contentShape(Circle())
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label).accessibilityIdentifier(id)
+    }
+    private var settingsSheet: some View {
+        NavigationStack {
+            Form {
+                ReaderSettingsView(preferences: model.preferences, mediaID: model.details.id, landscape: model.landscape)
+                Section {
+                    Button {
+                        downloadsAfterSettings = true
+                        model.drawerOpen = false
+                    } label: {
+                        Label("Download Chapters…", systemImage: "arrow.down.circle")
+                    }
+                    .accessibilityIdentifier("reader.downloads")
+                }
+            }
+            .accessibilityIdentifier("reader.drawer.scroll")
+            .tint(NavigationStyle.accent)
+            .navigationTitle("Reader Settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { drawer(false) }.accessibilityIdentifier("reader.drawer.close")
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
+    private func drawer(_ open: Bool) {
+        model.drawerOpen = open
+        model.chromeVisible = true
     }
     private func toggleChrome() {
         withAnimation(motion ? .easeInOut(duration: 0.18) : nil) { model.chromeVisible.toggle() }

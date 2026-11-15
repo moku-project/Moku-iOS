@@ -19,9 +19,6 @@ import Observation
     private var generation = UUID()
     /// A bookmark jump: where the next load scrolls, instead of synced progress.
     private var pendingResume: Double?
-    /// Server chapter bookmarks (Mihon-style), separate from the local page bookmark.
-    private(set) var chapterBookmarks: [String: Bool] = [:]
-    @ObservationIgnored private var bookmarkTasks: [String: Task<Void, Never>] = [:]
 
     init(details: MediaDetails, chapterID: String, preferences: Data) {
         self.details = details
@@ -42,7 +39,6 @@ import Observation
     var next: Chapter? { chapters.indices.contains(index + 1) ? chapters[index + 1] : nil }
     var completed: Bool { progress >= 0.97 }
     var ready: Bool { !loading && error == nil && document != nil }
-    var chapterBookmarked: Bool { chapterBookmarks[chapterID] ?? false }
 
     func load() async {
         let id = chapterID
@@ -64,7 +60,6 @@ import Observation
             try Task.checkCancellation()
             guard generation == current else { return }
             document = parsed
-            if let state, bookmarkTasks[id] == nil { chapterBookmarks[id] = state.bookmarked }
             // A finished chapter reopens at the top rather than at its last line.
             resumeAt = pendingResume ?? state?.progress.map {
                 $0.completed || $0.progress >= 0.97 ? 0 : $0.progress
@@ -134,27 +129,6 @@ import Observation
                 guard !Task.isCancelled else { return }
                 Toaster.shared.show("Progress couldn’t sync", detail: "Moku will retry when you keep reading.", kind: .error)
             }
-        }
-    }
-
-    func toggleChapterBookmark() {
-        let id = chapterID
-        let previous = chapterBookmarks[id] ?? false
-        let value = !previous
-        chapterBookmarks[id] = value
-        bookmarkTasks[id]?.cancel()
-        let mediaID = details.id
-        bookmarkTasks[id] = Task { [weak self] in
-            do {
-                try await ChapterSync.setBookmarked(mediaID: mediaID, chapterIDs: [id], bookmarked: value)
-            } catch is CancellationError {
-                return
-            } catch {
-                guard let self, !Task.isCancelled else { return }
-                self.chapterBookmarks[id] = previous
-                Toaster.shared.show("Couldn’t update the chapter bookmark", detail: "Try again.", kind: .error)
-            }
-            if !Task.isCancelled { self?.bookmarkTasks[id] = nil }
         }
     }
 

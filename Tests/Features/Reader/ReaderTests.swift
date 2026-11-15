@@ -82,8 +82,6 @@ import UIKit
         await model.load()
         model.jump(100)
         #expect(model.page == 5)
-        model.toggleBookmark()
-        #expect(model.bookmarked)
         await model.flush()
         let progress = await repository.updates
         #expect(progress.last?.completed == true)

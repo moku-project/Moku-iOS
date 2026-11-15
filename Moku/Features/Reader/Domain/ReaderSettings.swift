@@ -41,7 +41,8 @@ extension ReaderBehaviour {
         autoScroll = try c.decodeIfPresent(Bool.self, forKey: .autoScroll) ?? d.autoScroll
         autoScrollSpeed = try c.decodeIfPresent(Double.self, forKey: .autoScrollSpeed) ?? d.autoScrollSpeed
         tapToToggleBar = try c.decodeIfPresent(Bool.self, forKey: .tapToToggleBar) ?? d.tapToToggleBar
-        containerized = try c.decodeIfPresent(Bool.self, forKey: .containerized) ?? d.containerized
+        // The in-page reader was a desktop layout; phones always read full screen.
+        containerized = false
         tapToTurn = try c.decodeIfPresent(Bool.self, forKey: .tapToTurn) ?? d.tapToTurn
     }
 }

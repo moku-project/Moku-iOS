@@ -10,7 +10,7 @@ import XCTest
         XCTAssertTrue(app.buttons["reader.page"].exists)
         capture("reader-reading")
         app.buttons["reader.settings"].tap()
-        // XCTest can report idle before SwiftUI’s trailing move transition finishes.
+        // Let the settings sheet finish presenting.
         Thread.sleep(forTimeInterval: 0.35)
         XCTAssertTrue(app.buttons["reader.drawer.close"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["reader.option.longstrip"].exists)
@@ -19,12 +19,11 @@ import XCTest
         app.buttons["reader.option.rtl"].tap()
         app.buttons["reader.drawer.close"].tap()
         app.buttons["reader.previous"].tap()
-        XCTAssertTrue(app.buttons["reader.page"].label.contains("2 / 12"))
-        app.buttons["reader.bookmark"].tap()
+        XCTAssertTrue(app.buttons["reader.page"].label.contains("2 of 12"))
         app.buttons["reader.settings"].tap()
-        // XCTest can report idle before SwiftUI’s trailing move transition finishes.
+        // Let the settings sheet finish presenting.
         Thread.sleep(forTimeInterval: 0.35)
-        let scroll = app.scrollViews["reader.drawer.scroll"]
+        let scroll = app.collectionViews["reader.drawer.scroll"]
         scroll.swipeUp()
         let save = app.buttons["reader.savePreset"]
         if !save.isHittable { scroll.swipeUp() }
@@ -33,14 +32,14 @@ import XCTest
         save.tap()
         app.alerts.textFields.firstMatch.typeText("Manga")
         app.alerts.buttons["Save"].tap()
-        XCTAssertTrue(app.buttons["Rename Manga"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Manga"].waitForExistence(timeout: 3))
         app.terminate()
         app.launchArguments = ["--ui-testing-reader", "--reader-keep-preferences"]
         app.launch()
         XCTAssertTrue(app.buttons["reader.settings"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.buttons["reader.page"].label.contains("2 / 12"))
+        XCTAssertTrue(app.buttons["reader.page"].label.contains("2 of 12"))
         app.buttons["reader.settings"].tap()
-        // XCTest can report idle before SwiftUI’s trailing move transition finishes.
+        // Let the settings sheet finish presenting.
         Thread.sleep(forTimeInterval: 0.35)
         XCTAssertTrue(app.buttons["reader.option.single"].isSelected)
     }
@@ -52,11 +51,14 @@ import XCTest
         app.launch()
         XCTAssertTrue(app.buttons["reader.settings"].waitForExistence(timeout: 10))
         app.buttons["reader.settings"].tap()
-        // XCTest can report idle before SwiftUI’s trailing move transition finishes.
+        // Let the settings sheet finish presenting.
         Thread.sleep(forTimeInterval: 0.35)
         app.buttons["reader.option.double"].tap()
         XCTAssertTrue(app.buttons["reader.option.double"].isSelected)
-        XCTAssertTrue(app.switches["Offset spreads"].waitForExistence(timeout: 3))
+        // Scroll the sheet up only; swiping down would dismiss it.
+        let offset = app.switches["Offset spreads"]
+        for _ in 0..<6 where !offset.isHittable { app.collectionViews["reader.drawer.scroll"].swipeUp(velocity: .slow) }
+        XCTAssertTrue(offset.isHittable)
         capture("reader-landscape-drawer")
         app.buttons["reader.drawer.close"].tap()
         app.buttons["reader.chapters"].tap()

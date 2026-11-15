@@ -16,7 +16,6 @@ struct ReaderShortcut: Identifiable, Sendable {
         .init(id: "layout", title: "Cycle page layout", defaultValue: "q"),
         .init(id: "fullscreen", title: "Toggle full-screen controls", defaultValue: "f"),
         .init(id: "settings", title: "Reader settings", defaultValue: "o"),
-        .init(id: "bookmark", title: "Toggle bookmark", defaultValue: "m"),
         .init(id: "scroll", title: "Toggle auto scroll", defaultValue: "s"),
     ]
     static func values(_ data: Data) -> [String: String] {
