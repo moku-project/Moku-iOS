@@ -61,10 +61,14 @@
      [[NSFileManager defaultManager] removeItemAtPath:connection error:nil];
      return;
     }
-    NSArray *queries=@[@"mutation { addRepository(indexUrl: \"https://example.com/repo/index.pb\", name: \"the repository\") { id name } }", @"{ extensions(query: \"example\", limit: 10) { total items { id name packageName version installed } } }"];
+    // The CLI passes the live repository and package, so none is named here.
+    NSArray *args=NSProcessInfo.processInfo.arguments;
+    NSUInteger r=[args indexOfObject:@"--repository"], x=[args indexOfObject:@"--extension"];
+    NSString *repository=r!=NSNotFound && r+1<args.count ? args[r+1] : @"", *package=x!=NSNotFound && x+1<args.count ? args[x+1] : @"";
+    NSArray *queries=@[[NSString stringWithFormat:@"mutation { addRepository(indexUrl: \"%@\") { id name } }",repository], [NSString stringWithFormat:@"{ extensions(query: \"%@\", limit: 10) { total items { id name packageName version installed } } }",package]];
     if(search) queries=[queries arrayByAddingObjectsFromArray:@[
-     @"mutation { installExtension(packageName: \"example.source\") { id name version installed } }",
-     @"{ search(extensionId: \"example.source\", query: \"Rent a Girlfriend\", page: 1) { results { id title } hasNextPage } }"
+     [NSString stringWithFormat:@"mutation { installExtension(packageName: \"%@\") { id name version installed } }",package],
+     [NSString stringWithFormat:@"{ popularManga(extensionId: \"%@\") { results { id title } hasNextPage } }",package]
     ]];
     NSArray *keys=@[@"repository",@"extensions",@"installation",@"search"];
     for(NSUInteger i=0;i<queries.count;i++) {

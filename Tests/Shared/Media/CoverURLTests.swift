@@ -7,7 +7,7 @@ struct CoverURLTests {
     @Test func keepsProxyPathsAndEncodesRemoteCovers() throws {
         let path = "/proxy/img/aHR0cHM6Ly9leGFtcGxlLmNvbS9hLmpwZw=="
         #expect(BackendAPI.coverURL(path)?.relativeString == path)
-        let remote = "https://uploads.example.org/covers/title/cover.jpg?width=256"
+        let remote = "https://cdn.example.com/covers/title/cover.jpg?width=256"
         let proxy = try #require(BackendAPI.coverURL(remote))
         let encoded = String(proxy.relativeString.dropFirst("/proxy/img/".count))
             .replacingOccurrences(of: "-", with: "+")

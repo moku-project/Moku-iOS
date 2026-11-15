@@ -1,18 +1,19 @@
 import XCTest
 
-/// The real path a new user takes, on the real core and real sources:
-/// add a repository, install a source, browse it, open a title, save it,
-/// read a chapter, download one, and find it in Library and Downloads.
-/// Needs the network. Opt in with TEST_RUNNER_MOKU_LIVE_FLOW=1.
+/// A new user's path on the real core: add a repository, install a source, read, save and download.
+/// Opt in with TEST_RUNNER_MOKU_LIVE_REPOSITORY, _LIVE_EXTENSION (package) and _LIVE_SOURCE (catalog name).
 @MainActor final class LiveFlowTests: XCTestCase {
-    private let repository = "https://example.com/repo/index.min.json"
-    private let package = "example.source"
+    private var repository = ""
+    private var package = ""
+    private var sourceName = ""
     private var app: XCUIApplication!
 
     override func setUp() async throws {
-        guard ProcessInfo.processInfo.environment["MOKU_LIVE_FLOW"] == "1" else {
-            throw XCTSkip("Opt-in live flow against real sources.")
-        }
+        let env = ProcessInfo.processInfo.environment
+        guard let repository = env["MOKU_LIVE_REPOSITORY"], let package = env["MOKU_LIVE_EXTENSION"],
+            let sourceName = env["MOKU_LIVE_SOURCE"]
+        else { throw XCTSkip("Opt-in live flow against a real repository.") }
+        (self.repository, self.package, self.sourceName) = (repository, package, sourceName)
         continueAfterFailure = false
         XCUIDevice.shared.orientation = .portrait
         app = XCUIApplication()
@@ -73,16 +74,16 @@ import XCTest
         let search = app.searchFields.firstMatch
         wait(search, 10, "extensions search field")
         search.tap()
-        search.typeText("the source\n")
+        search.typeText(sourceName + "\n")
         let install = app.buttons["extensions.install.\(package)"]
-        wait(install, 60, "the source install button")
+        wait(install, 60, "install button")
         shot("05-catalog")
         install.tap()
 
         // Installed shows it once the runtime has loaded it.
         app.segmentedControls.buttons["Installed"].tap()
         let source = app.buttons["extensions.search.\(package)"]
-        wait(source, 300, "installed the source")
+        wait(source, 300, "installed source")
         shot("06-installed")
 
         // Browse the source and open the first title.

@@ -37,13 +37,13 @@ public final class JvmContract {
             }
             if (args.length == 4) {
                 EntryRequest entry = EntryRequest.newBuilder().setExtensionId(args[2]).setSourceEntryId(args[3]).build();
-                check("live.example.details", () -> {
+                check("live.details", () -> {
                     var details = base.withDeadlineAfter(45, TimeUnit.SECONDS).getDetails(entry);
                     require(!details.getTitle().isBlank(), "live title missing");
                     require(!details.getDescription().isBlank(), "live description missing");
                     require(details.getAuthorsCount() > 0, "live author missing");
                 });
-                check("live.example.chapters", () -> {
+                check("live.chapters", () -> {
                     var chapters = base.withDeadlineAfter(45, TimeUnit.SECONDS).getChapters(entry);
                     require(chapters.getChaptersCount() > 0, "no live chapters");
                     require(!chapters.getChapters(0).getSourceChapterId().isBlank(), "live chapter ID missing");

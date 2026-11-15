@@ -161,7 +161,7 @@ Checked on simulators on 2026-10-28:
 | Library (empty) | ✅ | ✅ | ✅ |
 | Search / discovery shelves | ✅ | – | – |
 | Series details + chapter list | ✅ | – | – |
-| Manga reader | ✅ (real the source pages) | ✅ (fixture) | ✅ (fixture) |
+| Manga reader | ✅ (real source pages) | ✅ (fixture) | ✅ (fixture) |
 | Anime player | ✅ (fixture via embedded backend) | ✅ (fixture; controls auto-hidden) | – |
 | Home, Downloads, Recent, Tracking, About, Settings | ✅ | – | – |
 

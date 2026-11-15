@@ -54,9 +54,7 @@ final class PlayerUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Player closed"].waitForExistence(timeout: 5))
     }
 
-    /// Starts the same JVM/Go runtime as source playback and serves media over
-    /// authenticated HTTP. Physical coordinate gestures exercise hit testing,
-    /// unlike accessibility-only slider adjustments on a local file.
+    /// Streams over the real JVM/Go runtime and seeks with coordinate taps, so hit testing is exercised too.
     func testStreamingSeeksAndTouchControlsWithEmbeddedRuntime() {
         let app = XCUIApplication()
         app.launchArguments = [

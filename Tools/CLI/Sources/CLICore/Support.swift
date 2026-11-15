@@ -4,6 +4,23 @@ import Foundation
 func require(_ condition: @autoclosure () throws -> Bool, _ message: String) throws {
   if try !condition() { throw CLIError(message) }
 }
+/// The repository and source live checks use; set in the environment so none is named in the repo.
+struct LiveSource {
+  let repository: String, package: String, source: String
+  static func fromEnvironment() throws -> LiveSource {
+    let env = ProcessInfo.processInfo.environment
+    guard let repository = env["MOKU_LIVE_REPOSITORY"], let package = env["MOKU_LIVE_EXTENSION"] else {
+      throw CLIError("Live checks need MOKU_LIVE_REPOSITORY and MOKU_LIVE_EXTENSION (a package name)")
+    }
+    return LiveSource(repository: repository, package: package, source: env["MOKU_LIVE_SOURCE"] ?? "")
+  }
+  var testRunnerEnvironment: [String: String] {
+    [
+      "TEST_RUNNER_MOKU_LIVE_REPOSITORY": repository, "TEST_RUNNER_MOKU_LIVE_EXTENSION": package,
+      "TEST_RUNNER_MOKU_LIVE_SOURCE": source,
+    ]
+  }
+}
 func sha256(_ data: Data) -> String {
   SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
 }

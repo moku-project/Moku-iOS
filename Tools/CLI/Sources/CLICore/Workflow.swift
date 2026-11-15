@@ -214,10 +214,10 @@ public final class Workflow {
       } else {
         try project()
         let target =
-          task == "live-ui" ? "UITests/LiveSearchTests" : task == "ui" ? "UITests" : "Tests"
+          task == "live-ui" ? "UITests/LiveFlowTests" : task == "ui" ? "UITests" : "Tests"
         try xcode(
           "simulator", simulator: device, action: "test", extra: ["-only-testing:\(target)"],
-          environment: task == "live-ui" ? ["TEST_RUNNER_MOKU_LIVE_SEARCH": "1"] : [:])
+          environment: task == "live-ui" ? try LiveSource.fromEnvironment().testRunnerEnvironment : [:])
       }
     }
   }

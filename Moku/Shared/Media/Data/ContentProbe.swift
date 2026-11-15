@@ -1,6 +1,6 @@
 import Foundation
 
-/// Hides typed-search results with no chapters (e.g. licensed the source titles); few checks at once, cached six hours.
+/// Hides typed-search results with no chapters (such as licensed titles); few checks at once, cached six hours.
 actor ContentProbe {
     enum Verdict: Equatable, Sendable { case content, empty, unknown }
 

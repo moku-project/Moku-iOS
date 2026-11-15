@@ -5,10 +5,10 @@ import Testing
 
 @MainActor struct SearchDetailTests {
     private let entry = MediaEntry(
-        id: "85", title: "Nagatoro", media: .manga,
-        sourceName: "the source", coverURL: nil,
-        extensionID: "example.source",
-        externalID: "/manga/d86cf65b-5f6c-437d-a0af-19a31f94ec55")
+        id: "85", title: "Fixture", media: .manga,
+        sourceName: "Fixture Source", coverURL: nil,
+        extensionID: "fixture.source",
+        externalID: "/title/1")
 
     @Test func emptySourceResponseIsNotARequestFailure() async {
         let model = DetailsViewModel(entry: entry, repository: DetailFixture())
@@ -16,10 +16,7 @@ import Testing
         #expect(model.details?.title == "Fixture title")
         #expect(model.details?.chapters.isEmpty == true)
         #expect(model.error == nil && model.chapterError == nil && !model.loading)
-        #expect(model.emptyChapterMessage.contains("the source returned no readable chapters"))
-        #expect(
-            model.sourceURL?.absoluteString
-                == "https://example.org/title/d86cf65b-5f6c-437d-a0af-19a31f94ec55")
+        #expect(model.emptyChapterMessage.contains("Fixture Source returned no readable chapters"))
     }
 
     @Test func chapterFailurePreservesMetadataAndCanRetry() async {

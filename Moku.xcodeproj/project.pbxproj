@@ -150,7 +150,6 @@
 		8599034A98D9E345F60C8536 /* RecentViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05127D4801C928C0188E8391 /* RecentViewModel.swift */; };
 		85E6E3C12A6F31F92EDD56A0 /* NovelParagraph.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FD9617704BA3CE4D98B633B /* NovelParagraph.swift */; };
 		873FD7888D2AD0386576EF9A /* TrackingPreviewRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A20B5E038BAC8588AFC7D6F /* TrackingPreviewRepository.swift */; };
-		8D72B0EC82B7C15F349171EA /* ExtensionDeviceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0201B9EF5987A0C61767995B /* ExtensionDeviceTests.swift */; };
 		8DFEF7AF3919009136F667A0 /* SearchSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94625EC96F77DDDF44470A3B /* SearchSource.swift */; };
 		8EBFE5210A6FA0256F942C36 /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4979D12C15ECA16DDDA84570 /* SearchView.swift */; };
 		8F872D8188C0F3F0A2BD0910 /* RecentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEAFDAC0358D5284BCE43E3B /* RecentTests.swift */; };
@@ -202,7 +201,6 @@
 		BB4053F586E52D4215BFEC11 /* HomeRecentRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5978F398E4E7870195C61205 /* HomeRecentRow.swift */; };
 		BBE92B60B43660960AB2435B /* DetailsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B85272D308E484F302C47D7A /* DetailsViewModel.swift */; };
 		BCC470DFD6D177629BFE0E15 /* ExtensionsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95169BD78D2B172B48E49444 /* ExtensionsViewModel.swift */; };
-		C00C23ABC97CA41C39E3B746 /* MangaSourceDeviceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7557BD18D1FF8F194ED1743D /* MangaSourceDeviceTests.swift */; };
 		C08CAAE4CEE23ADF67F64AFA /* AppHostView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AC1A77D3657F8500D4DB8C4 /* AppHostView.swift */; };
 		C09FE34821308A266CACE32B /* ForwardFetchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 916D9479AF233B3309F15061 /* ForwardFetchTests.swift */; };
 		C0F37C6BA1332E52C59E8905 /* GeneralSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7D435DFA73C3B142614C9EB /* GeneralSettingsTests.swift */; };
@@ -293,7 +291,6 @@
 		00AC275519A9B4B8B7982F10 /* FolderViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderViewModel.swift; sourceTree = "<group>"; };
 		00F70CFC69CF6A13CF969074 /* SearchDetailTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchDetailTests.swift; sourceTree = "<group>"; };
 		01FE031D30BA514598509BA3 /* DownloadsModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadsModelTests.swift; sourceTree = "<group>"; };
-		0201B9EF5987A0C61767995B /* ExtensionDeviceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionDeviceTests.swift; sourceTree = "<group>"; };
 		04B97C7CA776FCACAC1D9103 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		05127D4801C928C0188E8391 /* RecentViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentViewModel.swift; sourceTree = "<group>"; };
 		05B2E61A1BFB697BA272B232 /* TrackingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackingViewModel.swift; sourceTree = "<group>"; };
@@ -440,7 +437,6 @@
 		72D5E671000EE495B0691F58 /* project.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = project.yml; sourceTree = "<group>"; };
 		73C0B542933499C6767CFF61 /* CanvasCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasCoordinator.swift; sourceTree = "<group>"; };
 		74D7EFF6FE129D7BA8677E2B /* ExtensionModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionModelTests.swift; sourceTree = "<group>"; };
-		7557BD18D1FF8F194ED1743D /* MangaSourceDeviceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MangaSourceDeviceTests.swift; sourceTree = "<group>"; };
 		76107D2A9B5A6A4166C220FA /* LibraryPersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryPersistenceTests.swift; sourceTree = "<group>"; };
 		7614772715506AEEC10300C1 /* SettingsParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsParityTests.swift; sourceTree = "<group>"; };
 		7633C1D8E563D713CD15977B /* RuntimePackagingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimePackagingTests.swift; sourceTree = "<group>"; };
@@ -937,7 +933,6 @@
 			isa = PBXGroup;
 			children = (
 				660FDAD017A6745836F7943F /* DownloadsTests.swift */,
-				0201B9EF5987A0C61767995B /* ExtensionDeviceTests.swift */,
 				F7D435DFA73C3B142614C9EB /* GeneralSettingsTests.swift */,
 				279ED4AEA82BB68C6AF7978E /* HomeTests.swift */,
 				4F446EB08AFD8EE4AD132144 /* LibraryToolbarTests.swift */,
@@ -1061,7 +1056,6 @@
 			children = (
 				FBBE83150918F153D20540B2 /* BackendStartupTests.swift */,
 				AFA3F36C57DFC2D028BC9A43 /* EmbeddedRuntimeLinkageTests.swift */,
-				7557BD18D1FF8F194ED1743D /* MangaSourceDeviceTests.swift */,
 			);
 			path = Backend;
 			sourceTree = "<group>";
@@ -1849,7 +1843,6 @@
 				378FA41DDC498704A9C21747 /* LibraryOrganizationTests.swift in Sources */,
 				CE7BC03E29EF17F9A4B75F56 /* LibraryPersistenceTests.swift in Sources */,
 				72C592E94C7C90FE23FCDC99 /* LibrarySearchTests.swift in Sources */,
-				C00C23ABC97CA41C39E3B746 /* MangaSourceDeviceTests.swift in Sources */,
 				E5A2B31A10694A8E9681C4BB /* ModeTabConfigurationTests.swift in Sources */,
 				3CB972C6A2D9E05BF0E03493 /* ParityTests.swift in Sources */,
 				55C6544B9203AB396B751E00 /* PlayerTests.swift in Sources */,
@@ -1871,7 +1864,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				A36DF929C5FFBADFAFC23D39 /* DownloadsTests.swift in Sources */,
-				8D72B0EC82B7C15F349171EA /* ExtensionDeviceTests.swift in Sources */,
 				C0F37C6BA1332E52C59E8905 /* GeneralSettingsTests.swift in Sources */,
 				4D91F88D5266C6716C67CF7E /* HomeTests.swift in Sources */,
 				787A1E387658FB028E6579F3 /* LibraryToolbarTests.swift in Sources */,

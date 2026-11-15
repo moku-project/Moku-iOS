@@ -285,7 +285,7 @@ struct DetailsView: View {
         }
     }
 
-    /// the source reports content rating and original language as genres; they read better as badges.
+    /// Some sources report content rating and original language as genres; they read better as badges.
     private var tags: (badges: [String], genres: [String]) {
         var badges: [String] = []
         var genres: [String] = []
@@ -514,7 +514,7 @@ struct DetailsView: View {
                 HStack {
                     if model.sourceChallenge, let extensionID = entry.extensionID {
                         Button("Verify in Browser") {
-                            verify(extensionID: extensionID, url: model.sourceURL, sourceName: entry.sourceName) {
+                            verify(extensionID: extensionID, url: model.browserURL, sourceName: entry.sourceName) {
                                 Task { await load(refresh: true) }
                             }
                         }
@@ -557,8 +557,8 @@ struct DetailsView: View {
                         } description: {
                             Text(model.emptyChapterMessage)
                         } actions: {
-                            if let sourceURL = model.sourceURL {
-                                Link("View Title on the source", destination: sourceURL)
+                            if let browserURL = model.browserURL {
+                                Link("Open in Browser", destination: browserURL)
                             }
                         }
                     }
@@ -860,8 +860,8 @@ struct DetailsView: View {
                 if let browserURL = model.browserURL {
                     Button("Open in Browser", systemImage: "safari") { openURL(browserURL) }
                 }
-                if let sourceURL = model.sourceURL {
-                    ShareLink(item: sourceURL, subject: Text(details.title)) {
+                if let browserURL = model.browserURL {
+                    ShareLink(item: browserURL, subject: Text(details.title)) {
                         Label("Share", systemImage: "square.and.arrow.up")
                     }
                 } else {

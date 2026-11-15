@@ -1,8 +1,6 @@
 import XCTest
 
-/// Library's native toolbar: the view menu on the leading side, the options menu on
-/// the trailing side, and the system search field. These replace the old radial
-/// "Library tools" menu, layout pop-up and in-page mode tabs.
+/// The native Library toolbar: view menu, options menu and system search field.
 @MainActor final class LibraryToolbarTests: XCTestCase {
     private func launchLibrary(_ arguments: [String] = []) -> XCUIApplication {
         let app = XCUIApplication.fresh(arguments + ["-contentMode", "all"])

@@ -2,6 +2,7 @@ import Foundation
 
 extension NativeBuild {
   func acceptance(_ simulator: String, live: Bool, budget: Double = 5) throws {
+    let liveSource = live ? try LiveSource.fromEnvironment() : nil
     let output = path(".build/last-acceptance.json")
     try remove(output)
     try remove(output.deletingPathExtension().appendingPathExtension("xml"))
@@ -144,30 +145,36 @@ extension NativeBuild {
       try checks.check("library.source_migration_progress_folders_policies_filters") {
         try checks.migration()
       }
-      if live {
-        let package = "example.source"
+      if let liveSource {
+        let package = liveSource.package
         var found: JSON?
         // Popular titles always have chapters in the source language; a searched title may be licensed away.
         var popular: JSON?
-        try checks.check("live.example.repository") {
+        try checks.check("live.repository") {
           _ = try checks.api.gql(
-            "mutation{addRepository(indexUrl:\"https://example.com/repo/index.pb\"){id}}"
-          )
+            "mutation($u:String!){addRepository(indexUrl:$u){id}}", ["u": liveSource.repository])
         }
-        try checks.check("live.example.install") {
+        try checks.check("live.install") {
           try require(
             try checks.api.gql(
               "mutation($p:String!){installExtension(packageName:$p){installed}}", ["p": package])[
                 "installExtension"]["installed"].b, "Live extension not installed")
         }
-        try checks.check("live.example.search") {
-          let rows = try checks.api.gql(
-            "query($e:ID!){search(extensionId:$e,query:\"Rent a Girlfriend\",page:1){results{id externalId title thumbnailUrl}}}",
-            ["e": package])["search"]["results"].a
-          found = rows.first { $0["title"].s.lowercased() == "rent-a-girlfriend" }
-          try require(found != nil, "Exact live title not found")
+        try checks.check("live.popular") {
+          popular = try checks.api.gql(
+            "query($e:ID!){popularManga(extensionId:$e){results{id externalId title}}}",
+            ["e": package])["popularManga"]["results"].a.first
+          try require(popular != nil, "No live popular titles")
         }
-        try checks.check("live.example.cover_bytes") {
+        try checks.check("live.search") {
+          guard let popular else { throw Blocked(description: "Live popular failed") }
+          let rows = try checks.api.gql(
+            "query($e:ID!,$q:String!){search(extensionId:$e,query:$q,page:1){results{id externalId title thumbnailUrl}}}",
+            ["e": package, "q": popular["title"].s])["search"]["results"].a
+          found = rows.first { $0["externalId"].s == popular["externalId"].s }
+          try require(found != nil, "Popular title not found by searching its name")
+        }
+        try checks.check("live.cover_bytes") {
           guard let found else { throw Blocked(description: "Live search failed") }
           let response = try checks.api.request("/proxy/cover/" + found["id"].s)
           try require(
@@ -178,13 +185,7 @@ extension NativeBuild {
               Data([255, 216, 255]), Data([137, 80, 78, 71]), Data("RIFF".utf8), Data("GIF8".utf8),
             ].contains { response.body.starts(with: $0) }, "Cover response is not an image")
         }
-        try checks.check("live.example.popular") {
-          popular = try checks.api.gql(
-            "query($e:ID!){popularManga(extensionId:$e){results{id externalId title}}}",
-            ["e": package])["popularManga"]["results"].a.first
-          try require(popular != nil, "No live popular titles")
-        }
-        try checks.check("live.example.metadata_runner") {
+        try checks.check("live.metadata_runner") {
           guard let popular else { throw Blocked(description: "Live popular failed") }
           try jvm("live-jvm-results", args: [package, popular["externalId"].s], timeout: 100)
         }
@@ -217,7 +218,11 @@ extension NativeBuild {
       capture: true)
     let file = URL(fileURLWithPath: container).appendingPathComponent("Documents/probe.json")
     try remove(file)
-    try run(["xcrun", "simctl", "launch", simulator, "org.moku.backendprobe", "--" + mode])
+    let live = try LiveSource.fromEnvironment()
+    try run([
+      "xcrun", "simctl", "launch", simulator, "org.moku.backendprobe", "--" + mode,
+      "--repository", live.repository, "--extension", live.package,
+    ])
     var report = JSON()
     try waitUntil(300, runner: runner) {
       guard let parsed = try? JSON(file: file) else { return false }
@@ -231,8 +236,8 @@ extension NativeBuild {
     }
     try require(
       report["extensions"]["data"]["extensions"]["items"].a.contains {
-        $0["packageName"].s == "example.source"
-      }, "the source missing from live catalog")
+        $0["packageName"].s == live.package
+      }, "\(live.package) missing from live catalog")
     if mode == "search" {
       for key in ["installation", "search"] {
         try require(
@@ -241,19 +246,17 @@ extension NativeBuild {
       }
       try require(
         report["installation"]["data"]["installExtension"]["installed"].b,
-        "the source was not installed")
+        "\(live.package) was not installed")
       try require(
-        report["search"]["data"]["search"]["results"].a.contains {
-          $0["title"].s.lowercased() == "rent-a-girlfriend"
-        }, "Requested title missing")
+        !report["search"]["data"]["popularManga"]["results"].a.isEmpty, "No popular titles")
       let directory = try confined(
         file.deletingLastPathComponent().appendingPathComponent(report["dataDirectory"].s),
         to: file.deletingLastPathComponent())
       let packages = try contents(directory.appendingPathComponent("jar-cache")).filter {
-        $0.lastPathComponent.hasPrefix("example.source-")
+        $0.lastPathComponent.hasPrefix(live.package + "-")
           && ["apk", "jar"].contains($0.pathExtension)
       }
-      try require(packages.count == 1, "Expected one downloaded the source package")
+      try require(packages.count == 1, "Expected one downloaded package")
       let names = try run(["unzip", "-Z1", packages[0].path], capture: true).split(separator: "\n")
         .map(String.init)
       try require(

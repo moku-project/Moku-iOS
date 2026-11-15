@@ -38,20 +38,12 @@ import Observation
     private static let log = Logger(subsystem: "com.moku.app", category: "details")
     var sourceChallenge = false
 
-    var sourceURL: URL? {
-        guard entry.extensionID == "example.source",
-            let externalID = entry.externalID, externalID.hasPrefix("/manga/"),
-            let id = externalID.split(separator: "/").last, UUID(uuidString: String(id)) != nil
-        else { return nil }
-        return URL(string: "https://example.org/title/\(id)")
-    }
-
     /// The title on its source site, resolved once the extension's base URL is known.
     private(set) var browserURL: URL?
 
     func loadBrowserURL() async {
         guard browserURL == nil, let id = details?.id else { return }
-        browserURL = await SourceLink.url(mediaID: id) ?? sourceURL
+        browserURL = await SourceLink.url(mediaID: id)
     }
 
     /// Titles pulled from their trackers recently, so reopening a title doesn't pull again.
