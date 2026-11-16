@@ -61,8 +61,11 @@ struct OverflowMenu<Content: View, Label: View>: View {
             anchor.frame = frame
             // A scrolled-away or rotated anchor should never leave a detached menu behind.
             if presentation.owner == id && presentation.anchor != frame {
-                if dismissOnAnchorChange { presentation.dismiss() }
-                else { presentation.anchor = frame }
+                if dismissOnAnchorChange {
+                    presentation.dismiss()
+                } else {
+                    presentation.anchor = frame
+                }
             }
         }
         .onDisappear { if presentation.owner == id { presentation.dismiss() } }
@@ -79,7 +82,9 @@ struct OverflowMenuHost: ViewModifier {
             .overlay {
                 if let menu = presentation.content {
                     OverflowMenuPanel(
-                        menu: menu, anchor: presentation.anchor, dismissOnSelection: presentation.dismissOnSelection, dismiss: presentation.dismiss
+                        menu: menu, anchor: presentation.anchor,
+                        dismissOnSelection: presentation.dismissOnSelection,
+                        dismiss: presentation.dismiss
                     )
                     .id(presentation.owner)
                 }

@@ -3,9 +3,14 @@ import Foundation
 struct LiveRecentRepository: RecentRepository {
     func chapters(for entry: MediaEntry, refresh: Bool) async throws -> [RecentUpdate] {
         let mediaID: String
-        if Int64(entry.id) != nil { mediaID = entry.id }
-        else { mediaID = try await LiveMediaRepository.shared.metadata(for: entry, refresh: false).id }
-        if refresh { _ = try await LiveMediaRepository.shared.chapters(mediaID: mediaID, refresh: true) }
+        if Int64(entry.id) != nil {
+            mediaID = entry.id
+        } else {
+            mediaID = try await LiveMediaRepository.shared.metadata(for: entry, refresh: false).id
+        }
+        if refresh {
+            _ = try await LiveMediaRepository.shared.chapters(mediaID: mediaID, refresh: true)
+        }
         struct Response: Decodable, Sendable {
             struct Media: Decodable, Sendable { let chapters: [RecentChapter] }
             let media: Media?
@@ -69,8 +74,13 @@ struct LiveRecentRepository: RecentRepository {
         struct Response: Decodable, Sendable {
             struct Item: Decodable, Sendable {
                 struct Media: Decodable, Sendable {
-                    let id: String; let title: String; let contentType: String; let sourceName: String
-                    let thumbnailUrl: String?; let extensionId: String?; let externalId: String
+                    let id: String
+                    let title: String
+                    let contentType: String
+                    let sourceName: String
+                    let thumbnailUrl: String?
+                    let extensionId: String?
+                    let externalId: String
                 }
                 let chapter: RecentChapter
                 let media: Media
@@ -88,7 +98,8 @@ struct LiveRecentRepository: RecentRepository {
             let media = item.media
             let entry = MediaEntry(
                 id: media.id, title: media.title,
-                media: media.contentType == "ANIME" ? .anime : media.contentType == "NOVEL" ? .novels : .manga,
+                media: media.contentType == "ANIME"
+                    ? .anime : media.contentType == "NOVEL" ? .novels : .manga,
                 sourceName: media.sourceName, coverURL: BackendAPI.coverURL(media.thumbnailUrl),
                 extensionID: media.extensionId, externalID: media.externalId)
             return RecentUpdate(entry: entry, mediaID: media.id, chapter: item.chapter)
@@ -96,7 +107,8 @@ struct LiveRecentRepository: RecentRepository {
     }
 
     func startLibraryUpdate() async throws {
-        let _: IgnoredGraphQLResult = try await BackendAPI.shared.graphql("mutation { startLibraryUpdate }")
+        let _: IgnoredGraphQLResult = try await BackendAPI.shared.graphql(
+            "mutation { startLibraryUpdate }")
     }
 
     func libraryUpdateStatus() async throws -> LibraryUpdateStatus {

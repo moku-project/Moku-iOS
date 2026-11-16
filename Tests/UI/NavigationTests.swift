@@ -2,7 +2,9 @@ import XCTest
 
 @MainActor final class NavigationTests: XCTestCase {
     /// Holds the content button and picks a type from its menu.
-    static func chooseMode(_ title: String, in app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
+    static func chooseMode(
+        _ title: String, in app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line
+    ) {
         let button = app.buttons["mode.button"]
         XCTAssertTrue(button.waitForExistence(timeout: 10), file: file, line: line)
         button.press(forDuration: 0.8)
@@ -14,11 +16,13 @@ import XCTest
             _ = rows.firstMatch.waitForExistence(timeout: 3)
             item = rows.allElementsBoundByIndex.last(where: \.isHittable) ?? rows.firstMatch
         }
-        XCTAssertTrue(item.waitForExistence(timeout: 3), "Missing mode \(title)", file: file, line: line)
+        XCTAssertTrue(
+            item.waitForExistence(timeout: 3), "Missing mode \(title)", file: file, line: line)
         item.tap()
         let chosen = NSPredicate(format: "value == %@", title)
         XCTAssertEqual(
-            XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: chosen, object: button)], timeout: 3),
+            XCTWaiter.wait(
+                for: [XCTNSPredicateExpectation(predicate: chosen, object: button)], timeout: 3),
             .completed, "Content type should be \(title)", file: file, line: line)
     }
 
@@ -43,7 +47,8 @@ import XCTest
         XCTAssertTrue(app.buttons["settings.category.Appearance"].waitForExistence(timeout: 3))
         // The type is app-wide: Settings › Library shows the same choice.
         app.openSettingsRow("settings.category.Library")
-        XCTAssertTrue(app.buttons["settings.picker.Library mode"].shows("Manga"),
+        XCTAssertTrue(
+            app.buttons["settings.picker.Library mode"].shows("Manga"),
             app.buttons["settings.picker.Library mode"].label)
         app.terminate()
         // Same profile as the first launch: the chosen mode must survive a relaunch.
@@ -96,7 +101,10 @@ import XCTest
             Thread.sleep(forTimeInterval: 0.8)
             app.openTab("library")
             let window = app.windows.firstMatch.frame
-            for id in ["tab.home", "tab.browse", "tab.library", "tab.downloads", "tab.settings", "mode.button"] {
+            for id in [
+                "tab.home", "tab.browse", "tab.library", "tab.downloads", "tab.settings",
+                "mode.button",
+            ] {
                 let button = app.buttons[id]
                 XCTAssertTrue(button.isHittable, id)
                 let frame = button.frame

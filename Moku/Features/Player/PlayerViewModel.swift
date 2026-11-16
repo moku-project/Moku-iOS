@@ -116,19 +116,28 @@ final class PlayerViewModel {
             guard generation == token else { return }
             self.stream = stream
             if autoSubtitles, !stream.subtitles.isEmpty {
-                let language = subtitleLanguage.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-                let index = stream.subtitles.firstIndex { $0.lang.lowercased() == language || (!language.isEmpty && $0.lang.lowercased().hasPrefix(language + "-")) } ?? 0
+                let language = subtitleLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
+                    .lowercased()
+                let index =
+                    stream.subtitles.firstIndex {
+                        $0.lang.lowercased() == language
+                            || (!language.isEmpty && $0.lang.lowercased().hasPrefix(language + "-"))
+                    } ?? 0
                 automaticSubtitleTask = Task { [weak self] in
                     guard let self, self.generation == token, !Task.isCancelled else { return }
                     await self.selectSubtitle(index)
                 }
             }
             if let label = preferredSources[mediaID],
-                let index = stream.sources.firstIndex(where: { $0.label == label }) {
-                try await replace(path: stream.sources[index].url, resume: resume, token: token, shouldPlay: autoplay)
+                let index = stream.sources.firstIndex(where: { $0.label == label })
+            {
+                try await replace(
+                    path: stream.sources[index].url, resume: resume, token: token,
+                    shouldPlay: autoplay)
                 if generation == token { sourceIndex = index }
             } else {
-                try await replace(path: stream.url, resume: resume, token: token, shouldPlay: autoplay)
+                try await replace(
+                    path: stream.url, resume: resume, token: token, shouldPlay: autoplay)
             }
             if generation == token { loadedChapterID = requestedChapterID }
         } catch is CancellationError {
@@ -141,7 +150,8 @@ final class PlayerViewModel {
 
     private func replace(path: String, resume: Double, token: UUID, shouldPlay: Bool) async throws {
         // AVPlayer can't play DASH; Tsunagu serves those streams as HLS when asked.
-        let request = try await repository.request(path: path + (path.contains("?") ? "&" : "?") + "format=hls")
+        let request = try await repository.request(
+            path: path + (path.contains("?") ? "&" : "?") + "format=hls")
         try Task.checkCancellation()
         guard generation == token, let url = request.url else { return }
         // All remote URLs come from Connection.contentRequest: authenticated loopback content only.
@@ -164,14 +174,18 @@ final class PlayerViewModel {
 
     var streamInfo: String {
         let size = player.currentItem?.presentationSize ?? .zero
-        let resolution = size.height > 0 ? "\(Int(size.width))×\(Int(size.height))" : "Resolution unknown"
+        let resolution =
+            size.height > 0 ? "\(Int(size.width))×\(Int(size.height))" : "Resolution unknown"
         let source = sourceIndex.flatMap { stream?.sources[safe: $0]?.label } ?? "Default source"
         return "\(resolution) · \(source)"
     }
 
     /// Remembers the picked source per series (`preferredVideoSource`).
     private var preferredSources: [String: String] {
-        get { (UserDefaults.standard.dictionary(forKey: "player.preferredSources") as? [String: String]) ?? [:] }
+        get {
+            (UserDefaults.standard.dictionary(forKey: "player.preferredSources")
+                as? [String: String]) ?? [:]
+        }
         set { UserDefaults.standard.set(newValue, forKey: "player.preferredSources") }
     }
 
@@ -284,8 +298,12 @@ final class PlayerViewModel {
         guard let item = player.currentItem else { return }
         if item.status == .failed {
             if error == nil {
-                let detail = item.errorLog()?.events.last.map { "\($0.errorStatusCode) \($0.errorComment ?? "") \($0.uri ?? "")" } ?? ""
-                FileHandle.standardError.write(Data("playback failed: \(String(describing: item.error)) \(detail)\n".utf8))
+                let detail =
+                    item.errorLog()?.events.last.map {
+                        "\($0.errorStatusCode) \($0.errorComment ?? "") \($0.uri ?? "")"
+                    } ?? ""
+                FileHandle.standardError.write(
+                    Data("playback failed: \(String(describing: item.error)) \(detail)\n".utf8))
             }
             error = "This video couldn’t be played. Try another source or retry."
             playing = false
@@ -295,10 +313,13 @@ final class PlayerViewModel {
         let total = item.duration.seconds
         if total.isFinite, total > 0 { duration = total }
         if duration > 0, skipLookup != chapterID, loadedChapterID == chapterID {
-            let id = chapterID, length = Int(duration * 1000), repository = repository
+            let id = chapterID
+            let length = Int(duration * 1000)
+            let repository = repository
             skipLookup = id
             Task { [weak self] in
-                let markers = (try? await repository.skipMarkers(chapterID: id, lengthMs: length)) ?? []
+                let markers =
+                    (try? await repository.skipMarkers(chapterID: id, lengthMs: length)) ?? []
                 guard let self, self.chapterID == id else { return }
                 self.skipMarkers = markers
             }

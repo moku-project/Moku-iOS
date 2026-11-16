@@ -21,9 +21,12 @@ import XCTest
         theme.tap()
         XCTAssertTrue(app.buttons["Warm"].firstMatch.waitForExistence(timeout: 3))
         // The theme swatches below also carry the name; pick the menu's row.
-        let warm = app.buttons.matching(NSPredicate(format: "label == %@ OR identifier == %@", "Warm", "Warm")).allElementsBoundByIndex
+        let warm = app.buttons.matching(
+            NSPredicate(format: "label == %@ OR identifier == %@", "Warm", "Warm")
+        ).allElementsBoundByIndex
         (warm.last(where: \.isHittable) ?? warm.last!).tap()
-        XCTAssertTrue(theme.shows("Warm") || theme.shows("warm"),
+        XCTAssertTrue(
+            theme.shows("Warm") || theme.shows("warm"),
             "Theme picker should show Warm: \(theme.label) / \(String(describing: theme.value))")
         keepScreenshot("Settings appearance")
         app.goBack()
@@ -51,19 +54,23 @@ import XCTest
     func testEverySectionHasADestinationAndBackButton() {
         let app = launch()
         app.openSettings()
-        let rows: [(String, String)] = [
-            ("more.category.Extensions", "Extensions"), ("more.category.Tracking", "Tracking"),
-            ("more.category.History", "History"),
-        ] + [
-            "General", "Appearance", "Reader", "Player", "Library", "Folders", "Content",
-            "Automation", "Performance", "Keybinds", "Moku Sync", "Storage", "Server", "Auth",
-        ].map { ("settings.category.\($0)", $0) } + [
-            ("settings.category.Tracking", "Tracker Accounts"), ("more.category.About", "About"),
-            ("settings.category.Dev tools", "Dev tools"),
-        ]
+        let rows: [(String, String)] =
+            [
+                ("more.category.Extensions", "Extensions"), ("more.category.Tracking", "Tracking"),
+                ("more.category.History", "History"),
+            ]
+            + [
+                "General", "Appearance", "Reader", "Player", "Library", "Folders", "Content",
+                "Automation", "Performance", "Keybinds", "Moku Sync", "Storage", "Server", "Auth",
+            ].map { ("settings.category.\($0)", $0) } + [
+                ("settings.category.Tracking", "Tracker Accounts"),
+                ("more.category.About", "About"),
+                ("settings.category.Dev tools", "Dev tools"),
+            ]
         for (id, title) in rows {
             app.openSettingsRow(id)
-            XCTAssertTrue(app.navigationBars[title].waitForExistence(timeout: 5), "No page titled \(title)")
+            XCTAssertTrue(
+                app.navigationBars[title].waitForExistence(timeout: 5), "No page titled \(title)")
             keepScreenshot("Settings \(title)")
             app.goBack()
             XCTAssertTrue(app.settingsIndex.waitForExistence(timeout: 3), "Back from \(title)")
@@ -113,11 +120,13 @@ import XCTest
         waitForExpectations(timeout: 20)
         XCTAssertEqual(toggle.value as? String, "1")
         toggle.flip()
-        expectation(for: NSPredicate(format: "value == '0' AND enabled == true"), evaluatedWith: toggle)
+        expectation(
+            for: NSPredicate(format: "value == '0' AND enabled == true"), evaluatedWith: toggle)
         waitForExpectations(timeout: 10)
         app.goBack()
         app.openSettingsRow("settings.category.Automation")
-        expectation(for: NSPredicate(format: "value == '0' AND enabled == true"), evaluatedWith: toggle)
+        expectation(
+            for: NSPredicate(format: "value == '0' AND enabled == true"), evaluatedWith: toggle)
         waitForExpectations(timeout: 10)
         keepScreenshot("Live automation settings")
         app.goBack()
@@ -130,11 +139,16 @@ import XCTest
         let strict = app.buttons["Strict"].firstMatch
         XCTAssertTrue(strict.waitForExistence(timeout: 3))
         strict.tap()
-        expectation(for: NSPredicate(format: "(label CONTAINS 'Strict' OR value CONTAINS 'Strict') AND enabled == true"), evaluatedWith: level)
+        expectation(
+            for: NSPredicate(
+                format: "(label CONTAINS 'Strict' OR value CONTAINS 'Strict') AND enabled == true"),
+            evaluatedWith: level)
         waitForExpectations(timeout: 10)
         app.goBack()
         app.openSettingsRow("settings.category.Content")
-        expectation(for: NSPredicate(format: "label CONTAINS 'Strict' OR value CONTAINS 'Strict'"), evaluatedWith: level)
+        expectation(
+            for: NSPredicate(format: "label CONTAINS 'Strict' OR value CONTAINS 'Strict'"),
+            evaluatedWith: level)
         waitForExpectations(timeout: 15)
         keepScreenshot("Live content settings")
     }

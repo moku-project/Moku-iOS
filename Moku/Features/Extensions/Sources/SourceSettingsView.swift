@@ -15,7 +15,8 @@ struct SourceSettingsView: View {
                 if busy && preferences.isEmpty { ContentSkeleton(style: .settings) }
                 if let error {
                     Section {
-                        Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
+                        Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(
+                            .orange)
                         Button("Retry") { Task { await load() } }
                     }
                 }
@@ -137,16 +138,20 @@ private struct PreferenceEditor: View {
                     Button("Cancel") { dismiss() }.disabled(busy)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    if busy { ProgressView() } else { Button("Save") {
-                        Task {
-                            busy = true
-                            defer { busy = false }
-                            do {
-                                try await save(value)
-                                dismiss()
-                            } catch { self.error = "Couldn’t save this setting. Try again." }
+                    if busy {
+                        ProgressView()
+                    } else {
+                        Button("Save") {
+                            Task {
+                                busy = true
+                                defer { busy = false }
+                                do {
+                                    try await save(value)
+                                    dismiss()
+                                } catch { self.error = "Couldn’t save this setting. Try again." }
+                            }
                         }
-                    } }
+                    }
                 }
             }
             .scrollContentBackground(.hidden)

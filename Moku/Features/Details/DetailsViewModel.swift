@@ -52,20 +52,31 @@ import Observation
     /// Quietly pulls read progress from linked trackers, then rereads it.
     func pullTrackerIfNeeded() async {
         guard let mediaID = details?.id, Int64(mediaID) != nil else { return }
-        if let last = Self.trackerPulledAt[mediaID], Date.now.timeIntervalSince(last) < 600 { return }
+        if let last = Self.trackerPulledAt[mediaID], Date.now.timeIntervalSince(last) < 600 {
+            return
+        }
         Self.trackerPulledAt[mediaID] = .now
         struct Links: Decodable, Sendable {
-            struct Media: Decodable, Sendable { struct Link: Decodable, Sendable { let id: String }; let trackLinks: [Link] }
+            struct Media: Decodable, Sendable {
+                struct Link: Decodable, Sendable { let id: String }
+                let trackLinks: [Link]
+            }
             let media: Media?
         }
-        guard let links: Links = try? await BackendAPI.shared.graphql(
-            "{ media(id: \(BackendAPI.literal(mediaID))) { trackLinks { id } } }", requiresSourceRuntime: false),
+        guard
+            let links: Links = try? await BackendAPI.shared.graphql(
+                "{ media(id: \(BackendAPI.literal(mediaID))) { trackLinks { id } } }",
+                requiresSourceRuntime: false),
             !(links.media?.trackLinks.isEmpty ?? true)
         else { return }
-        struct Pulled: Decodable, Sendable { struct Link: Decodable, Sendable { let id: String }; let pullTracker: [Link] }
-        guard (try? await BackendAPI.shared.graphql(
-            "mutation { pullTracker(mediaId: \(BackendAPI.literal(mediaID))) { id } }",
-            requiresSourceRuntime: false) as Pulled) != nil
+        struct Pulled: Decodable, Sendable {
+            struct Link: Decodable, Sendable { let id: String }
+            let pullTracker: [Link]
+        }
+        guard
+            (try? await BackendAPI.shared.graphql(
+                "mutation { pullTracker(mediaId: \(BackendAPI.literal(mediaID))) { id } }",
+                requiresSourceRuntime: false) as Pulled) != nil
         else { return }
         await refreshReadProgress()
     }
@@ -74,19 +85,29 @@ import Observation
     func refreshReadProgress() async {
         guard let mediaID = details?.id else { return }
         struct Response: Decodable, Sendable {
-            struct Item: Decodable, Sendable { let id: String; let completed: Bool; let readingProgress: Chapter.Progress? }
+            struct Item: Decodable, Sendable {
+                let id: String
+                let completed: Bool
+                let readingProgress: Chapter.Progress?
+            }
             struct Media: Decodable, Sendable { let chapters: [Item] }
             let media: Media?
         }
-        guard let response: Response = try? await BackendAPI.shared.graphql(
-            "{ media(id: \(BackendAPI.literal(mediaID))) { chapters { id completed readingProgress { progress positionSeconds } } } }",
-            requiresSourceRuntime: false),
+        guard
+            let response: Response = try? await BackendAPI.shared.graphql(
+                "{ media(id: \(BackendAPI.literal(mediaID))) { chapters { id completed readingProgress { progress positionSeconds } } } }",
+                requiresSourceRuntime: false),
             details?.id == mediaID, let items = response.media?.chapters
         else { return }
         let states = Dictionary(items.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
-        guard details?.chapters.contains(where: { chapter in
-            states[chapter.id].map { $0.completed != chapter.completed || $0.readingProgress != chapter.readingProgress } ?? false
-        }) == true else { return }
+        guard
+            details?.chapters.contains(where: { chapter in
+                states[chapter.id].map {
+                    $0.completed != chapter.completed
+                        || $0.readingProgress != chapter.readingProgress
+                } ?? false
+            }) == true
+        else { return }
         updateChapters { chapter in
             if let state = states[chapter.id] {
                 chapter.completed = state.completed
@@ -98,7 +119,8 @@ import Observation
     /// "Start / Continue · Ch X / Read again": the chapter after the last completed one in reading order.
     func continueTarget(preferences: Data) -> (chapter: Chapter, label: String)? {
         guard let details else { return nil }
-        let ordered = ChapterPresentation.readingOrder(details.chapters, preferences: preferences, mediaID: entry.id)
+        let ordered = ChapterPresentation.readingOrder(
+            details.chapters, preferences: preferences, mediaID: entry.id)
         guard let first = ordered.first else { return nil }
         let verb = entry.media == .anime ? "watching" : "reading"
         guard let last = ordered.lastIndex(where: \.completed) else {
@@ -108,7 +130,9 @@ import Observation
             return (first, entry.media == .anime ? "Watch again" : "Read again")
         }
         let next = ordered[last + 1]
-        let number = next.number.map { "\(entry.media == .anime ? "Ep" : "Ch") \($0.formatted())" } ?? next.label
+        let number =
+            next.number.map { "\(entry.media == .anime ? "Ep" : "Ch") \($0.formatted())" }
+            ?? next.label
         return (next, "Continue · \(number)")
     }
 
@@ -142,14 +166,19 @@ import Observation
         guard let highest = chapters.filter(\.completed).compactMap(\.number).max() else { return }
         struct Response: Decodable, Sendable {
             struct Media: Decodable, Sendable {
-                struct Link: Decodable, Sendable { let id: String; let lastChapterRead: Double }
+                struct Link: Decodable, Sendable {
+                    let id: String
+                    let lastChapterRead: Double
+                }
                 let trackLinks: [Link]
             }
             let media: Media?
         }
-        guard let response: Response = try? await BackendAPI.shared.graphql(
-            "{ media(id: \(BackendAPI.literal(mediaID))) { trackLinks { id lastChapterRead } } }",
-            requiresSourceRuntime: false) else { return }
+        guard
+            let response: Response = try? await BackendAPI.shared.graphql(
+                "{ media(id: \(BackendAPI.literal(mediaID))) { trackLinks { id lastChapterRead } } }",
+                requiresSourceRuntime: false)
+        else { return }
         for link in response.media?.trackLinks ?? [] where highest > link.lastChapterRead {
             let _: IgnoredGraphQLResult? = try? await BackendAPI.shared.graphql(
                 "mutation { updateTrack(linkId: \(BackendAPI.literal(link.id)), lastChapterRead: \(highest)) { id } }",
@@ -175,12 +204,18 @@ import Observation
             // Show the queue on the rows right away; polling takes it from here.
             let jobs = Dictionary(
                 queued.enqueueDownload.map {
-                    ($0.chapterId, Chapter.DownloadJob(status: $0.status ?? .queued, progress: $0.progress ?? 0))
+                    (
+                        $0.chapterId,
+                        Chapter.DownloadJob(
+                            status: $0.status ?? .queued, progress: $0.progress ?? 0)
+                    )
                 }, uniquingKeysWith: { _, last in last })
             updateChapters { chapter in
                 if let job = jobs[chapter.id] { chapter.download = job }
             }
-            Toaster.shared.show(ids.count == 1 ? "Download queued" : "\(ids.count) downloads queued", kind: .download)
+            Toaster.shared.show(
+                ids.count == 1 ? "Download queued" : "\(ids.count) downloads queued",
+                kind: .download)
         } catch { chapterError = "Couldn’t queue downloads. Try again." }
     }
 
@@ -199,9 +234,10 @@ import Observation
             struct Media: Decodable, Sendable { let chapters: [Item] }
             let media: Media?
         }
-        guard let response: Response = try? await BackendAPI.shared.graphql(
-            "{ media(id: \(BackendAPI.literal(mediaID))) { chapters { id downloaded download { status progress } } } }",
-            requiresSourceRuntime: false),
+        guard
+            let response: Response = try? await BackendAPI.shared.graphql(
+                "{ media(id: \(BackendAPI.literal(mediaID))) { chapters { id downloaded download { status progress } } } }",
+                requiresSourceRuntime: false),
             !Task.isCancelled, details?.id == mediaID, let items = response.media?.chapters
         else { return }
         let states = Dictionary(items.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
@@ -209,7 +245,9 @@ import Observation
         var updated = details?.chapters ?? []
         for index in updated.indices {
             guard let state = states[updated[index].id] else { continue }
-            if updated[index].downloaded != state.downloaded || updated[index].download != state.download {
+            if updated[index].downloaded != state.downloaded
+                || updated[index].download != state.download
+            {
                 updated[index].downloaded = state.downloaded
                 updated[index].download = state.download
                 changed = true
@@ -224,7 +262,10 @@ import Observation
         let previous = details?.chapters.first { $0.id == id }?.download
         updateChapters { if $0.id == id { $0.download = .init(status: .queued) } }
         do {
-            struct Retry: Decodable, Sendable { struct Value: Decodable, Sendable { let id: String }; let retryDownload: Value }
+            struct Retry: Decodable, Sendable {
+                struct Value: Decodable, Sendable { let id: String }
+                let retryDownload: Value
+            }
             let _: Retry = try await BackendAPI.shared.graphql(
                 "mutation { retryDownload(mediaId: \(BackendAPI.literal(mediaID)), chapterId: \(BackendAPI.literal(id))) { id } }",
                 requiresSourceRuntime: false)
@@ -257,7 +298,10 @@ import Observation
         updateChapters { if ids.contains($0.id) { $0.bookmarked = bookmarked } }
         do {
             struct Response: Decodable, Sendable {
-                struct Item: Decodable, Sendable { let id: String; let bookmarked: Bool }
+                struct Item: Decodable, Sendable {
+                    let id: String
+                    let bookmarked: Bool
+                }
                 let setChaptersBookmarked: [Item]
             }
             let _: Response = try await BackendAPI.shared.graphql(
@@ -266,10 +310,13 @@ import Observation
         } catch {
             if var restored = details, restored.id == mediaID {
                 // Restore only the bookmark flags, keeping any newer download or read state.
-                let flags = Dictionary(previous.map { ($0.id, $0.bookmarked) }, uniquingKeysWith: { _, last in last })
+                let flags = Dictionary(
+                    previous.map { ($0.id, $0.bookmarked) }, uniquingKeysWith: { _, last in last })
                 restored.chapters = restored.chapters.map { chapter in
                     var chapter = chapter
-                    if ids.contains(chapter.id), let flag = flags[chapter.id] { chapter.bookmarked = flag }
+                    if ids.contains(chapter.id), let flag = flags[chapter.id] {
+                        chapter.bookmarked = flag
+                    }
                     return chapter
                 }
                 details = restored
@@ -304,7 +351,8 @@ import Observation
                 }
                 details = updated
             }
-            Toaster.shared.show(ids.count == 1 ? "Download deleted" : "\(ids.count) downloads deleted")
+            Toaster.shared.show(
+                ids.count == 1 ? "Download deleted" : "\(ids.count) downloads deleted")
         } catch { chapterError = "Couldn’t delete downloads. Try again." }
     }
 
@@ -319,7 +367,9 @@ import Observation
         // Search and library titles carry the media ID, so chapters load alongside the title info.
         let early: Task<[Chapter], Error>? =
             details == nil || details?.id == entry.id
-            ? Task { [repository, entry] in try await repository.chapters(mediaID: entry.id, refresh: refresh) }
+            ? Task { [repository, entry] in
+                try await repository.chapters(mediaID: entry.id, refresh: refresh)
+            }
             : nil
         do {
             var metadata = try await repository.metadata(for: entry, refresh: refresh)
@@ -341,7 +391,9 @@ import Observation
             if let early, id == entry.id {
                 chapters = try await withTaskCancellationHandler {
                     try await early.value
-                } onCancel: { early.cancel() }
+                } onCancel: {
+                    early.cancel()
+                }
             } else {
                 early?.cancel()
                 chapters = try await repository.chapters(mediaID: id, refresh: refresh)
@@ -352,7 +404,9 @@ import Observation
         } catch {
             guard !Task.isCancelled, generation == current else { return }
             sourceChallenge = BrowserVerification.isChallenge(error)
-            Self.log.error("chapters for \(self.entry.id, privacy: .public) failed: \(String(describing: error), privacy: .public)")
+            Self.log.error(
+                "chapters for \(self.entry.id, privacy: .public) failed: \(String(describing: error), privacy: .public)"
+            )
             chapterError =
                 "Couldn’t load chapters from \(entry.sourceName). This is a request failure, not an empty chapter list. Check your connection or source settings and retry."
         }

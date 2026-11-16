@@ -9,10 +9,12 @@ struct HomeItem: Identifiable {
 
     /// "Ch.12 · Page 37", or the unread count when the chapter isn't known.
     var detail: String {
-        let title = entry.chapters.first { $0.id == session.endChapterID }?.title ?? session.endChapterTitle
+        let title =
+            entry.chapters.first { $0.id == session.endChapterID }?.title ?? session.endChapterTitle
         if let title {
             let chapter = HomeChapter(id: "", title: title).displayTitle
-            return isAnime || session.media == .novels ? chapter : "\(chapter) · Page \(session.endPage)"
+            return isAnime || session.media == .novels
+                ? chapter : "\(chapter) · Page \(session.endPage)"
         }
         return entry.unreadCount > 0 ? "\(entry.unreadCount) unread" : "In progress"
     }
@@ -59,7 +61,10 @@ struct HomeContinueCard: View {
                 HomeCover(url: item.entry.coverURL, contentMode: .fill)
                     .blur(radius: 28).opacity(0.4)
                 LinearGradient(
-                    colors: [NavigationStyle.background.opacity(0.3), NavigationStyle.background.opacity(0.85)],
+                    colors: [
+                        NavigationStyle.background.opacity(0.3),
+                        NavigationStyle.background.opacity(0.85),
+                    ],
                     startPoint: .leading, endPoint: .trailing)
             }
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -83,7 +88,9 @@ struct HomeWelcomeCard: View {
                 Image(systemName: "book.pages")
                     .font(.title3).foregroundStyle(NavigationStyle.accent)
                     .frame(width: 44, height: 44)
-                    .background(NavigationStyle.accent.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
+                    .background(
+                        NavigationStyle.accent.opacity(0.15), in: RoundedRectangle(cornerRadius: 12)
+                    )
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Start Your Library").font(.headline)
@@ -93,11 +100,13 @@ struct HomeWelcomeCard: View {
             }
             HStack(spacing: 10) {
                 Button(action: browse) {
-                    Label("Browse", systemImage: "magnifyingglass").frame(maxWidth: .infinity, minHeight: 30)
+                    Label("Browse", systemImage: "magnifyingglass").frame(
+                        maxWidth: .infinity, minHeight: 30)
                 }
                 .buttonStyle(.borderedProminent)
                 NavigationLink(value: Route.more(.extensions)) {
-                    Label("Extensions", systemImage: "puzzlepiece.extension").frame(maxWidth: .infinity, minHeight: 30)
+                    Label("Extensions", systemImage: "puzzlepiece.extension").frame(
+                        maxWidth: .infinity, minHeight: 30)
                 }
                 .buttonStyle(.bordered)
             }

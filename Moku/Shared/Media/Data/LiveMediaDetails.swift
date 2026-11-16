@@ -19,7 +19,9 @@ extension LiveMediaRepository {
     }
 
     func chapterCount(_ entry: MediaEntry) async throws -> Int? {
-        guard let extensionID = entry.extensionID, let externalID = entry.externalID else { return nil }
+        guard let extensionID = entry.extensionID, let externalID = entry.externalID else {
+            return nil
+        }
         struct Response: Decodable, Sendable {
             struct Media: Decodable, Sendable {
                 let id: String
@@ -60,7 +62,9 @@ extension LiveMediaRepository: DetailsRepository {
     func chapters(mediaID: String, refresh: Bool) async throws -> [Chapter] {
         try Task.checkCancellation()
         if let existing = chapterRequests[mediaID] { return try await existing.value }
-        if !refresh, let synced = chaptersSyncedAt[mediaID], Date.now.timeIntervalSince(synced) < 600 {
+        if !refresh, let synced = chaptersSyncedAt[mediaID],
+            Date.now.timeIntervalSince(synced) < 600
+        {
             // Reopening reads progress from SQLite without having the extension rescrape the chapters.
             struct Stored: Decodable, Sendable {
                 struct Media: Decodable, Sendable { let chapters: [Chapter] }
@@ -89,7 +93,9 @@ extension LiveMediaRepository: DetailsRepository {
         chaptersSyncedAt[mediaID] = .now
         // Keep this freshness index bounded even across long browsing sessions.
         if chaptersSyncedAt.count > 256 {
-            chaptersSyncedAt = chaptersSyncedAt.filter { Date.now.timeIntervalSince($0.value) < 600 }
+            chaptersSyncedAt = chaptersSyncedAt.filter {
+                Date.now.timeIntervalSince($0.value) < 600
+            }
         }
         return chapters
     }

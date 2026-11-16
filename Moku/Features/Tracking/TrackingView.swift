@@ -29,7 +29,9 @@ struct TrackingView: View {
     @State private var searching = false
     private enum ImportStep { case setup, review }
 
-    private var connected: [TrackingService] { model.services.filter { $0.isLoggedIn && !$0.comingSoon } }
+    private var connected: [TrackingService] {
+        model.services.filter { $0.isLoggedIn && !$0.comingSoon }
+    }
 
     var body: some View {
         List {
@@ -48,8 +50,10 @@ struct TrackingView: View {
                     Button("Import List…", systemImage: "square.and.arrow.down") { startImport() }
                         .disabled(connected.isEmpty)
                         .accessibilityIdentifier("tracking.action.Import list")
-                    Button("Refresh", systemImage: "arrow.clockwise") { Task { await model.load() } }
-                        .disabled(model.loading)
+                    Button("Refresh", systemImage: "arrow.clockwise") {
+                        Task { await model.load() }
+                    }
+                    .disabled(model.loading)
                 } label: {
                     Label("Tracking Actions", systemImage: "ellipsis.circle")
                 }
@@ -88,7 +92,8 @@ struct TrackingView: View {
         .modifier(NoticeAlert(model: model, active: account == nil && signIn == nil && !importing))
         .confirmationDialog(
             "Disconnect \(disconnecting?.name ?? "service")?",
-            isPresented: Binding(get: { disconnecting != nil }, set: { if !$0 { disconnecting = nil } }),
+            isPresented: Binding(
+                get: { disconnecting != nil }, set: { if !$0 { disconnecting = nil } }),
             titleVisibility: .visible, presenting: disconnecting
         ) { service in
             Button("Disconnect", role: .destructive) {
@@ -99,15 +104,19 @@ struct TrackingView: View {
         } message: { _ in
             Text("Your saved titles will be kept.")
         }
-        .confirmationDialog("Import From", isPresented: $choosingImport, titleVisibility: .visible) {
+        .confirmationDialog("Import From", isPresented: $choosingImport, titleVisibility: .visible)
+        {
             ForEach(connected) { tracker in
                 Button(tracker.name) { chooseImport(tracker) }
             }
         }
-        .sheet(item: $account, onDismiss: {
-            waitingFor = nil
-            token = ""
-        }) { service in
+        .sheet(
+            item: $account,
+            onDismiss: {
+                waitingFor = nil
+                token = ""
+            }
+        ) { service in
             accountSheet(service)
         }
         .sheet(item: $signIn) { service in
@@ -147,7 +156,9 @@ struct TrackingView: View {
             Text("Services")
         } footer: {
             if !model.services.isEmpty {
-                Text("\(connected.count) connected. Sign in to import your lists and keep progress in sync.")
+                Text(
+                    "\(connected.count) connected. Sign in to import your lists and keep progress in sync."
+                )
             }
         }
     }
@@ -157,14 +168,16 @@ struct TrackingView: View {
             Section {
                 if model.hasUnfinished {
                     Button {
-                        if let tracker = model.services.first(where: { $0.key == model.trackerKey }) {
+                        if let tracker = model.services.first(where: { $0.key == model.trackerKey })
+                        {
                             chooseImport(tracker)
                         } else {
                             importStep = .review
                             importing = true
                         }
                     } label: {
-                        LabeledContent("Continue Saved Import", value: counted(model.items.count, "title"))
+                        LabeledContent(
+                            "Continue Saved Import", value: counted(model.items.count, "title"))
                     }
                 }
                 Button("Import List…") { startImport() }
@@ -186,13 +199,18 @@ struct TrackingView: View {
                 TrackerBrandIcon(service: tracker).frame(width: 40, height: 40)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(tracker.name).foregroundStyle(.primary)
-                    Text(tracker.isLoggedIn ? (tracker.username.map { "Signed in as \($0)" } ?? "Connected") : tracker.status)
-                        .font(.subheadline).foregroundStyle(.secondary)
+                    Text(
+                        tracker.isLoggedIn
+                            ? (tracker.username.map { "Signed in as \($0)" } ?? "Connected")
+                            : tracker.status
+                    )
+                    .font(.subheadline).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
                 if !tracker.comingSoon {
                     Text(tracker.isLoggedIn ? "Manage" : "Connect")
-                        .foregroundStyle(tracker.isLoggedIn ? Color.secondary : NavigationStyle.accent)
+                        .foregroundStyle(
+                            tracker.isLoggedIn ? Color.secondary : NavigationStyle.accent)
                 }
             }
             .contentShape(Rectangle())
@@ -207,11 +225,17 @@ struct TrackingView: View {
         .contextMenu {
             if !tracker.comingSoon {
                 if tracker.isLoggedIn {
-                    Button("Import List…", systemImage: "square.and.arrow.down") { chooseImport(tracker) }
+                    Button("Import List…", systemImage: "square.and.arrow.down") {
+                        chooseImport(tracker)
+                    }
                     Button("Account", systemImage: "person.crop.circle") { account = tracker }
-                    Button("Disconnect", systemImage: "xmark.circle", role: .destructive) { disconnecting = tracker }
+                    Button("Disconnect", systemImage: "xmark.circle", role: .destructive) {
+                        disconnecting = tracker
+                    }
                 } else {
-                    Button("Sign In", systemImage: "person.crop.circle.badge.plus") { connect(tracker) }
+                    Button("Sign In", systemImage: "person.crop.circle.badge.plus") {
+                        connect(tracker)
+                    }
                     Button("Use a Token", systemImage: "key") {
                         token = ""
                         account = tracker
@@ -244,7 +268,8 @@ struct TrackingView: View {
                     _ = await model.connect(tracker, token: callback.absoluteString)
                 } catch ASWebAuthenticationSessionError.canceledLogin {
                 } catch {
-                    model.notice = "Couldn’t sign in to \(tracker.name). Try again, or paste a token."
+                    model.notice =
+                        "Couldn’t sign in to \(tracker.name). Try again, or paste a token."
                 }
             }
         } else {
@@ -285,7 +310,9 @@ struct TrackingView: View {
                                 connect(current)
                             }
                         } footer: {
-                            Text("Opens \(current.name)’s sign-in page here and connects when you approve access.")
+                            Text(
+                                "Opens \(current.name)’s sign-in page here and connects when you approve access."
+                            )
                         }
                         Section {
                             Button(waitingFor == current.id ? "Stop Waiting" : "Open in Safari") {
@@ -303,7 +330,9 @@ struct TrackingView: View {
                         } header: {
                             Text("Sign in elsewhere")
                         } footer: {
-                            Text("Approve access in your browser, then paste the token or the redirected URL below.")
+                            Text(
+                                "Approve access in your browser, then paste the token or the redirected URL below."
+                            )
                         }
                     }
                     Section {
@@ -332,7 +361,9 @@ struct TrackingView: View {
                         Button("Connect") {
                             Task { if await model.connect(service, token: token) { account = nil } }
                         }
-                        .disabled(model.working || token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .disabled(
+                            model.working
+                                || token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
                 }
             }
@@ -389,15 +420,20 @@ struct TrackingView: View {
             }
             .scrollContentBackground(.hidden)
             .background(NavigationStyle.background.ignoresSafeArea())
-            .navigationTitle(importStep == .setup ? "Import from \(importService)" : "Review Import")
+            .navigationTitle(
+                importStep == .setup ? "Import from \(importService)" : "Review Import"
+            )
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { importToolbar }
             .navigationDestination(
-                isPresented: Binding(get: { matchingID != nil }, set: { if !$0 { matchingID = nil } })
+                isPresented: Binding(
+                    get: { matchingID != nil }, set: { if !$0 { matchingID = nil } })
             ) {
                 matchPage
             }
-            .confirmationDialog("Discard import?", isPresented: $confirmDiscard, titleVisibility: .visible) {
+            .confirmationDialog(
+                "Discard import?", isPresented: $confirmDiscard, titleVisibility: .visible
+            ) {
                 Button("Discard", role: .destructive) {
                     model.discard()
                     importStep = .setup
@@ -460,7 +496,8 @@ struct TrackingView: View {
                 } label: {
                     HStack(spacing: 12) {
                         CoverImage(url: entry.coverURL, symbol: "BookOpen")
-                            .frame(width: 40, height: 56).clipShape(RoundedRectangle(cornerRadius: 5))
+                            .frame(width: 40, height: 56).clipShape(
+                                RoundedRectangle(cornerRadius: 5))
                         Text(entry.title).foregroundStyle(.primary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -473,7 +510,8 @@ struct TrackingView: View {
         .navigationBarTitleDisplayMode(.inline)
         .searchable(
             text: $matchQuery, placement: .navigationBarDrawer(displayMode: .always),
-            prompt: "Search source")
+            prompt: "Search source"
+        )
         .onSubmit(of: .search) { Task { await searchMatches() } }
     }
 

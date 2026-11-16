@@ -53,7 +53,9 @@ struct RemainingParityTests {
             Dialogue: 0,0:00:01.00,0:00:02.00,Note,,0,0,0,,Aside
             """)
         #expect(cues.count == 3)
-        let line = cues[0], sign = cues[1], aside = cues[2]
+        let line = cues[0]
+        let sign = cues[1]
+        let aside = cues[2]
         #expect(line.fontName == "Avenir Next" && line.size == 0.05 && line.horizontal == .center)
         #expect(line.outline == 0x000000 && line.outlineWidth == 3.0 / 1080 && line.anchor == nil)
         #expect(sign.position == .top && sign.horizontal == .right)
@@ -75,7 +77,8 @@ struct RemainingParityTests {
             Dialogue: 0,0:00:10.00,0:00:14.00,Default,,0,0,0,,{\\fad(1000,500)}Fades
             Dialogue: 0,0:00:10.00,0:00:14.00,Default,,0,0,0,,{\\move(0,0,1000,500,1000,3000)}Moves
             """)
-        let fade = cues[0], move = cues[1]
+        let fade = cues[0]
+        let move = cues[1]
         #expect(fade.isAnimated && move.isAnimated)
         #expect(fade.opacity(at: 10) == 0)
         #expect(fade.opacity(at: 10.5) == 0.5)
@@ -103,7 +106,9 @@ struct RemainingParityTests {
             Dialogue: 0,0:00:10.00,0:00:14.00,Song,,0,0,0,,{\\alpha&H80&}Half
             """)
         #expect(cues.count == 3)
-        let song = cues[0], grow = cues[1], half = cues[2]
+        let song = cues[0]
+        let grow = cues[1]
+        let half = cues[2]
         #expect(song.text == "Karaoke")
         #expect(song.karaoke.map(\.text) == ["Ka", "ra", "o", "ke"])
         #expect(song.karaoke.map(\.start) == [0, 0.5, 1.5, 3.0])
@@ -139,22 +144,28 @@ struct RemainingParityTests {
             Dialogue: 0,0:00:01.00,0:00:02.00,Sign,,0,0,0,,{\\p1}nothing here
             """)
         #expect(cues.count == 3)
-        let text = cues[0], box = cues[1], curve = cues[2]
+        let text = cues[0]
+        let box = cues[1]
+        let curve = cues[2]
         #expect(text.text == "Turned" && text.shape.isEmpty)
         #expect(text.rotation == -15 && text.scaleX == 2 && text.scaleY == 0.8)
         #expect(text.clip == CGRect(x: 0, y: 0, width: 0.5, height: 0.5) && !text.clipInverted)
         #expect(box.text.isEmpty && box.clipInverted)
         #expect(box.clip == CGRect(x: 0.01, y: 0.04, width: 0.02, height: 0.04))
         #expect(box.rotation == 10)
-        #expect(box.shape == [
-            .move(CGPoint(x: 0, y: 0)), .line(CGPoint(x: 0.1, y: 0)), .line(CGPoint(x: 0.1, y: 0.1)),
-            .line(CGPoint(x: 0, y: 0.1)), .close,
-        ])
+        #expect(
+            box.shape == [
+                .move(CGPoint(x: 0, y: 0)), .line(CGPoint(x: 0.1, y: 0)),
+                .line(CGPoint(x: 0.1, y: 0.1)),
+                .line(CGPoint(x: 0, y: 0.1)), .close,
+            ])
         // \\p2 halves the coordinates.
-        #expect(curve.shape == [
-            .move(CGPoint(x: 0, y: 0)),
-            .curve(CGPoint(x: 0.02, y: 0), CGPoint(x: 0.04, y: 0.04), CGPoint(x: 0.04, y: 0.08)),
-        ])
+        #expect(
+            curve.shape == [
+                .move(CGPoint(x: 0, y: 0)),
+                .curve(
+                    CGPoint(x: 0.02, y: 0), CGPoint(x: 0.04, y: 0.04), CGPoint(x: 0.04, y: 0.08)),
+            ])
     }
 
     @Test func parsesASSShadowBlurTiltAndDrawingClips() {
@@ -175,15 +186,25 @@ struct RemainingParityTests {
             Dialogue: 0,0:00:01.00,0:00:02.00,Default,,0,0,0,,{\\be1\\clip(2,m 0 0 l 200 0 200 200)}Soft
             """)
         #expect(cues.count == 3)
-        let plain = cues[0], tilted = cues[1], soft = cues[2]
+        let plain = cues[0]
+        let tilted = cues[1]
+        let soft = cues[2]
         #expect(plain.shadowDepth == 2.0 / 500 && plain.shadowColor == 0x0000FF && plain.blur == 0)
         #expect(tilted.shadowDepth == 5.0 / 500 && tilted.shadowColor == 0xFF0000)
         #expect(tilted.blur == 2.0 / 500 && tilted.rotationX == 20 && tilted.rotationY == -10)
         #expect(tilted.clipInverted && tilted.clip == nil)
-        #expect(tilted.clipShape == [.move(CGPoint(x: 0, y: 0)), .line(CGPoint(x: 0.5, y: 0)), .line(CGPoint(x: 0.5, y: 0.5))])
+        #expect(
+            tilted.clipShape == [
+                .move(CGPoint(x: 0, y: 0)), .line(CGPoint(x: 0.5, y: 0)),
+                .line(CGPoint(x: 0.5, y: 0.5)),
+            ])
         // \clip(2, …) halves the drawing's coordinates; \be counts as blur.
         #expect(soft.blur == 1.0 / 500 && !soft.clipInverted)
-        #expect(soft.clipShape == [.move(CGPoint(x: 0, y: 0)), .line(CGPoint(x: 0.1, y: 0)), .line(CGPoint(x: 0.1, y: 0.2))])
+        #expect(
+            soft.clipShape == [
+                .move(CGPoint(x: 0, y: 0)), .line(CGPoint(x: 0.1, y: 0)),
+                .line(CGPoint(x: 0.1, y: 0.2)),
+            ])
     }
 
     @Test func decodesFontsEmbeddedInASS() {
@@ -193,8 +214,12 @@ struct RemainingParityTests {
         // Lines are wrapped at 80 characters in real files.
         var wrapped = ""
         var rest = Substring(encoded)
-        while !rest.isEmpty { wrapped += rest.prefix(80) + "\n"; rest = rest.dropFirst(80) }
-        let script = "[Script Info]\nTitle: x\n\n[Fonts]\nfontname: Example.ttf\n\(wrapped)\n[Events]\n"
+        while !rest.isEmpty {
+            wrapped += rest.prefix(80) + "\n"
+            rest = rest.dropFirst(80)
+        }
+        let script =
+            "[Script Info]\nTitle: x\n\n[Fonts]\nfontname: Example.ttf\n\(wrapped)\n[Events]\n"
         let fonts = SubtitleFonts.embedded(in: script)
         #expect(fonts.count == 1)
         #expect(fonts.first?.name == "Example.ttf")
@@ -209,7 +234,9 @@ struct RemainingParityTests {
         var index = 0
         while index < bytes.count {
             let chunk = Array(bytes[index..<min(index + 3, bytes.count)])
-            let a = Int(chunk[0]), b = chunk.count > 1 ? Int(chunk[1]) : 0, c = chunk.count > 2 ? Int(chunk[2]) : 0
+            let a = Int(chunk[0])
+            let b = chunk.count > 1 ? Int(chunk[1]) : 0
+            let c = chunk.count > 2 ? Int(chunk[2]) : 0
             let values = [a >> 2, (a & 3) << 4 | b >> 4, (b & 0xF) << 2 | c >> 6, c & 0x3F]
             out += String(values.prefix(chunk.count + 1).map(char))
             index += 3
@@ -235,7 +262,9 @@ struct RemainingParityTests {
 
     @MainActor @Test func storageEstimateScalesWithMedia() {
         #expect(StorageGuard.estimate(count: 2, media: .manga) == 60_000_000)
-        #expect(StorageGuard.estimate(count: 1, media: .anime) > StorageGuard.estimate(count: 1, media: .manga))
+        #expect(
+            StorageGuard.estimate(count: 1, media: .anime)
+                > StorageGuard.estimate(count: 1, media: .manga))
     }
 
     @Test func novelBookmarksRoundTrip() {
@@ -254,9 +283,11 @@ struct RemainingParityTests {
 
     @Test func rendersPDFPagesOnceDownloaded() async throws {
         // Two pages: portrait, then landscape.
-        let pdf = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 600, height: 800)).pdfData { context in
+        let pdf = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 600, height: 800)).pdfData
+        { context in
             context.beginPage()
-            context.beginPage(withBounds: CGRect(x: 0, y: 0, width: 800, height: 400), pageInfo: [:])
+            context.beginPage(
+                withBounds: CGRect(x: 0, y: 0, width: 800, height: 400), pageInfo: [:])
         }
         let downloads = Counter()
         let source = PDFPageSource()
@@ -272,7 +303,9 @@ struct RemainingParityTests {
         let landscape = try #require(UIImage(data: second)).size
         #expect(portrait.height > portrait.width)
         #expect(landscape.width > landscape.height)
-        await #expect(throws: (any Error).self) { try await source.image(path: "/content/7/9/pdfpage/3", load: load) }
+        await #expect(throws: (any Error).self) {
+            try await source.image(path: "/content/7/9/pdfpage/3", load: load)
+        }
     }
 }
 

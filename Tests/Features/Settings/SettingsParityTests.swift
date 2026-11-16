@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import Moku
 
 @MainActor struct SettingsParityTests {
@@ -9,16 +10,20 @@ import Testing
         #expect(!ReaderShortcut.valid("ctrl+ctrl+x"))
         #expect(!ReaderShortcut.valid("ctrl+"))
         #expect(!ReaderShortcut.valid("hyper+x"))
-        #expect(ReaderShortcut.normalized("SHIFT+ctrl+x") == ReaderShortcut.normalized("ctrl+shift+x"))
+        #expect(
+            ReaderShortcut.normalized("SHIFT+ctrl+x") == ReaderShortcut.normalized("ctrl+shift+x"))
     }
 
     @Test func libraryLinksMatchingTitlesWithoutMixingMedia() async throws {
         let directory = URL.temporaryDirectory.appending(path: UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = LibraryStore(directory: directory)
-        let first = MediaEntry(id: "1", title: "Café: Story", media: .manga, sourceName: "A", coverURL: nil)
-        let second = MediaEntry(id: "2", title: "Cafe Story", media: .manga, sourceName: "B", coverURL: nil)
-        let anime = MediaEntry(id: "3", title: "Cafe Story", media: .anime, sourceName: "C", coverURL: nil)
+        let first = MediaEntry(
+            id: "1", title: "Café: Story", media: .manga, sourceName: "A", coverURL: nil)
+        let second = MediaEntry(
+            id: "2", title: "Cafe Story", media: .manga, sourceName: "B", coverURL: nil)
+        let anime = MediaEntry(
+            id: "3", title: "Cafe Story", media: .anime, sourceName: "C", coverURL: nil)
         for entry in [first, second, anime] { #expect(await store.setSaved(true, entry: entry)) }
         await store.autoLink(first)
         #expect(store.linkedEntries(for: first.id) == [second])
@@ -37,7 +42,9 @@ import Testing
         folder.hidden = true
         folder.includeInUpdate = false
         folder.includeInDownload = false
-        #expect(try JSONDecoder().decode(LibraryFolder.self, from: JSONEncoder().encode(folder)) == folder)
+        #expect(
+            try JSONDecoder().decode(LibraryFolder.self, from: JSONEncoder().encode(folder))
+                == folder)
     }
 
     @Test func settingsExportExcludesLockCredentialsAndRejectsForeignKeys() throws {
@@ -52,7 +59,9 @@ import Testing
         #expect(values["player.autoSubtitles"] as? Bool == true)
         #expect(values["appLock.biometrics"] == nil)
         #expect(values["backend.token"] == nil)
-        let raw = try JSONSerialization.data(withJSONObject: ["version": 1, "values": ["backend.token": Data().base64EncodedString()]])
+        let raw = try JSONSerialization.data(withJSONObject: [
+            "version": 1, "values": ["backend.token": Data().base64EncodedString()],
+        ])
         let foreign = try JSONDecoder().decode(SettingsArchive.self, from: raw)
         #expect(throws: (any Error).self) { try foreign.validatedValues() }
     }

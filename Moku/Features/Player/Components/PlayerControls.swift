@@ -39,10 +39,14 @@ struct PlayerControls: View {
             HStack(spacing: 2) {
                 AirPlayButton().frame(width: 40, height: 40)
                 if let pictureInPicture {
-                    plainIcon("pip.enter", label: "Picture in Picture", id: "player.pip", action: pictureInPicture)
+                    plainIcon(
+                        "pip.enter", label: "Picture in Picture", id: "player.pip",
+                        action: pictureInPicture)
                 }
-                plainIcon(model.muted ? "speaker.slash.fill" : "speaker.wave.2.fill",
-                          label: model.muted ? "Unmute" : "Mute", id: "player.mute") { model.toggleMute() }
+                plainIcon(
+                    model.muted ? "speaker.slash.fill" : "speaker.wave.2.fill",
+                    label: model.muted ? "Unmute" : "Mute", id: "player.mute"
+                ) { model.toggleMute() }
                 subtitleMenu
                 optionsMenu
             }
@@ -58,8 +62,13 @@ struct PlayerControls: View {
                 Button {
                     changeEpisode(index)
                 } label: {
-                    let title = "Ep. \(chapter.number?.formatted() ?? String(index + 1)) — \(chapter.title ?? "Episode")"
-                    if index == model.index { Label(title, systemImage: "checkmark") } else { Text(title) }
+                    let title =
+                        "Ep. \(chapter.number?.formatted() ?? String(index + 1)) — \(chapter.title ?? "Episode")"
+                    if index == model.index {
+                        Label(title, systemImage: "checkmark")
+                    } else {
+                        Text(title)
+                    }
                 }
             }
         } label: {
@@ -81,19 +90,25 @@ struct PlayerControls: View {
 
     private var subtitleMenu: some View {
         Menu {
-            Picker("Subtitles", selection: Binding(
-                get: { model.subtitleIndex ?? -1 },
-                set: { value in Task { await model.selectSubtitle(value < 0 ? nil : value) } }
-            )) {
+            Picker(
+                "Subtitles",
+                selection: Binding(
+                    get: { model.subtitleIndex ?? -1 },
+                    set: { value in Task { await model.selectSubtitle(value < 0 ? nil : value) } }
+                )
+            ) {
                 Text("Off").tag(-1)
-                ForEach(Array((model.stream?.subtitles ?? []).enumerated()), id: \.offset) { index, track in
+                ForEach(Array((model.stream?.subtitles ?? []).enumerated()), id: \.offset) {
+                    index, track in
                     Text(track.lang).tag(index)
                 }
             }
             .pickerStyle(.inline)
             Menu("Text Size") {
                 Picker("Text Size", selection: $model.subtitleScale) {
-                    ForEach([0.75, 0.9, 1, 1.1, 1.25, 1.5, 2], id: \.self) { Text("\(Int((($0) * 100).rounded()))%").tag($0) }
+                    ForEach([0.75, 0.9, 1, 1.1, 1.25, 1.5, 2], id: \.self) {
+                        Text("\(Int((($0) * 100).rounded()))%").tag($0)
+                    }
                 }
             }
             Menu("Position") {
@@ -106,8 +121,10 @@ struct PlayerControls: View {
             }
             Toggle("Background", isOn: $model.subtitleBackground)
         } label: {
-            Image(systemName: model.subtitleIndex == nil ? "captions.bubble" : "captions.bubble.fill")
-                .font(.body.weight(.medium)).frame(width: 40, height: 40)
+            Image(
+                systemName: model.subtitleIndex == nil ? "captions.bubble" : "captions.bubble.fill"
+            )
+            .font(.body.weight(.medium)).frame(width: 40, height: 40)
         }
         .accessibilityLabel("Subtitles")
         .accessibilityValue(subtitleLabel)
@@ -117,10 +134,13 @@ struct PlayerControls: View {
     private var optionsMenu: some View {
         Menu {
             if let stream = model.stream, !stream.sources.isEmpty {
-                Picker("Source", selection: Binding(
-                    get: { model.sourceIndex ?? -1 },
-                    set: { value in Task { await model.changeSource(value) } }
-                )) {
+                Picker(
+                    "Source",
+                    selection: Binding(
+                        get: { model.sourceIndex ?? -1 },
+                        set: { value in Task { await model.changeSource(value) } }
+                    )
+                ) {
                     ForEach(Array(stream.sources.enumerated()), id: \.offset) { index, source in
                         Text(source.label).tag(index)
                     }
@@ -129,7 +149,8 @@ struct PlayerControls: View {
             }
             Section { Text(model.streamInfo) }
         } label: {
-            Image(systemName: "ellipsis.circle").font(.body.weight(.medium)).frame(width: 40, height: 40)
+            Image(systemName: "ellipsis.circle").font(.body.weight(.medium)).frame(
+                width: 40, height: 40)
         }
         .accessibilityLabel("Player options")
         .accessibilityIdentifier("player.options")
@@ -143,11 +164,14 @@ struct PlayerControls: View {
                 model.seek(model.position - 10)
             }
             ZStack {
-                glassIcon(model.playing ? "pause.fill" : "play.fill", label: model.playing ? "Pause" : "Play",
-                          id: "player.play", size: 72) { model.togglePlayback() }
-                    .disabled(model.loading || model.player.currentItem == nil || model.error != nil)
-                    .keyboardShortcut(shortcut(playKey))
-                    .opacity(model.loading || model.buffering ? 0 : 1)
+                glassIcon(
+                    model.playing ? "pause.fill" : "play.fill",
+                    label: model.playing ? "Pause" : "Play",
+                    id: "player.play", size: 72
+                ) { model.togglePlayback() }
+                .disabled(model.loading || model.player.currentItem == nil || model.error != nil)
+                .keyboardShortcut(shortcut(playKey))
+                .opacity(model.loading || model.buffering ? 0 : 1)
                 // The spinner takes the play button's place while video loads, as in the system player.
                 if model.loading || model.buffering {
                     ProgressView().controlSize(.large).tint(.white).allowsHitTesting(false)
@@ -179,7 +203,10 @@ struct PlayerControls: View {
                 .disabled(model.index + 1 >= model.chapters.count)
                 .keyboardShortcut(shortcut(nextKey))
                 Spacer()
-                Text("-" + PlayerViewModel.time(max(0, model.duration - (scrubbing ? scrubPosition : model.position))))
+                Text(
+                    "-"
+                        + PlayerViewModel.time(
+                            max(0, model.duration - (scrubbing ? scrubPosition : model.position))))
             }
             .font(.caption.monospacedDigit())
             .foregroundStyle(.secondary)
@@ -188,8 +215,13 @@ struct PlayerControls: View {
 
     private var speedMenu: some View {
         Menu {
-            Picker("Playback Speed", selection: Binding(get: { Double(model.speed) }, set: { model.setSpeed(Float($0)) })) {
-                ForEach([0.75, 1, 1.25, 1.5, 1.75, 2], id: \.self) { Text("\($0.formatted())×").tag($0) }
+            Picker(
+                "Playback Speed",
+                selection: Binding(get: { Double(model.speed) }, set: { model.setSpeed(Float($0)) })
+            ) {
+                ForEach([0.75, 1, 1.25, 1.5, 1.75, 2], id: \.self) {
+                    Text("\($0.formatted())×").tag($0)
+                }
             }
         } label: {
             Text("\(model.speed.formatted())×").font(.caption.weight(.semibold).monospacedDigit())
@@ -238,7 +270,10 @@ struct PlayerControls: View {
 
     // MARK: Pieces
 
-    private func glassIcon(_ symbol: String, label: String, id: String, size: CGFloat = 44, action: @escaping () -> Void) -> some View {
+    private func glassIcon(
+        _ symbol: String, label: String, id: String, size: CGFloat = 44,
+        action: @escaping () -> Void
+    ) -> some View {
         Button {
             reveal()
             action()
@@ -253,12 +288,15 @@ struct PlayerControls: View {
         .accessibilityIdentifier(id)
     }
 
-    private func plainIcon(_ symbol: String, label: String, id: String, action: @escaping () -> Void) -> some View {
+    private func plainIcon(
+        _ symbol: String, label: String, id: String, action: @escaping () -> Void
+    ) -> some View {
         Button {
             reveal()
             action()
         } label: {
-            Image(systemName: symbol).font(.body.weight(.medium)).frame(width: 40, height: 40).contentShape(Rectangle())
+            Image(systemName: symbol).font(.body.weight(.medium)).frame(width: 40, height: 40)
+                .contentShape(Rectangle())
         }
         .accessibilityLabel(label)
         .accessibilityIdentifier(id)
@@ -269,7 +307,8 @@ struct PlayerControls: View {
     }
 
     private var subtitleLabel: String {
-        guard let index = model.subtitleIndex, let track = model.stream?.subtitles[safe: index] else { return "Off" }
+        guard let index = model.subtitleIndex, let track = model.stream?.subtitles[safe: index]
+        else { return "Off" }
         return track.lang
     }
 }

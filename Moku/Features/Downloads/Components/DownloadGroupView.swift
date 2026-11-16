@@ -45,28 +45,42 @@ struct DownloadGroupView: View {
         }
         .contentShape(Rectangle())
         .swipeActions(edge: .trailing) {
-            Button(role: .destructive) { model.remove(group.entries) } label: {
+            Button(role: .destructive) {
+                model.remove(group.entries)
+            } label: {
                 Label(section == .completed ? "Delete" : "Remove", systemImage: "trash")
             }
             if group.failures > 0 {
-                Button { model.retry(titleID: group.id) } label: {
+                Button {
+                    model.retry(titleID: group.id)
+                } label: {
                     Label("Retry", systemImage: "arrow.clockwise")
                 }.tint(.orange)
             }
         }
         .contextMenu {
             if section != .completed {
-                Button("Move to Top", systemImage: "arrow.up") { model.move(titleID: group.id, toTop: true) }
-                Button("Move to Bottom", systemImage: "arrow.down") { model.move(titleID: group.id, toTop: false) }
+                Button("Move to Top", systemImage: "arrow.up") {
+                    model.move(titleID: group.id, toTop: true)
+                }
+                Button("Move to Bottom", systemImage: "arrow.down") {
+                    model.move(titleID: group.id, toTop: false)
+                }
                 if queuedCount > 1 {
-                    Button("Reverse Order", systemImage: "arrow.up.arrow.down") { model.reverse(titleID: group.id) }
+                    Button("Reverse Order", systemImage: "arrow.up.arrow.down") {
+                        model.reverse(titleID: group.id)
+                    }
                 }
             }
             if group.failures > 0 {
-                Button("Retry Failed", systemImage: "arrow.clockwise") { model.retry(titleID: group.id) }
+                Button("Retry Failed", systemImage: "arrow.clockwise") {
+                    model.retry(titleID: group.id)
+                }
             }
-            Button(section == .completed ? "Delete Downloads" : "Remove Series Downloads",
-                   systemImage: "trash", role: .destructive) { model.remove(group.entries) }
+            Button(
+                section == .completed ? "Delete Downloads" : "Remove Series Downloads",
+                systemImage: "trash", role: .destructive
+            ) { model.remove(group.entries) }
         }
     }
 
@@ -98,7 +112,9 @@ struct DownloadGroupView: View {
                 Text(entry.chapter).font(.subheadline)
                 if entry.status == .completed {
                     HStack(spacing: 4) {
-                        Text(ByteCountFormatter.string(fromByteCount: entry.bytes, countStyle: .file))
+                        Text(
+                            ByteCountFormatter.string(fromByteCount: entry.bytes, countStyle: .file)
+                        )
                         if let date = entry.completedAt {
                             Text("·")
                             Text(date, style: .date)
@@ -133,7 +149,11 @@ struct DownloadGroupView: View {
             if let selection {
                 let selected = selection.wrappedValue.contains(entry.id)
                 Button {
-                    if selected { selection.wrappedValue.remove(entry.id) } else { selection.wrappedValue.insert(entry.id) }
+                    if selected {
+                        selection.wrappedValue.remove(entry.id)
+                    } else {
+                        selection.wrappedValue.insert(entry.id)
+                    }
                 } label: {
                     Color.clear.contentShape(Rectangle())
                 }
@@ -145,18 +165,26 @@ struct DownloadGroupView: View {
         }
         .listRowBackground(Color.clear)
         .swipeActions(edge: .trailing) {
-            Button(role: .destructive) { model.remove([entry]) } label: {
-                Label(entry.status == .completed ? "Delete" : "Cancel", systemImage: entry.status == .completed ? "trash" : "xmark")
+            Button(role: .destructive) {
+                model.remove([entry])
+            } label: {
+                Label(
+                    entry.status == .completed ? "Delete" : "Cancel",
+                    systemImage: entry.status == .completed ? "trash" : "xmark")
             }
             if entry.status == .failed {
-                Button { model.retry(entryID: entry.id) } label: {
+                Button {
+                    model.retry(entryID: entry.id)
+                } label: {
                     Label("Retry", systemImage: "arrow.clockwise")
                 }.tint(.orange)
             }
         }
         .swipeActions(edge: .leading) {
             if entry.status == .queued {
-                Button { model.move(entryID: entry.id, to: .top) } label: {
+                Button {
+                    model.move(entryID: entry.id, to: .top)
+                } label: {
                     Label("Move to Top", systemImage: "arrow.up.to.line")
                 }.tint(NavigationStyle.accent)
             }
@@ -166,13 +194,23 @@ struct DownloadGroupView: View {
                 Button("Retry", systemImage: "arrow.clockwise") { model.retry(entryID: entry.id) }
             }
             if entry.status == .queued {
-                Button("Move to Top", systemImage: "arrow.up.to.line") { model.move(entryID: entry.id, to: .top) }
-                Button("Move Up", systemImage: "arrow.up") { model.move(entryID: entry.id, to: .up) }
-                Button("Move Down", systemImage: "arrow.down") { model.move(entryID: entry.id, to: .down) }
-                Button("Move to Bottom", systemImage: "arrow.down.to.line") { model.move(entryID: entry.id, to: .bottom) }
+                Button("Move to Top", systemImage: "arrow.up.to.line") {
+                    model.move(entryID: entry.id, to: .top)
+                }
+                Button("Move Up", systemImage: "arrow.up") {
+                    model.move(entryID: entry.id, to: .up)
+                }
+                Button("Move Down", systemImage: "arrow.down") {
+                    model.move(entryID: entry.id, to: .down)
+                }
+                Button("Move to Bottom", systemImage: "arrow.down.to.line") {
+                    model.move(entryID: entry.id, to: .bottom)
+                }
             }
-            Button(entry.status == .completed ? "Delete Download" : "Remove from Queue",
-                   systemImage: "trash", role: .destructive) { model.remove([entry]) }
+            Button(
+                entry.status == .completed ? "Delete Download" : "Remove from Queue",
+                systemImage: "trash", role: .destructive
+            ) { model.remove([entry]) }
         }
     }
 }

@@ -16,7 +16,9 @@ struct LocalLibrarySheet: View {
         var title: String
         let contentType: String
         let thumbnailUrl: String?
-        var media: ContentMode { contentType == "ANIME" ? .anime : contentType == "NOVEL" ? .novels : .manga }
+        var media: ContentMode {
+            contentType == "ANIME" ? .anime : contentType == "NOVEL" ? .novels : .manga
+        }
     }
 
     var body: some View {
@@ -30,8 +32,10 @@ struct LocalLibrarySheet: View {
                 }
                 ForEach(items) { item in
                     HStack(spacing: 12) {
-                        CoverImage(url: BackendAPI.coverURL(item.thumbnailUrl), symbol: item.media.symbol)
-                            .frame(width: 36, height: 52).clipShape(RoundedRectangle(cornerRadius: 4))
+                        CoverImage(
+                            url: BackendAPI.coverURL(item.thumbnailUrl), symbol: item.media.symbol
+                        )
+                        .frame(width: 36, height: 52).clipShape(RoundedRectangle(cornerRadius: 4))
                         VStack(alignment: .leading, spacing: 3) {
                             Text(item.title).font(.subheadline).lineLimit(2)
                             Text(item.media.title).font(.caption).foregroundStyle(.secondary)
@@ -43,7 +47,9 @@ struct LocalLibrarySheet: View {
                     }
                     .contextMenu {
                         Button("Rename", systemImage: "pencil") { startRename(item) }
-                        Button("Delete", systemImage: "trash", role: .destructive) { deleting = item }
+                        Button("Delete", systemImage: "trash", role: .destructive) {
+                            deleting = item
+                        }
                     }
                 }
                 if let error { Text(error).foregroundStyle(.orange) }
@@ -60,14 +66,22 @@ struct LocalLibrarySheet: View {
                     Button("Rescan") { Task { await rescan() } }.disabled(loading)
                 }
             }
-            .confirmationDialog("Delete \(deleting?.title ?? "this title")?", isPresented: Binding(
-                get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible
+            .confirmationDialog(
+                "Delete \(deleting?.title ?? "this title")?",
+                isPresented: Binding(
+                    get: { deleting != nil }, set: { if !$0 { deleting = nil } }),
+                titleVisibility: .visible
             ) {
-                Button("Delete files", role: .destructive) { if let deleting { Task { await delete(deleting) } } }
+                Button("Delete files", role: .destructive) {
+                    if let deleting { Task { await delete(deleting) } }
+                }
             } message: {
                 Text("Its imported files are removed from this device.")
             }
-            .alert("Rename Series", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
+            .alert(
+                "Rename Series",
+                isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })
+            ) {
                 TextField("Title", text: $newTitle)
                 Button("Cancel", role: .cancel) {}
                 Button("Rename") { if let renaming { Task { await rename(renaming) } } }
@@ -80,7 +94,10 @@ struct LocalLibrarySheet: View {
 
     private func load() async {
         struct Response: Decodable, Sendable {
-            struct Page: Decodable, Sendable { let results: [Item]; let hasNextPage: Bool }
+            struct Page: Decodable, Sendable {
+                let results: [Item]
+                let hasNextPage: Bool
+            }
             let localSourceSearch: Page
         }
         loading = true
@@ -119,7 +136,9 @@ struct LocalLibrarySheet: View {
             let _: IgnoredGraphQLResult = try await BackendAPI.shared.graphql(
                 "mutation { renameLocalSeries(mediaId: \(BackendAPI.literal(item.id)), newTitle: \(BackendAPI.literal(title))) { id } }",
                 requiresSourceRuntime: false)
-            if let index = items.firstIndex(where: { $0.id == item.id }) { items[index].title = title }
+            if let index = items.firstIndex(where: { $0.id == item.id }) {
+                items[index].title = title
+            }
             library.invalidateServerVisibility()
             _ = await library.refreshFromServer()
             Toaster.shared.show("Renamed to \(title)")
@@ -131,7 +150,8 @@ struct LocalLibrarySheet: View {
     private func delete(_ item: Item) async {
         do {
             let _: IgnoredGraphQLResult = try await BackendAPI.shared.graphql(
-                "mutation { deleteLocalSeries(mediaId: \(BackendAPI.literal(item.id))) }", requiresSourceRuntime: false)
+                "mutation { deleteLocalSeries(mediaId: \(BackendAPI.literal(item.id))) }",
+                requiresSourceRuntime: false)
             items.removeAll { $0.id == item.id }
             library.invalidateServerVisibility()
             Toaster.shared.show("Deleted \(item.title)")

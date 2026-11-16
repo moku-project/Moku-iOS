@@ -5,8 +5,9 @@ import WebKit
 enum TrackerSignIn {
     /// The custom URL scheme of the authorization URL's `redirect_uri`, if any.
     static func callbackScheme(for url: URL) -> String? {
-        guard let redirect = URLComponents(url: url, resolvingAgainstBaseURL: false)?
-            .queryItems?.first(where: { $0.name == "redirect_uri" })?.value,
+        guard
+            let redirect = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                .queryItems?.first(where: { $0.name == "redirect_uri" })?.value,
             let scheme = URL(string: redirect)?.scheme?.lowercased(),
             scheme != "http", scheme != "https"
         else { return nil }
@@ -29,7 +30,9 @@ enum TrackerSignIn {
     static func denial(in url: URL) -> String? {
         let fragment = URLComponents(string: "?" + (url.fragment ?? ""))?.queryItems ?? []
         let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
-        guard let error = (query + fragment).first(where: { $0.name == "error" })?.value else { return nil }
+        guard let error = (query + fragment).first(where: { $0.name == "error" })?.value else {
+            return nil
+        }
         return (query + fragment).first(where: { $0.name == "error_description" })?.value ?? error
     }
 
@@ -68,7 +71,8 @@ struct TrackerSignInSheet: View {
             .overlay {
                 if working {
                     ProgressView("Signing in…")
-                        .padding(24).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+                        .padding(24).background(
+                            .regularMaterial, in: RoundedRectangle(cornerRadius: 16))
                 }
             }
             .navigationTitle("Sign in to \(service.name)")
@@ -98,8 +102,11 @@ struct TrackerSignInSheet: View {
                         working = true
                         let success = await finish(value)
                         working = false
-                        if success { dismiss() } else {
-                            failure = "\(service.name) didn’t accept the sign-in. Try again, or paste a token instead."
+                        if success {
+                            dismiss()
+                        } else {
+                            failure =
+                                "\(service.name) didn’t accept the sign-in. Try again, or paste a token instead."
                         }
                     }
                 case .denied(let message):
@@ -112,7 +119,10 @@ struct TrackerSignInSheet: View {
 
 @MainActor @Observable
 final class TrackerSignInBrowser: NSObject, WKNavigationDelegate {
-    enum Result { case credential(String), denied(String) }
+    enum Result {
+        case credential(String)
+        case denied(String)
+    }
 
     private(set) var isLoading = false
     private(set) var progress = 0.0
@@ -165,7 +175,8 @@ final class TrackerSignInBrowser: NSObject, WKNavigationDelegate {
             handler(.credential(credential))
             return true
         }
-        if url.absoluteString != self.url.absoluteString, let denial = TrackerSignIn.denial(in: url) {
+        if url.absoluteString != self.url.absoluteString, let denial = TrackerSignIn.denial(in: url)
+        {
             delivered = true
             webView.stopLoading()
             handler(.denied(denial))

@@ -31,13 +31,15 @@ enum BrowserVerification {
         init(_ cookie: HTTPCookie) {
             name = cookie.name
             value = cookie.value
-            domain = cookie.domain.hasPrefix(".") ? String(cookie.domain.dropFirst()) : cookie.domain
+            domain =
+                cookie.domain.hasPrefix(".") ? String(cookie.domain.dropFirst()) : cookie.domain
             path = cookie.path
             secure = cookie.isSecure
             httpOnly = cookie.isHTTPOnly
             hostOnly = !cookie.domain.hasPrefix(".")
             persistent = cookie.expiresDate != nil
-            expiresAt = cookie.expiresDate.map { Int64($0.timeIntervalSince1970 * 1000) } ?? Int64.max
+            expiresAt =
+                cookie.expiresDate.map { Int64($0.timeIntervalSince1970 * 1000) } ?? Int64.max
         }
 
         init(from decoder: any Decoder) throws {
@@ -73,7 +75,9 @@ enum BrowserVerification {
 
     enum Failure: LocalizedError {
         case unavailable
-        var errorDescription: String? { "The source runtime isn’t available. Restart the app and try again." }
+        var errorDescription: String? {
+            "The source runtime isn’t available. Restart the app and try again."
+        }
     }
 
     /// True for `BackendAPI`'s `SOURCE_CLOUDFLARE` message (a challenge page or a 403).
@@ -91,7 +95,8 @@ enum BrowserVerification {
         _ = try await Backend.shared.connection()
         let json: String = try await worker.perform { service in
             var error: NSError?
-            let result = service.beginBrowserVerification(extensionID, url: url.absoluteString, error: &error)
+            let result = service.beginBrowserVerification(
+                extensionID, url: url.absoluteString, error: &error)
             if let error { throw error }
             return result
         }
@@ -124,7 +129,9 @@ enum BrowserVerification {
         private let queue = DispatchQueue(label: "moku.go.verification", qos: .userInitiated)
         private var service: BackendService?
 
-        func perform<T: Sendable>(_ operation: @escaping @Sendable (BackendService) throws -> T) async throws -> T {
+        func perform<T: Sendable>(_ operation: @escaping @Sendable (BackendService) throws -> T)
+            async throws -> T
+        {
             try await withCheckedThrowingContinuation { continuation in
                 queue.async {
                     if self.service == nil { self.service = BackendNewService() }

@@ -59,17 +59,23 @@ struct ExtensionRow: View {
                     Button("Browse Source", systemImage: "magnifyingglass") { search(item) }
                 }
                 if item.needsUpdate == true {
-                    Button("Update", systemImage: "arrow.down.circle") { change(.updateExtension, item) }
+                    Button("Update", systemImage: "arrow.down.circle") {
+                        change(.updateExtension, item)
+                    }
                 }
                 Button("Source Settings", systemImage: "slider.horizontal.3") { configure(item) }
-                Button("Library and Migration", systemImage: "arrow.left.arrow.right") { openLibrary(item) }
+                Button("Library and Migration", systemImage: "arrow.left.arrow.right") {
+                    openLibrary(item)
+                }
                 if let verify {
                     Button("Verify in Browser…", systemImage: "checkmark.shield") { verify(item) }
                 }
                 Divider()
                 Button("Uninstall", systemImage: "trash", role: .destructive) { uninstall(item) }
             } else {
-                Button("Install", systemImage: "arrow.down.circle") { change(.installExtension, item) }
+                Button("Install", systemImage: "arrow.down.circle") {
+                    change(.installExtension, item)
+                }
             }
         }
     }

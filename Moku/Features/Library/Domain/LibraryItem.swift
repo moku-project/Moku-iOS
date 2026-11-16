@@ -29,13 +29,22 @@ enum LibraryStatus: String, CaseIterable, Identifiable {
 
     /// Source status strings vary ("ONGOING", "on_hiatus", "Publishing finished").
     init?(source value: String?) {
-        guard let value = value?.lowercased().replacingOccurrences(of: "_", with: " ") else { return nil }
-        if value.contains("hiatus") { self = .hiatus }
-        else if value.contains("cancel") || value.contains("abandon") { self = .cancelled }
-        else if value.contains("publishing finished") || value.contains("finished") { self = .finished }
-        else if value.contains("complete") { self = .completed }
-        else if value.contains("ongoing") || value.contains("publishing") { self = .ongoing }
-        else { return nil }
+        guard let value = value?.lowercased().replacingOccurrences(of: "_", with: " ") else {
+            return nil
+        }
+        if value.contains("hiatus") {
+            self = .hiatus
+        } else if value.contains("cancel") || value.contains("abandon") {
+            self = .cancelled
+        } else if value.contains("publishing finished") || value.contains("finished") {
+            self = .finished
+        } else if value.contains("complete") {
+            self = .completed
+        } else if value.contains("ongoing") || value.contains("publishing") {
+            self = .ongoing
+        } else {
+            return nil
+        }
     }
 }
 

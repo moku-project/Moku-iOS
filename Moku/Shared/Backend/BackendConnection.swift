@@ -57,7 +57,9 @@ extension BackendController {
             return request
         }
 
-        func apiRequest(path: String, method: String = "GET", body: Data? = nil) throws -> URLRequest {
+        func apiRequest(path: String, method: String = "GET", body: Data? = nil) throws
+            -> URLRequest
+        {
             guard let parts = URLComponents(string: path), parts.scheme == nil, parts.host == nil,
                 parts.fragment == nil, parts.path.hasPrefix("/api/"),
                 !parts.path.split(separator: "/").contains(".."),
@@ -71,7 +73,9 @@ extension BackendController {
             request.httpBody = body
             request.timeoutInterval = 60
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-            if body != nil { request.setValue("application/json", forHTTPHeaderField: "Content-Type") }
+            if body != nil {
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            }
             return request
         }
 

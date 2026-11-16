@@ -4,7 +4,8 @@ import Observation
 import SwiftUI
 
 /// Picture in Picture for the player layer; starts when the app goes home mid-video, or from the PiP button.
-@MainActor @Observable final class PictureInPicture: NSObject, AVPictureInPictureControllerDelegate {
+@MainActor @Observable final class PictureInPicture: NSObject, AVPictureInPictureControllerDelegate
+{
     private(set) var isActive = false
     private(set) var isPossible = false
     @ObservationIgnored fileprivate var controller: AVPictureInPictureController?
@@ -15,11 +16,14 @@ import SwiftUI
     static var isSupported: Bool { AVPictureInPictureController.isPictureInPictureSupported() }
 
     fileprivate func attach(_ layer: AVPlayerLayer) {
-        guard Self.isSupported, controller == nil, let controller = AVPictureInPictureController(playerLayer: layer)
+        guard Self.isSupported, controller == nil,
+            let controller = AVPictureInPictureController(playerLayer: layer)
         else { return }
         controller.canStartPictureInPictureAutomaticallyFromInline = true
         controller.delegate = self
-        possibleObservation = controller.observe(\.isPictureInPicturePossible, options: [.initial, .new]) { [weak self] controller, _ in
+        possibleObservation = controller.observe(
+            \.isPictureInPicturePossible, options: [.initial, .new]
+        ) { [weak self] controller, _ in
             let possible = controller.isPictureInPicturePossible
             Task { @MainActor in self?.isPossible = possible }
         }
@@ -28,20 +32,29 @@ import SwiftUI
 
     func toggle() {
         guard let controller else { return }
-        if controller.isPictureInPictureActive { controller.stopPictureInPicture() } else { controller.startPictureInPicture() }
+        if controller.isPictureInPictureActive {
+            controller.stopPictureInPicture()
+        } else {
+            controller.startPictureInPicture()
+        }
     }
 
-    nonisolated func pictureInPictureControllerDidStartPictureInPicture(_ controller: AVPictureInPictureController) {
+    nonisolated func pictureInPictureControllerDidStartPictureInPicture(
+        _ controller: AVPictureInPictureController
+    ) {
         Task { @MainActor in self.isActive = true }
     }
 
-    nonisolated func pictureInPictureControllerDidStopPictureInPicture(_ controller: AVPictureInPictureController) {
+    nonisolated func pictureInPictureControllerDidStopPictureInPicture(
+        _ controller: AVPictureInPictureController
+    ) {
         Task { @MainActor in self.isActive = false }
     }
 
     nonisolated func pictureInPictureController(
         _ controller: AVPictureInPictureController,
-        restoreUserInterfaceForPictureInPictureStopWithCompletionHandler completionHandler: @escaping (Bool) -> Void
+        restoreUserInterfaceForPictureInPictureStopWithCompletionHandler completionHandler:
+            @escaping (Bool) -> Void
     ) {
         // The player stays presented underneath PiP, so it is already restored.
         completionHandler(true)

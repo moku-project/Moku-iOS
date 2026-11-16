@@ -58,7 +58,9 @@ struct ImportSetup: View {
             } header: {
                 Text("Match on")
             } footer: {
-                Text("With a source, each title is matched to it so chapters are ready to read. Without one, titles are saved from the tracker’s details.")
+                Text(
+                    "With a source, each title is matched to it so chapters are ready to read. Without one, titles are saved from the tracker’s details."
+                )
             }
             if model.working {
                 Section { LabeledContent("Loading list…") { ProgressView() } }

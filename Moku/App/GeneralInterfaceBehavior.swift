@@ -47,7 +47,9 @@ struct GeneralInterfaceBehavior: ViewModifier {
                     .accessibilityIdentifier("general.idleScreen")
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .mokuPreviewIdle)) { _ in idle.preview() }
+        .onReceive(NotificationCenter.default.publisher(for: .mokuPreviewIdle)) { _ in
+            idle.preview()
+        }
         .onPreferenceChange(GeneralMediaPresentedKey.self) { presented in
             mediaPresented = presented
             idle.setMediaActive(presented)

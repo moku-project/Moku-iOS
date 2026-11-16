@@ -39,13 +39,19 @@ final class DownloadsViewModel {
             let snapshot = try await loader.load()
             try Task.checkCancellation()
             if entries != snapshot.entries { entries = snapshot.entries }
-            DownloadAlerts.shared.observe(snapshot.entries.map { .init(titleID: $0.titleID, chapterID: $0.id, title: $0.title, status: $0.status) })
+            DownloadAlerts.shared.observe(
+                snapshot.entries.map {
+                    .init(titleID: $0.titleID, chapterID: $0.id, title: $0.title, status: $0.status)
+                })
             applyingSnapshot = true
             isPaused = !snapshot.running
             applyingSnapshot = false
             notice = nil
             if autoRetry {
-                for entry in entries where entry.status == .failed && Date().timeIntervalSince(lastRetry[entry.id] ?? .distantPast) >= 60 {
+                for entry in entries
+                where entry.status == .failed
+                    && Date().timeIntervalSince(lastRetry[entry.id] ?? .distantPast) >= 60
+                {
                     lastRetry[entry.id] = Date()
                     retry(entryID: entry.id)
                 }
@@ -54,11 +60,11 @@ final class DownloadsViewModel {
     }
     private func action(_ mutation: String, refreshAfter: Bool = true) async {
         do {
-            let _: [String: Bool] = try await BackendAPI.shared.graphql("mutation { \(mutation) }", requiresSourceRuntime: false)
+            let _: [String: Bool] = try await BackendAPI.shared.graphql(
+                "mutation { \(mutation) }", requiresSourceRuntime: false)
             if refreshAfter { await refresh() }
         } catch { notice = "Couldn’t update downloads. Try again." }
     }
-
 
     /// Queued or failed chapters leave the queue; finished ones delete their files.
     func remove(_ targets: [DownloadEntry]) {
@@ -79,7 +85,10 @@ final class DownloadsViewModel {
             }
             await refresh()
             Toaster.shared.show(
-                failed ? "Some downloads couldn’t be removed" : targets.count == 1 ? "Download removed" : "Removed \(targets.count) downloads",
+                failed
+                    ? "Some downloads couldn’t be removed"
+                    : targets.count == 1
+                        ? "Download removed" : "Removed \(targets.count) downloads",
                 kind: failed ? .error : .success)
         }
     }
@@ -103,7 +112,9 @@ final class DownloadsViewModel {
 
     func reverse(titleID: String) {
         let queue = entries.filter { $0.status == .queued || $0.status == .downloading }
-        let slots = queue.indices.filter { queue[$0].titleID == titleID && queue[$0].status == .queued }
+        let slots = queue.indices.filter {
+            queue[$0].titleID == titleID && queue[$0].status == .queued
+        }
         guard slots.count > 1 else { return }
         let reversed = slots.reversed().map { queue[$0] }
         if !live {
@@ -198,11 +209,15 @@ final class DownloadsViewModel {
             let targets = entries.filter { ids.contains($0.id) }
             Task {
                 for entry in targets {
-                    await action("dequeueDownload(mediaId: \(BackendAPI.literal(entry.titleID)), chapterId: \(BackendAPI.literal(entry.id)))", refreshAfter: false)
+                    await action(
+                        "dequeueDownload(mediaId: \(BackendAPI.literal(entry.titleID)), chapterId: \(BackendAPI.literal(entry.id)))",
+                        refreshAfter: false)
                 }
                 await refresh()
             }
-        } else { entries.removeAll { ids.contains($0.id) } }
+        } else {
+            entries.removeAll { ids.contains($0.id) }
+        }
     }
 
     func groups(history: Bool) -> [DownloadGroup] {
@@ -221,12 +236,20 @@ final class DownloadsViewModel {
 
     func retry(entryID: String? = nil, titleID: String? = nil) {
         if live {
-            let targets = entries.filter { $0.status == .failed && (entryID == nil || $0.id == entryID) && (titleID == nil || $0.titleID == titleID) }
+            let targets = entries.filter {
+                $0.status == .failed && (entryID == nil || $0.id == entryID)
+                    && (titleID == nil || $0.titleID == titleID)
+            }
             Task {
                 for entry in targets {
                     do {
-                        struct Retry: Decodable, Sendable { struct Value: Decodable, Sendable { let id: String }; let retryDownload: Value }
-                        let _: Retry = try await BackendAPI.shared.graphql("mutation { retryDownload(mediaId: \(BackendAPI.literal(entry.titleID)), chapterId: \(BackendAPI.literal(entry.id))) { id } }", requiresSourceRuntime: false)
+                        struct Retry: Decodable, Sendable {
+                            struct Value: Decodable, Sendable { let id: String }
+                            let retryDownload: Value
+                        }
+                        let _: Retry = try await BackendAPI.shared.graphql(
+                            "mutation { retryDownload(mediaId: \(BackendAPI.literal(entry.titleID)), chapterId: \(BackendAPI.literal(entry.id))) { id } }",
+                            requiresSourceRuntime: false)
                     } catch { notice = "Couldn’t retry download." }
                 }
                 await refresh()
@@ -278,19 +301,35 @@ final class DownloadsViewModel {
 
 /// Joins queue data off the UI, fetching title names in batches only when missing or expired.
 private actor DownloadSnapshotLoader {
-    struct Snapshot: Sendable { let entries: [DownloadEntry]; let running: Bool }
+    struct Snapshot: Sendable {
+        let entries: [DownloadEntry]
+        let running: Bool
+    }
     private var names: [String: (title: String, cover: URL?, expires: Date)] = [:]
 
     func load() async throws -> Snapshot {
-        struct ChapterInfo: Decodable, Sendable { let title: String?; let number: Double? }
+        struct ChapterInfo: Decodable, Sendable {
+            let title: String?
+            let number: Double?
+        }
         struct Download: Decodable, Sendable {
-            let id: String; let mediaId: String; let chapterId: String
-            let chapter: ChapterInfo; let status: String; let progress: Double
-            let downloadedBytes: Double?; let completedAt: String?
+            let id: String
+            let mediaId: String
+            let chapterId: String
+            let chapter: ChapterInfo
+            let status: String
+            let progress: Double
+            let downloadedBytes: Double?
+            let completedAt: String?
         }
         struct Status: Decodable, Sendable { let isRunning: Bool }
-        struct Result: Decodable, Sendable { let downloadQueue: [Download]; let downloaderStatus: Status }
-        let result: Result = try await BackendAPI.shared.graphql("{ downloadQueue { id mediaId chapterId chapter { title number } status progress downloadedBytes completedAt } downloaderStatus { isRunning } }", requiresSourceRuntime: false)
+        struct Result: Decodable, Sendable {
+            let downloadQueue: [Download]
+            let downloaderStatus: Status
+        }
+        let result: Result = try await BackendAPI.shared.graphql(
+            "{ downloadQueue { id mediaId chapterId chapter { title number } status progress downloadedBytes completedAt } downloaderStatus { isRunning } }",
+            requiresSourceRuntime: false)
         let ids = Set(result.downloadQueue.map(\.mediaId))
         names = names.filter { ids.contains($0.key) && $0.value.expires > .now }
         let missing = ids.filter { names[$0] == nil }.sorted()
@@ -300,26 +339,36 @@ private actor DownloadSnapshotLoader {
             let fields = batch.enumerated().map {
                 "m\($0.offset): media(id: \(BackendAPI.literal($0.element))) { title thumbnailUrl }"
             }.joined(separator: " ")
-            struct Title: Decodable, Sendable { let title: String; let thumbnailUrl: String? }
+            struct Title: Decodable, Sendable {
+                let title: String
+                let thumbnailUrl: String?
+            }
             let response: [String: Title?] = try await BackendAPI.shared.graphql(
                 "{ \(fields) }", requiresSourceRuntime: false)
             for (index, id) in batch.enumerated() {
                 let media = response["m\(index)"] ?? nil
-                names[id] = (media?.title ?? "Title \(id)", BackendAPI.coverURL(media?.thumbnailUrl), .now.addingTimeInterval(300))
+                names[id] = (
+                    media?.title ?? "Title \(id)", BackendAPI.coverURL(media?.thumbnailUrl),
+                    .now.addingTimeInterval(300)
+                )
             }
         }
         try Task.checkCancellation()
         let formatter = ISO8601DateFormatter()
         let entries = result.downloadQueue.map { item in
-            let status: DownloadStatus = switch item.status {
-            case "DOWNLOADING": .downloading
-            case "FAILED": .failed
-            case "DONE": .completed
-            default: .queued
-            }
-            return DownloadEntry(id: item.chapterId, titleID: item.mediaId,
+            let status: DownloadStatus =
+                switch item.status {
+                case "DOWNLOADING": .downloading
+                case "FAILED": .failed
+                case "DONE": .completed
+                default: .queued
+                }
+            return DownloadEntry(
+                id: item.chapterId, titleID: item.mediaId,
                 title: names[item.mediaId]?.title ?? "Title \(item.mediaId)",
-                chapter: item.chapter.title ?? item.chapter.number.map { "Chapter \($0.formatted())" } ?? "Chapter",
+                chapter: item.chapter.title ?? item.chapter.number.map {
+                    "Chapter \($0.formatted())"
+                } ?? "Chapter",
                 status: status, progress: min(1, max(0, item.progress)),
                 bytes: Int64(max(0, item.downloadedBytes ?? 0)),
                 completedAt: item.completedAt.flatMap { formatter.date(from: $0) },

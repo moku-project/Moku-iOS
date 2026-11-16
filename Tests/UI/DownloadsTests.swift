@@ -6,8 +6,10 @@ import XCTest
         app.launchArguments = ["--ui-testing-downloads"]
         app.launch()
         app.buttons["tab.downloads"].tap()
-        let title = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Monster But Wild'")).firstMatch
-        let retries = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'downloads.retry.'"))
+        let title = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Monster But Wild'"))
+            .firstMatch
+        let retries = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH 'downloads.retry.'"))
         let retryAll = app.buttons["downloads.retryAll.monster"]
         XCTAssertTrue(title.waitForExistence(timeout: 5))
         XCTAssertEqual(retries.count, 0)
@@ -31,7 +33,8 @@ import XCTest
         XCTAssertTrue(menuItem(app, "downloads.queue", "Queue").exists)
         capture("Downloads tools menu")
         history.tap()
-        let group = app.descendants(matching: .any).matching(identifier: "downloads.group.history").firstMatch
+        let group = app.descendants(matching: .any).matching(identifier: "downloads.group.history")
+            .firstMatch
         XCTAssertTrue(group.waitForExistence(timeout: 3))
         group.tap()
         XCTAssertTrue(app.staticTexts["Chapter 12"].exists)
@@ -42,12 +45,16 @@ import XCTest
         let app = XCUIApplication()
         // A fresh profile and backend, so the owner's real queue can't leak in.
         app.launchArguments = [
-            "--ui-testing-storage", "-mokuStorageTestID", UUID().uuidString, "--ui-testing-isolated-backend",
+            "--ui-testing-storage", "-mokuStorageTestID", UUID().uuidString,
+            "--ui-testing-isolated-backend",
         ]
         app.launch()
         XCTAssertTrue(app.buttons["tab.downloads"].waitForExistence(timeout: 10))
         app.buttons["tab.downloads"].tap()
-        XCTAssertTrue(app.staticTexts["Download chapters or episodes from a title’s page to read and watch offline."]
+        XCTAssertTrue(
+            app.staticTexts[
+                "Download chapters or episodes from a title’s page to read and watch offline."
+            ]
             .waitForExistence(timeout: 10))
         capture("Downloads empty")
         // The status filter is a segmented control above the list.
@@ -57,10 +64,15 @@ import XCTest
         app.buttons["downloads.activeView"].tap()
         capture("Downloads tools menu")
         menuItem(app, "downloads.history", "History").tap()
-        XCTAssertTrue(app.staticTexts["Finished and removed downloads will appear here."].waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            app.staticTexts["Finished and removed downloads will appear here."].waitForExistence(
+                timeout: 5))
         app.buttons["downloads.activeView"].tap()
         menuItem(app, "downloads.queue", "Queue").tap()
-        XCTAssertTrue(app.staticTexts["Download chapters or episodes from a title’s page to read and watch offline."]
+        XCTAssertTrue(
+            app.staticTexts[
+                "Download chapters or episodes from a title’s page to read and watch offline."
+            ]
             .waitForExistence(timeout: 5))
     }
 

@@ -55,9 +55,13 @@ struct UpdateList: View {
     }
 
     private func bundleRow(first: RecentUpdate, bundle: [RecentUpdate], key: String) -> some View {
-        let canDownload = !bundle.allSatisfy { $0.chapter.downloaded || model.queued.contains($0.id) }
-        let unit = first.entry.media == .anime
-            ? (bundle.count == 1 ? "episode" : "episodes") : (bundle.count == 1 ? "chapter" : "chapters")
+        let canDownload = !bundle.allSatisfy {
+            $0.chapter.downloaded || model.queued.contains($0.id)
+        }
+        let unit =
+            first.entry.media == .anime
+            ? (bundle.count == 1 ? "episode" : "episodes")
+            : (bundle.count == 1 ? "chapter" : "chapters")
         return Button {
             toggle(key)
         } label: {
@@ -81,14 +85,19 @@ struct UpdateList: View {
         .listRowBackground(Color.clear)
         .swipeActions(edge: .trailing) {
             if canDownload {
-                Button { downloadAll(bundle) } label: {
+                Button {
+                    downloadAll(bundle)
+                } label: {
                     Label("Download", systemImage: "arrow.down.circle")
                 }.tint(.accentColor)
             }
         }
         .contextMenu {
             Button("View Title", systemImage: "info.circle") { open(first.entry, nil) }
-            Button(expanded.contains(key) ? "Hide Chapters" : "Show Chapters", systemImage: "list.bullet") {
+            Button(
+                expanded.contains(key) ? "Hide Chapters" : "Show Chapters",
+                systemImage: "list.bullet"
+            ) {
                 toggle(key)
             }
             Button("Download Chapters", systemImage: "arrow.down.circle") { downloadAll(bundle) }
@@ -130,8 +139,9 @@ struct UpdateList: View {
                     if busy {
                         ProgressView()
                     } else {
-                        Image(systemName: item.chapter.downloaded
-                              ? "trash" : queued ? "clock" : "arrow.down.circle")
+                        Image(
+                            systemName: item.chapter.downloaded
+                                ? "trash" : queued ? "clock" : "arrow.down.circle")
                     }
                 }
                 .frame(width: 44, height: 44)
@@ -149,11 +159,15 @@ struct UpdateList: View {
             if item.chapter.downloaded {
                 Button {
                     Task { await model.act(on: item, delete: true) }
-                } label: { Label("Delete Download", systemImage: "trash") }.tint(.red)
+                } label: {
+                    Label("Delete Download", systemImage: "trash")
+                }.tint(.red)
             } else if !queued {
                 Button {
                     Task { await model.act(on: item, delete: false) }
-                } label: { Label("Download", systemImage: "arrow.down.circle") }.tint(.accentColor)
+                } label: {
+                    Label("Download", systemImage: "arrow.down.circle")
+                }.tint(.accentColor)
             }
         }
         .contextMenu {

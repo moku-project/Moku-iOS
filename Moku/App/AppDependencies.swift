@@ -20,7 +20,9 @@ enum AppDependencies {
 
     static var detailsRepository: any DetailsRepository {
         #if DEBUG
-            if ProcessInfo.processInfo.arguments.contains(where: { $0.hasPrefix("--ui-testing-home-") }) {
+            if ProcessInfo.processInfo.arguments.contains(where: {
+                $0.hasPrefix("--ui-testing-home-")
+            }) {
                 return HomePreviewDetailsRepository()
             }
         #endif

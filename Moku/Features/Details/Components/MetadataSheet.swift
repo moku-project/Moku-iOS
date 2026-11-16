@@ -40,30 +40,43 @@ struct MetadataSheet: View {
             Form {
                 if loading {
                     Section {
-                        HStack { ProgressView(); Text("Loading…").foregroundStyle(.secondary) }
+                        HStack {
+                            ProgressView()
+                            Text("Loading…").foregroundStyle(.secondary)
+                        }
                     }
                 } else {
                     Section("Current match") {
                         if let match {
                             LabeledContent {
                                 if let url = URL(string: match.url) {
-                                    Link(destination: url) { Image(systemName: "arrow.up.right.square") }
-                                        .accessibilityLabel("Open match")
+                                    Link(destination: url) {
+                                        Image(systemName: "arrow.up.right.square")
+                                    }
+                                    .accessibilityLabel("Open match")
                                 }
                             } label: {
-                                Text(match.provider == "anilist" ? "AniList" : match.provider.capitalized)
-                                Text(match.locked
-                                    ? "Chosen by you"
-                                    : "Matched automatically · \(Int(match.confidence * 100))% confident")
+                                Text(
+                                    match.provider == "anilist"
+                                        ? "AniList" : match.provider.capitalized)
+                                Text(
+                                    match.locked
+                                        ? "Chosen by you"
+                                        : "Matched automatically · \(Int(match.confidence * 100))% confident"
+                                )
                             }
                             Button {
-                                run("refreshMetadataMatch(mediaId: \(BackendAPI.literal(mediaID))) { id }", done: "Details refreshed")
+                                run(
+                                    "refreshMetadataMatch(mediaId: \(BackendAPI.literal(mediaID))) { id }",
+                                    done: "Details refreshed")
                             } label: {
                                 Label("Refresh Details", systemImage: "arrow.clockwise")
                             }
                             .disabled(working)
                             Button(role: .destructive) {
-                                run("unlinkMetadata(mediaId: \(BackendAPI.literal(mediaID)))", done: "Match removed")
+                                run(
+                                    "unlinkMetadata(mediaId: \(BackendAPI.literal(mediaID)))",
+                                    done: "Match removed")
                             } label: {
                                 Label("Unlink", systemImage: "link.badge.minus")
                             }
@@ -100,7 +113,9 @@ struct MetadataSheet: View {
             .background(NavigationStyle.background.ignoresSafeArea())
             .navigationTitle("Metadata")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+            }
             .task {
                 query = title
                 await load()
@@ -117,8 +132,13 @@ struct MetadataSheet: View {
                 .clipShape(RoundedRectangle(cornerRadius: 5))
             VStack(alignment: .leading, spacing: 4) {
                 Text(candidate.title).font(.subheadline.weight(.medium)).lineLimit(2)
-                let detail = [candidate.startYear.map(String.init), candidate.status.map { $0.replacingOccurrences(of: "_", with: " ").capitalized }]
-                    .compactMap { $0 }.joined(separator: " · ")
+                let detail = [
+                    candidate.startYear.map(String.init),
+                    candidate.status.map {
+                        $0.replacingOccurrences(of: "_", with: " ").capitalized
+                    },
+                ]
+                .compactMap { $0 }.joined(separator: " · ")
                 if !detail.isEmpty {
                     Text(detail).font(.caption).foregroundStyle(.secondary)
                 }
@@ -129,7 +149,8 @@ struct MetadataSheet: View {
                     .accessibilityLabel("Current match")
             } else {
                 Button("Use") {
-                    run("applyMetadataMatch(mediaId: \(BackendAPI.literal(mediaID)), providerId: \(BackendAPI.literal(candidate.providerId)), provider: \(BackendAPI.literal(candidate.provider))) { id }",
+                    run(
+                        "applyMetadataMatch(mediaId: \(BackendAPI.literal(mediaID)), providerId: \(BackendAPI.literal(candidate.providerId)), provider: \(BackendAPI.literal(candidate.provider))) { id }",
                         done: "Matched to \(candidate.title)")
                 }
                 .buttonStyle(.bordered).disabled(working)

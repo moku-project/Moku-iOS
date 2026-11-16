@@ -11,7 +11,9 @@ struct SearchView: View {
     @Environment(\.searchHistoryStore) private var historyStore
 
     private var typing: Bool { model.canSubmit }
-    private var filtersActive: Bool { model.options.filterCount > 0 || model.options.sort != .sourceOrder }
+    private var filtersActive: Bool {
+        model.options.filterCount > 0 || model.options.sort != .sourceOrder
+    }
 
     var body: some View {
         ScrollView {
@@ -30,7 +32,9 @@ struct SearchView: View {
         .searchable(
             text: $model.query, isPresented: $searchPresented,
             placement: .navigationBarDrawer(displayMode: .always),
-            prompt: contentMode == .all ? "Search everything" : "Search \(contentMode.title.lowercased())")
+            prompt: contentMode == .all
+                ? "Search everything" : "Search \(contentMode.title.lowercased())"
+        )
         .searchSuggestions { suggestions }
         .onSubmit(of: .search) { model.submit() }
         // The tab bar's content button chooses what Search looks for.
@@ -47,7 +51,10 @@ struct SearchView: View {
         .onAppear { model.setActive(isActive) }
         .onDisappear { model.setActive(false) }
         .task { await model.loadHistory(historyStore) }
-        .task(id: "\(isActive)-\(typing)-\(model.options.media.rawValue)-\(model.options.language ?? "")") {
+        .task(
+            id:
+                "\(isActive)-\(typing)-\(model.options.media.rawValue)-\(model.options.language ?? "")"
+        ) {
             guard isActive, !typing else { return }
             await model.loadPopular()
         }
@@ -80,8 +87,9 @@ struct SearchView: View {
         } else {
             ContentUnavailableView(
                 "No Popular Titles", systemImage: "square.grid.2x2",
-                description: Text("Your sources have nothing to show yet."))
-                .padding(.top, 40)
+                description: Text("Your sources have nothing to show yet.")
+            )
+            .padding(.top, 40)
         }
     }
 
@@ -92,8 +100,9 @@ struct SearchView: View {
         case .unavailable:
             ContentUnavailableView(
                 "Search Unavailable", systemImage: "magnifyingglass",
-                description: Text("Search couldn’t start. Try again in a moment."))
-                .padding(.top, 40)
+                description: Text("Search couldn’t start. Try again in a moment.")
+            )
+            .padding(.top, 40)
         case .failed(let description):
             ContentUnavailableView {
                 Label("Couldn’t Search", systemImage: "wifi.slash")
@@ -109,8 +118,10 @@ struct SearchView: View {
             } else {
                 if let message = model.searchMessage { note(message) }
                 if model.hiddenEmpty > 0 {
-                    note("Hid \(counted(model.hiddenEmpty, "title")) with no chapters at the source.")
-                        .accessibilityIdentifier("search.hiddenEmpty")
+                    note(
+                        "Hid \(counted(model.hiddenEmpty, "title")) with no chapters at the source."
+                    )
+                    .accessibilityIdentifier("search.hiddenEmpty")
                 }
                 PosterGrid(entries: entries, identifier: "search.result", open: openEntry)
                 if model.isSearching {
@@ -167,7 +178,8 @@ struct SearchView: View {
     }
 
     private var filterSymbol: String {
-        filtersActive ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle"
+        filtersActive
+            ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle"
     }
 
     /// The toolbar is covered while the search field is active, so filters sit above the results then.
@@ -176,8 +188,10 @@ struct SearchView: View {
             model.open(.filters)
         } label: {
             Label(
-                model.options.filterCount > 0 ? "Filters (\(model.options.filterCount))" : "Filter and Sort",
-                systemImage: filterSymbol)
+                model.options.filterCount > 0
+                    ? "Filters (\(model.options.filterCount))" : "Filter and Sort",
+                systemImage: filterSymbol
+            )
             .font(.subheadline.weight(.medium))
         }
         .buttonStyle(.bordered)

@@ -80,7 +80,10 @@ struct SettingsLinkRow: View {
     var detail: String = ""
     var systemImage: String?
     let action: () -> Void
-    init(_ title: String, detail: String = "", systemImage: String? = nil, action: @escaping () -> Void) {
+    init(
+        _ title: String, detail: String = "", systemImage: String? = nil,
+        action: @escaping () -> Void
+    ) {
         self.title = title
         self.detail = detail
         self.systemImage = systemImage

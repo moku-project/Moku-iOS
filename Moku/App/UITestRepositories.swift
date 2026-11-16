@@ -7,7 +7,8 @@ import Foundation
             if ProcessInfo.processInfo.arguments.contains("--ui-testing-slow-discovery") {
                 try await Task.sleep(for: .seconds(3))
             }
-            return DiscoveryPage(entries: try await search(SearchRequest(query: "", options: options)))
+            return DiscoveryPage(
+                entries: try await search(SearchRequest(query: "", options: options)))
         }
         func sources() async throws -> [SearchSource] {
             [

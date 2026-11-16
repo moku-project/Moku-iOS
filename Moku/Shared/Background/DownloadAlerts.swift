@@ -34,7 +34,8 @@ import UserNotifications
         pending = next
         lastObserved = Date()
         guard let previous, Self.enabled else { return }
-        let status = Dictionary(items.map { ($0.chapterID, $0.status) }, uniquingKeysWith: { first, _ in first })
+        let status = Dictionary(
+            items.map { ($0.chapterID, $0.status) }, uniquingKeysWith: { first, _ in first })
         for (titleID, chapters) in previous where next[titleID] == nil {
             let done = chapters.filter { status[$0] == .completed }.count
             let failed = chapters.filter { status[$0] == .failed }.count
@@ -46,11 +47,14 @@ import UserNotifications
     private func announce(titleID: String, done: Int, failed: Int) async {
         let title = await name(titleID)
         let unit = done == 1 ? "chapter" : "chapters"
-        let detail = failed > 0 ? "\(done) \(unit) downloaded, \(failed) failed" : "\(done) \(unit) downloaded"
+        let detail =
+            failed > 0
+            ? "\(done) \(unit) downloaded, \(failed) failed" : "\(done) \(unit) downloaded"
         if UIApplication.shared.applicationState == .active {
-            Toaster.shared.show(failed > 0 ? "Downloads finished with errors" : "Downloaded \(title)",
-                                detail: failed > 0 ? "\(title): \(detail)" : detail,
-                                kind: failed > 0 ? .error : .download)
+            Toaster.shared.show(
+                failed > 0 ? "Downloads finished with errors" : "Downloaded \(title)",
+                detail: failed > 0 ? "\(title): \(detail)" : detail,
+                kind: failed > 0 ? .error : .download)
             return
         }
         let center = UNUserNotificationCenter.current()
@@ -60,12 +64,17 @@ import UserNotifications
         content.body = detail
         content.sound = .default
         content.threadIdentifier = "downloads"
-        try? await center.add(UNNotificationRequest(identifier: "download-\(titleID)", content: content, trigger: nil))
+        try? await center.add(
+            UNNotificationRequest(identifier: "download-\(titleID)", content: content, trigger: nil)
+        )
     }
 
     private func name(_ titleID: String) async -> String {
         if let title = titles[titleID] { return title }
-        struct Response: Decodable, Sendable { struct Media: Decodable, Sendable { let title: String }; let media: Media? }
+        struct Response: Decodable, Sendable {
+            struct Media: Decodable, Sendable { let title: String }
+            let media: Media?
+        }
         let response: Response? = try? await BackendAPI.shared.graphql(
             "{ media(id: \(BackendAPI.literal(titleID))) { title } }", requiresSourceRuntime: false)
         let title = response?.media?.title ?? "Downloads"

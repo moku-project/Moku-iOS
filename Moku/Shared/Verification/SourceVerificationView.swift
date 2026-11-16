@@ -24,7 +24,9 @@ struct SourceVerificationAction {
         extensionID: String, url: URL?, sourceName: String? = nil,
         onComplete: (@MainActor () -> Void)? = nil
     ) {
-        present(.init(extensionID: extensionID, url: url, sourceName: sourceName, onComplete: onComplete))
+        present(
+            .init(
+                extensionID: extensionID, url: url, sourceName: sourceName, onComplete: onComplete))
     }
 }
 
@@ -113,8 +115,10 @@ struct SourceVerificationView: View {
             // Prefer the caller's page, then the source's site from Tsunagu, then the last used address.
             var url = request.url
             if url == nil { url = await Self.sourceSite(request.extensionID) }
-            address = url?.absoluteString
-                ?? UserDefaults.standard.string(forKey: Self.addressKey(request.extensionID)) ?? "https://"
+            address =
+                url?.absoluteString
+                ?? UserDefaults.standard.string(forKey: Self.addressKey(request.extensionID))
+                ?? "https://"
             if let url { await start(url) }
         }
         .onDisappear { Task { await model.cancel() } }
@@ -158,7 +162,9 @@ struct SourceVerificationView: View {
             } header: {
                 Text("Site address")
             } footer: {
-                Text("Enter the source’s website. Pass its check in the page that opens, then tap Done so the source can load with the same browser session.")
+                Text(
+                    "Enter the source’s website. Pass its check in the page that opens, then tap Done so the source can load with the same browser session."
+                )
             }
             if case .failed(let message) = model.phase {
                 Section {
@@ -178,21 +184,29 @@ struct SourceVerificationView: View {
 
     private func start(_ url: URL) async {
         if await model.start(extensionID: request.extensionID, url: url) {
-            UserDefaults.standard.set(url.absoluteString, forKey: Self.addressKey(request.extensionID))
+            UserDefaults.standard.set(
+                url.absoluteString, forKey: Self.addressKey(request.extensionID))
         }
     }
 
-    private static func addressKey(_ extensionID: String) -> String { "verification.url.\(extensionID)" }
+    private static func addressKey(_ extensionID: String) -> String {
+        "verification.url.\(extensionID)"
+    }
 
     /// The site the installed source reads from, once the extension host has loaded it.
     private static func sourceSite(_ extensionID: String) async -> URL? {
         struct Result: Decodable, Sendable {
-            struct Item: Decodable, Sendable { let packageName: String; let baseUrl: String? }
+            struct Item: Decodable, Sendable {
+                let packageName: String
+                let baseUrl: String?
+            }
             let installedExtensions: [Item]
         }
-        guard let result: Result = try? await BackendAPI.shared.graphql(
-            "{ installedExtensions { packageName baseUrl } }", requiresSourceRuntime: false),
-            let site = result.installedExtensions.first(where: { $0.packageName == extensionID })?.baseUrl
+        guard
+            let result: Result = try? await BackendAPI.shared.graphql(
+                "{ installedExtensions { packageName baseUrl } }", requiresSourceRuntime: false),
+            let site = result.installedExtensions.first(where: { $0.packageName == extensionID })?
+                .baseUrl
         else { return nil }
         return url(from: site)
     }
@@ -200,7 +214,8 @@ struct SourceVerificationView: View {
     private static func url(from text: String) -> URL? {
         var value = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if !value.contains("://") { value = "https://" + value }
-        guard let url = URL(string: value), ["http", "https"].contains(url.scheme?.lowercased() ?? ""),
+        guard let url = URL(string: value),
+            ["http", "https"].contains(url.scheme?.lowercased() ?? ""),
             let host = url.host, host.contains(".")
         else { return nil }
         return url
@@ -211,7 +226,10 @@ struct SourceVerificationView: View {
 
 @MainActor @Observable
 final class SourceVerificationModel: NSObject {
-    enum Phase: Equatable { case idle, starting, ready, saving, failed(String) }
+    enum Phase: Equatable {
+        case idle, starting, ready, saving
+        case failed(String)
+    }
 
     private(set) var phase: Phase = .idle
     private(set) var session: BrowserVerification.Session?
@@ -275,7 +293,8 @@ final class SourceVerificationModel: NSObject {
         do {
             var agent = webView.customUserAgent ?? ""
             if agent.isEmpty {
-                agent = (try? await webView.evaluateJavaScript("navigator.userAgent") as? String) ?? ""
+                agent =
+                    (try? await webView.evaluateJavaScript("navigator.userAgent") as? String) ?? ""
             }
             let all = await webView.configuration.websiteDataStore.httpCookieStore.allCookies()
             let host = (webView.url?.host ?? session.url.host ?? "").lowercased()
@@ -304,9 +323,13 @@ final class SourceVerificationModel: NSObject {
 
     private static func message(_ error: any Error) -> String {
         let text = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-        if text.contains("public source URL") { return "Enter the source’s public website address." }
+        if text.contains("public source URL") {
+            return "Enter the source’s public website address."
+        }
         if text.contains("unknown source") { return "This source isn’t installed." }
-        if text.contains("invalid source URL") { return "That address isn’t valid. Use the site’s https:// address." }
+        if text.contains("invalid source URL") {
+            return "That address isn’t valid. Use the site’s https:// address."
+        }
         return text.isEmpty ? "Couldn’t open this site. Try again." : text
     }
 }

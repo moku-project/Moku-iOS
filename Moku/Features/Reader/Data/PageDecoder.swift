@@ -12,7 +12,8 @@ struct PageDecoder: Sendable {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil) else {
             throw EmbeddedSearchError.message("The source returned an unreadable image.")
         }
-        guard let image = CGImageSourceCreateThumbnailAtIndex(
+        guard
+            let image = CGImageSourceCreateThumbnailAtIndex(
                 source, 0,
                 [
                     kCGImageSourceCreateThumbnailFromImageAlways: true,
@@ -46,7 +47,8 @@ struct PageDecoder: Sendable {
         let width = (properties?[kCGImagePropertyPixelWidth] as? NSNumber)?.doubleValue ?? 0
         let height = (properties?[kCGImagePropertyPixelHeight] as? NSNumber)?.doubleValue ?? 0
         guard width > 0, height > 0 else { return 2048 }
-        let long = max(width, height), short = min(width, height)
+        let long = max(width, height)
+        let short = min(width, height)
         let shortTarget = min(short, 1600)
         let byShort = long * shortTarget / short
         let byPixels = long * sqrt(8_000_000 / (width * height))

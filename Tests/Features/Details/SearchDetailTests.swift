@@ -65,8 +65,10 @@ private actor DetailFixture: DetailsRepository {
 
 @MainActor struct HomeTitleLoadingTests {
     private var entry: HomeEntry {
-        HomeEntry(MediaEntry(id: "85", title: "Old title", media: .manga,
-                             sourceName: "Fixture", coverURL: nil, extensionID: "ext", externalID: "book"))
+        HomeEntry(
+            MediaEntry(
+                id: "85", title: "Old title", media: .manga,
+                sourceName: "Fixture", coverURL: nil, extensionID: "ext", externalID: "book"))
     }
 
     @Test func loadsSourceMetadataAndChaptersWithoutAddingActivity() async {
@@ -94,10 +96,18 @@ private actor DetailFixture: DetailsRepository {
 
     @Test func scanlatorPreferencesSelectPreferredReleasesAndExcludeBlockedGroups() {
         let chapters = [
-            Chapter(id: "a", title: "One", number: 1, scanlator: "A", completed: false, downloaded: false),
-            Chapter(id: "b", title: "One", number: 1, scanlator: "B", completed: false, downloaded: false),
-            Chapter(id: "c", title: "Two", number: 2, scanlator: "A", completed: false, downloaded: false),
-            Chapter(id: "d", title: "Extra", number: nil, scanlator: "B", completed: false, downloaded: false)
+            Chapter(
+                id: "a", title: "One", number: 1, scanlator: "A", completed: false,
+                downloaded: false),
+            Chapter(
+                id: "b", title: "One", number: 1, scanlator: "B", completed: false,
+                downloaded: false),
+            Chapter(
+                id: "c", title: "Two", number: 2, scanlator: "A", completed: false,
+                downloaded: false),
+            Chapter(
+                id: "d", title: "Extra", number: nil, scanlator: "B", completed: false,
+                downloaded: false),
         ]
         var prefs = ChapterDisplayPreferences(included: ["B"])
         #expect(Set(prefs.apply(chapters).map(\.id)) == ["b", "d"])

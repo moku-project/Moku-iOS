@@ -23,8 +23,12 @@ struct ExtensionsView: View {
     @State private var externalURL = ""
     @State private var importingFile = false
     @AppStorage("contentMode") private var contentMode: ContentMode = .all
-    private var updatable: [SourceExtension] { model.visibleInstalled.filter { $0.needsUpdate == true } }
-    private var upToDate: [SourceExtension] { model.visibleInstalled.filter { $0.needsUpdate != true } }
+    private var updatable: [SourceExtension] {
+        model.visibleInstalled.filter { $0.needsUpdate == true }
+    }
+    private var upToDate: [SourceExtension] {
+        model.visibleInstalled.filter { $0.needsUpdate != true }
+    }
     private var visibleRepositories: [ExtensionRepositoryInfo] {
         model.repositories.filter {
             model.query.isEmpty || $0.title.localizedStandardContains(model.query)
@@ -64,7 +68,8 @@ struct ExtensionsView: View {
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
             .firstLoadSkeleton(
-                "extensions-\(section.rawValue)", loading: model.isLoading, style: .extensions)
+                "extensions-\(section.rawValue)", loading: model.isLoading, style: .extensions
+            )
             .refreshable { await model.load() }
             .overlay { if isEmpty { emptyState.accessibilityIdentifier("extensions.empty") } }
             .accessibilityIdentifier("extensions.list")
@@ -73,7 +78,8 @@ struct ExtensionsView: View {
         .searchable(
             text: $model.query,
             placement: .navigationBarDrawer(displayMode: .always),
-            prompt: section == .repositories ? "Find Repositories" : "Find Extensions")
+            prompt: section == .repositories ? "Find Repositories" : "Find Extensions"
+        )
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 filterMenu
@@ -83,8 +89,10 @@ struct ExtensionsView: View {
                         externalURL = ""
                         installingURL = true
                     }
-                    Button("Install from File…", systemImage: "doc.badge.plus") { importingFile = true }
-                        .accessibilityIdentifier("extensions.installFile")
+                    Button("Install from File…", systemImage: "doc.badge.plus") {
+                        importingFile = true
+                    }
+                    .accessibilityIdentifier("extensions.installFile")
                 } label: {
                     Label("Add", systemImage: "plus")
                 } primaryAction: {
@@ -157,7 +165,8 @@ struct ExtensionsView: View {
                     let name = rename
                     Task {
                         await model.perform {
-                            try await $0.repositoryAction(.renameRepository, id: repo.id, name: name)
+                            try await $0.repositoryAction(
+                                .renameRepository, id: repo.id, name: name)
                         }
                     }
                 }
@@ -176,9 +185,13 @@ struct ExtensionsView: View {
                 }
             }
         } message: {
-            Text("Only install extensions from sources you trust. They run on this device with network access.")
+            Text(
+                "Only install extensions from sources you trust. They run on this device with network access."
+            )
         }
-        .fileImporter(isPresented: $importingFile, allowedContentTypes: ExtensionFileInstaller.contentTypes) { result in
+        .fileImporter(
+            isPresented: $importingFile, allowedContentTypes: ExtensionFileInstaller.contentTypes
+        ) { result in
             switch result {
             case .success(let url): installFile(url)
             case .failure: model.error = "Couldn’t open this file."
@@ -225,7 +238,8 @@ struct ExtensionsView: View {
             Label(
                 "Filters",
                 systemImage: filterCount > 0
-                    ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                    ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle"
+            )
         }
         .accessibilityIdentifier("extensions.filters")
     }
@@ -251,7 +265,9 @@ struct ExtensionsView: View {
             } header: {
                 Text("Installed")
             } footer: {
-                Text("\(model.visibleInstalled.count) installed. Tap a source to browse it; touch and hold for settings and migration.")
+                Text(
+                    "\(model.visibleInstalled.count) installed. Tap a source to browse it; touch and hold for settings and migration."
+                )
             }
         }
     }
@@ -282,7 +298,9 @@ struct ExtensionsView: View {
         } header: {
             Text(counted(visibleRepositories.count, "repository", "repositories"))
         } footer: {
-            Text("Tap a repository to browse its extensions. A repository can be removed once its sources are uninstalled.")
+            Text(
+                "Tap a repository to browse its extensions. A repository can be removed once its sources are uninstalled."
+            )
         }
     }
 
@@ -296,17 +314,38 @@ struct ExtensionsView: View {
     }
 
     private var emptyState: EmptyState {
-        if !model.query.isEmpty { return EmptyState(systemImage: "magnifyingglass", message: "No results for “\(model.query)”") }
-        if filterCount > 0 { return EmptyState(systemImage: "line.3.horizontal.decrease.circle", message: "No extensions match these filters") }
-        let kind = switch contentMode { case .all: ""; case .manga: "manga "; case .novels: "novel "; case .anime: "anime " }
-        if section == .installed { return EmptyState(systemImage: "puzzlepiece.extension", message: "No \(kind)extensions installed") }
-        if model.repositories.isEmpty { return EmptyState(systemImage: "shippingbox", message: "Add a repository to find extensions") }
-        return EmptyState(systemImage: "puzzlepiece.extension", message: "No \(kind)extensions found")
+        if !model.query.isEmpty {
+            return EmptyState(
+                systemImage: "magnifyingglass", message: "No results for “\(model.query)”")
+        }
+        if filterCount > 0 {
+            return EmptyState(
+                systemImage: "line.3.horizontal.decrease.circle",
+                message: "No extensions match these filters")
+        }
+        let kind =
+            switch contentMode {
+            case .all: ""
+            case .manga: "manga "
+            case .novels: "novel "
+            case .anime: "anime "
+            }
+        if section == .installed {
+            return EmptyState(
+                systemImage: "puzzlepiece.extension", message: "No \(kind)extensions installed")
+        }
+        if model.repositories.isEmpty {
+            return EmptyState(
+                systemImage: "shippingbox", message: "Add a repository to find extensions")
+        }
+        return EmptyState(
+            systemImage: "puzzlepiece.extension", message: "No \(kind)extensions found")
     }
 
     private func row(_ item: SourceExtension) -> some View {
         ExtensionRow(
-            item: item, busy: model.busyPackage == item.packageName, search: search, configure: { settingsSource = $0 },
+            item: item, busy: model.busyPackage == item.packageName, search: search,
+            configure: { settingsSource = $0 },
             openLibrary: { librarySource = $0 },
             verify: { verifySource($0) },
             uninstall: { removing = $0 },
@@ -319,7 +358,8 @@ struct ExtensionsView: View {
 
     private func verifySource(_ item: SourceExtension) {
         if presentSourceVerification.isAvailable {
-            presentSourceVerification(extensionID: item.packageName, url: nil, sourceName: item.displayName)
+            presentSourceVerification(
+                extensionID: item.packageName, url: nil, sourceName: item.displayName)
         } else {
             verification = SourceVerificationRequest(
                 extensionID: item.packageName, url: nil, sourceName: item.displayName)
@@ -389,9 +429,13 @@ struct ExtensionsView: View {
         let packages = model.installed.filter { $0.needsUpdate == true }.map(\.packageName)
         Task {
             if await model.perform({ repository in
-                for package in packages { try await repository.extensionAction(.updateExtension, package: package) }
+                for package in packages {
+                    try await repository.extensionAction(.updateExtension, package: package)
+                }
             }) {
-                Toaster.shared.show(packages.count == 1 ? "Extension updated" : "\(packages.count) extensions updated")
+                Toaster.shared.show(
+                    packages.count == 1
+                        ? "Extension updated" : "\(packages.count) extensions updated")
             }
         }
     }
@@ -407,7 +451,9 @@ struct ExtensionsView: View {
 
     private func change(_ action: ExtensionAction, _ item: SourceExtension) {
         Task {
-            await model.perform(on: item.packageName) { try await $0.extensionAction(action, package: item.packageName) }
+            await model.perform(on: item.packageName) {
+                try await $0.extensionAction(action, package: item.packageName)
+            }
         }
     }
 }

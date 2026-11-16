@@ -98,13 +98,17 @@ struct LibraryCard: View {
     private var accessibilityStats: String {
         var parts: [String] = []
         if showCardStats && item.totalUnits > 0 && item.readUnits > 0 {
-            parts.append("\(item.readUnits) of \(item.totalUnits) \(item.media == .anime ? "watched" : "read")")
+            parts.append(
+                "\(item.readUnits) of \(item.totalUnits) \(item.media == .anime ? "watched" : "read")"
+            )
         }
         if showCardStats && item.unread > 0 { parts.append("\(item.unread) unread") }
         if item.downloaded { parts.append("Downloaded") }
         if item.tracked { parts.append("Tracked") }
         if item.chapterBookmarks > 0 {
-            parts.append("\(item.chapterBookmarks) bookmarked \(item.chapterBookmarks == 1 ? "chapter" : "chapters")")
+            parts.append(
+                "\(item.chapterBookmarks) bookmarked \(item.chapterBookmarks == 1 ? "chapter" : "chapters")"
+            )
         }
         return parts.joined(separator: ", ")
     }

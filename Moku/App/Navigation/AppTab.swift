@@ -61,7 +61,8 @@ enum MoreDestination: String, CaseIterable, Identifiable, Hashable {
 }
 
 @MainActor final class TabActivityStore {
-    private let pages = Dictionary(uniqueKeysWithValues: AppTab.allCases.map { ($0, TabActivity()) })
+    private let pages = Dictionary(
+        uniqueKeysWithValues: AppTab.allCases.map { ($0, TabActivity()) })
 
     init() { update(selection: .library, covered: false) }
 

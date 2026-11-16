@@ -15,7 +15,10 @@ protocol AppLockVault: Sendable {
 
 struct KeychainAppLockVault: AppLockVault {
     private func query(_ account: String) -> [String: Any] {
-        [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: "dev.moku.app.lock", kSecAttrAccount as String: account]
+        [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "dev.moku.app.lock", kSecAttrAccount as String: account,
+        ]
     }
     func read(account: String) throws -> Data? {
         var q = query(account)
@@ -25,21 +28,30 @@ struct KeychainAppLockVault: AppLockVault {
         let status = SecItemCopyMatching(q as CFDictionary, &result)
         // Unsigned Simulator builds can't have saved a PIN; failing closed would lock the app for good.
         if status == errSecItemNotFound || status == errSecMissingEntitlement { return nil }
-        guard status == errSecSuccess, let data = result as? Data else { throw AppLockStore.LockError.storage }
+        guard status == errSecSuccess, let data = result as? Data else {
+            throw AppLockStore.LockError.storage
+        }
         return data
     }
     func write(_ data: Data, account: String) throws {
-        let update = SecItemUpdate(query(account) as CFDictionary, [kSecValueData as String: data] as CFDictionary)
+        let update = SecItemUpdate(
+            query(account) as CFDictionary, [kSecValueData as String: data] as CFDictionary)
         if update == errSecItemNotFound {
             var q = query(account)
             q[kSecValueData as String] = data
             q[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-            guard SecItemAdd(q as CFDictionary, nil) == errSecSuccess else { throw AppLockStore.LockError.storage }
-        } else if update != errSecSuccess { throw AppLockStore.LockError.storage }
+            guard SecItemAdd(q as CFDictionary, nil) == errSecSuccess else {
+                throw AppLockStore.LockError.storage
+            }
+        } else if update != errSecSuccess {
+            throw AppLockStore.LockError.storage
+        }
     }
     func delete(account: String) throws {
         let status = SecItemDelete(query(account) as CFDictionary)
-        guard status == errSecSuccess || status == errSecItemNotFound else { throw AppLockStore.LockError.storage }
+        guard status == errSecSuccess || status == errSecItemNotFound else {
+            throw AppLockStore.LockError.storage
+        }
     }
 }
 
@@ -55,7 +67,10 @@ struct KeychainAppLockVault: AppLockVault {
     @ObservationIgnored private var window: UIWindow?
     @ObservationIgnored private weak var previousWindow: UIWindow?
     @ObservationIgnored private var loading: Task<Bool, Never>?
-    private struct Credential: Codable { let salt: Data; let digest: Data }
+    private struct Credential: Codable {
+        let salt: Data
+        let digest: Data
+    }
     init(defaults: UserDefaults, scope: String, vault: any AppLockVault = KeychainAppLockVault()) {
         self.defaults = defaults
         self.vault = vault
@@ -68,10 +83,10 @@ struct KeychainAppLockVault: AppLockVault {
     func load() async {
         guard !loaded else { return }
         if loading == nil {
-            let account = account, vault = vault
+            let account = account
+            let vault = vault
             loading = Task.detached(priority: .userInitiated) {
-                do { return try vault.read(account: account) != nil }
-                catch { return true }
+                do { return try vault.read(account: account) != nil } catch { return true }
             }
         }
         let exists = await loading!.value
@@ -84,24 +99,34 @@ struct KeychainAppLockVault: AppLockVault {
     private func credential() throws -> Credential? {
         try vault.read(account: account).map { try JSONDecoder().decode(Credential.self, from: $0) }
     }
-    private func digest(_ pin: String, salt: Data) throws -> Data { try Self.digest(pin, salt: salt) }
+    private func digest(_ pin: String, salt: Data) throws -> Data {
+        try Self.digest(pin, salt: salt)
+    }
     /// 100k PBKDF2 rounds take a noticeable moment; unlocking runs this off the main actor.
     private nonisolated static func digest(_ pin: String, salt: Data) throws -> Data {
         let password = Array(pin.utf8)
         var result = [UInt8](repeating: 0, count: 32)
         let status = salt.withUnsafeBytes { saltBytes in
             password.withUnsafeBytes { pinBytes in
-                CCKeyDerivationPBKDF(CCPBKDFAlgorithm(kCCPBKDF2), pinBytes.baseAddress!.assumingMemoryBound(to: Int8.self), password.count, saltBytes.baseAddress!.assumingMemoryBound(to: UInt8.self), salt.count, CCPseudoRandomAlgorithm(kCCPRFHmacAlgSHA256), 100_000, &result, 32)
+                CCKeyDerivationPBKDF(
+                    CCPBKDFAlgorithm(kCCPBKDF2),
+                    pinBytes.baseAddress!.assumingMemoryBound(to: Int8.self), password.count,
+                    saltBytes.baseAddress!.assumingMemoryBound(to: UInt8.self), salt.count,
+                    CCPseudoRandomAlgorithm(kCCPRFHmacAlgSHA256), 100_000, &result, 32)
             }
         }
         guard status == kCCSuccess else { throw LockError.storage }
         return Data(result)
     }
     func configure(pin: String, currentPIN: String) throws {
-        guard pin.count >= 6, pin.count <= 8, pin.allSatisfy(\.isNumber), pin.utf8.allSatisfy({ (48...57).contains($0) }) else { throw LockError.invalidPIN }
+        guard pin.count >= 6, pin.count <= 8, pin.allSatisfy(\.isNumber),
+            pin.utf8.allSatisfy({ (48...57).contains($0) })
+        else { throw LockError.invalidPIN }
         if enabled && !verify(currentPIN) { throw LockError.wrongPIN }
         var salt = Data(count: 32)
-        let status = salt.withUnsafeMutableBytes { SecRandomCopyBytes(kSecRandomDefault, 32, $0.baseAddress!) }
+        let status = salt.withUnsafeMutableBytes {
+            SecRandomCopyBytes(kSecRandomDefault, 32, $0.baseAddress!)
+        }
         guard status == errSecSuccess else { throw LockError.storage }
         let data = try JSONEncoder().encode(Credential(salt: salt, digest: digest(pin, salt: salt)))
         try vault.write(data, account: account)
@@ -119,7 +144,9 @@ struct KeychainAppLockVault: AppLockVault {
             notice = "Too many attempts. Try again in a minute."
             return false
         }
-        guard !pin.isEmpty, let value = try? credential(), let hash = try? digest(pin, salt: value.salt) else { return false }
+        guard !pin.isEmpty, let value = try? credential(),
+            let hash = try? digest(pin, salt: value.salt)
+        else { return false }
         return record(hash: hash, expected: value.digest)
     }
     private func record(hash: Data, expected: Data) -> Bool {
@@ -132,7 +159,9 @@ struct KeychainAppLockVault: AppLockVault {
         }
         let attempts = defaults.integer(forKey: "appLock.attempts") + 1
         defaults.set(attempts, forKey: "appLock.attempts")
-        if attempts >= 5 { defaults.set(Date().timeIntervalSince1970 + 60, forKey: "appLock.retryAt") }
+        if attempts >= 5 {
+            defaults.set(Date().timeIntervalSince1970 + 60, forKey: "appLock.retryAt")
+        }
         notice = "Incorrect PIN."
         return false
     }
@@ -144,7 +173,9 @@ struct KeychainAppLockVault: AppLockVault {
         }
         guard !pin.isEmpty, let value = try? credential() else { return }
         let salt = value.salt
-        let hash = await Task.detached(priority: .userInitiated) { try? Self.digest(pin, salt: salt) }.value
+        let hash = await Task.detached(priority: .userInitiated) {
+            try? Self.digest(pin, salt: salt)
+        }.value
         guard let hash else { return }
         if record(hash: hash, expected: value.digest) { unlock() }
     }
@@ -152,12 +183,17 @@ struct KeychainAppLockVault: AppLockVault {
         guard biometrics, enabled, locked else { return }
         let context = LAContext()
         var error: NSError?
-        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) else {
+        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error)
+        else {
             notice = "Biometrics unavailable. Enter your PIN."
             return
         }
         do {
-            if try await context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: "Unlock Moku") { unlock() }
+            if try await context.evaluatePolicy(
+                .deviceOwnerAuthenticationWithBiometrics, localizedReason: "Unlock Moku")
+            {
+                unlock()
+            }
         } catch { notice = "Enter your PIN to unlock." }
     }
     func lock() {
@@ -167,7 +203,8 @@ struct KeychainAppLockVault: AppLockVault {
     }
     func showIfLocked() {
         guard loaded, locked, window == nil,
-            let scene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first
+            let scene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene })
+                .first
         else { return }
         previousWindow = scene.windows.first(where: \.isKeyWindow)
         let window = UIWindow(windowScene: scene)

@@ -16,12 +16,16 @@ import UIKit
     private(set) var toasts: [Toast] = []
     private var window: UIWindow?
 
-    func show(_ title: String, detail: String? = nil, kind: Kind = .success, duration: Duration = .seconds(3.5)) {
+    func show(
+        _ title: String, detail: String? = nil, kind: Kind = .success,
+        duration: Duration = .seconds(3.5)
+    ) {
         let toast = Toast(kind: kind, title: title, detail: detail)
         // Match desktop: at most a few on screen, newest last.
         toasts = Array((toasts.filter { $0.title != title } + [toast]).suffix(3))
         attach()
-        UIAccessibility.post(notification: .announcement, argument: detail.map { "\(title). \($0)" } ?? title)
+        UIAccessibility.post(
+            notification: .announcement, argument: detail.map { "\(title). \($0)" } ?? title)
         Task { [weak self] in
             try? await Task.sleep(for: duration)
             self?.dismiss(toast.id)
@@ -65,7 +69,8 @@ private struct ToastStack: View {
             ForEach(toaster.toasts) { toast in
                 ToastCard(toast: toast)
                     .onTapGesture { toaster.dismiss(toast.id) }
-                    .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
+                    .transition(
+                        reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
             }
             Spacer(minLength: 0)
         }

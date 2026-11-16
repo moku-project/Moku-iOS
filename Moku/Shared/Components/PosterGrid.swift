@@ -11,15 +11,19 @@ struct PosterGrid: View {
     var body: some View {
         LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
             ForEach(entries) { entry in
-                Button { open(entry) } label: { card(entry) }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("\(identifier).\(entry.id)")
-                    .contextMenu {
-                        Button("Open", systemImage: "book") { open(entry) }
-                        Button("Copy Title", systemImage: "doc.on.doc") {
-                            UIPasteboard.general.string = entry.title
-                        }
+                Button {
+                    open(entry)
+                } label: {
+                    card(entry)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("\(identifier).\(entry.id)")
+                .contextMenu {
+                    Button("Open", systemImage: "book") { open(entry) }
+                    Button("Copy Title", systemImage: "doc.on.doc") {
+                        UIPasteboard.general.string = entry.title
                     }
+                }
             }
         }
         .task(id: entries.prefix(12).map(\.id)) {
@@ -31,7 +35,9 @@ struct PosterGrid: View {
         VStack(alignment: .leading, spacing: 6) {
             Color.clear
                 .aspectRatio(2 / 3, contentMode: .fit)
-                .overlay { CoverImage(url: entry.coverURL, symbol: entry.media.symbol).scaledToFill() }
+                .overlay {
+                    CoverImage(url: entry.coverURL, symbol: entry.media.symbol).scaledToFill()
+                }
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .overlay(alignment: .topLeading) {
                     if library.contains(entry) {
@@ -42,8 +48,10 @@ struct PosterGrid: View {
                             .padding(6)
                     }
                 }
-            Text(entry.title).font(.caption).lineLimit(2, reservesSpace: true).foregroundStyle(.primary)
-                .multilineTextAlignment(.leading)
+            Text(entry.title).font(.caption).lineLimit(2, reservesSpace: true).foregroundStyle(
+                .primary
+            )
+            .multilineTextAlignment(.leading)
             Text(entry.sourceName).font(.caption2).lineLimit(1).foregroundStyle(.secondary)
         }
         .contentShape(Rectangle())

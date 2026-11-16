@@ -5,8 +5,12 @@ struct SettingsExportDocument: FileDocument {
     static var readableContentTypes: [UTType] { [.data, .json] }
     var data: Data
     init(data: Data = Data()) { self.data = data }
-    init(configuration: ReadConfiguration) throws { data = configuration.file.regularFileContents ?? Data() }
-    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper { FileWrapper(regularFileWithContents: data) }
+    init(configuration: ReadConfiguration) throws {
+        data = configuration.file.regularFileContents ?? Data()
+    }
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        FileWrapper(regularFileWithContents: data)
+    }
 }
 
 struct StorageSettingsContent: View {
@@ -32,7 +36,10 @@ struct StorageSettingsContent: View {
     @State private var localSeries = ""
     @State private var localChapter = ""
     enum StorageAction: Identifiable {
-        case clear(String, String), deleteBackup(String), importBackup(String), convert, relocate, relocateLocal, resetPreferences
+        case clear(String, String)
+        case deleteBackup(String)
+        case importBackup(String)
+        case convert, relocate, relocateLocal, resetPreferences
         var id: String { String(describing: self) }
     }
     var body: some View {
@@ -44,12 +51,16 @@ struct StorageSettingsContent: View {
                     ForEach(info.categories) { item in
                         LabeledContent {
                             if item.clearable {
-                                Button("Clear", role: .destructive) { confirmation = .clear(item.key, item.label) }
-                                    .buttonStyle(.borderless)
-                                    .accessibilityLabel("Clear \(item.label)")
+                                Button("Clear", role: .destructive) {
+                                    confirmation = .clear(item.key, item.label)
+                                }
+                                .buttonStyle(.borderless)
+                                .accessibilityLabel("Clear \(item.label)")
                             }
                         } label: {
-                            SettingsLabel(item.label, detail: "\(bytes(item.bytes)) · \(item.fileCount) files")
+                            SettingsLabel(
+                                item.label, detail: "\(bytes(item.bytes)) · \(item.fileCount) files"
+                            )
                         }
                     }
                 } else if model.busy {
@@ -63,14 +74,24 @@ struct StorageSettingsContent: View {
                     Button {
                         confirmation = .convert
                     } label: {
-                        SettingsLabel("Convert existing downloads", detail: "Use the selected download format.")
+                        SettingsLabel(
+                            "Convert existing downloads",
+                            detail: "Use the selected download format.")
                     }
                 }
-                SettingsToggle("Retry failed downloads", detail: "Retry once per minute while Downloads is open.", isOn: $autoRetry)
+                SettingsToggle(
+                    "Retry failed downloads",
+                    detail: "Retry once per minute while Downloads is open.", isOn: $autoRetry)
             }
             Section {
-                SettingsPicker("Warn at", selection: $limitGB, options: [0, 1, 2, 5, 10, 20, 50, 100].map { ($0, $0 == 0 ? "Off" : "\($0) GB") })
-                if let info = model.info, limitGB > 0, info.usedBytes >= Double(limitGB) * 1_073_741_824 {
+                SettingsPicker(
+                    "Warn at", selection: $limitGB,
+                    options: [0, 1, 2, 5, 10, 20, 50, 100].map {
+                        ($0, $0 == 0 ? "Off" : "\($0) GB")
+                    })
+                if let info = model.info, limitGB > 0,
+                    info.usedBytes >= Double(limitGB) * 1_073_741_824
+                {
                     Label("Storage limit reached.", systemImage: "exclamationmark.triangle")
                         .foregroundStyle(.orange)
                 }
@@ -80,7 +101,10 @@ struct StorageSettingsContent: View {
                 Text("Off disables the storage warning.")
             }
             Section {
-                LabeledContent("Downloads", value: server.values.first { $0.key == "downloads_dir" }?.value.nonempty ?? model.info?.mediaDir ?? "—")
+                LabeledContent(
+                    "Downloads",
+                    value: server.values.first { $0.key == "downloads_dir" }?.value.nonempty
+                        ?? model.info?.mediaDir ?? "—")
                 LabeledContent {
                     TextField("Directory name", text: $path)
                         .multilineTextAlignment(.trailing)
@@ -88,7 +112,9 @@ struct StorageSettingsContent: View {
                 } label: {
                     Text("New directory")
                 }
-                SettingsToggle("Move existing files", detail: "Migrate downloads to the new directory.", isOn: $migrate)
+                SettingsToggle(
+                    "Move existing files", detail: "Migrate downloads to the new directory.",
+                    isOn: $migrate)
                 Button("Change downloads directory") { confirmation = .relocate }
                     .disabled(!validDirectoryName)
             } header: {
@@ -100,9 +126,13 @@ struct StorageSettingsContent: View {
                 Button {
                     Task { await model.run("rescanLocalMedia { id }") }
                 } label: {
-                    SettingsLabel("Rescan local source", detail: "Scan imported local manga, novels, and video.")
+                    SettingsLabel(
+                        "Rescan local source",
+                        detail: "Scan imported local manga, novels, and video.")
                 }
-                SettingsLinkRow("Local titles", detail: "See and delete imported series.") { localLibraryOpen = true }
+                SettingsLinkRow("Local titles", detail: "See and delete imported series.") {
+                    localLibraryOpen = true
+                }
             }
             Section {
                 Picker("Media type", selection: $localKind) {
@@ -116,8 +146,11 @@ struct StorageSettingsContent: View {
                 LabeledContent("Chapter or episode") {
                     TextField("Chapter name", text: $localChapter).multilineTextAlignment(.trailing)
                 }
-                Button("Import local file") { importKind = "local file"; importing = true }
-                    .disabled(!validComponent(localSeries) || !validComponent(localChapter))
+                Button("Import local file") {
+                    importKind = "local file"
+                    importing = true
+                }
+                .disabled(!validComponent(localSeries) || !validComponent(localChapter))
             } header: {
                 Text("Local files")
             } footer: {
@@ -134,39 +167,50 @@ struct StorageSettingsContent: View {
             } header: {
                 Text("Local source directory")
             } footer: {
-                Text("Choose a directory within server data. Existing files move to the new directory.")
+                Text(
+                    "Choose a directory within server data. Existing files move to the new directory."
+                )
             }
             Section("Server backups") {
                 Button {
                     Task { await model.run("createDatabaseBackup { name }") }
                 } label: {
-                    SettingsLabel("Back up server database", detail: "Create a consistent database snapshot.")
+                    SettingsLabel(
+                        "Back up server database", detail: "Create a consistent database snapshot.")
                 }
                 Button {
                     Task { await model.run("exportMihonBackup { name }") }
                 } label: {
-                    SettingsLabel("Export Mihon library", detail: "Export the server library as a .tachibk backup.")
+                    SettingsLabel(
+                        "Export Mihon library",
+                        detail: "Export the server library as a .tachibk backup.")
                 }
                 Button {
-                    importKind = "Mihon backup"; importing = true
+                    importKind = "Mihon backup"
+                    importing = true
                 } label: {
-                    SettingsLabel("Import Mihon backup", detail: "Merge a .tachibk backup from Files.")
+                    SettingsLabel(
+                        "Import Mihon backup", detail: "Merge a .tachibk backup from Files.")
                 }
                 ForEach(model.backups) { backup in
                     Menu {
                         backupActions(backup)
                     } label: {
                         HStack {
-                            SettingsLabel(backup.name, detail: "\(bytes(backup.bytes)) · \(backup.createdAt)")
+                            SettingsLabel(
+                                backup.name, detail: "\(bytes(backup.bytes)) · \(backup.createdAt)")
                             Spacer(minLength: 8)
-                            Image(systemName: "ellipsis.circle").foregroundStyle(NavigationStyle.accent)
+                            Image(systemName: "ellipsis.circle").foregroundStyle(
+                                NavigationStyle.accent)
                         }
                         .foregroundStyle(.primary)
                         .contentShape(Rectangle())
                     }
                     .accessibilityLabel("Manage \(backup.name)")
                     .swipeActions {
-                        Button("Delete", role: .destructive) { confirmation = .deleteBackup(backup.name) }
+                        Button("Delete", role: .destructive) {
+                            confirmation = .deleteBackup(backup.name)
+                        }
                     }
                 }
             }
@@ -177,17 +221,22 @@ struct StorageSettingsContent: View {
                     SettingsLabel("Export app library", detail: "Export locally saved titles.")
                 }
                 Button {
-                    importKind = "library"; importing = true
+                    importKind = "library"
+                    importing = true
                 } label: {
-                    SettingsLabel("Import app library", detail: "Merge titles from a Moku library JSON file.")
+                    SettingsLabel(
+                        "Import app library", detail: "Merge titles from a Moku library JSON file.")
                 }
                 Button {
                     exportSettings()
                 } label: {
-                    SettingsLabel("Export settings", detail: "Save app preferences without passwords or PINs.")
+                    SettingsLabel(
+                        "Export settings", detail: "Save app preferences without passwords or PINs."
+                    )
                 }
                 Button {
-                    importKind = "settings"; importing = true
+                    importKind = "settings"
+                    importing = true
                 } label: {
                     SettingsLabel("Import settings", detail: "Restore a Moku iOS settings file.")
                 }
@@ -202,33 +251,69 @@ struct StorageSettingsContent: View {
             SettingsNotice(text: model.notice)
         }
         .disabled(model.busy || server.saving)
-            .sheet(isPresented: $localLibraryOpen) { LocalLibrarySheet() }
-            .task { await model.load(); await server.load() }
-            .fileExporter(isPresented: $exporting, document: document, contentType: exportName.hasSuffix(".json") ? .json : .data, defaultFilename: exportName) { result in
-                if case .failure = result { model.notice = "Couldn’t export this file." }
+        .sheet(isPresented: $localLibraryOpen) { LocalLibrarySheet() }
+        .task {
+            await model.load()
+            await server.load()
+        }
+        .fileExporter(
+            isPresented: $exporting, document: document,
+            contentType: exportName.hasSuffix(".json") ? .json : .data, defaultFilename: exportName
+        ) { result in
+            if case .failure = result { model.notice = "Couldn’t export this file." }
+        }
+        .fileImporter(
+            isPresented: $importing,
+            allowedContentTypes: (importKind == "Mihon backup" || importKind == "local file")
+                ? [.data] : [.json]
+        ) { result in
+            if case .success(let url) = result { pendingImport = url }
+            if case .failure = result { model.notice = "Couldn’t open this file." }
+        }
+        .confirmationDialog(
+            "Import \(importKind)?",
+            isPresented: Binding(
+                get: { pendingImport != nil }, set: { if !$0 { pendingImport = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button("Import") { if let url = pendingImport { Task { await importFile(url) } } }
+        }
+        .confirmationDialog(
+            "Confirm storage action",
+            isPresented: Binding(
+                get: { confirmation != nil }, set: { if !$0 { confirmation = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button("Continue", role: .destructive) {
+                if let action = confirmation { Task { await perform(action) } }
             }
-            .fileImporter(isPresented: $importing, allowedContentTypes: (importKind == "Mihon backup" || importKind == "local file") ? [.data] : [.json]) { result in
-                if case .success(let url) = result { pendingImport = url }
-                if case .failure = result { model.notice = "Couldn’t open this file." }
-            }
-            .confirmationDialog("Import \(importKind)?", isPresented: Binding(get: { pendingImport != nil }, set: { if !$0 { pendingImport = nil } }), titleVisibility: .visible) {
-                Button("Import") { if let url = pendingImport { Task { await importFile(url) } } }
-            }
-            .confirmationDialog("Confirm storage action", isPresented: Binding(get: { confirmation != nil }, set: { if !$0 { confirmation = nil } }), titleVisibility: .visible) {
-                Button("Continue", role: .destructive) { if let action = confirmation { Task { await perform(action) } } }
-            } message: { Text(confirmationMessage) }
+        } message: {
+            Text(confirmationMessage)
+        }
     }
     @ViewBuilder private func backupActions(_ backup: ServerBackup) -> some View {
-        Button("Save to Files", systemImage: "square.and.arrow.down") { Task {
-            do { document = SettingsExportDocument(data: try await model.backupData(backup)); exportName = backup.name; exporting = true }
-            catch { model.notice = "Couldn’t export this backup." }
-        }}
-        if backup.kind != "sqlite" && backup.name.hasSuffix(".tachibk") {
-            Button("Import library", systemImage: "square.and.arrow.down.on.square") { confirmation = .importBackup(backup.name) }
+        Button("Save to Files", systemImage: "square.and.arrow.down") {
+            Task {
+                do {
+                    document = SettingsExportDocument(data: try await model.backupData(backup))
+                    exportName = backup.name
+                    exporting = true
+                } catch { model.notice = "Couldn’t export this backup." }
+            }
         }
-        Button("Delete", systemImage: "trash", role: .destructive) { confirmation = .deleteBackup(backup.name) }
+        if backup.kind != "sqlite" && backup.name.hasSuffix(".tachibk") {
+            Button("Import library", systemImage: "square.and.arrow.down.on.square") {
+                confirmation = .importBackup(backup.name)
+            }
+        }
+        Button("Delete", systemImage: "trash", role: .destructive) {
+            confirmation = .deleteBackup(backup.name)
+        }
     }
-    private func validComponent(_ value: String) -> Bool { !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && value != "." && value != ".." && !value.contains("/") && !value.contains("\\") }
+    private func validComponent(_ value: String) -> Bool {
+        !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && value != "."
+            && value != ".." && !value.contains("/") && !value.contains("\\")
+    }
     private var validDirectoryName: Bool { validComponent(path) }
     private var confirmationMessage: String {
         switch confirmation {
@@ -242,14 +327,24 @@ struct StorageSettingsContent: View {
         case nil: ""
         }
     }
-    private func bytes(_ value: Double) -> String { ByteCountFormatter.string(fromByteCount: Int64(max(0, min(value, Double(Int64.max / 2)))), countStyle: .file) }
+    private func bytes(_ value: Double) -> String {
+        ByteCountFormatter.string(
+            fromByteCount: Int64(max(0, min(value, Double(Int64.max / 2)))), countStyle: .file)
+    }
     private func exportSettings() {
-        do { document = SettingsExportDocument(data: try JSONEncoder().encode(SettingsArchive(defaults: appData.preferences))); exportName = "Moku-settings.json"; exporting = true }
-        catch { model.notice = "Couldn’t export settings." }
+        do {
+            document = SettingsExportDocument(
+                data: try JSONEncoder().encode(SettingsArchive(defaults: appData.preferences)))
+            exportName = "Moku-settings.json"
+            exporting = true
+        } catch { model.notice = "Couldn’t export settings." }
     }
     private func exportLibrary() {
-        do { document = SettingsExportDocument(data: try JSONEncoder().encode(library.entries)); exportName = "Moku-library.json"; exporting = true }
-        catch { model.notice = "Couldn’t export library." }
+        do {
+            document = SettingsExportDocument(data: try JSONEncoder().encode(library.entries))
+            exportName = "Moku-library.json"
+            exporting = true
+        } catch { model.notice = "Couldn’t export library." }
     }
     private func importFile(_ url: URL) async {
         defer { pendingImport = nil }
@@ -257,28 +352,42 @@ struct StorageSettingsContent: View {
             model.busy = true
             defer { model.busy = false }
             do {
-                try await Backend.shared.importLocalFile(url, kind: localKind, series: localSeries, chapter: localChapter)
+                try await Backend.shared.importLocalFile(
+                    url, kind: localKind, series: localSeries, chapter: localChapter)
                 await BackendAPI.shared.clearContentCache()
                 model.notice = "Local file imported."
-            } catch { model.notice = "Couldn’t import this local file. Check its format and choose a name that is not already in use." }
+            } catch {
+                model.notice =
+                    "Couldn’t import this local file. Check its format and choose a name that is not already in use."
+            }
             return
         }
         if importKind == "Mihon backup" {
             await importMihonFile(url)
             return
         }
-        if importKind == "library" { if !(await library.importLibrary(from: url)) { model.notice = library.error }; return }
+        if importKind == "library" {
+            if !(await library.importLibrary(from: url)) { model.notice = library.error }
+            return
+        }
         do {
             let values = try await Task.detached {
                 let access = url.startAccessingSecurityScopedResource()
                 defer { if access { url.stopAccessingSecurityScopedResource() } }
-                guard (try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0) <= 16 * 1024 * 1024 else { throw CocoaError(.fileReadTooLarge) }
+                guard
+                    (try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0) <= 16 * 1024
+                        * 1024
+                else { throw CocoaError(.fileReadTooLarge) }
                 return try JSONDecoder().decode(SettingsArchive.self, from: Data(contentsOf: url))
             }.value.validatedValues()
             for (key, value) in values { appData.preferences.set(value, forKey: key) }
-            if let raw = values["reader.preferences.v1"] as? Data { reader.document = try JSONDecoder().decode(ReaderPreferenceDocument.self, from: raw) }
+            if let raw = values["reader.preferences.v1"] as? Data {
+                reader.document = try JSONDecoder().decode(ReaderPreferenceDocument.self, from: raw)
+            }
             model.notice = "Settings imported."
-        } catch { model.notice = "Couldn’t import settings. Choose a valid Moku iOS settings file." }
+        } catch {
+            model.notice = "Couldn’t import settings. Choose a valid Moku iOS settings file."
+        }
     }
     private func importMihonFile(_ url: URL) async {
         guard !model.busy else { return }
@@ -290,17 +399,29 @@ struct StorageSettingsContent: View {
                 defer { if access { url.stopAccessingSecurityScopedResource() } }
                 guard url.pathExtension.lowercased() == "tachibk",
                     let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize,
-                    size > 0, size <= 64 * 1024 * 1024 else { throw CocoaError(.fileReadCorruptFile) }
+                    size > 0, size <= 64 * 1024 * 1024
+                else { throw CocoaError(.fileReadCorruptFile) }
                 return try Data(contentsOf: url)
             }.value
             let boundary = "Moku-" + UUID().uuidString
-            var body = Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"library.tachibk\"\r\nContent-Type: application/octet-stream\r\n\r\n".utf8)
+            var body = Data(
+                "--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"library.tachibk\"\r\nContent-Type: application/octet-stream\r\n\r\n"
+                    .utf8)
             body.append(data)
             body.append(Data("\r\n--\(boundary)--\r\n".utf8))
-            let response = try await BackendAPI.shared.api(path: "/api/backups/import-file", method: "POST", body: body, contentType: "multipart/form-data; boundary=\(boundary)")
-            struct Result: Decodable { let mangaImported: Int; let mangaSkipped: Int; let warnings: [String]? }
+            let response = try await BackendAPI.shared.api(
+                path: "/api/backups/import-file", method: "POST", body: body,
+                contentType: "multipart/form-data; boundary=\(boundary)")
+            struct Result: Decodable {
+                let mangaImported: Int
+                let mangaSkipped: Int
+                let warnings: [String]?
+            }
             let result = try JSONDecoder().decode(Result.self, from: response)
-            model.notice = "Imported \(result.mangaImported) titles; skipped \(result.mangaSkipped)." + (result.warnings?.isEmpty == false ? " " + result.warnings!.joined(separator: " ") : "")
+            model.notice =
+                "Imported \(result.mangaImported) titles; skipped \(result.mangaSkipped)."
+                + (result.warnings?.isEmpty == false
+                    ? " " + result.warnings!.joined(separator: " ") : "")
             await BackendAPI.shared.clearContentCache()
             _ = await library.refreshFromServer()
         } catch { model.notice = "Couldn’t import this Mihon backup." }
@@ -309,30 +430,52 @@ struct StorageSettingsContent: View {
         confirmation = nil
         switch action {
         case .clear(let key, _):
-            if await model.run("clearStorageCategory(key: \(BackendAPI.literal(key))) { usedBytes }") { await BackendAPI.shared.clearContentCache() }
-        case .deleteBackup(let name): await model.run("deleteDatabaseBackup(name: \(BackendAPI.literal(name)))")
+            if await model.run(
+                "clearStorageCategory(key: \(BackendAPI.literal(key))) { usedBytes }")
+            {
+                await BackendAPI.shared.clearContentCache()
+            }
+        case .deleteBackup(let name):
+            await model.run("deleteDatabaseBackup(name: \(BackendAPI.literal(name)))")
         case .importBackup(let name):
-            if await model.run("importMihonBackup(name: \(BackendAPI.literal(name))) { mangaImported mangaSkipped warnings }") { _ = await library.refreshFromServer() }
+            if await model.run(
+                "importMihonBackup(name: \(BackendAPI.literal(name))) { mangaImported mangaSkipped warnings }"
+            ) {
+                _ = await library.refreshFromServer()
+            }
         case .convert:
             let format = server.values.first { $0.key == "manga_download_format" }?.value ?? "loose"
-            await model.run("migrateMangaDownloadFormat(target: \(BackendAPI.literal(format))) { chaptersMigrated chaptersFailed }")
+            await model.run(
+                "migrateMangaDownloadFormat(target: \(BackendAPI.literal(format))) { chaptersMigrated chaptersFailed }"
+            )
         case .relocate:
             guard validDirectoryName else { return }
             guard let directory = model.info?.dataDir else { return }
-            let target = URL(fileURLWithPath: directory).appending(path: path, directoryHint: .isDirectory).path
-            await model.run("relocateDownloads(newPath: \(BackendAPI.literal(target)), migrate: \(migrate)) { newPath movedFiles }")
+            let target = URL(fileURLWithPath: directory).appending(
+                path: path, directoryHint: .isDirectory
+            ).path
+            await model.run(
+                "relocateDownloads(newPath: \(BackendAPI.literal(target)), migrate: \(migrate)) { newPath movedFiles }"
+            )
             await server.load()
         case .relocateLocal:
             guard validComponent(localPath), let directory = model.info?.dataDir else { return }
-            let target = URL(fileURLWithPath: directory).appending(path: localPath, directoryHint: .isDirectory).path
-            await model.run("relocateLocalSource(newPath: \(BackendAPI.literal(target)), migrate: true) { newPath movedFiles }")
+            let target = URL(fileURLWithPath: directory).appending(
+                path: localPath, directoryHint: .isDirectory
+            ).path
+            await model.run(
+                "relocateLocalSource(newPath: \(BackendAPI.literal(target)), migrate: true) { newPath movedFiles }"
+            )
             await server.load()
         case .resetPreferences:
-            for key in appData.preferences.dictionaryRepresentation().keys where SettingsArchive.permitted(key) && key != "reader.preferences.v1" { appData.preferences.removeObject(forKey: key) }
+            for key in appData.preferences.dictionaryRepresentation().keys
+            where SettingsArchive.permitted(key) && key != "reader.preferences.v1" {
+                appData.preferences.removeObject(forKey: key)
+            }
             reader.document.global = MangaReadingSettings()
             reader.document.behaviour = ReaderBehaviour()
             model.notice = "Preferences reset."
         }
     }
 }
-private extension String { var nonempty: String? { isEmpty ? nil : self } }
+extension String { fileprivate var nonempty: String? { isEmpty ? nil : self } }

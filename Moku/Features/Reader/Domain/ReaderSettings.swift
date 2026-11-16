@@ -33,14 +33,18 @@ extension ReaderBehaviour {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let d = ReaderBehaviour()
         autoMarkRead = try c.decodeIfPresent(Bool.self, forKey: .autoMarkRead) ?? d.autoMarkRead
-        autoNextChapter = try c.decodeIfPresent(Bool.self, forKey: .autoNextChapter) ?? d.autoNextChapter
-        markReadOnNext = try c.decodeIfPresent(Bool.self, forKey: .markReadOnNext) ?? d.markReadOnNext
+        autoNextChapter =
+            try c.decodeIfPresent(Bool.self, forKey: .autoNextChapter) ?? d.autoNextChapter
+        markReadOnNext =
+            try c.decodeIfPresent(Bool.self, forKey: .markReadOnNext) ?? d.markReadOnNext
         autoBookmark = try c.decodeIfPresent(Bool.self, forKey: .autoBookmark) ?? d.autoBookmark
         preloadPages = try c.decodeIfPresent(Int.self, forKey: .preloadPages) ?? d.preloadPages
         pinchZoom = try c.decodeIfPresent(Bool.self, forKey: .pinchZoom) ?? d.pinchZoom
         autoScroll = try c.decodeIfPresent(Bool.self, forKey: .autoScroll) ?? d.autoScroll
-        autoScrollSpeed = try c.decodeIfPresent(Double.self, forKey: .autoScrollSpeed) ?? d.autoScrollSpeed
-        tapToToggleBar = try c.decodeIfPresent(Bool.self, forKey: .tapToToggleBar) ?? d.tapToToggleBar
+        autoScrollSpeed =
+            try c.decodeIfPresent(Double.self, forKey: .autoScrollSpeed) ?? d.autoScrollSpeed
+        tapToToggleBar =
+            try c.decodeIfPresent(Bool.self, forKey: .tapToToggleBar) ?? d.tapToToggleBar
         // Saved values are ignored: phones always read full screen.
         containerized = false
         tapToTurn = try c.decodeIfPresent(Bool.self, forKey: .tapToTurn) ?? d.tapToTurn
@@ -75,7 +79,8 @@ extension ReaderPreferenceDocument {
         let d = ReaderPreferenceDocument()
         global = try c.decodeIfPresent(MangaReadingSettings.self, forKey: .global) ?? d.global
         behaviour = try c.decodeIfPresent(ReaderBehaviour.self, forKey: .behaviour) ?? d.behaviour
-        overrides = try c.decodeIfPresent([String: MangaReadingSettings].self, forKey: .overrides) ?? [:]
+        overrides =
+            try c.decodeIfPresent([String: MangaReadingSettings].self, forKey: .overrides) ?? [:]
         presets = try c.decodeIfPresent([MangaReaderPreset].self, forKey: .presets) ?? []
         positions = try c.decodeIfPresent([String: ReaderPosition].self, forKey: .positions) ?? [:]
         bookmarks = try c.decodeIfPresent([String: ReaderPosition].self, forKey: .bookmarks) ?? [:]

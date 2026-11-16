@@ -18,7 +18,8 @@ struct HomeSeriesProgress: View {
                 .tint(NavigationStyle.accent)
                 .accessibilityLabel("Series progress")
                 .accessibilityValue(
-                    "\(counts.read) of \(counts.total) \(entry.media == "Anime" ? "watched" : "read")")
+                    "\(counts.read) of \(counts.total) \(entry.media == "Anime" ? "watched" : "read")"
+                )
         }
     }
 }

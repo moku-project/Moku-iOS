@@ -36,7 +36,9 @@ actor ContentProbe {
         }
         guard !Task.isCancelled, let chapters = try? await count(entry) else { return .unknown }
         known[key] = (chapters > 0, .now)
-        if known.count > 1000 { known = known.filter { Date.now.timeIntervalSince($0.value.at) < lifetime } }
+        if known.count > 1000 {
+            known = known.filter { Date.now.timeIntervalSince($0.value.at) < lifetime }
+        }
         return chapters > 0 ? .content : .empty
     }
 

@@ -22,7 +22,9 @@ struct AddRepositoryView: View {
                 } header: {
                     Text("Index URL")
                 } footer: {
-                    Text("Paste a Mihon or Aniyomi repository link, or an LNReader plugins.min.json. Nothing installs until you choose an extension.")
+                    Text(
+                        "Paste a Mihon or Aniyomi repository link, or an LNReader plugins.min.json. Nothing installs until you choose an extension."
+                    )
                 }
                 Section("Name") {
                     TextField("Optional", text: $repositoryName)
@@ -31,7 +33,8 @@ struct AddRepositoryView: View {
                 }
                 if let error = model.error {
                     Section {
-                        Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
+                        Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(
+                            .orange)
                     }
                 }
             }
@@ -48,7 +51,9 @@ struct AddRepositoryView: View {
                         ProgressView()
                     } else {
                         Button("Add", action: add)
-                            .disabled(repositoryURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            .disabled(
+                                repositoryURL.trimmingCharacters(in: .whitespacesAndNewlines)
+                                    .isEmpty)
                     }
                 }
             }

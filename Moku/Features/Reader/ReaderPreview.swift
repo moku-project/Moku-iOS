@@ -32,7 +32,9 @@
         }
         func image(path: String) async throws -> Data {
             if PDFPageSource.parse(path) != nil {
-                return try await PDFPageSource.shared.image(path: path) { _ in await Self.pdfFixture() }
+                return try await PDFPageSource.shared.image(path: path) { _ in
+                    await Self.pdfFixture()
+                }
             }
             try Task.checkCancellation()
             return await MainActor.run {
@@ -77,20 +79,28 @@
         }
         @MainActor static func pdfFixture() -> Data {
             let attributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 36, weight: .semibold), .foregroundColor: UIColor.darkGray,
+                .font: UIFont.systemFont(ofSize: 36, weight: .semibold),
+                .foregroundColor: UIColor.darkGray,
             ]
-            return UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 600, height: 840)).pdfData { context in
-                for page in 1...3 {
-                    // Page 2 is landscape, like a two-page spread in a scanned PDF.
-                    let bounds = page == 2 ? CGRect(x: 0, y: 0, width: 840, height: 600) : CGRect(x: 0, y: 0, width: 600, height: 840)
-                    context.beginPage(withBounds: bounds, pageInfo: [:])
-                    UIColor(white: 0.85, alpha: 1).setFill()
-                    context.fill(bounds.insetBy(dx: 30, dy: 30))
-                    "PDF page \(page)".draw(at: CGPoint(x: 60, y: 60), withAttributes: attributes)
+            return UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 600, height: 840))
+                .pdfData { context in
+                    for page in 1...3 {
+                        // Page 2 is landscape, like a two-page spread in a scanned PDF.
+                        let bounds =
+                            page == 2
+                            ? CGRect(x: 0, y: 0, width: 840, height: 600)
+                            : CGRect(x: 0, y: 0, width: 600, height: 840)
+                        context.beginPage(withBounds: bounds, pageInfo: [:])
+                        UIColor(white: 0.85, alpha: 1).setFill()
+                        context.fill(bounds.insetBy(dx: 30, dy: 30))
+                        "PDF page \(page)".draw(
+                            at: CGPoint(x: 60, y: 60), withAttributes: attributes)
+                    }
                 }
-            }
         }
-        func progress(mediaID: String, chapterID: String, value: Double, completed: Bool, page: Int?)
+        func progress(
+            mediaID: String, chapterID: String, value: Double, completed: Bool, page: Int?
+        )
             async throws
         {}
         func download(mediaID: String, chapterIDs: [String]) async throws {}

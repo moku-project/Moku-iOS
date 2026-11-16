@@ -4,7 +4,9 @@ import XCTest
 final class SearchTests: XCTestCase {
     func testPopularGridFollowsContentButtonWithoutOpeningKeyboard() {
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-testing-search", "--ui-testing-storage", "-mokuStorageTestID", UUID().uuidString]
+        app.launchArguments = [
+            "--ui-testing-search", "--ui-testing-storage", "-mokuStorageTestID", UUID().uuidString,
+        ]
         app.launch()
         app.buttons["tab.browse"].tap()
         XCTAssertTrue(app.buttons["search.popular.moon"].waitForExistence(timeout: 5))
@@ -35,7 +37,8 @@ final class SearchTests: XCTestCase {
         for _ in 0..<2 {
             let settingsStart = ContinuousClock.now
             app.buttons["tab.settings"].tap()
-            XCTAssertTrue(app.settingsIndex.exists || app.settingsIndex.waitForExistence(timeout: 1))
+            XCTAssertTrue(
+                app.settingsIndex.exists || app.settingsIndex.waitForExistence(timeout: 1))
             let settingsDuration = settingsStart.duration(to: .now)
             print("Settings navigation including XCTest tap: \(settingsDuration)")
             XCTAssertLessThan(settingsDuration, .seconds(2))
@@ -58,7 +61,8 @@ final class SearchTests: XCTestCase {
         XCTAssertTrue(section.waitForExistence(timeout: 3))
         section.buttons["Browse"].tap()
         XCTAssertTrue(section.buttons["Browse"].isSelected)
-        XCTAssertTrue(app.staticTexts["Add a repository to find extensions"].waitForExistence(timeout: 10))
+        XCTAssertTrue(
+            app.staticTexts["Add a repository to find extensions"].waitForExistence(timeout: 10))
     }
 
     func testSearchReadsInstalledSourcesWithoutStartingJava() {
@@ -85,7 +89,9 @@ final class SearchTests: XCTestCase {
     func testGlobalSearchFollowsContentButton() {
         let app = XCUIApplication()
         // A launch-argument contentMode would shadow every later change, so choose it with the button.
-        app.launchArguments = ["--ui-testing-search", "--ui-testing-storage", "-mokuStorageTestID", UUID().uuidString]
+        app.launchArguments = [
+            "--ui-testing-search", "--ui-testing-storage", "-mokuStorageTestID", UUID().uuidString,
+        ]
         app.launch()
         NavigationTests.chooseMode("Novels", in: app)
         app.buttons["tab.browse"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
@@ -104,7 +110,9 @@ final class SearchTests: XCTestCase {
 
     func testDebouncedSearchPanelsAndTopBar() {
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-testing-search", "--ui-testing-storage", "-mokuStorageTestID", UUID().uuidString]
+        app.launchArguments = [
+            "--ui-testing-search", "--ui-testing-storage", "-mokuStorageTestID", UUID().uuidString,
+        ]
         app.launch()
         NavigationTests.chooseMode("All", in: app)
         app.buttons["tab.browse"].tap()
@@ -139,7 +147,8 @@ final class SearchTests: XCTestCase {
         dismissKeyboard(app)
         screenshot("Search results")
         // Filters stay reachable while the search field is active.
-        XCTAssertTrue((filter.exists && filter.isHittable) || app.buttons["search.filter.inline"].isHittable)
+        XCTAssertTrue(
+            (filter.exists && filter.isHittable) || app.buttons["search.filter.inline"].isHittable)
         // Leaving the tab keeps the query and its results.
         app.buttons["tab.library"].tap()
         app.buttons["tab.browse"].tap()
@@ -153,7 +162,9 @@ final class SearchTests: XCTestCase {
     private func dismissKeyboard(_ app: XCUIApplication) {
         guard app.keyboards.firstMatch.exists else { return }
         // Dragging the results dismisses the keyboard and keeps the search.
-        let result = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'search.result.'")).firstMatch
+        let result = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH 'search.result.'")
+        ).firstMatch
         if result.exists { result.swipeDown(velocity: .slow) }
         if app.keyboards.firstMatch.exists {
             app.visibleNavigationBar.buttons["Close"].tap()

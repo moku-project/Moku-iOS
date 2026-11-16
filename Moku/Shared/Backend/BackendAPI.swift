@@ -1,6 +1,6 @@
 import Foundation
-import OSLog
 import ImageIO
+import OSLog
 
 private let log = Logger(subsystem: "com.moku.app", category: "graphql")
 
@@ -15,7 +15,8 @@ actor BackendAPI {
         directory: URL.cachesDirectory.appending(path: "Moku/Results-v1"),
         diskLimit: 32 * 1024 * 1024)
     /// Reads that include read state; frequent progress saves invalidate only these, in memory.
-    private lazy var progressQueries = ResourceCache(memoryLimit: 4 * 1024 * 1024, cancelWhenUnused: true)
+    private lazy var progressQueries = ResourceCache(
+        memoryLimit: 4 * 1024 * 1024, cancelWhenUnused: true)
     private let backend = Backend.shared
     private lazy var session = URLSession(
         configuration: .ephemeral, delegate: LocalRedirectPolicy(), delegateQueue: nil)
@@ -66,8 +67,10 @@ actor BackendAPI {
     private nonisolated static func isProgressMutation(_ mutation: String) -> Bool {
         let body = mutation.dropFirst("mutation".count)
             .drop { $0 == " " || $0 == "{" || $0.isNewline }
-        return ["updateReadingProgress", "markChapterRead", "markChaptersRead", "recordReadingSession"]
-            .contains { body.hasPrefix($0) }
+        return [
+            "updateReadingProgress", "markChapterRead", "markChaptersRead", "recordReadingSession",
+        ]
+        .contains { body.hasPrefix($0) }
     }
 
     private nonisolated static func readsProgress(_ query: String) -> Bool {
@@ -77,10 +80,14 @@ actor BackendAPI {
 
     private func fetchGraphQL(_ query: String, requiresSourceRuntime: Bool) async throws -> Data {
         var connection = try await backend.connection(requiresSourceRuntime: requiresSourceRuntime)
-        let data: Data, response: URLResponse
+        let data: Data
+        let response: URLResponse
         do {
             (data, response) = try await session.data(for: connection.graphqlRequest(query: query))
-        } catch let error as URLError where [.cannotConnectToHost, .networkConnectionLost, .notConnectedToInternet].contains(error.code) {
+        } catch let error as URLError
+            where [.cannotConnectToHost, .networkConnectionLost, .notConnectedToInternet].contains(
+                error.code)
+        {
             // A suspended app can come back to a dead loopback server; restart it and retry once.
             await backend.recoverIfNeeded()
             connection = try await backend.connection(requiresSourceRuntime: requiresSourceRuntime)
@@ -98,7 +105,9 @@ actor BackendAPI {
         if let errors = envelope.errors, !errors.isEmpty {
             // Users see the friendly text; the raw error goes to the system log for diagnosis.
             for error in errors {
-                log.error("graphql \(error.extensions?.code ?? "-", privacy: .public): \(error.message, privacy: .public)")
+                log.error(
+                    "graphql \(error.extensions?.code ?? "-", privacy: .public): \(error.message, privacy: .public)"
+                )
             }
             throw EmbeddedSearchError.message(Self.describe(errors.first?.extensions?.code))
         }
@@ -151,7 +160,10 @@ actor BackendAPI {
         }
     }
 
-    func api(path: String, method: String = "GET", body: Data? = nil, contentType: String = "application/json") async throws -> Data {
+    func api(
+        path: String, method: String = "GET", body: Data? = nil,
+        contentType: String = "application/json"
+    ) async throws -> Data {
         let connection = try await backend.connection(requiresSourceRuntime: false)
         var request = try connection.apiRequest(path: path, method: method, body: body)
         if body != nil { request.setValue(contentType, forHTTPHeaderField: "Content-Type") }
@@ -163,14 +175,17 @@ actor BackendAPI {
     }
 
     /// Novel chapter text from `/content/{media}/{chapter}/text`. The server sanitizes HTML.
-    func chapterText(mediaID: String, chapterID: String) async throws -> (text: String, isHTML: Bool) {
+    func chapterText(mediaID: String, chapterID: String) async throws -> (
+        text: String, isHTML: Bool
+    ) {
         let connection = try await backend.connection()
         let request = try connection.contentRequest(path: "/content/\(mediaID)/\(chapterID)/text")
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200,
             let text = String(data: data, encoding: .utf8)
         else {
-            throw EmbeddedSearchError.message("Couldn’t load this chapter. Check your connection and try again.")
+            throw EmbeddedSearchError.message(
+                "Couldn’t load this chapter. Check your connection and try again.")
         }
         try Task.checkCancellation()
         return (text, http.mimeType?.contains("html") == true)
@@ -242,9 +257,12 @@ actor BackendAPI {
         case "SOURCE_CLOUDFLARE":
             "This source is behind Cloudflare protection. Use Verify in Browser to pass the check, then try again."
         case "SOURCE_NOT_FOUND": "The source no longer has this title or chapter."
-        case "SOURCE_UNAVAILABLE", "SOURCE_NETWORK": "The source is unreachable right now. Check your connection and try again."
-        case "SOURCE_RATE_LIMITED": "The source is rate limiting requests. Wait a minute and try again."
-        case "SOURCE_PARSE": "The source changed and the extension may need updating. Check Settings → Extensions for an update."
+        case "SOURCE_UNAVAILABLE", "SOURCE_NETWORK":
+            "The source is unreachable right now. Check your connection and try again."
+        case "SOURCE_RATE_LIMITED":
+            "The source is rate limiting requests. Wait a minute and try again."
+        case "SOURCE_PARSE":
+            "The source changed and the extension may need updating. Check Settings → Extensions for an update."
         default: "The source could not complete the request. Check your connection and try again."
         }
     }

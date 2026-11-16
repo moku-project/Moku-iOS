@@ -39,10 +39,12 @@ import XCTest
             ("compactList", "Compact list"), ("grid", "Grid"),
         ] {
             options.tap()
-            let layout = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Layout'")).firstMatch
+            let layout = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Layout'"))
+                .firstMatch
             XCTAssertTrue(layout.waitForExistence(timeout: 3))
             layout.tap()
-            let choice = app.buttons["library.layout.\(id)"].waitForExistence(timeout: 1)
+            let choice =
+                app.buttons["library.layout.\(id)"].waitForExistence(timeout: 1)
                 ? app.buttons["library.layout.\(id)"] : app.buttons[title].firstMatch
             XCTAssertTrue(choice.waitForExistence(timeout: 3), "Missing layout \(title)")
             if id == "compactGrid" { keepScreenshot("Library layout menu") }
@@ -52,7 +54,8 @@ import XCTest
             XCTAssertTrue(layout.waitForExistence(timeout: 3))
             XCTAssertTrue(layout.shows(title), "Layout should read \(title): \(layout.label)")
             // Close the menu without choosing anything.
-            app.visibleNavigationBar.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.5)).tap()
+            app.visibleNavigationBar.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.5))
+                .tap()
             XCTAssertTrue(options.waitForExistence(timeout: 3))
         }
         options.tap()

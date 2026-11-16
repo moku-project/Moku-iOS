@@ -40,7 +40,9 @@ import Observation
         self.searchRepository = searchRepository
     }
     /// Titles still waiting on a match, a retry or an import.
-    var hasUnfinished: Bool { items.contains { [.pending, .matched, .unmatched, .failed].contains($0.state) } }
+    var hasUnfinished: Bool {
+        items.contains { [.pending, .matched, .unmatched, .failed].contains($0.state) }
+    }
     var importable: [TrackingImportItem] {
         items.filter { $0.state == .matched || $0.state == .failed }
     }

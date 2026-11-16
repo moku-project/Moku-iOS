@@ -4,7 +4,8 @@ protocol ReaderRepository: Sendable {
     func opened(mediaID: String, chapterID: String) async throws
     func pages(chapterID: String) async throws -> [String]
     func image(path: String) async throws -> Data
-    func progress(mediaID: String, chapterID: String, value: Double, completed: Bool, page: Int?) async throws
+    func progress(mediaID: String, chapterID: String, value: Double, completed: Bool, page: Int?)
+        async throws
     func download(mediaID: String, chapterIDs: [String]) async throws
     /// The chapter's synced reading progress, fresh from the server.
     func chapterState(mediaID: String, chapterID: String) async throws -> ReaderChapterState?
@@ -12,7 +13,9 @@ protocol ReaderRepository: Sendable {
 
 extension ReaderRepository {
     func opened(mediaID: String, chapterID: String) async throws {}
-    func chapterState(mediaID: String, chapterID: String) async throws -> ReaderChapterState? { nil }
+    func chapterState(mediaID: String, chapterID: String) async throws -> ReaderChapterState? {
+        nil
+    }
 }
 
 /// Server-side state of one chapter, shared by the manga and novel readers.

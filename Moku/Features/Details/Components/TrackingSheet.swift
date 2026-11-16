@@ -16,7 +16,11 @@ struct TrackingSheet: View {
     @State private var searching = false
 
     struct Tracker: Decodable, Identifiable, Sendable {
-        struct Status: Decodable, Sendable { let value: Int; let name: String; let animeName: String }
+        struct Status: Decodable, Sendable {
+            let value: Int
+            let name: String
+            let animeName: String
+        }
         let key: String
         let name: String
         let isLoggedIn: Bool
@@ -45,20 +49,27 @@ struct TrackingSheet: View {
         var id: String { remoteId }
     }
 
-    private static let linkFields = "id trackerKey title url status lastChapterRead totalChapters score"
+    private static let linkFields =
+        "id trackerKey title url status lastChapterRead totalChapters score"
 
     var body: some View {
         NavigationStack {
             Form {
                 if loading {
                     Section {
-                        HStack { ProgressView(); Text("Loading trackers…").foregroundStyle(.secondary) }
+                        HStack {
+                            ProgressView()
+                            Text("Loading trackers…").foregroundStyle(.secondary)
+                        }
                     }
                 } else if trackers.filter(\.isLoggedIn).isEmpty {
                     ContentUnavailableView(
                         "No Tracker Connected", systemImage: "antenna.radiowaves.left.and.right",
-                        description: Text("Sign in to AniList in Settings → Tracking, then come back to link this title."))
-                        .listRowBackground(Color.clear)
+                        description: Text(
+                            "Sign in to AniList in Settings → Tracking, then come back to link this title."
+                        )
+                    )
+                    .listRowBackground(Color.clear)
                 }
                 ForEach(trackers.filter(\.isLoggedIn)) { tracker in
                     section(tracker)
@@ -71,7 +82,9 @@ struct TrackingSheet: View {
             .background(NavigationStyle.background.ignoresSafeArea())
             .navigationTitle("Tracking")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+            }
             .task { await load() }
         }
         .presentationDetents([.medium, .large])
@@ -118,10 +131,13 @@ struct TrackingSheet: View {
                 Text("Now tracking")
             }
         }
-        Picker("Status", selection: Binding(
-            get: { link.status },
-            set: { value in Task { await update(link, status: value) } }
-        )) {
+        Picker(
+            "Status",
+            selection: Binding(
+                get: { link.status },
+                set: { value in Task { await update(link, status: value) } }
+            )
+        ) {
             if !tracker.statusOptions.contains(where: { $0.value == link.status }) {
                 Text("Choose").tag(link.status)
             }
@@ -136,9 +152,11 @@ struct TrackingSheet: View {
             in: 0...Double(max(link.totalChapters, 10_000)), step: 1
         ) {
             LabeledContent(isAnime ? "Episodes watched" : "Chapters read") {
-                Text(link.lastChapterRead.formatted()
-                     + (link.totalChapters > 0 ? " of \(link.totalChapters)" : ""))
-                    .monospacedDigit()
+                Text(
+                    link.lastChapterRead.formatted()
+                        + (link.totalChapters > 0 ? " of \(link.totalChapters)" : "")
+                )
+                .monospacedDigit()
             }
         }
         if !tracker.scoreOptions.isEmpty {
@@ -154,14 +172,18 @@ struct TrackingSheet: View {
             .foregroundStyle(.primary)
         }
         Button {
-            Task { await mutate("resyncTrack(linkId: \(BackendAPI.literal(link.id))) { \(Self.linkFields) }") }
+            Task {
+                await mutate(
+                    "resyncTrack(linkId: \(BackendAPI.literal(link.id))) { \(Self.linkFields) }")
+            }
         } label: {
             Label("Sync from \(tracker.name)", systemImage: "arrow.triangle.2.circlepath")
         }
         Button(role: .destructive) {
             Task {
                 let _: IgnoredGraphQLResult? = try? await BackendAPI.shared.graphql(
-                    "mutation { unbindTrack(linkId: \(BackendAPI.literal(link.id))) }", requiresSourceRuntime: false)
+                    "mutation { unbindTrack(linkId: \(BackendAPI.literal(link.id))) }",
+                    requiresSourceRuntime: false)
                 await load()
             }
         } label: {
@@ -175,8 +197,11 @@ struct TrackingSheet: View {
             TextField("Search \(tracker.name)", text: $query)
                 .submitLabel(.search)
                 .onSubmit { Task { await runSearch(tracker) } }
-            Button("Cancel") { searchingTracker = nil; results = [] }
-                .buttonStyle(.borderless)
+            Button("Cancel") {
+                searchingTracker = nil
+                results = []
+            }
+            .buttonStyle(.borderless)
         }
         if searching { ProgressView().frame(maxWidth: .infinity) }
         ForEach(results) { result in
@@ -188,9 +213,16 @@ struct TrackingSheet: View {
                         .frame(width: 40, height: 58).clipShape(RoundedRectangle(cornerRadius: 4))
                     VStack(alignment: .leading, spacing: 3) {
                         Text(result.title).font(.subheadline).multilineTextAlignment(.leading)
-                        Text([result.publishingStatus, result.totalChapters.map { "\($0) \(isAnime ? "episodes" : "chapters")" }]
-                            .compactMap { $0 }.joined(separator: " · "))
-                            .font(.caption).foregroundStyle(.secondary)
+                        Text(
+                            [
+                                result.publishingStatus,
+                                result.totalChapters.map {
+                                    "\($0) \(isAnime ? "episodes" : "chapters")"
+                                },
+                            ]
+                            .compactMap { $0 }.joined(separator: " · ")
+                        )
+                        .font(.caption).foregroundStyle(.secondary)
                     }
                     Spacer(minLength: 0)
                 }
@@ -199,7 +231,8 @@ struct TrackingSheet: View {
             .foregroundStyle(.primary)
         }
         if !searching && results.isEmpty {
-            Text("No matches. Try a shorter or alternative title.").font(.caption).foregroundStyle(.secondary)
+            Text("No matches. Try a shorter or alternative title.").font(.caption).foregroundStyle(
+                .secondary)
         }
     }
 
@@ -233,13 +266,17 @@ struct TrackingSheet: View {
     }
 
     private func bind(_ result: TrackResult, tracker: Tracker) async {
-        await mutate("bindTrack(mediaId: \(BackendAPI.literal(mediaID)), trackerKey: \(BackendAPI.literal(tracker.key)), remoteId: \(BackendAPI.literal(result.remoteId))) { \(Self.linkFields) }")
+        await mutate(
+            "bindTrack(mediaId: \(BackendAPI.literal(mediaID)), trackerKey: \(BackendAPI.literal(tracker.key)), remoteId: \(BackendAPI.literal(result.remoteId))) { \(Self.linkFields) }"
+        )
         searchingTracker = nil
         results = []
         Toaster.shared.show("Now tracking on \(tracker.name)")
     }
 
-    private func update(_ link: TrackLink, status: Int? = nil, progress: Double? = nil, score: Double? = nil) async {
+    private func update(
+        _ link: TrackLink, status: Int? = nil, progress: Double? = nil, score: Double? = nil
+    ) async {
         var arguments = ["linkId: \(BackendAPI.literal(link.id))"]
         if let status { arguments.append("status: \(status)") }
         if let progress { arguments.append("lastChapterRead: \(progress)") }
@@ -249,7 +286,8 @@ struct TrackingSheet: View {
 
     private func mutate(_ body: String) async {
         do {
-            let _: IgnoredGraphQLResult = try await BackendAPI.shared.graphql("mutation { \(body) }", requiresSourceRuntime: false)
+            let _: IgnoredGraphQLResult = try await BackendAPI.shared.graphql(
+                "mutation { \(body) }", requiresSourceRuntime: false)
             await load()
         } catch { self.error = "The tracker didn’t accept that change. Try again." }
     }

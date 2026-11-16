@@ -25,6 +25,8 @@ extension RecentRepository {
     func serverFeed() async throws -> [RecentUpdate]? { nil }
     func startLibraryUpdate() async throws {}
     func libraryUpdateStatus() async throws -> LibraryUpdateStatus {
-        LibraryUpdateStatus(running: false, total: 0, done: 0, currentTitle: nil, newChapterCount: 0, failedTitles: [])
+        LibraryUpdateStatus(
+            running: false, total: 0, done: 0, currentTitle: nil, newChapterCount: 0,
+            failedTitles: [])
     }
 }

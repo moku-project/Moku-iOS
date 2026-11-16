@@ -53,7 +53,8 @@ protocol ReadingHistoryRepository: Sendable {
     func sessions(limit: Int) async throws -> [HistorySession]
     func statistics(timeZone: String) async throws -> HomeStatistics
     func record(_ session: ReadingSessionInput) async throws
-    func importHistory(source: String, sessions: [ReadingSessionInput], days: [ReadingDayInput]) async throws
+    func importHistory(source: String, sessions: [ReadingSessionInput], days: [ReadingDayInput])
+        async throws
     func clear(mediaID: String?) async throws
     func reset() async throws
     func resumePoint(mediaID: String) async throws -> ResumePoint?
@@ -74,7 +75,10 @@ final class ReadingHistory {
     @ObservationIgnored private var loading: Task<Void, Never>?
     @ObservationIgnored private var pendingRefresh: Task<Void, Never>?
 
-    init(repository: any ReadingHistoryRepository = LiveReadingHistoryRepository(), legacyURL: URL? = nil) {
+    init(
+        repository: any ReadingHistoryRepository = LiveReadingHistoryRepository(),
+        legacyURL: URL? = nil
+    ) {
         self.repository = repository
         self.legacyURL = legacyURL
     }
@@ -153,9 +157,11 @@ final class ReadingHistory {
 
     /// The title as Home shows it: session metadata, overlaid with anything reloaded since.
     func entry(for session: HistorySession) -> HomeEntry {
-        var entry = entries[session.mediaID] ?? HomeEntry(
-            id: session.mediaID, title: session.title, coverURL: session.coverURL,
-            media: session.media.title, unreadCount: session.unreadCount)
+        var entry =
+            entries[session.mediaID]
+            ?? HomeEntry(
+                id: session.mediaID, title: session.title, coverURL: session.coverURL,
+                media: session.media.title, unreadCount: session.unreadCount)
         if entry.coverURL == nil { entry.coverURL = session.coverURL }
         return entry
     }

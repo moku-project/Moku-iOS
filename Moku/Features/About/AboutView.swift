@@ -39,26 +39,33 @@ struct AboutView: View {
                     Text(version).font(.subheadline).foregroundStyle(.secondary)
                         .textSelection(.enabled)
                         .accessibilityIdentifier("about.version")
-                    Text("A fast, minimal manga, novel and anime app. Sources run on your device; no server needed.")
-                        .font(.subheadline).foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.top, 4)
+                    Text(
+                        "A fast, minimal manga, novel and anime app. Sources run on your device; no server needed."
+                    )
+                    .font(.subheadline).foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 4)
                 }
                 .frame(maxWidth: .infinity)
                 .listRowBackground(Color.clear)
             }
 
             Section("Project") {
-                link("GitHub", detail: "moku-project/Moku-iOS", systemImage: "chevron.left.forwardslash.chevron.right",
+                link(
+                    "GitHub", detail: "moku-project/Moku-iOS",
+                    systemImage: "chevron.left.forwardslash.chevron.right",
                     url: "https://github.com/moku-project/Moku-iOS")
                 Button {
                     reportOpen = true
                 } label: {
                     Label("Report an Issue", systemImage: "ladybug")
                 }
-                link("Website", detail: "moku-project.github.io", systemImage: "globe",
+                link(
+                    "Website", detail: "moku-project.github.io", systemImage: "globe",
                     url: "https://moku-project.github.io/")
-                link("Discord", detail: "Join the community", systemImage: "bubble.left.and.bubble.right",
+                link(
+                    "Discord", detail: "Join the community",
+                    systemImage: "bubble.left.and.bubble.right",
                     url: "https://discord.gg/x97hj8zR72")
             }
 
@@ -70,8 +77,10 @@ struct AboutView: View {
             } header: {
                 Text("Open Source")
             } footer: {
-                Text("Moku does not host or distribute any content. Sources are added by you, and the developers have no affiliation with any content providers accessible through them.")
-                    .padding(.top, 8)
+                Text(
+                    "Moku does not host or distribute any content. Sources are added by you, and the developers have no affiliation with any content providers accessible through them."
+                )
+                .padding(.top, 8)
             }
         }
         .listStyle(.insetGrouped)
@@ -83,7 +92,9 @@ struct AboutView: View {
         .accessibilityIdentifier("about.page")
     }
 
-    private func link(_ title: String, detail: String, systemImage: String, url: String) -> some View {
+    private func link(_ title: String, detail: String, systemImage: String, url: String)
+        -> some View
+    {
         Link(destination: URL(string: url)!) {
             HStack {
                 Label {

@@ -24,9 +24,12 @@ struct HomeStatsStrip: View {
         minutes >= 60 ? "\(minutes / 60)h \(minutes % 60)m" : "\(minutes)m"
     }
 
-    private func stat(_ symbol: String, _ value: String, _ label: String, tint: Color = .secondary) -> some View {
+    private func stat(_ symbol: String, _ value: String, _ label: String, tint: Color = .secondary)
+        -> some View
+    {
         VStack(spacing: 4) {
-            Image(systemName: symbol).font(.footnote).foregroundStyle(tint).accessibilityHidden(true)
+            Image(systemName: symbol).font(.footnote).foregroundStyle(tint).accessibilityHidden(
+                true)
             Text(value).font(.headline.monospacedDigit()).lineLimit(1).minimumScaleFactor(0.7)
             Text(label).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
         }

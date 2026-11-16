@@ -13,22 +13,32 @@ import Testing
     }
 
     @Test func historyGroupsTitlesNewestFirstAndFilters() {
-        func session(_ id: String, _ media: String, at seconds: Double, chapter: String) -> HistorySession {
+        func session(_ id: String, _ media: String, at seconds: Double, chapter: String)
+            -> HistorySession
+        {
             HistorySession(
-                id: id, mediaID: media, title: media == "a" ? "Alpha" : "Beta", media: media == "a" ? .manga : .anime,
-                endChapterID: chapter, endChapterTitle: chapter, startedAt: Date(timeIntervalSince1970: seconds - 60),
+                id: id, mediaID: media, title: media == "a" ? "Alpha" : "Beta",
+                media: media == "a" ? .manga : .anime,
+                endChapterID: chapter, endChapterTitle: chapter,
+                startedAt: Date(timeIntervalSince1970: seconds - 60),
                 endedAt: Date(timeIntervalSince1970: seconds), durationMs: 300_000)
         }
         let sessions = [
-            session("1", "a", at: 100, chapter: "Arrival"), session("2", "b", at: 300, chapter: "Episode 2"),
+            session("1", "a", at: 100, chapter: "Arrival"),
+            session("2", "b", at: 300, chapter: "Episode 2"),
             session("3", "a", at: 200, chapter: "Departure"),
         ]
         let titles = RecentViewModel.history(sessions, entries: [:], query: "", mode: .all)
         #expect(titles.map(\.id) == ["b", "a"])
         #expect(titles[1].latest.id == "3")
         #expect(titles[1].minutes == 10)
-        #expect(RecentViewModel.history(sessions, entries: [:], query: " arrival ", mode: .all).map(\.id) == ["a"])
-        #expect(RecentViewModel.history(sessions, entries: [:], query: "", mode: .anime).map(\.id) == ["b"])
+        #expect(
+            RecentViewModel.history(sessions, entries: [:], query: " arrival ", mode: .all).map(
+                \.id) == ["a"])
+        #expect(
+            RecentViewModel.history(sessions, entries: [:], query: "", mode: .anime).map(\.id) == [
+                "b"
+            ])
     }
 
     @Test func updateRefreshCountsNewChaptersAndDownloadActionsUseBackend() async {

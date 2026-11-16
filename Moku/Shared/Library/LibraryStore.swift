@@ -8,7 +8,10 @@ extension Notification.Name {
 @MainActor @Observable
 final class LibraryStore {
     private(set) var entries: [MediaEntry] = [] {
-        didSet { entryIDs = Set(entries.map(\.id)); entriesRevision &+= 1 }
+        didSet {
+            entryIDs = Set(entries.map(\.id))
+            entriesRevision &+= 1
+        }
     }
     private(set) var entriesRevision = 0
     private var entryIDs: Set<String> = []
@@ -29,7 +32,8 @@ final class LibraryStore {
 
     init(directory: URL, synchronizeWithServer: Bool = false) {
         self.synchronizeWithServer = synchronizeWithServer
-        migrationDocument = StoredDocument(url: directory.appending(path: "library-server-migrated.json"))
+        migrationDocument = StoredDocument(
+            url: directory.appending(path: "library-server-migrated.json"))
         document = StoredDocument(url: directory.appending(path: "library.json"))
         organizationDocument = StoredDocument(
             url: directory.appending(path: "library-organization.json"))
@@ -57,8 +61,7 @@ final class LibraryStore {
         guard loaded else { return false }
         // A settings change can arrive while an older visibility query is running.
         while busy {
-            do { try await Task.sleep(for: .milliseconds(25)) }
-            catch { return false }
+            do { try await Task.sleep(for: .milliseconds(25)) } catch { return false }
         }
         guard !Task.isCancelled else { return false }
         if ifStale, let refreshedAt, Date.now.timeIntervalSince(refreshedAt) < 30 { return true }
@@ -66,15 +69,27 @@ final class LibraryStore {
         busy = true
         defer { busy = false }
         struct Record: Decodable, Sendable {
-            let id: String; let title: String; let contentType: String
-            let sourceName: String; let thumbnailUrl: String?
-            let extensionId: String?; let externalId: String
+            let id: String
+            let title: String
+            let contentType: String
+            let sourceName: String
+            let thumbnailUrl: String?
+            let extensionId: String?
+            let externalId: String
             var entry: MediaEntry {
-                MediaEntry(id: id, title: title, media: contentType == "ANIME" ? .anime : contentType == "NOVEL" ? .novels : .manga, sourceName: sourceName, coverURL: BackendAPI.coverURL(thumbnailUrl), extensionID: extensionId, externalID: externalId)
+                MediaEntry(
+                    id: id, title: title,
+                    media: contentType == "ANIME"
+                        ? .anime : contentType == "NOVEL" ? .novels : .manga,
+                    sourceName: sourceName, coverURL: BackendAPI.coverURL(thumbnailUrl),
+                    extensionID: extensionId, externalID: externalId)
             }
         }
         struct Response: Decodable, Sendable {
-            struct Page: Decodable, Sendable { let items: [Record]; let hasMore: Bool }
+            struct Page: Decodable, Sendable {
+                let items: [Record]
+                let hasMore: Bool
+            }
             let library: Page
         }
         do {
@@ -92,7 +107,9 @@ final class LibraryStore {
             var imported: [MediaEntry] = []
             var offset = 0
             while true {
-                let response: Response = try await BackendAPI.shared.graphql("{ library(limit: 100, offset: \(offset)) { items { id title contentType sourceName thumbnailUrl extensionId externalId } hasMore } }", requiresSourceRuntime: false)
+                let response: Response = try await BackendAPI.shared.graphql(
+                    "{ library(limit: 100, offset: \(offset)) { items { id title contentType sourceName thumbnailUrl extensionId externalId } hasMore } }",
+                    requiresSourceRuntime: false)
                 imported += response.library.items.map(\.entry)
                 guard response.library.hasMore, !response.library.items.isEmpty else { break }
                 offset += response.library.items.count
@@ -107,7 +124,10 @@ final class LibraryStore {
                 entries = merged
             }
             refreshedAt = migrationFailed || revision != visibilityRevision ? nil : .now
-            error = migrationFailed ? "Some saved titles couldn’t sync. Retry to restore them to the server library." : nil
+            error =
+                migrationFailed
+                ? "Some saved titles couldn’t sync. Retry to restore them to the server library."
+                : nil
             return true
         } catch {
             if !Task.isCancelled { self.error = "Couldn’t refresh the server library." }
@@ -157,8 +177,11 @@ final class LibraryStore {
     }
 
     private static func titleKey(_ title: String) -> String {
-        title.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "en_US_POSIX"))
-            .unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) }.map(String.init).joined()
+        title.folding(
+            options: [.caseInsensitive, .diacriticInsensitive],
+            locale: Locale(identifier: "en_US_POSIX")
+        )
+        .unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) }.map(String.init).joined()
     }
 
     func loadOrganization() async {
@@ -189,52 +212,79 @@ final class LibraryStore {
         }
     }
 
-    private func synchronizeFolders(_ proposed: LibraryOrganization) async throws -> LibraryOrganization {
+    private func synchronizeFolders(_ proposed: LibraryOrganization) async throws
+        -> LibraryOrganization
+    {
         var next = proposed
         func mutate(_ value: String) async throws {
-            let _: IgnoredGraphQLResult = try await BackendAPI.shared.graphql("mutation { \(value) }", requiresSourceRuntime: false)
+            let _: IgnoredGraphQLResult = try await BackendAPI.shared.graphql(
+                "mutation { \(value) }", requiresSourceRuntime: false)
         }
         for index in next.folders.indices {
             var folder = next.folders[index]
             let old = organization.folders.first { $0.id == folder.id }
             if folder.serverID == nil {
-                struct Result: Decodable, Sendable { struct Folder: Decodable, Sendable { let id: String }; let createFolder: Folder }
-                let result: Result = try await BackendAPI.shared.graphql("mutation { createFolder(name: \(BackendAPI.literal(folder.name))) { id } }", requiresSourceRuntime: false)
+                struct Result: Decodable, Sendable {
+                    struct Folder: Decodable, Sendable { let id: String }
+                    let createFolder: Folder
+                }
+                let result: Result = try await BackendAPI.shared.graphql(
+                    "mutation { createFolder(name: \(BackendAPI.literal(folder.name))) { id } }",
+                    requiresSourceRuntime: false)
                 folder.serverID = result.createFolder.id
                 next.folders[index] = folder
                 // Save the assigned ID before subsequent requests so retries cannot create duplicates.
                 var checkpoint = organization
-                if let i = checkpoint.folders.firstIndex(where: { $0.id == folder.id }) { checkpoint.folders[i].serverID = folder.serverID }
-                else { var item = folder; item.entryIDs = []; checkpoint.folders.append(item) }
+                if let i = checkpoint.folders.firstIndex(where: { $0.id == folder.id }) {
+                    checkpoint.folders[i].serverID = folder.serverID
+                } else {
+                    var item = folder
+                    item.entryIDs = []
+                    checkpoint.folders.append(item)
+                }
                 try await organizationDocument.write(checkpoint)
                 organization = checkpoint
             }
             guard let serverID = folder.serverID else { continue }
             let id = BackendAPI.literal(serverID)
-            if old?.name != folder.name { try await mutate("renameFolder(folderId: \(id), name: \(BackendAPI.literal(folder.name))) { id }") }
+            if old?.name != folder.name {
+                try await mutate(
+                    "renameFolder(folderId: \(id), name: \(BackendAPI.literal(folder.name))) { id }"
+                )
+            }
             // Starring a title saves organization too; only send what changed.
-            if old == nil || old?.includeInUpdate != folder.includeInUpdate || old?.includeInDownload != folder.includeInDownload {
-                try await mutate("updateFolderFlags(folderId: \(id), includeInUpdate: \(folder.includeInUpdate ?? true), includeInDownload: \(folder.includeInDownload ?? true)) { id }")
+            if old == nil || old?.includeInUpdate != folder.includeInUpdate
+                || old?.includeInDownload != folder.includeInDownload
+            {
+                try await mutate(
+                    "updateFolderFlags(folderId: \(id), includeInUpdate: \(folder.includeInUpdate ?? true), includeInDownload: \(folder.includeInDownload ?? true)) { id }"
+                )
             }
             // Content types are stored per folder (Tsunagu 0.6.0+); empty means all.
             if (old?.contentTypes ?? []) != (folder.contentTypes ?? []) {
                 let types = (folder.contentTypes ?? []).map(\.graphQLType).joined(separator: ", ")
-                try await mutate("setFolderContentTypes(folderId: \(id), contentTypes: [\(types)]) { id }")
+                try await mutate(
+                    "setFolderContentTypes(folderId: \(id), contentTypes: [\(types)]) { id }")
             }
-            if old == nil || organization.folders.firstIndex(where: { $0.id == folder.id }) != index {
+            if old == nil || organization.folders.firstIndex(where: { $0.id == folder.id }) != index
+            {
                 try await mutate("reorderFolder(folderId: \(id), sortOrder: \(index)) { id }")
             }
             let before = old?.entryIDs ?? []
             for entry in folder.entryIDs.subtracting(before) where Int64(entry) != nil {
-                try await mutate("addMediaToFolder(mediaId: \(BackendAPI.literal(entry)), folderId: \(id))")
+                try await mutate(
+                    "addMediaToFolder(mediaId: \(BackendAPI.literal(entry)), folderId: \(id))")
             }
             for entry in before.subtracting(folder.entryIDs) where Int64(entry) != nil {
-                try await mutate("removeMediaFromFolder(mediaId: \(BackendAPI.literal(entry)), folderId: \(id))")
+                try await mutate(
+                    "removeMediaFromFolder(mediaId: \(BackendAPI.literal(entry)), folderId: \(id))")
             }
         }
         let kept = Set(next.folders.map(\.id))
         for folder in organization.folders where !kept.contains(folder.id) {
-            if let id = folder.serverID { try await mutate("deleteFolder(folderId: \(BackendAPI.literal(id)))") }
+            if let id = folder.serverID {
+                try await mutate("deleteFolder(folderId: \(BackendAPI.literal(id)))")
+            }
         }
         return next
     }
@@ -255,7 +305,9 @@ final class LibraryStore {
             var addedIDs = Set<String>()
             for entry in imported where !entry.id.isEmpty && !entry.title.isEmpty {
                 if known.insert(entry.id).inserted {
-                    if synchronizeWithServer, Int64(entry.id) != nil { _ = try await LiveMediaRepository.shared.setSaved(true, id: entry.id) }
+                    if synchronizeWithServer, Int64(entry.id) != nil {
+                        _ = try await LiveMediaRepository.shared.setSaved(true, id: entry.id)
+                    }
                     next.append(entry)
                     addedIDs.insert(entry.id)
                 }
@@ -278,8 +330,7 @@ final class LibraryStore {
         guard loaded else { return false }
         // A background refresh must not silently drop an explicit save/remove.
         while busy {
-            do { try await Task.sleep(for: .milliseconds(25)) }
-            catch { return false }
+            do { try await Task.sleep(for: .milliseconds(25)) } catch { return false }
         }
         guard !Task.isCancelled else { return false }
         busy = true
@@ -292,7 +343,11 @@ final class LibraryStore {
             }
             try await document.write(next)
             entries = next
-            if saved { serverVisibleIDs?.insert(entry.id) } else { serverVisibleIDs?.remove(entry.id) }
+            if saved {
+                serverVisibleIDs?.insert(entry.id)
+            } else {
+                serverVisibleIDs?.remove(entry.id)
+            }
             error = nil
             return true
         } catch {

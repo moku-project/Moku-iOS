@@ -23,7 +23,9 @@ struct LiveReaderRepository: ReaderRepository {
         }
         return try await BackendAPI.shared.readerPageData(path: path)
     }
-    func progress(mediaID: String, chapterID: String, value: Double, completed: Bool, page: Int?) async throws {
+    func progress(mediaID: String, chapterID: String, value: Double, completed: Bool, page: Int?)
+        async throws
+    {
         struct Response: Decodable, Sendable {
             struct Progress: Decodable, Sendable { let progress: Double }
             let updateReadingProgress: Progress
@@ -64,7 +66,10 @@ enum ChapterSync {
                 let readingProgress: Progress?
             }
             struct Media: Decodable, Sendable {
-                struct Point: Decodable, Sendable { let chapterId: String; let page: Int? }
+                struct Point: Decodable, Sendable {
+                    let chapterId: String
+                    let page: Int?
+                }
                 let resumePoint: Point?
             }
             let chapter: Chapter?
@@ -89,7 +94,9 @@ enum ChapterSync {
     static func date(_ value: String?) -> Date? {
         guard let value else { return nil }
         if let date = try? Date(value, strategy: .iso8601) { return date }
-        if let date = try? Date(value, strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true)) {
+        if let date = try? Date(
+            value, strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true))
+        {
             return date
         }
         // Trim the fraction to milliseconds, which ISO8601FormatStyle accepts.
@@ -97,7 +104,10 @@ enum ChapterSync {
         let rest = value[value.index(after: dot)...]
         let digits = rest.prefix { $0.isNumber }
         let zone = rest.dropFirst(digits.count)
-        let trimmed = value[..<dot] + "." + String(digits.prefix(3)).padding(toLength: 3, withPad: "0", startingAt: 0) + zone
-        return try? Date(String(trimmed), strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true))
+        let trimmed =
+            value[..<dot] + "."
+            + String(digits.prefix(3)).padding(toLength: 3, withPad: "0", startingAt: 0) + zone
+        return try? Date(
+            String(trimmed), strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true))
     }
 }

@@ -62,7 +62,8 @@ struct SearchOptionsView: View {
                         ForEach(model.languages, id: \.self) { language in
                             // Desktop marks the preferred source language.
                             Text(
-                                (Locale.current.localizedString(forLanguageCode: language) ?? language)
+                                (Locale.current.localizedString(forLanguageCode: language)
+                                    ?? language)
                                     + (language == preferredLanguage ? " · Preferred" : "")
                             )
                             .tag(String?.some(language))

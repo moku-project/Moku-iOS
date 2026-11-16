@@ -30,7 +30,8 @@ import XCTest
         app.goBack()
 
         app.openSettingsRow("settings.category.Storage")
-        let local = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Local titles")).firstMatch
+        let local = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Local titles"))
+            .firstMatch
         // The Storage list builds rows lazily, so scroll to the row before checking it.
         app.reveal(local, in: app.collectionViews["settings.scroll"])
         XCTAssertTrue(local.waitForExistence(timeout: 5), "step 5")
@@ -79,7 +80,8 @@ import XCTest
         let page = app.sliders["reader.page"]
         XCTAssertTrue(page.waitForExistence(timeout: 10))
         XCTAssertTrue((page.value as? String ?? "").contains("of 3"))
-        XCTAssertFalse(app.staticTexts["Page 1 unavailable. Tap to retry."].waitForExistence(timeout: 3))
+        XCTAssertFalse(
+            app.staticTexts["Page 1 unavailable. Tap to retry."].waitForExistence(timeout: 3))
         capture("Reader PDF chapter")
     }
 
@@ -87,11 +89,14 @@ import XCTest
         XCUIDevice.shared.orientation = .portrait
         let app = XCUIApplication()
         // Start paused at 100%, so the controls stay up and sizes are predictable.
-        app.launchArguments = ["--ui-testing-player", "-player.autoplay", "NO", "-player.subtitleScale", "1"]
+        app.launchArguments = [
+            "--ui-testing-player", "-player.autoplay", "NO", "-player.subtitleScale", "1",
+        ]
         app.launch()
         XCTAssertTrue(app.buttons["player.subtitles"].waitForExistence(timeout: 10))
         // Like the player tests: wait until the episode has loaded before opening menus.
-        expectation(for: NSPredicate(format: "enabled == true"), evaluatedWith: app.buttons["player.play"])
+        expectation(
+            for: NSPredicate(format: "enabled == true"), evaluatedWith: app.buttons["player.play"])
         waitForExpectations(timeout: 10)
         app.buttons["player.subtitles"].tap()
         XCTAssertTrue(app.buttons["Signs (ASS)"].waitForExistence(timeout: 3))

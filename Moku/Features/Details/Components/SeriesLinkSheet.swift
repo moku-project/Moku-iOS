@@ -14,20 +14,24 @@ struct SeriesLinkSheet: View {
     private var results: [MediaEntry] {
         let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return [] }
-        return Array(candidates.filter { $0.title.localizedCaseInsensitiveContains(text) }.prefix(30))
+        return Array(
+            candidates.filter { $0.title.localizedCaseInsensitiveContains(text) }.prefix(30))
     }
     /// Word overlap of at least 0.65, best eight, as on desktop.
     private var suggestions: [(MediaEntry, Double)] {
-        Array(candidates.map { ($0, MigrateSheet.score($0.title, entry.title)) }
-            .filter { $0.1 >= 0.65 }.sorted { $0.1 > $1.1 }.prefix(8))
+        Array(
+            candidates.map { ($0, MigrateSheet.score($0.title, entry.title)) }
+                .filter { $0.1 >= 0.65 }.sorted { $0.1 > $1.1 }.prefix(8))
     }
 
     var body: some View {
         NavigationStack {
             List {
                 Section {
-                    Text("Linked titles share covers and are treated as one series. Tap a linked title to unlink it.")
-                        .font(.footnote).foregroundStyle(.secondary)
+                    Text(
+                        "Linked titles share covers and are treated as one series. Tap a linked title to unlink it."
+                    )
+                    .font(.footnote).foregroundStyle(.secondary)
                 }
                 if !linked.isEmpty {
                     Section("Linked") {
@@ -49,10 +53,14 @@ struct SeriesLinkSheet: View {
                 } else {
                     Section("Suggested") {
                         if suggestions.isEmpty {
-                            Text("No suggestions. Search your library above.").foregroundStyle(.secondary)
+                            Text("No suggestions. Search your library above.").foregroundStyle(
+                                .secondary)
                         }
                         ForEach(suggestions, id: \.0.id) { item, score in
-                            row(item, detail: "\(Int(score * 100))% similar", trailing: "plus.circle") { link(item) }
+                            row(
+                                item, detail: "\(Int(score * 100))% similar",
+                                trailing: "plus.circle"
+                            ) { link(item) }
                         }
                     }
                 }
@@ -60,10 +68,15 @@ struct SeriesLinkSheet: View {
             .textCase(nil)
             .scrollContentBackground(.hidden)
             .background(NavigationStyle.background.ignoresSafeArea())
-            .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search your library")
+            .searchable(
+                text: $query, placement: .navigationBarDrawer(displayMode: .always),
+                prompt: "Search your library"
+            )
             .navigationTitle("Link as same series")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+            }
             .task {
                 await library.load()
                 await library.loadOrganization()
@@ -80,7 +93,9 @@ struct SeriesLinkSheet: View {
         }
     }
 
-    private func row(_ item: MediaEntry, detail: String? = nil, trailing: String, action: @escaping () -> Void) -> some View {
+    private func row(
+        _ item: MediaEntry, detail: String? = nil, trailing: String, action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
             HStack(spacing: 12) {
                 CoverImage(url: item.coverURL, symbol: item.media.symbol)

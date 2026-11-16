@@ -21,7 +21,10 @@ struct Chapter: Decodable, Sendable, Identifiable, Equatable {
     var download: DownloadJob? = nil
     struct DownloadJob: Decodable, Sendable, Equatable {
         enum Status: String, Decodable, Sendable {
-            case queued = "QUEUED", downloading = "DOWNLOADING", done = "DONE", failed = "FAILED"
+            case queued = "QUEUED"
+            case downloading = "DOWNLOADING"
+            case done = "DONE"
+            case failed = "FAILED"
         }
         var status: Status
         var progress: Double = 0
@@ -29,7 +32,9 @@ struct Chapter: Decodable, Sendable, Identifiable, Equatable {
 
     /// A finished job counts only while its files exist, so a deleted download reads as not downloaded.
     enum DownloadState: Equatable, Sendable {
-        case none, queued, downloading(Double), failed, downloaded
+        case none, queued
+        case downloading(Double)
+        case failed, downloaded
     }
     var downloadState: DownloadState {
         if downloaded { return .downloaded }
@@ -51,7 +56,9 @@ struct Chapter: Decodable, Sendable, Identifiable, Equatable {
     var canQueueDownload: Bool { !downloaded && !isDownloadActive }
     /// Partial progress (0 < progress < 1) for an unfinished chapter, else nil.
     var partialProgress: Double? {
-        guard !completed, let value = readingProgress?.progress, value > 0.01, value < 0.99 else { return nil }
+        guard !completed, let value = readingProgress?.progress, value > 0.01, value < 0.99 else {
+            return nil
+        }
         return value
     }
     var label: String { title ?? number.map { "Chapter \($0.formatted())" } ?? "Chapter" }
@@ -120,7 +127,8 @@ enum ChapterStateFilter: String, CaseIterable, Identifiable, Sendable {
 
     /// Kept per title beside the release-group preferences.
     static func read(_ data: Data, id: String) -> Self {
-        ((try? JSONDecoder().decode([String: String].self, from: data))?[id]).flatMap(Self.init) ?? .all
+        ((try? JSONDecoder().decode([String: String].self, from: data))?[id]).flatMap(Self.init)
+            ?? .all
     }
     func write(into data: Data, id: String) -> Data {
         var all = (try? JSONDecoder().decode([String: String].self, from: data)) ?? [:]
@@ -156,7 +164,8 @@ struct ChapterDisplayPreferences: Codable, Equatable {
         }.sorted(by: ordered)
         guard hideDuplicates else { return list }
         // One chapter per number; the preferred group's release wins.
-        let chosen = Self.unique(list.filter { $0.scanlator == preferred } + list.filter { $0.scanlator != preferred })
+        let chosen = Self.unique(
+            list.filter { $0.scanlator == preferred } + list.filter { $0.scanlator != preferred })
         return chosen.sorted(by: ordered)
     }
 
@@ -172,7 +181,9 @@ struct ChapterDisplayPreferences: Codable, Equatable {
 
 // Older saved preferences lack newer keys, so each one decodes with its default.
 extension ChapterDisplayPreferences {
-    private enum CodingKeys: String, CodingKey { case preferred, included, excluded, onlyIncluded, hideDuplicates }
+    private enum CodingKeys: String, CodingKey {
+        case preferred, included, excluded, onlyIncluded, hideDuplicates
+    }
     init(from decoder: any Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         preferred = try values.decodeIfPresent(String.self, forKey: .preferred) ?? ""
@@ -202,28 +213,36 @@ enum ChapterPresentation {
         sort: ChapterSort = .number, state: ChapterStateFilter = .all
     ) async -> [Chapter] {
         let list = ChapterDisplayPreferences.read(preferences, id: mediaID).apply(chapters).filter {
-            state.includes($0) && (query.isEmpty || $0.label.localizedCaseInsensitiveContains(query))
+            state.includes($0)
+                && (query.isEmpty || $0.label.localizedCaseInsensitiveContains(query))
         }
         // Stable sorting preserves the preferred release group for equal keys.
         switch sort {
         case .number:
             return list.sorted {
-                ascending ? ($0.number ?? 0) < ($1.number ?? 0) : ($0.number ?? 0) > ($1.number ?? 0)
+                ascending
+                    ? ($0.number ?? 0) < ($1.number ?? 0) : ($0.number ?? 0) > ($1.number ?? 0)
             }
         case .source:
             // Sources list newest first, so ascending (oldest first) is the reverse.
             return list.sorted {
-                ascending ? ($0.sourceOrder ?? 0) > ($1.sourceOrder ?? 0) : ($0.sourceOrder ?? 0) < ($1.sourceOrder ?? 0)
+                ascending
+                    ? ($0.sourceOrder ?? 0) > ($1.sourceOrder ?? 0)
+                    : ($0.sourceOrder ?? 0) < ($1.sourceOrder ?? 0)
             }
         case .uploaded:
             return list.sorted {
-                ascending ? ($0.uploadedAt ?? "") < ($1.uploadedAt ?? "") : ($0.uploadedAt ?? "") > ($1.uploadedAt ?? "")
+                ascending
+                    ? ($0.uploadedAt ?? "") < ($1.uploadedAt ?? "")
+                    : ($0.uploadedAt ?? "") > ($1.uploadedAt ?? "")
             }
         }
     }
 
     /// Reading order is oldest first by chapter number, after release-group preferences.
-    nonisolated static func readingOrder(_ chapters: [Chapter], preferences: Data, mediaID: String) -> [Chapter] {
+    nonisolated static func readingOrder(_ chapters: [Chapter], preferences: Data, mediaID: String)
+        -> [Chapter]
+    {
         ChapterDisplayPreferences.read(preferences, id: mediaID).apply(chapters)
             .sorted { ($0.number ?? 0) < ($1.number ?? 0) }
     }

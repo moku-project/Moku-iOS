@@ -16,7 +16,8 @@ enum SubtitleFonts {
             let fresh = registered.insert(name).inserted
             lock.unlock()
             guard fresh, let provider = CGDataProvider(data: data as CFData),
-                  let font = CGFont(provider) else { continue }
+                let font = CGFont(provider)
+            else { continue }
             var error: Unmanaged<CFError>?
             if CTFontManagerRegisterGraphicsFont(font, &error) { added.append(name) }
         }
@@ -34,7 +35,8 @@ enum SubtitleFonts {
             name = nil
             encoded = ""
         }
-        for raw in script.replacingOccurrences(of: "\r\n", with: "\n").components(separatedBy: "\n") {
+        for raw in script.replacingOccurrences(of: "\r\n", with: "\n").components(separatedBy: "\n")
+        {
             let line = raw.trimmingCharacters(in: .whitespaces)
             if line.hasPrefix("[") {
                 finish()
@@ -62,8 +64,10 @@ enum SubtitleFonts {
         var index = 0
         while index < values.count {
             let group = Array(values[index..<min(index + 4, values.count)])
-            let a = group[0], b = group.count > 1 ? group[1] : 0
-            let c = group.count > 2 ? group[2] : 0, d = group.count > 3 ? group[3] : 0
+            let a = group[0]
+            let b = group.count > 1 ? group[1] : 0
+            let c = group.count > 2 ? group[2] : 0
+            let d = group.count > 3 ? group[3] : 0
             if group.count >= 2 { bytes.append(UInt8((a << 2 | b >> 4) & 0xFF)) }
             if group.count >= 3 { bytes.append(UInt8(((b & 0xF) << 4 | c >> 2) & 0xFF)) }
             if group.count == 4 { bytes.append(UInt8(((c & 0x3) << 6 | d) & 0xFF)) }

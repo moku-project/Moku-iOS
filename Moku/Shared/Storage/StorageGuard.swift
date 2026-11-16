@@ -9,21 +9,32 @@ import UIKit
 
     static func freeBytes() -> Int64? {
         let home = URL(fileURLWithPath: NSHomeDirectory())
-        let values = try? home.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+        let values = try? home.resourceValues(forKeys: [
+            .volumeAvailableCapacityForImportantUsageKey
+        ])
         return values?.volumeAvailableCapacityForImportantUsage
     }
 
     /// True when there is room or the user chose "Download anyway".
     static func allow(count: Int, media: ContentMode) async -> Bool {
-        guard let free = freeBytes(), estimate(count: count, media: media) > Int64(Double(free) * 0.95) else { return true }
+        guard let free = freeBytes(),
+            estimate(count: count, media: media) > Int64(Double(free) * 0.95)
+        else { return true }
         guard let presenter = topController() else { return true }
         return await withCheckedContinuation { continuation in
             let alert = UIAlertController(
                 title: "Low disk space",
-                message: "These downloads are estimated to use more than 95% of the space left on this device (\(ByteCountFormatter.string(fromByteCount: free, countStyle: .file)) free). Download anyway?",
+                message:
+                    "These downloads are estimated to use more than 95% of the space left on this device (\(ByteCountFormatter.string(fromByteCount: free, countStyle: .file)) free). Download anyway?",
                 preferredStyle: .alert)
-            alert.addAction(UIAlertAction(title: "Cancel", style: .cancel) { _ in continuation.resume(returning: false) })
-            alert.addAction(UIAlertAction(title: "Download anyway", style: .default) { _ in continuation.resume(returning: true) })
+            alert.addAction(
+                UIAlertAction(title: "Cancel", style: .cancel) { _ in
+                    continuation.resume(returning: false)
+                })
+            alert.addAction(
+                UIAlertAction(title: "Download anyway", style: .default) { _ in
+                    continuation.resume(returning: true)
+                })
             presenter.present(alert, animated: true)
         }
     }

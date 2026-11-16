@@ -5,7 +5,9 @@ import SwiftUI
 final class AppTheme {
     static let shared = AppTheme()
     var name = "dark"
-    var palette = NativeTheme.builtins[0] { didSet { if palette != oldValue { colors = Colors(palette) } } }
+    var palette = NativeTheme.builtins[0] {
+        didSet { if palette != oldValue { colors = Colors(palette) } }
+    }
     /// Parsed once per palette change; every view reads these many times per frame.
     private(set) var colors = Colors(NativeTheme.builtins[0])
 

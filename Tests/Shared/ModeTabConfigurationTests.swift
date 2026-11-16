@@ -1,4 +1,5 @@
 import Testing
+
 @testable import Moku
 
 struct ModeTabConfigurationTests {
@@ -18,7 +19,8 @@ struct ModeTabConfigurationTests {
         #expect(saved == ModeTabConfiguration(storage: saved.storage))
     }
     @Test func normalizationRepairsDuplicatesUnknownModesAndHiddenAll() {
-        let modes = ModeTabConfiguration(storage: #"{"order":["anime","anime","unknown"],"hidden":["all","manga"]}"#)
+        let modes = ModeTabConfiguration(
+            storage: #"{"order":["anime","anime","unknown"],"hidden":["all","manga"]}"#)
         #expect(modes.order == [.all, .anime, .manga, .novels])
         #expect(modes.visible == [.all, .anime, .novels])
     }

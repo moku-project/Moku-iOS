@@ -13,7 +13,12 @@ import XCTest
         let scroll = app.settingsIndex
         let options = XCTMeasureOptions()
         options.iterationCount = 3
-        measure(metrics: [XCTCPUMetric(application: app), XCTMemoryMetric(application: app), XCTOSSignpostMetric.scrollDecelerationMetric], options: options) {
+        measure(
+            metrics: [
+                XCTCPUMetric(application: app), XCTMemoryMetric(application: app),
+                XCTOSSignpostMetric.scrollDecelerationMetric,
+            ], options: options
+        ) {
             scroll.swipeUp()
             scroll.swipeUp()
             scroll.swipeDown()

@@ -21,7 +21,9 @@ struct CoverImage: View {
                         contentMode: contentMode ?? (isIcon || !cropCovers ? .fit : .fill)
                     )
                     .padding(isIcon && !bareIcon ? 6 : 0)
-                    .frame(width: geometry.size.width, height: geometry.size.height, alignment: alignment)
+                    .frame(
+                        width: geometry.size.width, height: geometry.size.height,
+                        alignment: alignment)
                 } else if loading {
                     Rectangle().fill(.primary.opacity(0.08))
                 } else {

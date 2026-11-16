@@ -22,7 +22,8 @@ import XCTest
         timeout.tap()
         XCTAssertTrue(app.buttons["Never"].waitForExistence(timeout: 3))
         app.buttons["Never"].tap()
-        XCTAssertTrue(timeout.shows("Never"), "\(timeout.label) \(String(describing: timeout.value))")
+        XCTAssertTrue(
+            timeout.shows("Never"), "\(timeout.label) \(String(describing: timeout.value))")
         // The language picker pushes a list of languages.
         let language = app.buttons["settings.general.language"]
         app.reveal(language, in: form)
@@ -34,16 +35,19 @@ import XCTest
         english.tap()
         if !language.waitForExistence(timeout: 2) { app.goBack() }
         app.reveal(language, in: form)
-        XCTAssertTrue(language.shows("English"), "\(language.label) \(String(describing: language.value))")
+        XCTAssertTrue(
+            language.shows("English"), "\(language.label) \(String(describing: language.value))")
         XCTAssertFalse(app.keyboards.firstMatch.exists)
         keepScreenshot("General settings")
         app.terminate()
         app.launch()
         openGeneral(app)
         app.reveal(timeout, in: form)
-        XCTAssertTrue(timeout.shows("Never"), "\(timeout.label) \(String(describing: timeout.value))")
+        XCTAssertTrue(
+            timeout.shows("Never"), "\(timeout.label) \(String(describing: timeout.value))")
         app.reveal(language, in: form)
-        XCTAssertTrue(language.shows("English"), "\(language.label) \(String(describing: language.value))")
+        XCTAssertTrue(
+            language.shows("English"), "\(language.label) \(String(describing: language.value))")
     }
 
     private func openGeneral(_ app: XCUIApplication) {

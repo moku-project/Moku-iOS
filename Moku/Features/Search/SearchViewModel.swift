@@ -30,7 +30,10 @@ final class SearchViewModel {
     func loadPopular(force: Bool = false) async {
         let selected = options
         if !force, let popularLoaded, popularLoaded.options == selected,
-           Date.now.timeIntervalSince(popularLoaded.at) < 300 { return }
+            Date.now.timeIntervalSince(popularLoaded.at) < 300
+        {
+            return
+        }
         guard !Task.isCancelled else { return }
         if popularLoaded?.options != selected { popular = [] }
         popularLoading = true
@@ -46,7 +49,8 @@ final class SearchViewModel {
         } catch is CancellationError {
         } catch {
             guard options == selected else { return }
-            popularMessage = (error as? EmbeddedSearchError)?.errorDescription
+            popularMessage =
+                (error as? EmbeddedSearchError)?.errorDescription
                 ?? "Couldn’t load popular titles. Check your connection and try again."
         }
     }
@@ -254,10 +258,16 @@ final class SearchViewModel {
                 if !request.options.genres.isEmpty {
                     let saved = await Self.libraryMatches(request.options)
                     let ids = Set(saved.map(\.id))
-                    let keys = Set(saved.compactMap { item in item.externalID.map { "\(item.extensionID ?? ""):\($0)" } })
-                    sorted = saved + sorted.filter {
-                        !ids.contains($0.id) && !keys.contains("\($0.extensionID ?? ""):\($0.externalID ?? "-")")
-                    }
+                    let keys = Set(
+                        saved.compactMap { item in
+                            item.externalID.map { "\(item.extensionID ?? ""):\($0)" }
+                        })
+                    sorted =
+                        saved
+                        + sorted.filter {
+                            !ids.contains($0.id)
+                                && !keys.contains("\($0.extensionID ?? ""):\($0.externalID ?? "-")")
+                        }
                 }
                 guard !Task.isCancelled, self.generation == current else { return }
                 self.state = .results(sorted.filter { !self.emptyIDs.contains($0.id) })
@@ -285,9 +295,13 @@ final class SearchViewModel {
     @ObservationIgnored private var resumeSearch = false
     func setActive(_ active: Bool) {
         if active {
-            if resumeSearch { resumeSearch = false; submit() }
+            if resumeSearch {
+                resumeSearch = false
+                submit()
+            }
         } else {
-            resumeSearch = resumeSearch || isSearching || requestTask != nil && state == .idle && canSubmit
+            resumeSearch =
+                resumeSearch || isSearching || requestTask != nil && state == .idle && canSubmit
             requestTask?.cancel()
             requestTask = nil
             generation += 1
@@ -307,7 +321,9 @@ final class SearchViewModel {
 
     /// Next page from every source that answered, appended without duplicates.
     func loadMore() async {
-        guard var request = lastRequest, !loadingMore, case .results(let current) = state else { return }
+        guard var request = lastRequest, !loadingMore, case .results(let current) = state else {
+            return
+        }
         request.page += 1
         loadingMore = true
         defer { loadingMore = false }
@@ -324,7 +340,9 @@ final class SearchViewModel {
         } catch is CancellationError {
         } catch {
             guard self.generation == generation else { return }
-            Toaster.shared.show("Couldn’t load more results", detail: "Check your connection and try again.", kind: .error)
+            Toaster.shared.show(
+                "Couldn’t load more results", detail: "Check your connection and try again.",
+                kind: .error)
         }
     }
 
@@ -340,20 +358,29 @@ final class SearchViewModel {
         guard request.options.hidesEmpty, !request.query.isEmpty, !isLibrary else { return }
         let fresh = entries.filter { probedIDs.insert($0.id).inserted }
         guard !fresh.isEmpty else { return }
-        let probe = probe, repository = repository
-        probeTasks.append(Task { [weak self] in
-            await withTaskGroup(of: (String, ContentProbe.Verdict).self) { group in
-                for entry in fresh {
-                    group.addTask {
-                        (entry.id, await probe.verdict(for: entry) { try await repository.chapterCount($0) })
+        let probe = probe
+        let repository = repository
+        probeTasks.append(
+            Task { [weak self] in
+                await withTaskGroup(of: (String, ContentProbe.Verdict).self) { group in
+                    for entry in fresh {
+                        group.addTask {
+                            (
+                                entry.id,
+                                await probe.verdict(for: entry) {
+                                    try await repository.chapterCount($0)
+                                }
+                            )
+                        }
+                    }
+                    for await (id, verdict) in group where verdict == .empty {
+                        guard let self, !Task.isCancelled, self.generation == generation else {
+                            return
+                        }
+                        self.hide(id)
                     }
                 }
-                for await (id, verdict) in group where verdict == .empty {
-                    guard let self, !Task.isCancelled, self.generation == generation else { return }
-                    self.hide(id)
-                }
-            }
-        })
+            })
     }
 
     private func hide(_ id: String) {
@@ -391,18 +418,23 @@ final class SearchViewModel {
             let library: Page
         }
         let type = options.media == .all ? "" : "contentType: \(options.media.graphQLType)"
-        guard let response: Response = try? await BackendAPI.shared.graphql(
-            "{ library(filter: { \(type) }, limit: 1000) { items { id title contentType sourceName thumbnailUrl extensionId externalId genres } } }",
-            cacheFor: 30, requiresSourceRuntime: false) else { return [] }
+        guard
+            let response: Response = try? await BackendAPI.shared.graphql(
+                "{ library(filter: { \(type) }, limit: 1000) { items { id title contentType sourceName thumbnailUrl extensionId externalId genres } } }",
+                cacheFor: 30, requiresSourceRuntime: false)
+        else { return [] }
         let wanted = Set(options.genres.map { $0.lowercased() })
         return response.library.items.filter { item in
             let genres = Set(item.genres.map { $0.lowercased() })
-            return options.match == .all ? wanted.isSubset(of: genres) : !wanted.isDisjoint(with: genres)
+            return options.match == .all
+                ? wanted.isSubset(of: genres) : !wanted.isDisjoint(with: genres)
         }.map {
-            MediaEntry(id: $0.id, title: $0.title,
-                       media: $0.contentType == "ANIME" ? .anime : $0.contentType == "NOVEL" ? .novels : .manga,
-                       sourceName: $0.sourceName, coverURL: BackendAPI.coverURL($0.thumbnailUrl),
-                       extensionID: $0.extensionId, externalID: $0.externalId)
+            MediaEntry(
+                id: $0.id, title: $0.title,
+                media: $0.contentType == "ANIME"
+                    ? .anime : $0.contentType == "NOVEL" ? .novels : .manga,
+                sourceName: $0.sourceName, coverURL: BackendAPI.coverURL($0.thumbnailUrl),
+                extensionID: $0.extensionId, externalID: $0.externalId)
         }
     }
 

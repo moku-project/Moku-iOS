@@ -39,7 +39,10 @@ struct SearchModelTests {
             try await Task.sleep(for: .milliseconds(5))
         }
         #expect(await spy.requests.count == 2)
-        guard case .results(let entries) = model.state else { Issue.record("Expected resumed results"); return }
+        guard case .results(let entries) = model.state else {
+            Issue.record("Expected resumed results")
+            return
+        }
         #expect(entries.count == 2)
         model.setActive(false)
         model.setActive(true)
@@ -320,10 +323,13 @@ private struct PopularFixture: SearchRepository {
     func popular(options: SearchOptions) async throws -> DiscoveryPage {
         if fails { throw SearchFailure.notConnected }
         let entries = [
-            MediaEntry(id: "manga", title: "Manga", media: .manga, sourceName: "Test", coverURL: nil),
-            MediaEntry(id: "novel", title: "Novel", media: .novels, sourceName: "Test", coverURL: nil),
+            MediaEntry(
+                id: "manga", title: "Manga", media: .manga, sourceName: "Test", coverURL: nil),
+            MediaEntry(
+                id: "novel", title: "Novel", media: .novels, sourceName: "Test", coverURL: nil),
         ]
-        return DiscoveryPage(entries: entries.filter { options.media == .all || options.media == $0.media })
+        return DiscoveryPage(
+            entries: entries.filter { options.media == .all || options.media == $0.media })
     }
 }
 
@@ -347,8 +353,10 @@ struct PopularTests {
     }
 
     @Test func dedupeKeyIgnoresCaseAndSpacing() {
-        let a = MediaEntry(id: "1", title: " Title One ", media: .manga, sourceName: "A", coverURL: nil)
-        let b = MediaEntry(id: "2", title: "title one", media: .manga, sourceName: "B", coverURL: nil)
+        let a = MediaEntry(
+            id: "1", title: " Title One ", media: .manga, sourceName: "A", coverURL: nil)
+        let b = MediaEntry(
+            id: "2", title: "title one", media: .manga, sourceName: "B", coverURL: nil)
         #expect(LiveMediaRepository.dedupeKey(a) == LiveMediaRepository.dedupeKey(b))
     }
 }

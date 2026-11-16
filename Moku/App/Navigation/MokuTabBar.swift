@@ -74,7 +74,9 @@ struct MokuTabBar: View {
         }
         .padding(5)
         .frame(height: Self.height)
-        .animation(reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.8), value: selection)
+        .animation(
+            reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.8), value: selection
+        )
         .glassSurface(Capsule())
         .sensoryFeedback(.selection, trigger: selection)
     }
@@ -87,7 +89,9 @@ struct MokuTabBar: View {
                 Button {
                     mode = choice
                 } label: {
-                    Label(choice.title, systemImage: choice == mode ? "checkmark" : choice.systemImage)
+                    Label(
+                        choice.title, systemImage: choice == mode ? "checkmark" : choice.systemImage
+                    )
                 }
                 .accessibilityAddTraits(choice == mode ? .isSelected : [])
                 .accessibilityIdentifier("mode.\(choice.rawValue)")

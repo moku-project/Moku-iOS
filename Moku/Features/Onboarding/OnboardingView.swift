@@ -16,12 +16,21 @@ struct OnboardingView: View {
     }
 
     private let pages = [
-        Page(id: 0, symbol: "MokuMark", title: "Welcome to Moku",
-             body: "Read manga and novels and watch anime from sources you choose. Sources run on this iPhone, with no account or server needed."),
-        Page(id: 1, symbol: "PuzzlePiece", title: "Add your sources",
-             body: "Moku doesn’t come with any content. Add a Mihon, Aniyomi or LNReader repository in Extensions, then install the sources you want. You can also import CBZ, EPUB and video files."),
-        Page(id: 2, symbol: "ArrowsClockwise", title: "Sync your devices",
-             body: "Use Moku elsewhere? Pair in Settings → Moku Sync to share your library, progress and reading history over your network."),
+        Page(
+            id: 0, symbol: "MokuMark", title: "Welcome to Moku",
+            body:
+                "Read manga and novels and watch anime from sources you choose. Sources run on this iPhone, with no account or server needed."
+        ),
+        Page(
+            id: 1, symbol: "PuzzlePiece", title: "Add your sources",
+            body:
+                "Moku doesn’t come with any content. Add a Mihon, Aniyomi or LNReader repository in Extensions, then install the sources you want. You can also import CBZ, EPUB and video files."
+        ),
+        Page(
+            id: 2, symbol: "ArrowsClockwise", title: "Sync your devices",
+            body:
+                "Use Moku elsewhere? Pair in Settings → Moku Sync to share your library, progress and reading history over your network."
+        ),
     ]
 
     var body: some View {
@@ -93,11 +102,19 @@ struct OnboardingView: View {
         VStack(spacing: 10) {
             switch page {
             case 1:
-                primary("Open Extensions") { finish(); openExtensions() }
-                secondary("Not now") { withAnimation(reduceMotion ? nil : .easeInOut) { page += 1 } }
+                primary("Open Extensions") {
+                    finish()
+                    openExtensions()
+                }
+                secondary("Not now") {
+                    withAnimation(reduceMotion ? nil : .easeInOut) { page += 1 }
+                }
             case 2:
                 primary("Get started") { finish() }
-                secondary("Connect a desktop") { finish(); openSettings() }
+                secondary("Connect a desktop") {
+                    finish()
+                    openSettings()
+                }
             default:
                 primary("Continue") { withAnimation(reduceMotion ? nil : .easeInOut) { page += 1 } }
                 secondary(" ") {}.hidden()

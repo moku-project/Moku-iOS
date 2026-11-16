@@ -35,7 +35,8 @@ struct NovelDocument: Sendable, Equatable {
         var blocks: [Block] = []
         var current = AttributedString()
         var heading = false
-        var bold = 0, italic = 0
+        var bold = 0
+        var italic = 0
         var skipping: String?
 
         func flush() {
@@ -43,15 +44,21 @@ struct NovelDocument: Sendable, Equatable {
             // Collapse whitespace runs that HTML would not render.
             let trimmed = String(text.characters).trimmingCharacters(in: .whitespacesAndNewlines)
             if !trimmed.isEmpty {
-                while let first = text.characters.first, first.isWhitespace { text.removeSubrange(text.startIndex..<text.index(afterCharacter: text.startIndex)) }
-                while let last = text.characters.last, last.isWhitespace { text.removeSubrange(text.index(beforeCharacter: text.endIndex)..<text.endIndex) }
+                while let first = text.characters.first, first.isWhitespace {
+                    text.removeSubrange(
+                        text.startIndex..<text.index(afterCharacter: text.startIndex))
+                }
+                while let last = text.characters.last, last.isWhitespace {
+                    text.removeSubrange(text.index(beforeCharacter: text.endIndex)..<text.endIndex)
+                }
                 blocks.append(heading ? .heading(text) : .paragraph(text))
             }
             current = AttributedString()
         }
 
         func append(_ raw: Substring) {
-            let collapsed = raw.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            let collapsed = raw.replacingOccurrences(
+                of: #"\s+"#, with: " ", options: .regularExpression)
             guard !collapsed.isEmpty else { return }
             if collapsed == " ", current.characters.last?.isWhitespace ?? true { return }
             var run = AttributedString(decodeEntities(collapsed))
@@ -117,9 +124,13 @@ struct NovelDocument: Sendable, Equatable {
                 let entity = text[text.index(after: index)..<semicolon]
                 var replacement: String?
                 if entity.hasPrefix("#x") || entity.hasPrefix("#X") {
-                    replacement = UInt32(entity.dropFirst(2), radix: 16).flatMap(Unicode.Scalar.init).map { String(Character($0)) }
+                    replacement = UInt32(entity.dropFirst(2), radix: 16).flatMap(
+                        Unicode.Scalar.init
+                    ).map { String(Character($0)) }
                 } else if entity.hasPrefix("#") {
-                    replacement = UInt32(entity.dropFirst()).flatMap(Unicode.Scalar.init).map { String(Character($0)) }
+                    replacement = UInt32(entity.dropFirst()).flatMap(Unicode.Scalar.init).map {
+                        String(Character($0))
+                    }
                 } else {
                     replacement = named[String(entity)]
                 }

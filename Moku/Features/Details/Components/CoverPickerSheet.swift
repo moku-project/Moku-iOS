@@ -26,9 +26,12 @@ struct CoverPickerSheet: View {
                 TabView(selection: $selected) {
                     ForEach(candidates) { candidate in
                         VStack(spacing: 12) {
-                            CoverImage(url: candidate.preview, contentMode: .fit, symbol: entry.media.symbol)
-                                .clipShape(RoundedRectangle(cornerRadius: 10))
-                                .frame(maxHeight: 360)
+                            CoverImage(
+                                url: candidate.preview, contentMode: .fit,
+                                symbol: entry.media.symbol
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                            .frame(maxHeight: 360)
                             Text(candidate.label).font(.subheadline).foregroundStyle(.secondary)
                         }
                         .padding(.horizontal, 40)
@@ -39,9 +42,11 @@ struct CoverPickerSheet: View {
                 .tabViewStyle(.page(indexDisplayMode: candidates.count > 1 ? .always : .never))
                 .indexViewStyle(.page(backgroundDisplayMode: .always))
                 if candidates.count <= 1 {
-                    Text("No other covers found. Link this title to the same series on another source, or match it to AniList, for more choices.")
-                        .font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
-                        .padding(.horizontal, 24)
+                    Text(
+                        "No other covers found. Link this title to the same series on another source, or match it to AniList, for more choices."
+                    )
+                    .font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
                 }
                 if let error { Text(error).font(.footnote).foregroundStyle(.orange) }
                 Button {
@@ -69,14 +74,18 @@ struct CoverPickerSheet: View {
 
     private func load() async {
         await library.loadOrganization()
-        var list = [Candidate(url: nil, preview: BackendAPI.coverURL(sourceCover), label: "This source")]
+        var list = [
+            Candidate(url: nil, preview: BackendAPI.coverURL(sourceCover), label: "This source")
+        ]
         let linked = library.linkedEntries(for: entry.id)
         let similar = library.entries.filter {
             $0.id != entry.id && $0.media == entry.media && !linked.contains($0)
                 && MigrateSheet.score($0.title, entry.title) >= 0.65
         }
         for item in linked + similar {
-            guard let preview = item.coverURL, let original = Self.original(preview) else { continue }
+            guard let preview = item.coverURL, let original = Self.original(preview) else {
+                continue
+            }
             list.append(Candidate(url: original, preview: preview, label: item.sourceName))
         }
         struct Response: Decodable, Sendable {
@@ -87,15 +96,20 @@ struct CoverPickerSheet: View {
             let media: Media?
         }
         if let response: Response = try? await BackendAPI.shared.graphql(
-            "{ media(id: \(BackendAPI.literal(entry.id))) { metadata { coverUrl } } }", requiresSourceRuntime: false),
-           let cover = response.media?.metadata?.coverUrl {
-            list.append(Candidate(url: cover, preview: BackendAPI.coverURL(cover), label: "AniList"))
+            "{ media(id: \(BackendAPI.literal(entry.id))) { metadata { coverUrl } } }",
+            requiresSourceRuntime: false),
+            let cover = response.media?.metadata?.coverUrl
+        {
+            list.append(
+                Candidate(url: cover, preview: BackendAPI.coverURL(cover), label: "AniList"))
         }
         // Same image from several places: keep one, with every label.
         var unique: [Candidate] = []
         for candidate in list {
             let key = candidate.url.map(Self.stripQuery)
-            if let index = unique.firstIndex(where: { $0.url.map(Self.stripQuery) == key && key != nil }) {
+            if let index = unique.firstIndex(where: {
+                $0.url.map(Self.stripQuery) == key && key != nil
+            }) {
                 unique[index].label += " · \(candidate.label)"
             } else {
                 unique.append(candidate)
@@ -112,7 +126,8 @@ struct CoverPickerSheet: View {
         let url = candidate.url.map(BackendAPI.literal) ?? "null"
         do {
             let _: IgnoredGraphQLResult = try await BackendAPI.shared.graphql(
-                "mutation { setMediaCover(mediaId: \(BackendAPI.literal(entry.id)), url: \(url)) { id } }")
+                "mutation { setMediaCover(mediaId: \(BackendAPI.literal(entry.id)), url: \(url)) { id } }"
+            )
             await BackendAPI.shared.clearCoverCache()
             changed()
             Toaster.shared.show("Cover updated")

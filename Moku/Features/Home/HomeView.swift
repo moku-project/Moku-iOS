@@ -1,5 +1,5 @@
-import SwiftUI
 import Observation
+import SwiftUI
 
 /// Continue card, stats, activity, up next and recent, in the Android order.
 struct HomeView: View {
@@ -52,17 +52,21 @@ struct HomeView: View {
                     }
                     HomeSection(
                         title: "Activity", systemImage: "clock",
-                        trailing: "\(HomeHeatmap.total(store.statistics.daily, weeks: Self.weeks)) in \(Self.weeks) weeks"
+                        trailing:
+                            "\(HomeHeatmap.total(store.statistics.daily, weeks: Self.weeks)) in \(Self.weeks) weeks"
                     ) {
                         HomeHeatmap(daily: store.statistics.daily, weeks: Self.weeks)
                     }
                     HomeSection(title: "Up Next") {
                         Group {
                             if let upNext {
-                                HomeMediaRow(item: upNext) { open(upNext.entry, chapterID: upNext.session.endChapterID) }
+                                HomeMediaRow(item: upNext) {
+                                    open(upNext.entry, chapterID: upNext.session.endChapterID)
+                                }
                             } else {
                                 HStack {
-                                    Text("Nothing queued yet").font(.subheadline).foregroundStyle(.secondary)
+                                    Text("Nothing queued yet").font(.subheadline).foregroundStyle(
+                                        .secondary)
                                     Spacer()
                                     Button("Find Something", action: onBrowse)
                                         .font(.subheadline.weight(.medium)).buttonStyle(.bordered)
@@ -79,16 +83,22 @@ struct HomeView: View {
                             VStack(spacing: 0) {
                                 ForEach(recent) { item in
                                     if item.id != recent.first?.id { Divider() }
-                                    HomeMediaRow(item: item) { open(item.entry, chapterID: item.session.endChapterID) }
-                                        .contextMenu {
-                                            Button("Resume", systemImage: "play.fill") {
-                                                open(item.entry, chapterID: item.session.endChapterID)
-                                            }
-                                            Button("View Title", systemImage: "info.circle") { open(item.entry) }
+                                    HomeMediaRow(item: item) {
+                                        open(item.entry, chapterID: item.session.endChapterID)
+                                    }
+                                    .contextMenu {
+                                        Button("Resume", systemImage: "play.fill") {
+                                            open(item.entry, chapterID: item.session.endChapterID)
                                         }
+                                        Button("View Title", systemImage: "info.circle") {
+                                            open(item.entry)
+                                        }
+                                    }
                                 }
                             }
-                            .homeCard(padding: EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
+                            .homeCard(
+                                padding: EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12)
+                            )
                             .accessibilityElement(children: .contain)
                             .accessibilityIdentifier("home.recent")
                         }
@@ -118,22 +128,37 @@ struct HomeView: View {
                 .accessibilityIdentifier("home.extensions")
             }
         }
-        .alert("Couldn’t open title", isPresented: Binding(
-            get: { openError != nil }, set: { if !$0 { openError = nil } }
-        )) {
+        .alert(
+            "Couldn’t open title",
+            isPresented: Binding(
+                get: { openError != nil }, set: { if !$0 { openError = nil } }
+            )
+        ) {
             Button("OK") { openError = nil }
-        } message: { Text(openError ?? "") }
-        .task { await store.load(); await library?.load() }
+        } message: {
+            Text(openError ?? "")
+        }
+        .task {
+            await store.load()
+            await library?.load()
+        }
         .task(id: "\(isActive)-\(items.first?.id ?? "empty")") {
             if isActive { await refreshFeatured() }
         }
-        .refreshable { await store.refresh(); await refreshFeatured(refresh: true) }
-        .fullScreenCover(item: $route, onDismiss: { Task { await refreshFeatured(refresh: true) } }) { route in
-            NavigationStack {
-                DetailsView(entry: route.entry, initialChapterID: route.chapterID) { self.route = nil }
-                    .environment(\.detailsShowsClose, true)
-            }
+        .refreshable {
+            await store.refresh()
+            await refreshFeatured(refresh: true)
         }
+        .fullScreenCover(
+            item: $route, onDismiss: { Task { await refreshFeatured(refresh: true) } },
+            content: { route in
+                NavigationStack {
+                    DetailsView(entry: route.entry, initialChapterID: route.chapterID) {
+                        self.route = nil
+                    }
+                    .environment(\.detailsShowsClose, true)
+                }
+            })
     }
 
     private func refreshFeatured(refresh: Bool = false) async {
@@ -161,8 +186,11 @@ struct HomeView: View {
             defer { opening = false }
             do {
                 let media = try await loader.resolve(entry, library: library?.entries ?? [])
-                if let onOpenTitle { onOpenTitle(media, chapterID) }
-                else { route = HomeRoute(entry: media, chapterID: chapterID) }
+                if let onOpenTitle {
+                    onOpenTitle(media, chapterID)
+                } else {
+                    route = HomeRoute(entry: media, chapterID: chapterID)
+                }
             } catch {
                 openError = "Couldn’t open this title. Check its source and try again."
             }
@@ -208,7 +236,8 @@ final class HomeTitleLoader {
             guard generation == token else { return }
             next.unreadCount = chapters.filter { !$0.completed }.count
             next.chapters = ChapterDisplayPreferences().apply(chapters).map {
-                HomeChapter(id: $0.id, title: $0.label, isRead: $0.completed, uploadedAt: $0.uploadedAt)
+                HomeChapter(
+                    id: $0.id, title: $0.label, isRead: $0.completed, uploadedAt: $0.uploadedAt)
             }
             updatedEntry = next
         } catch {

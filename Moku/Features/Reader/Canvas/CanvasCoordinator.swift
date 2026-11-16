@@ -122,7 +122,8 @@ final class CanvasCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogniz
             if !changed { layout(anchor: model.page) }
         }
         // Double-tap zoom works in paged layouts regardless; "Pinch to zoom" only governs pinching.
-        scroll.maximumZoomScale = model.behaviour.pinchZoom ? 3 : (model.isStrip ? 1 : Self.doubleTapZoom)
+        scroll.maximumZoomScale =
+            model.behaviour.pinchZoom ? 3 : (model.isStrip ? 1 : Self.doubleTapZoom)
         scroll.minimumZoomScale = 1
         scroll.pinchGestureRecognizer?.isEnabled = model.behaviour.pinchZoom
         if !model.behaviour.pinchZoom && model.isStrip && scroll.zoomScale != 1 {
@@ -230,7 +231,8 @@ final class CanvasCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogniz
         let visible: [Int]
         if parent.model.isStrip {
             let start = firstPageIndex(below: rect.minY)
-            visible = Array(pageNumbers.dropFirst(start).prefix { (frames[$0]?.minY ?? .infinity) < rect.maxY })
+            visible = Array(
+                pageNumbers.dropFirst(start).prefix { (frames[$0]?.minY ?? .infinity) < rect.maxY })
         } else {
             visible = pageNumbers.filter { frames[$0]?.intersects(rect) == true }
         }
@@ -259,7 +261,9 @@ final class CanvasCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogniz
             let skeleton = ReaderPageSkeleton(frame: view.bounds)
             view.addSubview(skeleton)
             skeletons[page] = skeleton
-            let label = UILabel(frame: CGRect(x: 0, y: 0, width: view.bounds.width, height: min(view.bounds.height, 200)))
+            let label = UILabel(
+                frame: CGRect(
+                    x: 0, y: 0, width: view.bounds.width, height: min(view.bounds.height, 200)))
             label.textAlignment = .center
             label.textColor = .lightGray
             label.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
@@ -271,7 +275,8 @@ final class CanvasCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogniz
         for (page, skeleton) in skeletons {
             let pending = cache[page] == nil && !failed.contains(page)
             skeleton.isHidden = !pending
-            skeleton.setAnimating(pending && visible.contains(page) && parent.active && !parent.reduceMotion)
+            skeleton.setAnimating(
+                pending && visible.contains(page) && parent.active && !parent.reduceMotion)
         }
         guard parent.active else {
             for task in work.values { task.cancel() }
@@ -325,11 +330,15 @@ final class CanvasCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogniz
         }
     }
     private func firstPageIndex(below y: CGFloat) -> Int {
-        var lower = 0, upper = pageNumbers.count
+        var lower = 0
+        var upper = pageNumbers.count
         while lower < upper {
             let middle = (lower + upper) / 2
-            if (frames[pageNumbers[middle]]?.maxY ?? 0) <= y { lower = middle + 1 }
-            else { upper = middle }
+            if (frames[pageNumbers[middle]]?.maxY ?? 0) <= y {
+                lower = middle + 1
+            } else {
+                upper = middle
+            }
         }
         return lower
     }
@@ -443,7 +452,9 @@ final class CanvasCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogniz
         }
         let maxY = max(0, scroll.contentSize.height - scroll.bounds.height)
         scroll.contentOffset.y = min(
-            maxY, scroll.contentOffset.y + parent.model.behaviour.autoScrollSpeed * 5 * min(0.1, link.targetTimestamp - link.timestamp))
+            maxY,
+            scroll.contentOffset.y + parent.model.behaviour.autoScrollSpeed * 5
+                * min(0.1, link.targetTimestamp - link.timestamp))
         reachedEnd()
     }
     func stop() {

@@ -26,7 +26,9 @@ import SwiftUI
         active: Bool, valid: Bool, now: Date = .now
     ) {
         accumulate(now: now)
-        if let current = draft, current.mediaID != mediaID || now.timeIntervalSince(current.endedAt) > Self.idleLimit {
+        if let current = draft,
+            current.mediaID != mediaID || now.timeIntervalSince(current.endedAt) > Self.idleLimit
+        {
             send(history: history)
             draft = nil
         }
@@ -41,8 +43,10 @@ import SwiftUI
         if draft == nil {
             guard reading else { return }
             draft = Draft(
-                mediaID: mediaID, startChapterID: chapterID, startPage: max(1, position), startedAt: now,
-                endChapterID: chapterID, endPage: max(1, position), endedAt: now, chapters: [chapterID])
+                mediaID: mediaID, startChapterID: chapterID, startPage: max(1, position),
+                startedAt: now,
+                endChapterID: chapterID, endPage: max(1, position), endedAt: now,
+                chapters: [chapterID])
         }
         let newChapter = draft?.chapters.insert(chapterID).inserted ?? false
         draft?.endChapterID = chapterID
@@ -74,7 +78,8 @@ import SwiftUI
             id: draft.id, mediaID: draft.mediaID, startChapterID: draft.startChapterID,
             endChapterID: draft.endChapterID, startPage: draft.startPage, endPage: draft.endPage,
             startedAt: draft.startedAt, endedAt: max(draft.endedAt, draft.startedAt),
-            durationMs: Int(min(Self.idleLimit, draft.seconds) * 1000), chapters: draft.chapters.count)
+            durationMs: Int(min(Self.idleLimit, draft.seconds) * 1000),
+            chapters: draft.chapters.count)
         Task { await history.record(input) }
     }
 }
@@ -96,7 +101,9 @@ private struct ActivityRecording: ViewModifier {
         let valid: Bool
     }
     private var sample: Sample {
-        Sample(chapterID: chapterID, position: position, active: active && scenePhase == .active, valid: valid)
+        Sample(
+            chapterID: chapterID, position: position, active: active && scenePhase == .active,
+            valid: valid)
     }
     func body(content: Content) -> some View {
         content
@@ -119,7 +126,12 @@ private struct ActivityRecording: ViewModifier {
 }
 
 extension View {
-    func recordActivity(mediaID: String, chapterID: String, position: Int, active: Bool, valid: Bool) -> some View {
-        modifier(ActivityRecording(mediaID: mediaID, chapterID: chapterID, position: position, active: active, valid: valid))
+    func recordActivity(
+        mediaID: String, chapterID: String, position: Int, active: Bool, valid: Bool
+    ) -> some View {
+        modifier(
+            ActivityRecording(
+                mediaID: mediaID, chapterID: chapterID, position: position, active: active,
+                valid: valid))
     }
 }

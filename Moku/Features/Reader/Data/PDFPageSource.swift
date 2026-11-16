@@ -17,11 +17,14 @@ actor PDFPageSource {
     nonisolated static func parse(_ path: String) -> (document: String, index: Int)? {
         let parts = path.split(separator: "/", omittingEmptySubsequences: true)
         guard parts.count == 5, parts[0] == "content", parts[3] == "pdfpage",
-              let page = Int(parts[4]), page >= 1 else { return nil }
+            let page = Int(parts[4]), page >= 1
+        else { return nil }
         return ("/content/\(parts[1])/\(parts[2])/pdf", page - 1)
     }
 
-    func image(path: String, load: @Sendable @escaping (String) async throws -> Data) async throws -> Data {
+    func image(path: String, load: @Sendable @escaping (String) async throws -> Data) async throws
+        -> Data
+    {
         guard let (documentPath, index) = Self.parse(path) else {
             throw EmbeddedSearchError.message("Not a PDF page.")
         }
@@ -33,7 +36,9 @@ actor PDFPageSource {
         return try Self.render(page)
     }
 
-    private func document(_ path: String, load: @Sendable @escaping (String) async throws -> Data) async throws -> PDFDocument {
+    private func document(_ path: String, load: @Sendable @escaping (String) async throws -> Data)
+        async throws -> PDFDocument
+    {
         if let document, document.path == path { return document.pdf }
         // Pages ask in parallel; the file is fetched once and shared.
         let task: Task<Data, any Error>
@@ -61,9 +66,11 @@ actor PDFPageSource {
             throw EmbeddedSearchError.message("This PDF page is empty.")
         }
         let scale = min(maxWidth / bounds.width, sqrt(maxPixels / (bounds.width * bounds.height)))
-        let size = CGSize(width: (bounds.width * scale).rounded(), height: (bounds.height * scale).rounded())
+        let size = CGSize(
+            width: (bounds.width * scale).rounded(), height: (bounds.height * scale).rounded())
         // thumbnail(of:for:) draws on white and applies the page's rotation.
-        guard let data = page.thumbnail(of: size, for: .cropBox).jpegData(compressionQuality: 0.9) else {
+        guard let data = page.thumbnail(of: size, for: .cropBox).jpegData(compressionQuality: 0.9)
+        else {
             throw EmbeddedSearchError.message("This PDF page couldn’t be drawn.")
         }
         return data

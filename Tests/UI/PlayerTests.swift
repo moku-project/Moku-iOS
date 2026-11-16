@@ -6,7 +6,9 @@ final class PlayerUITests: XCTestCase {
     func testPlaybackPortraitLandscapeAndMenus() {
         let app = XCUIApplication()
         // Saved player settings outlive each launch and win over the fixture: start paused at 100%.
-        app.launchArguments = ["--ui-testing-player", "-player.autoplay", "NO", "-player.subtitleScale", "1"]
+        app.launchArguments = [
+            "--ui-testing-player", "-player.autoplay", "NO", "-player.subtitleScale", "1",
+        ]
         XCUIDevice.shared.orientation = .portrait
         defer { XCUIDevice.shared.orientation = .portrait }
         app.launch()
@@ -83,7 +85,10 @@ final class PlayerUITests: XCTestCase {
         XCTAssertEqual(play.label, "Play")
         tap(play)
         waitFor(play, "label == 'Pause'")
-        waitFor(slider, "value BEGINSWITH '0:07' OR value BEGINSWITH '0:08' OR value BEGINSWITH '0:09' OR value BEGINSWITH '0:1'")
+        waitFor(
+            slider,
+            "value BEGINSWITH '0:07' OR value BEGINSWITH '0:08' OR value BEGINSWITH '0:09' OR value BEGINSWITH '0:1'"
+        )
         // Controls fade after a few seconds of playback; a tap on the video brings them back.
         waitFor(play, "exists == false")
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3)).tap()

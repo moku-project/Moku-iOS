@@ -22,7 +22,8 @@ import Observation
     init(details: MediaDetails, chapterID: String, preferences: Data) {
         self.details = details
         self.chapterID = chapterID
-        chapters = ChapterPresentation.readingOrder(details.chapters, preferences: preferences, mediaID: details.id)
+        chapters = ChapterPresentation.readingOrder(
+            details.chapters, preferences: preferences, mediaID: details.id)
     }
 
     var chapter: Chapter? { chapters.first { $0.id == chapterID } }
@@ -53,15 +54,18 @@ import Observation
             guard generation == current else { return }
             document = parsed
             // A finished chapter reopens at the top rather than at its last line.
-            resumeAt = pendingResume ?? state?.progress.map {
-                $0.completed || $0.progress >= 0.97 ? 0 : $0.progress
-            }
+            resumeAt =
+                pendingResume
+                ?? state?.progress.map {
+                    $0.completed || $0.progress >= 0.97 ? 0 : $0.progress
+                }
             pendingResume = nil
             loading = false
         } catch {
             guard !Task.isCancelled, generation == current else { return }
             loading = false
-            self.error = (error as? EmbeddedSearchError)?.errorDescription
+            self.error =
+                (error as? EmbeddedSearchError)?.errorDescription
                 ?? "Couldn’t load this chapter. Check your connection and try again."
         }
     }
@@ -103,9 +107,13 @@ import Observation
 
     private func scheduleSave(immediately: Bool = false) {
         guard ready || immediately else { return }
-        let mediaID = details.id, chapterID = chapterID
-        let value = progress, done = completed
-        if let saved = savedProgress[chapterID], abs(saved.0 - value) < 0.01, saved.1 == done { return }
+        let mediaID = details.id
+        let chapterID = chapterID
+        let value = progress
+        let done = completed
+        if let saved = savedProgress[chapterID], abs(saved.0 - value) < 0.01, saved.1 == done {
+            return
+        }
         saveTask?.cancel()
         saveTask = Task { [weak self] in
             if !immediately { try? await Task.sleep(for: .seconds(2)) }
@@ -119,7 +127,9 @@ import Observation
                 self?.savedProgress[chapterID] = (value, done)
             } catch {
                 guard !Task.isCancelled else { return }
-                Toaster.shared.show("Progress couldn’t sync", detail: "Moku will retry when you keep reading.", kind: .error)
+                Toaster.shared.show(
+                    "Progress couldn’t sync", detail: "Moku will retry when you keep reading.",
+                    kind: .error)
             }
         }
     }

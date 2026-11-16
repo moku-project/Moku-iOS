@@ -18,20 +18,27 @@
 
         private static func write(to url: URL) throws {
             let writer = try AVAssetWriter(outputURL: url, fileType: .mp4)
-            let input = AVAssetWriterInput(mediaType: .video, outputSettings: [
-                AVVideoCodecKey: AVVideoCodecType.h264, AVVideoWidthKey: width, AVVideoHeightKey: height,
-            ])
-            let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: [
-                kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
-                kCVPixelBufferWidthKey as String: width, kCVPixelBufferHeightKey as String: height,
-            ])
+            let input = AVAssetWriterInput(
+                mediaType: .video,
+                outputSettings: [
+                    AVVideoCodecKey: AVVideoCodecType.h264, AVVideoWidthKey: width,
+                    AVVideoHeightKey: height,
+                ])
+            let adaptor = AVAssetWriterInputPixelBufferAdaptor(
+                assetWriterInput: input,
+                sourcePixelBufferAttributes: [
+                    kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
+                    kCVPixelBufferWidthKey as String: width,
+                    kCVPixelBufferHeightKey as String: height,
+                ])
             writer.add(input)
             guard writer.startWriting() else { throw writer.error ?? CocoaError(.fileWriteUnknown) }
             writer.startSession(atSourceTime: .zero)
             let frame = try gridFrame()
             for index in 0..<(seconds * Int(fps)) {
                 while !input.isReadyForMoreMediaData { Thread.sleep(forTimeInterval: 0.005) }
-                adaptor.append(frame, withPresentationTime: CMTime(value: CMTimeValue(index), timescale: fps))
+                adaptor.append(
+                    frame, withPresentationTime: CMTime(value: CMTimeValue(index), timescale: fps))
             }
             input.markAsFinished()
             let done = DispatchSemaphore(value: 0)
@@ -47,15 +54,22 @@
             CVPixelBufferLockBaseAddress(buffer, [])
             defer { CVPixelBufferUnlockBaseAddress(buffer, []) }
             let context = CGContext(
-                data: CVPixelBufferGetBaseAddress(buffer), width: width, height: height, bitsPerComponent: 8,
-                bytesPerRow: CVPixelBufferGetBytesPerRow(buffer), space: CGColorSpaceCreateDeviceRGB(),
-                bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue)
+                data: CVPixelBufferGetBaseAddress(buffer), width: width, height: height,
+                bitsPerComponent: 8,
+                bytesPerRow: CVPixelBufferGetBytesPerRow(buffer),
+                space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue
+                    | CGBitmapInfo.byteOrder32Little.rawValue)
             guard let context else { throw CocoaError(.fileWriteUnknown) }
             context.setFillColor(CGColor(red: 0.14, green: 0.2, blue: 0.22, alpha: 1))
             context.fill(CGRect(x: 0, y: 0, width: width, height: height))
             context.setStrokeColor(CGColor(red: 0.3, green: 0.4, blue: 0.42, alpha: 1))
-            for x in stride(from: 0, through: width, by: 120) { context.stroke(CGRect(x: x, y: 0, width: 0, height: height)) }
-            for y in stride(from: 0, through: height, by: 90) { context.stroke(CGRect(x: 0, y: y, width: width, height: 0)) }
+            for x in stride(from: 0, through: width, by: 120) {
+                context.stroke(CGRect(x: x, y: 0, width: 0, height: height))
+            }
+            for y in stride(from: 0, through: height, by: 90) {
+                context.stroke(CGRect(x: 0, y: y, width: width, height: 0))
+            }
             return buffer
         }
     }

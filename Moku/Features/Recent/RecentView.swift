@@ -99,7 +99,10 @@ struct RecentView: View {
                 emptyState.accessibilityIdentifier("recent.empty")
             }
         }
-        .searchable(text: query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search titles or chapters")
+        .searchable(
+            text: query, placement: .navigationBarDrawer(displayMode: .always),
+            prompt: "Search titles or chapters"
+        )
         .scrollDismissesKeyboard(.interactively)
         .refreshable { if tab == .updates { await refresh() } else { await home.refresh() } }
         .accessibilityIdentifier("recent.scroll")
@@ -121,20 +124,28 @@ struct RecentView: View {
         }
         .confirmationDialog(
             confirmation?.title ?? "",
-            isPresented: Binding(get: { confirmation != nil }, set: { if !$0 { confirmation = nil } }),
+            isPresented: Binding(
+                get: { confirmation != nil }, set: { if !$0 { confirmation = nil } }),
             titleVisibility: .visible, presenting: confirmation
         ) { removal in
-            Button(removal.resetsStatistics ? "Reset Statistics" : "Clear History", role: .destructive) {
+            Button(
+                removal.resetsStatistics ? "Reset Statistics" : "Clear History", role: .destructive
+            ) {
                 Task {
-                    if removal.resetsStatistics { await home.reset() } else { await home.clear(mediaID: removal.entryID) }
+                    if removal.resetsStatistics {
+                        await home.reset()
+                    } else {
+                        await home.clear(mediaID: removal.entryID)
+                    }
                     if let error = home.error { model.notice = error }
                 }
             }
             .accessibilityIdentifier("recent.confirmClear")
         } message: { removal in
-            Text(removal.resetsStatistics
-                 ? "History and stats are deleted on every paired device."
-                 : "Stats keep counting it. Saved titles and downloaded files will be kept.")
+            Text(
+                removal.resetsStatistics
+                    ? "History and stats are deleted on every paired device."
+                    : "Stats keep counting it. Saved titles and downloaded files will be kept.")
         }
         .sheet(isPresented: $showingStatistics) { statisticsSheet }
         .task {
@@ -148,10 +159,14 @@ struct RecentView: View {
             if !Task.isCancelled { didLoad = true }
         }
         .task(id: HistoryKey(revision: home.revision, query: historySearch, mode: mode)) {
-            let sessions = home.sessions, entries = home.entries, query = historySearch, selectedMode = mode
+            let sessions = home.sessions
+            let entries = home.entries
+            let query = historySearch
+            let selectedMode = mode
             let result = await Task.detached(priority: .userInitiated) {
                 RecentHistoryDay.group(
-                    RecentViewModel.history(sessions, entries: entries, query: query, mode: selectedMode))
+                    RecentViewModel.history(
+                        sessions, entries: entries, query: query, mode: selectedMode))
             }.value
             guard !Task.isCancelled else { return }
             history = result
@@ -192,9 +207,10 @@ struct RecentView: View {
             ContentUnavailableView {
                 Label("No Recent Library Updates", systemImage: "arrow.triangle.2.circlepath")
             } description: {
-                Text(unreadOnly || downloadedOnly
-                     ? "No updates match the current filters."
-                     : "Save titles to your Library, then check for updates.")
+                Text(
+                    unreadOnly || downloadedOnly
+                        ? "No updates match the current filters."
+                        : "Save titles to your Library, then check for updates.")
             } actions: {
                 Button("Check for Updates") { Task { await refresh() } }
                     .disabled(model.loading)
@@ -234,7 +250,8 @@ struct RecentView: View {
                     }
                     .disabled(home.sessions.isEmpty)
                     Button("Reset Statistics", systemImage: "chart.bar.xaxis", role: .destructive) {
-                        confirmation = Removal(title: "Reset all reading stats?", resetsStatistics: true)
+                        confirmation = Removal(
+                            title: "Reset all reading stats?", resetsStatistics: true)
                     }
                 }
             }
@@ -253,16 +270,24 @@ struct RecentView: View {
             List {
                 LabeledContent {
                     Text("\(stats.currentStreak)").monospacedDigit()
-                } label: { Label("Day streak", systemImage: "flame") }
+                } label: {
+                    Label("Day streak", systemImage: "flame")
+                }
                 LabeledContent {
                     Text("\(stats.units)").monospacedDigit()
-                } label: { Label("Chapters / episodes", systemImage: "book") }
+                } label: {
+                    Label("Chapters / episodes", systemImage: "book")
+                }
                 LabeledContent {
                     Text(RecentFormat.duration(stats.minutes))
-                } label: { Label("Time spent", systemImage: "clock") }
+                } label: {
+                    Label("Time spent", systemImage: "clock")
+                }
                 LabeledContent {
                     Text("\(stats.series)").monospacedDigit()
-                } label: { Label("Titles", systemImage: "books.vertical") }
+                } label: {
+                    Label("Titles", systemImage: "books.vertical")
+                }
             }
             .accessibilityIdentifier("recent.stats")
             .navigationTitle("Activity")

@@ -26,7 +26,11 @@ struct PlayerView: View {
     @State private var nowPlaying = NowPlaying()
     @State private var backgrounded = false
     @State private var seekFlash: SeekFlash?
-    private struct SeekFlash: Equatable { let seconds: Int; let leading: Bool; let id = UUID() }
+    private struct SeekFlash: Equatable {
+        let seconds: Int
+        let leading: Bool
+        let id = UUID()
+    }
     @State private var appliedDefaults = false
     @State private var controlsVisible = true
     @State private var lastInteraction = Date()
@@ -36,7 +40,9 @@ struct PlayerView: View {
     private var accent: Color { NavigationStyle.accent }
 
     /// Cues sharing a screen position, each in its own ASS style.
-    @ViewBuilder private func captionGroup(_ position: SubtitleCue.Position, landscape: Bool, picture: CGFloat, time: Double) -> some View {
+    @ViewBuilder private func captionGroup(
+        _ position: SubtitleCue.Position, landscape: Bool, picture: CGFloat, time: Double
+    ) -> some View {
         let cues = model.captions.filter { $0.position == position && $0.anchor == nil }
         if !cues.isEmpty {
             VStack(spacing: 2) {
@@ -59,7 +65,10 @@ struct PlayerView: View {
                         .opacity(cue.opacity(at: time))
                         .fixedSize()
                         .frame(width: 0, height: 0, alignment: Self.corner(cue))
-                        .position(x: picture.minX + anchor.x * picture.width, y: picture.minY + anchor.y * picture.height)
+                        .position(
+                            x: picture.minX + anchor.x * picture.width,
+                            y: picture.minY + anchor.y * picture.height
+                        )
                         .mask { Self.clipMask(cue, picture: picture, size: size) }
                 }
             }
@@ -68,7 +77,9 @@ struct PlayerView: View {
     }
 
     /// Text or a `\p` shape, then `\fscx`/`\fscy` and `\frz` around the `\an` corner.
-    private func caption(_ cue: SubtitleCue, landscape: Bool, picture: CGFloat, time: Double) -> some View {
+    private func caption(_ cue: SubtitleCue, landscape: Bool, picture: CGFloat, time: Double)
+        -> some View
+    {
         let corner = Self.unitPoint(Self.corner(cue))
         return Group {
             if cue.shape.isEmpty {
@@ -90,11 +101,14 @@ struct PlayerView: View {
         let size = CGSize(width: picture * 16 / 9, height: picture)
         var path = Path()
         for command in cue.shape {
-            func scaled(_ point: CGPoint) -> CGPoint { CGPoint(x: point.x * size.width, y: point.y * size.height) }
+            func scaled(_ point: CGPoint) -> CGPoint {
+                CGPoint(x: point.x * size.width, y: point.y * size.height)
+            }
             switch command {
             case .move(let point): path.move(to: scaled(point))
             case .line(let point): path.addLine(to: scaled(point))
-            case .curve(let one, let two, let end): path.addCurve(to: scaled(end), control1: scaled(one), control2: scaled(two))
+            case .curve(let one, let two, let end):
+                path.addCurve(to: scaled(end), control1: scaled(one), control2: scaled(two))
             case .close: path.closeSubpath()
             }
         }
@@ -113,19 +127,24 @@ struct PlayerView: View {
     }
 
     /// `\clip` keeps the inside of its rectangle; `\iclip` keeps the outside.
-    @ViewBuilder static func clipMask(_ cue: SubtitleCue, picture: CGRect, size: CGSize) -> some View {
+    @ViewBuilder static func clipMask(_ cue: SubtitleCue, picture: CGRect, size: CGSize)
+        -> some View
+    {
         if !cue.clipShape.isEmpty {
             // A drawing clip, in picture coordinates.
             Path { path in
                 if cue.clipInverted { path.addRect(CGRect(origin: .zero, size: size)) }
                 func scaled(_ point: CGPoint) -> CGPoint {
-                    CGPoint(x: picture.minX + point.x * picture.width, y: picture.minY + point.y * picture.height)
+                    CGPoint(
+                        x: picture.minX + point.x * picture.width,
+                        y: picture.minY + point.y * picture.height)
                 }
                 for command in cue.clipShape {
                     switch command {
                     case .move(let point): path.move(to: scaled(point))
                     case .line(let point): path.addLine(to: scaled(point))
-                    case .curve(let one, let two, let end): path.addCurve(to: scaled(end), control1: scaled(one), control2: scaled(two))
+                    case .curve(let one, let two, let end):
+                        path.addCurve(to: scaled(end), control1: scaled(one), control2: scaled(two))
                     case .close: path.closeSubpath()
                     }
                 }
@@ -134,7 +153,8 @@ struct PlayerView: View {
             .fill(style: FillStyle(eoFill: true))
         } else if let clip = cue.clip {
             let rect = CGRect(
-                x: picture.minX + clip.minX * picture.width, y: picture.minY + clip.minY * picture.height,
+                x: picture.minX + clip.minX * picture.width,
+                y: picture.minY + clip.minY * picture.height,
                 width: clip.width * picture.width, height: clip.height * picture.height)
             Path { path in
                 if cue.clipInverted { path.addRect(CGRect(origin: .zero, size: size)) }
@@ -160,27 +180,39 @@ struct PlayerView: View {
         }
     }
 
-    private func textCaption(_ cue: SubtitleCue, landscape: Bool, picture: CGFloat, time: Double) -> some View {
+    private func textCaption(_ cue: SubtitleCue, landscape: Bool, picture: CGFloat, time: Double)
+        -> some View
+    {
         // libass sizes script text against picture height; floored so small portrait pictures stay readable.
-        let points = (cue.size(at: time).map { min(64, max(landscape ? 16 : 14, CGFloat($0) * picture)) } ?? (landscape ? 18 : 16))
+        let points =
+            (cue.size(at: time).map { min(64, max(landscape ? 16 : 14, CGFloat($0) * picture)) }
+                ?? (landscape ? 18 : 16))
             * model.subtitleScale
         // Style fonts by name or family, including fonts embedded in the file.
-        let font = cue.fontName.flatMap { SubtitleFonts.font(named: $0, size: points) }.map { Font($0 as CTFont) }
+        let font =
+            cue.fontName.flatMap { SubtitleFonts.font(named: $0, size: points) }.map {
+                Font($0 as CTFont)
+            }
             ?? .system(size: points)
         let primary = cue.color(at: time).map(Self.color) ?? .white
         // Karaoke: sung syllables take the primary colour, the rest the secondary.
-        let words = cue.karaoke.isEmpty
+        let words =
+            cue.karaoke.isEmpty
             ? Text(cue.text).foregroundStyle(primary)
             : cue.karaoke.indices.reduce(Text("")) { line, index in
-                line + Text(cue.karaoke[index].text)
-                    .foregroundStyle(cue.sung(index, at: time) ? primary : cue.secondary.map(Self.color) ?? Color(white: 0.6))
+                line
+                    + Text(cue.karaoke[index].text)
+                    .foregroundStyle(
+                        cue.sung(index, at: time)
+                            ? primary : cue.secondary.map(Self.color) ?? Color(white: 0.6))
             }
         let text = words.font(font).fontWeight(cue.bold ? .bold : .regular).italic(cue.italic)
             .multilineTextAlignment(Self.textAlignment(cue.horizontal))
         let width = min(4, max(1, CGFloat(cue.outlineWidth(at: time)) * picture))
         // Border from four zero-blur shadows (close to libass's outline); shadows don't make VoiceOver repeat the line.
         let border = cue.outline.map(Self.color) ?? .clear
-        return text
+        return
+            text
             .opacity(cue.alpha(at: time))
             .shadow(color: border, radius: 0, x: width, y: 0)
             .shadow(color: border, radius: 0, x: -width, y: 0)
@@ -190,7 +222,8 @@ struct PlayerView: View {
             .background(model.subtitleBackground ? Color.black.opacity(0.75) : .clear)
             // \shad: a hard drop shadow of the bordered text; plain cues keep a soft one.
             .shadow(
-                color: cue.shadowDepth > 0 ? Self.color(cue.shadowColor ?? 0) : cue.outline == nil ? .black : .clear,
+                color: cue.shadowDepth > 0
+                    ? Self.color(cue.shadowColor ?? 0) : cue.outline == nil ? .black : .clear,
                 radius: cue.shadowDepth > 0 ? 0 : 2,
                 x: cue.shadowDepth > 0 ? min(4, CGFloat(cue.shadowDepth) * picture) : 0,
                 y: cue.shadowDepth > 0 ? min(4, CGFloat(cue.shadowDepth) * picture) : 1)
@@ -199,19 +232,21 @@ struct PlayerView: View {
     private func captionLayer(size: CGSize, landscape: Bool, time: Double) -> some View {
         let picture = Self.pictureRect(in: size).height
         return ZStack {
-        anchoredCaptions(in: size, landscape: landscape, time: time)
-        VStack(spacing: 0) {
-            captionGroup(.top, landscape: landscape, picture: picture, time: time)
-                .padding(.top, controlsVisible ? (landscape ? 70 : 110) : 24)
-            Spacer()
-            captionGroup(.middle, landscape: landscape, picture: picture, time: time)
-            Spacer()
-            captionGroup(.bottom, landscape: landscape, picture: picture, time: time)
-                .padding(
-                    .bottom,
-                    max(size.height * model.subtitleHeight / 100, controlsVisible ? (landscape ? 110 : 128) : 16))
-        }
-        .padding(.horizontal, 24)
+            anchoredCaptions(in: size, landscape: landscape, time: time)
+            VStack(spacing: 0) {
+                captionGroup(.top, landscape: landscape, picture: picture, time: time)
+                    .padding(.top, controlsVisible ? (landscape ? 70 : 110) : 24)
+                Spacer()
+                captionGroup(.middle, landscape: landscape, picture: picture, time: time)
+                Spacer()
+                captionGroup(.bottom, landscape: landscape, picture: picture, time: time)
+                    .padding(
+                        .bottom,
+                        max(
+                            size.height * model.subtitleHeight / 100,
+                            controlsVisible ? (landscape ? 110 : 128) : 16))
+            }
+            .padding(.horizontal, 24)
         }
         .frame(width: size.width, height: size.height)
         .allowsHitTesting(false)
@@ -221,11 +256,15 @@ struct PlayerView: View {
     static func pictureRect(in size: CGSize) -> CGRect {
         let width = min(size.width, size.height * 16 / 9)
         let height = width * 9 / 16
-        return CGRect(x: (size.width - width) / 2, y: (size.height - height) / 2, width: width, height: height)
+        return CGRect(
+            x: (size.width - width) / 2, y: (size.height - height) / 2, width: width, height: height
+        )
     }
 
     private static func color(_ value: UInt32) -> Color {
-        Color(red: Double((value >> 16) & 0xFF) / 255, green: Double((value >> 8) & 0xFF) / 255, blue: Double(value & 0xFF) / 255)
+        Color(
+            red: Double((value >> 16) & 0xFF) / 255, green: Double((value >> 8) & 0xFF) / 255,
+            blue: Double(value & 0xFF) / 255)
     }
 
     private static func alignment(_ horizontal: SubtitleCue.Horizontal) -> Alignment {
@@ -274,22 +313,30 @@ struct PlayerView: View {
                     .gesture(
                         SpatialTapGesture(count: 2).onEnded { value in
                             doubleTap(at: value.location.x, width: geometry.size.width)
-                        }.exclusively(before: TapGesture(count: 1).onEnded {
-                            if !manualControls { toggleControls() }
-                        }))
+                        }.exclusively(
+                            before: TapGesture(count: 1).onEnded {
+                                if !manualControls { toggleControls() }
+                            })
+                    )
                     .accessibilityLabel("Video")
                     .accessibilityAction(named: "Show playback controls") { reveal() }
-                    .accessibilityAction(named: "Back 10 seconds") { model.seek(model.position - 10) }
-                    .accessibilityAction(named: "Forward 10 seconds") { model.seek(model.position + 10) }
+                    .accessibilityAction(named: "Back 10 seconds") {
+                        model.seek(model.position - 10)
+                    }
+                    .accessibilityAction(named: "Forward 10 seconds") {
+                        model.seek(model.position + 10)
+                    }
                 if let flash = seekFlash {
                     HStack {
                         if !flash.leading { Spacer() }
-                        Label(flash.leading ? "−\(flash.seconds)s" : "+\(flash.seconds)s",
-                              phosphor: flash.leading ? "ArrowCounterClockwise" : "ArrowClockwise")
-                            .font(.subheadline.weight(.semibold))
-                            .padding(.horizontal, 16).padding(.vertical, 10)
-                            .background(.black.opacity(0.55), in: Capsule())
-                            .padding(.horizontal, geometry.size.width * 0.12)
+                        Label(
+                            flash.leading ? "−\(flash.seconds)s" : "+\(flash.seconds)s",
+                            phosphor: flash.leading ? "ArrowCounterClockwise" : "ArrowClockwise"
+                        )
+                        .font(.subheadline.weight(.semibold))
+                        .padding(.horizontal, 16).padding(.vertical, 10)
+                        .background(.black.opacity(0.55), in: Capsule())
+                        .padding(.horizontal, geometry.size.width * 0.12)
                         if flash.leading { Spacer() }
                     }
                     .transition(.opacity)
@@ -299,12 +346,16 @@ struct PlayerView: View {
                 if !model.captions.isEmpty {
                     if model.captions.contains(where: \.isAnimated) {
                         // \fad and \move need the player clock every frame, not the polled position.
-                        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !model.playing)) { _ in
+                        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !model.playing))
+                        { _ in
                             let clock = model.player.currentTime().seconds
-                            captionLayer(size: geometry.size, landscape: landscape, time: clock.isFinite ? clock : model.position)
+                            captionLayer(
+                                size: geometry.size, landscape: landscape,
+                                time: clock.isFinite ? clock : model.position)
                         }
                     } else {
-                        captionLayer(size: geometry.size, landscape: landscape, time: model.position)
+                        captionLayer(
+                            size: geometry.size, landscape: landscape, time: model.position)
                     }
                 }
                 if (model.loading || model.buffering) && !controlsVisible {
@@ -317,14 +368,17 @@ struct PlayerView: View {
                         Text(error).multilineTextAlignment(.center).font(.subheadline)
                         Button("Try again") { Task { await model.load() } }
                             .frame(minHeight: 44).tint(accent)
-                    }.padding(20).frame(maxWidth: 340).glassSurface(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    }.padding(20).frame(maxWidth: 340).glassSurface(
+                        RoundedRectangle(cornerRadius: 22, style: .continuous))
                 }
                 if let marker = model.activeSkip, model.error == nil {
                     VStack {
                         Spacer()
                         HStack {
                             Spacer()
-                            Button { model.skip(marker) } label: {
+                            Button {
+                                model.skip(marker)
+                            } label: {
                                 Label(marker.label, systemImage: "forward.fill")
                                     .font(.subheadline.weight(.semibold))
                                     .padding(.horizontal, 18).frame(minHeight: 44)
@@ -351,15 +405,18 @@ struct PlayerView: View {
                 if controlsVisible || model.error != nil {
                     ZStack {
                         // Apple's player dims the picture behind its controls.
-                        LinearGradient(colors: [.black.opacity(0.55), .clear, .clear, .black.opacity(0.6)],
-                                       startPoint: .top, endPoint: .bottom)
-                            .ignoresSafeArea().allowsHitTesting(false)
+                        LinearGradient(
+                            colors: [.black.opacity(0.55), .clear, .clear, .black.opacity(0.6)],
+                            startPoint: .top, endPoint: .bottom
+                        )
+                        .ignoresSafeArea().allowsHitTesting(false)
                         PlayerControls(
                             model: model, landscape: landscape,
                             scrubbing: $scrubbing, scrubPosition: $scrubPosition,
                             reveal: reveal, changeEpisode: changeEpisode,
                             dismiss: { dismiss() },
-                            pictureInPicture: PictureInPicture.isSupported && pictureInPicture.isPossible
+                            pictureInPicture: PictureInPicture.isSupported
+                                && pictureInPicture.isPossible
                                 ? { pictureInPicture.toggle() } : nil)
                     }
                     .transition(.opacity)
@@ -374,7 +431,8 @@ struct PlayerView: View {
             .persistentSystemOverlays(controlsVisible ? .automatic : .hidden)
         }
         .recordActivity(
-            mediaID: model.mediaID, chapterID: model.chapterID, position: Int(max(0, model.position)),
+            mediaID: model.mediaID, chapterID: model.chapterID,
+            position: Int(max(0, model.position)),
             active: model.playing && !model.buffering,
             valid: model.activityReady
         )
@@ -427,7 +485,8 @@ struct PlayerView: View {
             let type = (note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt)
                 .flatMap(AVAudioSession.InterruptionType.init)
             if type == .ended {
-                let options = (note.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt)
+                let options =
+                    (note.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt)
                     .map(AVAudioSession.InterruptionOptions.init) ?? []
                 if options.contains(.shouldResume), !model.playing { model.togglePlayback() }
                 return
@@ -461,7 +520,9 @@ struct PlayerView: View {
         .onChange(of: model.subtitleHeight) { _, value in defaultSubtitleHeight = value }
         .onChange(of: model.subtitleBackground) { _, value in defaultSubtitleBackground = value }
         .onChange(of: model.subtitleIndex) { _, index in
-            if let index, let track = model.stream?.subtitles[safe: index] { subtitleLanguage = track.lang }
+            if let index, let track = model.stream?.subtitles[safe: index] {
+                subtitleLanguage = track.lang
+            }
         }
         .onDisappear {
             nowPlaying.detach()
@@ -492,7 +553,9 @@ struct PlayerView: View {
         withAnimation(reduceMotion ? nil : .easeOut(duration: 0.15)) { seekFlash = flash }
         Task {
             try? await Task.sleep(for: .milliseconds(700))
-            if seekFlash == flash { withAnimation(reduceMotion ? nil : .easeOut(duration: 0.25)) { seekFlash = nil } }
+            if seekFlash == flash {
+                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.25)) { seekFlash = nil }
+            }
         }
     }
 

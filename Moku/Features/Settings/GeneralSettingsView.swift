@@ -41,12 +41,16 @@ struct GeneralSettingsView: View {
             Section {
                 SettingsPicker(
                     "Idle screen timeout", selection: $idleTimeout,
-                    options: [0, 1, 2, 5, 10, 15, 30].map { ($0, GeneralPreferences.timeoutLabel($0)) },
+                    options: [0, 1, 2, 5, 10, 15, 30].map {
+                        ($0, GeneralPreferences.timeoutLabel($0))
+                    },
                     identifier: "settings.general.idleTimeout")
             } header: {
                 Text("Inactivity")
             } footer: {
-                Text("Show the Moku idle screen after this much inactivity. Paused while reading or playing media.")
+                Text(
+                    "Show the Moku idle screen after this much inactivity. Paused while reading or playing media."
+                )
             }
             Section("Animations") {
                 SettingsToggle(
@@ -61,16 +65,20 @@ struct GeneralSettingsView: View {
                         get: { GeneralPreferences.canonicalLanguage(language) },
                         set: { language = $0 }),
                     options: GeneralPreferences.languageOptions(including: language),
-                    identifier: "settings.general.language")
-                    .pickerStyle(.navigationLink)
+                    identifier: "settings.general.language"
+                )
+                .pickerStyle(.navigationLink)
             } header: {
                 Text("Language")
             } footer: {
                 Text("\(GeneralPreferences.languageName(language)), pre-selected in Search.")
             }
             Section {
-                SettingsLinkRow("Extensions and sources", systemImage: "puzzlepiece.extension", action: openExtensions)
-                    .accessibilityIdentifier("settings.general.extensions")
+                SettingsLinkRow(
+                    "Extensions and sources", systemImage: "puzzlepiece.extension",
+                    action: openExtensions
+                )
+                .accessibilityIdentifier("settings.general.extensions")
             } header: {
                 Text("Extensions")
             } footer: {
@@ -97,7 +105,9 @@ struct BundledServerSection: View {
             // The loopback address changes each launch and is app-private, so describe it instead of showing it.
             LabeledContent("Bundled server") {
                 Text(serverURL == nil ? "Not started" : "Running")
-                    .foregroundStyle(serverURL == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(NavigationStyle.accent))
+                    .foregroundStyle(
+                        serverURL == nil
+                            ? AnyShapeStyle(.secondary) : AnyShapeStyle(NavigationStyle.accent))
             }
             .task {
                 guard !PreviewMode.isEnabled else { return }
@@ -105,7 +115,8 @@ struct BundledServerSection: View {
             }
             SettingsToggle(
                 "Auto-start bundled server",
-                detail: "Start when a feature needs it. Turning this off takes effect on the next app launch.",
+                detail:
+                    "Start when a feature needs it. Turning this off takes effect on the next app launch.",
                 isOn: $autoStart)
             if serverURL == nil {
                 Button {
@@ -133,9 +144,11 @@ struct BundledServerSection: View {
         } header: {
             Text("Server")
         } footer: {
-            Text(serverError ?? (serverURL == nil
-                ? "Runs privately on this device. Start it manually when automatic startup is off."
-                : "Runs privately on this device. Sources and downloads go through it."))
+            Text(
+                serverError
+                    ?? (serverURL == nil
+                        ? "Runs privately on this device. Start it manually when automatic startup is off."
+                        : "Runs privately on this device. Sources and downloads go through it."))
         }
     }
 }

@@ -38,7 +38,8 @@ actor Backend {
             throw EmbeddedSearchError.message("Backend access is disabled in UI previews.")
         }
         guard !PreviewMode.isUnitTestHost else {
-            throw EmbeddedSearchError.message("Backend access is disabled while hosting unit tests.")
+            throw EmbeddedSearchError.message(
+                "Backend access is disabled while hosting unit tests.")
         }
         if startup == nil {
             guard
@@ -70,7 +71,8 @@ actor Backend {
 
     func importLocalFile(_ url: URL, kind: String, series: String, chapter: String) async throws {
         _ = try await connection(requiresSourceRuntime: false)
-        try await controller.importLocalFile(url, kind: kind, series: series, chapter: chapter, name: url.lastPathComponent)
+        try await controller.importLocalFile(
+            url, kind: kind, series: series, chapter: chapter, name: url.lastPathComponent)
         // Tsunagu picks up local files on a scan.
         let _: IgnoredGraphQLResult = try await BackendAPI.shared.graphql(
             "mutation { rescanLocalMedia { id } }", requiresSourceRuntime: false)
@@ -110,7 +112,9 @@ actor Backend {
         try? await controller.stop()
         guard let directory else { return }
         let controller = controller
-        let restarted = Task { try await controller.start(dataDirectory: directory, deferSandbox: true) }
+        let restarted = Task {
+            try await controller.start(dataDirectory: directory, deferSandbox: true)
+        }
         startup = restarted
         guard (try? await restarted.value) != nil else { return }
         guard sourceStartup != nil, let token = sandboxToken else { return }
@@ -119,10 +123,15 @@ actor Backend {
             let port: Int = try await withCheckedThrowingContinuation { continuation in
                 DispatchQueue(label: "moku.jvm.restart", qos: .userInitiated).async {
                     var failure: NSError?
-                    let port = TSJavaRuntime.restartSandbox(withDataDirectory: path, token: token, error: &failure)
-                    if port > 0 { continuation.resume(returning: port) } else {
-                        continuation.resume(throwing: EmbeddedSearchError.message(
-                            "The source runtime could not restart. Close and reopen the app. (\(failure?.code ?? 0))"))
+                    let port = TSJavaRuntime.restartSandbox(
+                        withDataDirectory: path, token: token, error: &failure)
+                    if port > 0 {
+                        continuation.resume(returning: port)
+                    } else {
+                        continuation.resume(
+                            throwing: EmbeddedSearchError.message(
+                                "The source runtime could not restart. Close and reopen the app. (\(failure?.code ?? 0))"
+                            ))
                     }
                 }
             }

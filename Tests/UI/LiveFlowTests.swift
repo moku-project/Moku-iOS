@@ -10,14 +10,17 @@ import XCTest
 
     override func setUp() async throws {
         let env = ProcessInfo.processInfo.environment
-        guard let repository = env["MOKU_LIVE_REPOSITORY"], let package = env["MOKU_LIVE_EXTENSION"],
+        guard let repository = env["MOKU_LIVE_REPOSITORY"],
+            let package = env["MOKU_LIVE_EXTENSION"],
             let sourceName = env["MOKU_LIVE_SOURCE"]
         else { throw XCTSkip("Opt-in live flow against a real repository.") }
         (self.repository, self.package, self.sourceName) = (repository, package, sourceName)
         continueAfterFailure = false
         XCUIDevice.shared.orientation = .portrait
         app = XCUIApplication()
-        app.launchArguments = ["--acceptance", "--ui-testing-isolated-backend", "--ui-testing-start-runtime"]
+        app.launchArguments = [
+            "--acceptance", "--ui-testing-isolated-backend", "--ui-testing-start-runtime",
+        ]
         app.launch()
     }
 
@@ -64,7 +67,8 @@ import XCTest
         url.typeText(repository)
         app.navigationBars["Add Repository"].buttons["Add"].tap()
         // The sheet closes once the repository is saved.
-        let sheetGone = expectation(for: NSPredicate(format: "exists == false"),
+        let sheetGone = expectation(
+            for: NSPredicate(format: "exists == false"),
             evaluatedWith: app.navigationBars["Add Repository"])
         wait(for: [sheetGone], timeout: 60)
         shot("04-repository-added")
@@ -116,7 +120,8 @@ import XCTest
         wait(chapter, 20, "chapter after reader")
         chapter.swipeLeft()
         shot("11-chapter-swipe")
-        let download = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Download'")).firstMatch
+        let download = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Download'"))
+            .firstMatch
         wait(download, 5, "download swipe action")
         download.tap()
 
@@ -129,7 +134,8 @@ import XCTest
         app.buttons["tab.downloads"].tap()
         sleep(5)
         shot("13-downloads")
-        XCTAssertFalse(app.otherElements["downloads.empty"].exists && app.staticTexts["No Downloads"].exists,
+        XCTAssertFalse(
+            app.otherElements["downloads.empty"].exists && app.staticTexts["No Downloads"].exists,
             "Downloads is empty after downloading a chapter")
 
         // Search across sources.

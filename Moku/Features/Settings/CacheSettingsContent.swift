@@ -13,7 +13,10 @@ struct CacheSettingsContent: View {
         Section {
             LabeledContent("Entries", value: "\(files.count)")
                 .task { await refresh() }
-            LabeledContent("Size", value: ByteCountFormatter.string(fromByteCount: files.reduce(0) { $0 + $1.bytes }, countStyle: .file))
+            LabeledContent(
+                "Size",
+                value: ByteCountFormatter.string(
+                    fromByteCount: files.reduce(0) { $0 + $1.bytes }, countStyle: .file))
             if let oldest = files.first, let newest = files.last {
                 LabeledContent("Oldest access") { Text(oldest.modified, style: .date) }
                 LabeledContent("Newest access") { Text(newest.modified, style: .date) }
@@ -26,7 +29,10 @@ struct CacheSettingsContent: View {
             }
             Button("Refresh") { Task { await refresh() } }.disabled(busy)
             Button("Clear cache", role: .destructive) {
-                Task { await BackendAPI.shared.clearContentCache(); await refresh() }
+                Task {
+                    await BackendAPI.shared.clearContentCache()
+                    await refresh()
+                }
             }.disabled(busy)
         } header: {
             Text("Cache")
@@ -40,13 +46,29 @@ struct CacheSettingsContent: View {
         busy = false
     }
     nonisolated private static func cacheFiles() -> [CacheFileInfo] {
-            let root = URL.cachesDirectory.appending(path: "Moku")
-            guard let iterator = FileManager.default.enumerator(at: root, includingPropertiesForKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey, .contentModificationDateKey]) else { return [CacheFileInfo]() }
-            var result: [CacheFileInfo] = []
-            for case let file as URL in iterator {
-                guard let values = try? file.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey, .contentModificationDateKey]), values.isRegularFile == true, values.isSymbolicLink != true else { continue }
-                result.append(CacheFileInfo(id: file.path.replacingOccurrences(of: root.path + "/", with: ""), bytes: Int64(values.fileSize ?? 0), modified: values.contentModificationDate ?? .distantPast))
-            }
-            return result.sorted { $0.modified < $1.modified }
+        let root = URL.cachesDirectory.appending(path: "Moku")
+        guard
+            let iterator = FileManager.default.enumerator(
+                at: root,
+                includingPropertiesForKeys: [
+                    .isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey,
+                    .contentModificationDateKey,
+                ])
+        else { return [CacheFileInfo]() }
+        var result: [CacheFileInfo] = []
+        for case let file as URL in iterator {
+            guard
+                let values = try? file.resourceValues(forKeys: [
+                    .isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey,
+                    .contentModificationDateKey,
+                ]), values.isRegularFile == true, values.isSymbolicLink != true
+            else { continue }
+            result.append(
+                CacheFileInfo(
+                    id: file.path.replacingOccurrences(of: root.path + "/", with: ""),
+                    bytes: Int64(values.fileSize ?? 0),
+                    modified: values.contentModificationDate ?? .distantPast))
+        }
+        return result.sorted { $0.modified < $1.modified }
     }
 }

@@ -25,7 +25,10 @@ struct MigrateSheet: View {
         let contentType: String
     }
 
-    init(mediaID: String, title: String, media: ContentMode, currentSource: String, migrated: @escaping (MediaEntry) -> Void) {
+    init(
+        mediaID: String, title: String, media: ContentMode, currentSource: String,
+        migrated: @escaping (MediaEntry) -> Void
+    ) {
         self.mediaID = mediaID
         self.title = title
         self.media = media
@@ -41,7 +44,9 @@ struct MigrateSheet: View {
                     Picker("Move to", selection: $source) {
                         Text("Choose a source").tag(Source?.none)
                         ForEach(sources) { item in
-                            Text("\(item.displayName) · \(GeneralPreferences.languageName(GeneralPreferences.canonicalLanguage(item.lang)))").tag(Source?.some(item))
+                            Text(
+                                "\(item.displayName) · \(GeneralPreferences.languageName(GeneralPreferences.canonicalLanguage(item.lang)))"
+                            ).tag(Source?.some(item))
                         }
                     }
                 }
@@ -51,27 +56,34 @@ struct MigrateSheet: View {
                             .onSubmit { Task { await search() } }
                         if searching { ProgressView().frame(maxWidth: .infinity) }
                         ForEach(results) { result in
-                            Button { confirm = result } label: {
+                            Button {
+                                confirm = result
+                            } label: {
                                 HStack(spacing: 12) {
                                     CoverImage(url: result.coverURL, symbol: result.media.symbol)
-                                        .frame(width: 40, height: 58).clipShape(RoundedRectangle(cornerRadius: 4))
+                                        .frame(width: 40, height: 58).clipShape(
+                                            RoundedRectangle(cornerRadius: 4))
                                     Text(result.title).multilineTextAlignment(.leading)
                                     Spacer(minLength: 0)
                                     if Self.score(result.title, title) > 0.8 {
-                                        Text("Best match").font(.caption2).foregroundStyle(NavigationStyle.accent)
+                                        Text("Best match").font(.caption2).foregroundStyle(
+                                            NavigationStyle.accent)
                                     }
                                 }
                             }
                             .buttonStyle(.plain)
                         }
                         if !searching && results.isEmpty {
-                            Text("No results yet. Search, or try another source.").font(.caption).foregroundStyle(.secondary)
+                            Text("No results yet. Search, or try another source.").font(.caption)
+                                .foregroundStyle(.secondary)
                         }
                     }
                 }
                 Section {
-                    Text("Read progress carries over by chapter number. The title is removed from \(currentSource) and its downloads are not moved.")
-                        .font(.footnote).foregroundStyle(.secondary)
+                    Text(
+                        "Read progress carries over by chapter number. The title is removed from \(currentSource) and its downloads are not moved."
+                    )
+                    .font(.footnote).foregroundStyle(.secondary)
                 }
                 if let error { Section { Text(error).foregroundStyle(.orange) } }
             }
@@ -80,7 +92,9 @@ struct MigrateSheet: View {
             .background(NavigationStyle.background.ignoresSafeArea())
             .navigationTitle("Switch source")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+            }
             .task { await loadSources() }
             .onChange(of: source) { _, _ in Task { await search() } }
             .confirmationDialog(
@@ -102,10 +116,15 @@ struct MigrateSheet: View {
         let kind = media == .anime ? "ANIME" : media == .novels ? "NOVEL" : "MANGA"
         do {
             let response: Response = try await BackendAPI.shared.graphql(
-                "{ installedExtensions { id packageName displayName lang contentType } }", requiresSourceRuntime: false)
-            sources = response.installedExtensions.filter { $0.contentType == kind && $0.displayName != currentSource }
-                .sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
-            if sources.isEmpty { error = "Install another \(media.title.lowercased()) source to switch to." }
+                "{ installedExtensions { id packageName displayName lang contentType } }",
+                requiresSourceRuntime: false)
+            sources = response.installedExtensions.filter {
+                $0.contentType == kind && $0.displayName != currentSource
+            }
+            .sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
+            if sources.isEmpty {
+                error = "Install another \(media.title.lowercased()) source to switch to."
+            }
         } catch { self.error = "Couldn’t load sources." }
     }
 
@@ -113,7 +132,8 @@ struct MigrateSheet: View {
         guard let source, !query.isEmpty else { return }
         searching = true
         defer { searching = false }
-        let request = SearchRequest(query: query, options: SearchOptions(media: media, sourceID: source.packageName))
+        let request = SearchRequest(
+            query: query, options: SearchOptions(media: media, sourceID: source.packageName))
         do {
             results = try await LiveMediaRepository.shared.search(request)
                 .sorted { Self.score($0.title, title) > Self.score($1.title, title) }
@@ -134,7 +154,8 @@ struct MigrateSheet: View {
         }
         do {
             let response: Response = try await BackendAPI.shared.graphql(
-                "mutation { migrateMedia(fromMediaId: \(BackendAPI.literal(mediaID)), toExtensionId: \(BackendAPI.literal(source.id)), toExternalId: \(BackendAPI.literal(externalID))) { id } }")
+                "mutation { migrateMedia(fromMediaId: \(BackendAPI.literal(mediaID)), toExtensionId: \(BackendAPI.literal(source.id)), toExternalId: \(BackendAPI.literal(externalID))) { id } }"
+            )
             let moved = MediaEntry(
                 id: response.migrateMedia.id, title: target.title, media: target.media,
                 sourceName: source.displayName, coverURL: target.coverURL,
@@ -152,7 +173,8 @@ struct MigrateSheet: View {
         func tokens(_ value: String) -> Set<String> {
             Set(value.lowercased().split { !$0.isLetter && !$0.isNumber }.map(String.init))
         }
-        let left = tokens(a), right = tokens(b)
+        let left = tokens(a)
+        let right = tokens(b)
         guard !left.isEmpty, !right.isEmpty else { return 0 }
         return Double(left.intersection(right).count) / Double(left.union(right).count)
     }

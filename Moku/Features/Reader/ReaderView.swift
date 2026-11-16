@@ -65,7 +65,9 @@ struct ReaderView: View {
                 if let resumed = model.resumedPage, model.page == resumed, model.chromeVisible {
                     VStack {
                         Spacer()
-                        Button { model.resumedPage = nil } label: {
+                        Button {
+                            model.resumedPage = nil
+                        } label: {
                             Label("Resumed on page \(resumed)", systemImage: "book")
                                 .font(.footnote.weight(.medium))
                                 .padding(.horizontal, 14).padding(.vertical, 10)
@@ -79,7 +81,9 @@ struct ReaderView: View {
                     .transition(.opacity)
                     .task(id: resumed) {
                         try? await Task.sleep(for: .seconds(2.5))
-                        withAnimation(motion ? .easeOut(duration: 0.4) : nil) { model.resumedPage = nil }
+                        withAnimation(motion ? .easeOut(duration: 0.4) : nil) {
+                            model.resumedPage = nil
+                        }
                     }
                 }
             }
@@ -144,10 +148,18 @@ struct ReaderView: View {
         .accessibilityIdentifier("reader.screen")
     }
     private func handleKey(_ press: KeyPress) -> KeyPress.Result {
-        guard !model.loading, !pickerOpen, !downloadsOpen, !model.drawerOpen else { return .ignored }
+        guard !model.loading, !pickerOpen, !downloadsOpen, !model.drawerOpen else {
+            return .ignored
+        }
         let values = ReaderShortcut.values(readerShortcuts)
-        guard let action = ReaderShortcut.all.first(where: { ReaderShortcut.matches(values[$0.id] ?? $0.defaultValue, press: press) }) else { return .ignored }
-        if press.phase == .repeat && !["pageRight", "pageLeft"].contains(action.id) { return .handled }
+        guard
+            let action = ReaderShortcut.all.first(where: {
+                ReaderShortcut.matches(values[$0.id] ?? $0.defaultValue, press: press)
+            })
+        else { return .ignored }
+        if press.phase == .repeat && !["pageRight", "pageLeft"].contains(action.id) {
+            return .handled
+        }
         switch action.id {
         case "pageRight": keyboardPage(forward: model.settings.readingDirection != "rtl")
         case "pageLeft": keyboardPage(forward: model.settings.readingDirection == "rtl")
@@ -156,10 +168,14 @@ struct ReaderView: View {
         case "chapterRight": model.changeChapter(forward: true)
         case "chapterLeft": model.changeChapter(forward: false)
         case "exit": close()
-        case "direction": model.settings.readingDirection = model.settings.readingDirection == "ltr" ? "rtl" : "ltr"
+        case "direction":
+            model.settings.readingDirection =
+                model.settings.readingDirection == "ltr" ? "rtl" : "ltr"
         case "layout":
             let layouts = ["single", "double", "auto", "longstrip"]
-            model.settings.pageStyle = layouts[((layouts.firstIndex(of: model.settings.pageStyle) ?? 0) + 1) % layouts.count]
+            model.settings.pageStyle =
+                layouts[
+                    ((layouts.firstIndex(of: model.settings.pageStyle) ?? 0) + 1) % layouts.count]
         case "fullscreen": toggleChrome()
         case "settings": drawer(true)
         case "scroll": model.preferences.document.behaviour.autoScroll.toggle()
@@ -170,7 +186,9 @@ struct ReaderView: View {
     private func keyboardPage(forward: Bool) {
         if model.settings.pageStyle == "longstrip" {
             model.jump(min(model.pages.count, max(1, model.page + (forward ? 1 : -1))))
-        } else { model.navigate(forward: forward) }
+        } else {
+            model.navigate(forward: forward)
+        }
     }
     private var topBar: some View {
         HStack(spacing: 10) {
@@ -195,17 +213,22 @@ struct ReaderView: View {
             .accessibilityLabel("\(model.details.title), \(model.chapter?.label ?? "Chapter")")
             .accessibilityHint("Choose a chapter")
             .accessibilityIdentifier("reader.chapters")
-            barButton("textformat.size", label: "Reader Settings", id: "reader.settings") { drawer(true) }
+            barButton("textformat.size", label: "Reader Settings", id: "reader.settings") {
+                drawer(true)
+            }
         }
     }
     private var rtl: Bool { model.settings.readingDirection == "rtl" && !model.isStrip }
     private var bottomBar: some View {
         VStack(spacing: 2) {
             HStack(spacing: 4) {
-                pageButton("chevron.backward", label: "Previous Page", id: "reader.previous", forward: rtl)
-                    .disabled(model.loading || (rtl ? !model.canNext : !model.canPrevious))
+                pageButton(
+                    "chevron.backward", label: "Previous Page", id: "reader.previous", forward: rtl
+                )
+                .disabled(model.loading || (rtl ? !model.canNext : !model.canPrevious))
                 Slider(
-                    value: Binding(get: { Double(model.page) }, set: { model.jump(Int($0.rounded())) }),
+                    value: Binding(
+                        get: { Double(model.page) }, set: { model.jump(Int($0.rounded())) }),
                     in: 1...Double(max(2, model.pages.count)), step: 1
                 )
                 .environment(\.layoutDirection, rtl ? .rightToLeft : .leftToRight)
@@ -220,8 +243,11 @@ struct ReaderView: View {
         .padding(.horizontal, 8).padding(.top, 6).padding(.bottom, 8)
         .glassSurface(RoundedRectangle(cornerRadius: 26, style: .continuous))
     }
-    private func pageButton(_ symbol: String, label: String, id: String, forward: Bool) -> some View {
-        Button { model.navigate(forward: forward) } label: {
+    private func pageButton(_ symbol: String, label: String, id: String, forward: Bool) -> some View
+    {
+        Button {
+            model.navigate(forward: forward)
+        } label: {
             Image(systemName: symbol).font(.body.weight(.semibold)).frame(width: 44, height: 44)
                 .contentShape(Rectangle())
         }
@@ -244,7 +270,9 @@ struct ReaderView: View {
     private var settingsSheet: some View {
         NavigationStack {
             Form {
-                ReaderSettingsView(preferences: model.preferences, mediaID: model.details.id, landscape: model.landscape)
+                ReaderSettingsView(
+                    preferences: model.preferences, mediaID: model.details.id,
+                    landscape: model.landscape)
                 Section {
                     Button {
                         downloadsAfterSettings = true

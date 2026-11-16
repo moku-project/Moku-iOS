@@ -24,11 +24,13 @@ import Testing
     @Test func readingIncludesAnUnfinishedFirstChapter() {
         let model = LibraryViewModel()
         model.items = [
-            LibraryItem(id: "started", title: "Started", media: .manga,
-                        totalUnits: 10, lastRead: .now),
+            LibraryItem(
+                id: "started", title: "Started", media: .manga,
+                totalUnits: 10, lastRead: .now),
             LibraryItem(id: "unread", title: "Unread", media: .manga, totalUnits: 10),
-            LibraryItem(id: "finished", title: "Finished", media: .manga,
-                        readUnits: 10, totalUnits: 10, lastRead: .now),
+            LibraryItem(
+                id: "finished", title: "Finished", media: .manga,
+                readUnits: 10, totalUnits: 10, lastRead: .now),
         ]
         model.tab = .reading
         #expect(model.visible(mode: .all).map(\.id) == ["started"])

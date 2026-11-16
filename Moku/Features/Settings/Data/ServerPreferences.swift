@@ -22,7 +22,8 @@ struct ServerPreference: Codable, Identifiable, Sendable {
     var choices: [(String, String)] {
         switch key {
         case "cloudflare_solver_mode": [("disabled", "Disabled"), ("external", "External")]
-        case "content_filter_level": [("strict", "Strict"), ("moderate", "Moderate"), ("unrestricted", "Unrestricted")]
+        case "content_filter_level":
+            [("strict", "Strict"), ("moderate", "Moderate"), ("unrestricted", "Unrestricted")]
         case "manga_download_format": [("loose", "Images"), ("cbz", "CBZ")]
         default: []
         }
@@ -41,7 +42,8 @@ struct ServerPreference: Codable, Identifiable, Sendable {
         defer { loading = false }
         do {
             struct Result: Decodable, Sendable { let serverSettings: [ServerPreference] }
-            let result: Result = try await BackendAPI.shared.graphql("{ serverSettings { \(Self.fields) } }", requiresSourceRuntime: false)
+            let result: Result = try await BackendAPI.shared.graphql(
+                "{ serverSettings { \(Self.fields) } }", requiresSourceRuntime: false)
             values = result.serverSettings
             notice = nil
         } catch { notice = "Couldn’t load server settings. Try again." }
@@ -51,14 +53,23 @@ struct ServerPreference: Codable, Identifiable, Sendable {
         saving = true
         defer { saving = false }
         do {
-            struct Update: Decodable, Sendable { let setting: ServerPreference; let restartRequired: Bool }
+            struct Update: Decodable, Sendable {
+                let setting: ServerPreference
+                let restartRequired: Bool
+            }
             struct Result: Decodable, Sendable { let updateServerSetting: Update }
-            let result: Result = try await BackendAPI.shared.graphql("mutation { updateServerSetting(key: \(BackendAPI.literal(setting.key)), value: \(BackendAPI.literal(value))) { setting { \(Self.fields) } restartRequired } }", requiresSourceRuntime: false)
-            if let index = values.firstIndex(where: { $0.key == setting.key }) { values[index] = result.updateServerSetting.setting }
+            let result: Result = try await BackendAPI.shared.graphql(
+                "mutation { updateServerSetting(key: \(BackendAPI.literal(setting.key)), value: \(BackendAPI.literal(value))) { setting { \(Self.fields) } restartRequired } }",
+                requiresSourceRuntime: false)
+            if let index = values.firstIndex(where: { $0.key == setting.key }) {
+                values[index] = result.updateServerSetting.setting
+            }
             if setting.key == "content_filter_level" {
                 NotificationCenter.default.post(name: .contentVisibilityDidChange, object: nil)
             }
-            notice = result.updateServerSetting.restartRequired ? "Saved. Restart Moku to apply this setting." : nil
+            notice =
+                result.updateServerSetting.restartRequired
+                ? "Saved. Restart Moku to apply this setting." : nil
         } catch { notice = "Couldn’t save \(setting.label). Check the value and try again." }
     }
 }
@@ -83,7 +94,8 @@ struct ContentRule: Codable, Identifiable, Sendable {
         defer { busy = false }
         do {
             struct Result: Decodable, Sendable { let contentFilterRules: [ContentRule] }
-            let result: Result = try await BackendAPI.shared.graphql("{ contentFilterRules { \(Self.fields) } }", requiresSourceRuntime: false)
+            let result: Result = try await BackendAPI.shared.graphql(
+                "{ contentFilterRules { \(Self.fields) } }", requiresSourceRuntime: false)
             rules = result.contentFilterRules
             notice = nil
         } catch { notice = "Couldn’t load content rules." }
@@ -92,7 +104,8 @@ struct ContentRule: Codable, Identifiable, Sendable {
         guard !busy else { return }
         busy = true
         do {
-            let _: [String: Bool] = try await BackendAPI.shared.graphql("mutation { \(mutation) }", requiresSourceRuntime: false)
+            let _: [String: Bool] = try await BackendAPI.shared.graphql(
+                "mutation { \(mutation) }", requiresSourceRuntime: false)
             NotificationCenter.default.post(name: .contentVisibilityDidChange, object: nil)
             await load()
         } catch { notice = "Couldn’t update content rules." }
@@ -103,7 +116,9 @@ struct ContentRule: Codable, Identifiable, Sendable {
         busy = true
         do {
             struct Result: Decodable, Sendable { let addContentFilterRule: ContentRule }
-            let result: Result = try await BackendAPI.shared.graphql("mutation { addContentFilterRule(category: \(BackendAPI.literal(category)), field: \(field), keyword: \(BackendAPI.literal(keyword)), minWeight: \(weight), blockLevel: \(level)) { \(Self.fields) } }", requiresSourceRuntime: false)
+            let result: Result = try await BackendAPI.shared.graphql(
+                "mutation { addContentFilterRule(category: \(BackendAPI.literal(category)), field: \(field), keyword: \(BackendAPI.literal(keyword)), minWeight: \(weight), blockLevel: \(level)) { \(Self.fields) } }",
+                requiresSourceRuntime: false)
             rules.append(result.addContentFilterRule)
             NotificationCenter.default.post(name: .contentVisibilityDidChange, object: nil)
             notice = nil

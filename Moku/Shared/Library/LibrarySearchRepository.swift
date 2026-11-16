@@ -14,13 +14,17 @@ struct LibrarySearchRepository: SearchRepository {
         var media: [String: Set<ContentMode>] = [:]
         for entry in entries {
             let id = sourceID(entry)
-            if first[id] == nil { first[id] = entry; order.append(id) }
+            if first[id] == nil {
+                first[id] = entry
+                order.append(id)
+            }
             media[id, default: []].insert(entry.media)
         }
         return order.compactMap { id in
             guard let entry = first[id] else { return nil }
-            return SearchSource(id: id, name: entry.sourceName, language: "all",
-                                media: media[id]?.count == 1 ? entry.media : .all, isPinned: false)
+            return SearchSource(
+                id: id, name: entry.sourceName, language: "all",
+                media: media[id]?.count == 1 ? entry.media : .all, isPinned: false)
         }
     }
 

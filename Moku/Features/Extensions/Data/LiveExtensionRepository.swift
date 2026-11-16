@@ -64,7 +64,8 @@ struct LiveExtensionRepository: ExtensionRepository {
             throw EmbeddedSearchError.message("Use an https:// link to an APK or JAR file.")
         }
         let _: IgnoredGraphQLResult = try await api.graphql(
-            "mutation { installExternalExtension(url: \(BackendAPI.literal(parsed.absoluteString))) { id } }")
+            "mutation { installExternalExtension(url: \(BackendAPI.literal(parsed.absoluteString))) { id } }"
+        )
     }
     func preferences(package: String) async throws -> [SourcePreference] {
         let result: Preferences = try await api.graphql(

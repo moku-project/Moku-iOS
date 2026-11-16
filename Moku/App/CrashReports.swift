@@ -13,7 +13,9 @@ import UIKit
 
     private static var disabled: Bool {
         PreviewMode.isEnabled || PreviewMode.isUnitTestHost
-            || ProcessInfo.processInfo.arguments.contains { $0.hasPrefix("--ui-testing") || $0 == "--acceptance" }
+            || ProcessInfo.processInfo.arguments.contains {
+                $0.hasPrefix("--ui-testing") || $0 == "--acceptance"
+            }
     }
 
     /// Call once at launch: a marker still set from last time means it never reached the background.

@@ -34,8 +34,9 @@ import UIKit
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
         let preferences = ReaderPreferences(defaults: defaults)
-        let model = ReaderViewModel(details: ReaderPreview.details, chapterID: "11",
-                                    preferences: preferences, repository: RecordingReaderRepository())
+        let model = ReaderViewModel(
+            details: ReaderPreview.details, chapterID: "11",
+            preferences: preferences, repository: RecordingReaderRepository())
         model.pages = (1...1_000).map { "page/\($0)" }
         let canvas = ReaderCanvas(model: model, active: false, reduceMotion: true, toggleChrome: {})
         let coordinator = CanvasCoordinator(canvas)
@@ -129,11 +130,13 @@ import UIKit
         func png(_ width: CGFloat, _ height: CGFloat) -> Data {
             let format = UIGraphicsImageRendererFormat()
             format.scale = 1
-            return UIGraphicsImageRenderer(size: CGSize(width: width, height: height), format: format)
-                .pngData { context in
-                    UIColor.white.setFill()
-                    context.fill(CGRect(x: 0, y: 0, width: width, height: height))
-                }
+            return UIGraphicsImageRenderer(
+                size: CGSize(width: width, height: height), format: format
+            )
+            .pngData { context in
+                UIColor.white.setFill()
+                context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+            }
         }
         // Large pages stay within the decoded pixel budget, at the original point size.
         let large = try await PageDecoder.shared.decode(png(6000, 6000))
@@ -166,7 +169,9 @@ actor RecordingReaderRepository: ReaderRepository {
     var downloads: [String] = []
     func pages(chapterID: String) async throws -> [String] { (1...5).map { "page/\($0)" } }
     func image(path: String) async throws -> Data { Data() }
-    func progress(mediaID: String, chapterID: String, value: Double, completed: Bool, page: Int?) async throws {
+    func progress(mediaID: String, chapterID: String, value: Double, completed: Bool, page: Int?)
+        async throws
+    {
         updates.append(Update(chapter: chapterID, value: value, completed: completed))
     }
     func download(mediaID: String, chapterIDs: [String]) async throws { downloads = chapterIDs }
@@ -176,7 +181,9 @@ struct FailingReaderRepository: ReaderRepository {
         throw URLError(.notConnectedToInternet)
     }
     func image(path: String) async throws -> Data { throw URLError(.notConnectedToInternet) }
-    func progress(mediaID: String, chapterID: String, value: Double, completed: Bool, page: Int?) async throws {
+    func progress(mediaID: String, chapterID: String, value: Double, completed: Bool, page: Int?)
+        async throws
+    {
     }
     func download(mediaID: String, chapterIDs: [String]) async throws {}
 }

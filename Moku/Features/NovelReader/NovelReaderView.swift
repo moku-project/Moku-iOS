@@ -78,7 +78,8 @@ struct NovelReaderView: View {
         .recordActivity(
             mediaID: model.details.id, chapterID: model.chapterID,
             position: Int(model.progress * 100),
-            active: !settingsOpen && !chaptersOpen, valid: model.ready)
+            active: !settingsOpen && !chaptersOpen, valid: model.ready
+        )
         .sheet(isPresented: $settingsOpen) { settings }
         .sheet(isPresented: $chaptersOpen) { chapterList }
         .accessibilityIdentifier("novel.reader")
@@ -114,7 +115,8 @@ struct NovelReaderView: View {
                 geometry = metrics
                 if let resume = model.resumeAt, metrics.content > metrics.viewport {
                     model.didResume()
-                    position.scrollTo(y: max(0, CGFloat(resume) * (metrics.content - metrics.viewport)))
+                    position.scrollTo(
+                        y: max(0, CGFloat(resume) * (metrics.content - metrics.viewport)))
                 } else if model.resumeAt == nil {
                     model.scrolled(to: metrics.fraction)
                 }
@@ -153,9 +155,11 @@ struct NovelReaderView: View {
         switch block {
         case .paragraph(let text):
             if justified {
-                NovelParagraph(text: text, font: font, size: bodySize,
-                               lineSpacing: bodySize * (lineHeight - 1), color: theme.text)
-                    .padding(.bottom, bodySize * paragraphGap)
+                NovelParagraph(
+                    text: text, font: font, size: bodySize,
+                    lineSpacing: bodySize * (lineHeight - 1), color: theme.text
+                )
+                .padding(.bottom, bodySize * paragraphGap)
             } else {
                 Text(text)
                     .font(fontFor(size: bodySize))
@@ -179,13 +183,17 @@ struct NovelReaderView: View {
         VStack(spacing: 12) {
             Rectangle().fill(theme.secondary.opacity(0.25)).frame(height: 1).padding(.vertical, 24)
             if let next = model.next {
-                Button { model.advance() } label: {
+                Button {
+                    model.advance()
+                } label: {
                     VStack(spacing: 4) {
                         Text("Next chapter").font(.subheadline.weight(.semibold))
-                        Text(next.label).font(.caption).foregroundStyle(theme.secondary).lineLimit(1)
+                        Text(next.label).font(.caption).foregroundStyle(theme.secondary).lineLimit(
+                            1)
                     }
                     .frame(maxWidth: .infinity, minHeight: 56)
-                    .background(theme.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+                    .background(
+                        theme.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("novel.next")
@@ -199,7 +207,13 @@ struct NovelReaderView: View {
     /// Edge thirds turn pages in paged mode; everything else toggles the bars.
     private func tap(at x: CGFloat) {
         let zone = geometry.width > 0 ? x / geometry.width : 0.5
-        if paged && zone < 0.3 { turn(-1) } else if paged && zone > 0.7 { turn(1) } else { toggleChrome() }
+        if paged && zone < 0.3 {
+            turn(-1)
+        } else if paged && zone > 0.7 {
+            turn(1)
+        } else {
+            toggleChrome()
+        }
     }
 
     private func toggleChrome() { chromeVisible.toggle() }
@@ -216,8 +230,11 @@ struct NovelReaderView: View {
             all.removeValue(forKey: model.details.id)
             Toaster.shared.show("Saved place removed", kind: .info)
         } else {
-            all[model.details.id] = NovelBookmark(chapterID: model.chapterID, fraction: model.progress)
-            Toaster.shared.show("Place saved", detail: "\(model.chapter?.label ?? "This chapter") · \(Int(model.progress * 100))%")
+            all[model.details.id] = NovelBookmark(
+                chapterID: model.chapterID, fraction: model.progress)
+            Toaster.shared.show(
+                "Place saved",
+                detail: "\(model.chapter?.label ?? "This chapter") · \(Int(model.progress * 100))%")
         }
         bookmarkData = NovelBookmark.encode(all)
     }
@@ -227,8 +244,12 @@ struct NovelReaderView: View {
         let height = bodySize * lineHeight * CGFloat(guideLines) + 4
         return Rectangle()
             .fill(theme.text.opacity(0.08))
-            .overlay(alignment: .top) { Rectangle().fill(theme.text.opacity(0.22)).frame(height: 1) }
-            .overlay(alignment: .bottom) { Rectangle().fill(theme.text.opacity(0.22)).frame(height: 1) }
+            .overlay(alignment: .top) {
+                Rectangle().fill(theme.text.opacity(0.22)).frame(height: 1)
+            }
+            .overlay(alignment: .bottom) {
+                Rectangle().fill(theme.text.opacity(0.22)).frame(height: 1)
+            }
             .frame(height: height)
             .frame(maxHeight: .infinity)
             .ignoresSafeArea()
@@ -251,20 +272,31 @@ struct NovelReaderView: View {
                 autoScrolling = false
                 break
             }
-            if chromeVisible || settingsOpen || chaptersOpen || now < autoScrollPausedUntil { continue }
-            position.scrollTo(y: min(end, geometry.offset + CGFloat(autoScrollSpeed * 30 * elapsed)))
+            if chromeVisible || settingsOpen || chaptersOpen || now < autoScrollPausedUntil {
+                continue
+            }
+            position.scrollTo(
+                y: min(end, geometry.offset + CGFloat(autoScrollSpeed * 30 * elapsed)))
         }
     }
 
     /// Paged mode turns by a screen minus two lines, so no line is skipped.
     private func turn(_ direction: CGFloat) {
         let step = max(100, geometry.viewport - bodySize * lineHeight * 2)
-        let target = min(max(0, geometry.offset + direction * step), max(0, geometry.content - geometry.viewport))
-        if direction > 0, geometry.offset >= geometry.content - geometry.viewport - 2, model.next != nil {
+        let target = min(
+            max(0, geometry.offset + direction * step), max(0, geometry.content - geometry.viewport)
+        )
+        if direction > 0, geometry.offset >= geometry.content - geometry.viewport - 2,
+            model.next != nil
+        {
             model.advance()
             return
         }
-        if reduceMotion { position.scrollTo(y: target) } else { withAnimation(.easeOut(duration: 0.25)) { position.scrollTo(y: target) } }
+        if reduceMotion {
+            position.scrollTo(y: target)
+        } else {
+            withAnimation(.easeOut(duration: 0.25)) { position.scrollTo(y: target) }
+        }
         if chromeVisible { chromeVisible = false }
     }
 
@@ -272,7 +304,9 @@ struct NovelReaderView: View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
                 barButton("xmark", label: "Close") { dismiss() }
-                Button { chaptersOpen = true } label: {
+                Button {
+                    chaptersOpen = true
+                } label: {
                     VStack(spacing: 1) {
                         Text(model.details.title).font(.subheadline.weight(.semibold)).lineLimit(1)
                         HStack(spacing: 3) {
@@ -303,7 +337,10 @@ struct NovelReaderView: View {
                     .accessibilityValue("\(Int(model.progress * 100)) percent")
                 Text("\(Int(model.progress * 100))%").font(.caption.monospacedDigit())
                     .foregroundStyle(theme.secondary).frame(width: 40)
-                pageButton(autoScrolling ? "pause.fill" : "play.fill", label: autoScrolling ? "Pause Auto Scroll" : "Auto Scroll") {
+                pageButton(
+                    autoScrolling ? "pause.fill" : "play.fill",
+                    label: autoScrolling ? "Pause Auto Scroll" : "Auto Scroll"
+                ) {
                     autoScrolling.toggle()
                     if autoScrolling { chromeVisible = false }
                 }
@@ -318,7 +355,9 @@ struct NovelReaderView: View {
         .foregroundStyle(theme.text)
     }
 
-    private func barButton(_ symbol: String, label: String, action: @escaping () -> Void) -> some View {
+    private func barButton(_ symbol: String, label: String, action: @escaping () -> Void)
+        -> some View
+    {
         Button(action: action) {
             Image(systemName: symbol).font(.body.weight(.semibold))
                 .frame(width: 44, height: 44).glassSurface(Circle()).contentShape(Circle())
@@ -327,7 +366,9 @@ struct NovelReaderView: View {
         .accessibilityLabel(label)
     }
 
-    private func pageButton(_ symbol: String, label: String, action: @escaping () -> Void) -> some View {
+    private func pageButton(_ symbol: String, label: String, action: @escaping () -> Void)
+        -> some View
+    {
         Button(action: action) {
             Image(systemName: symbol).font(.body.weight(.semibold))
                 .frame(width: 44, height: 44).contentShape(Rectangle())
@@ -360,17 +401,27 @@ struct NovelReaderView: View {
                     Picker("Font", selection: $font) {
                         ForEach(NovelFont.allCases) { Text($0.title).tag($0) }
                     }
-                    stepper("Size", value: $size, range: 0.8...2.0, step: 0.05, format: { "\(Int($0 * 100))%" })
-                    stepper("Line height", value: $lineHeight, range: 1.3...2.4, step: 0.1, format: { $0.formatted(.number.precision(.fractionLength(1))) })
-                    stepper("Paragraph gap", value: $paragraphGap, range: 0.3...2.2, step: 0.1, format: { $0.formatted(.number.precision(.fractionLength(1))) })
-                    stepper("Column width", value: $width, range: 30...160, step: 5, format: { "\(Int($0))" })
+                    stepper(
+                        "Size", value: $size, range: 0.8...2.0, step: 0.05,
+                        format: { "\(Int($0 * 100))%" })
+                    stepper(
+                        "Line height", value: $lineHeight, range: 1.3...2.4, step: 0.1,
+                        format: { $0.formatted(.number.precision(.fractionLength(1))) })
+                    stepper(
+                        "Paragraph gap", value: $paragraphGap, range: 0.3...2.2, step: 0.1,
+                        format: { $0.formatted(.number.precision(.fractionLength(1))) })
+                    stepper(
+                        "Column width", value: $width, range: 30...160, step: 5,
+                        format: { "\(Int($0))" })
                 }
                 Section("Layout") {
                     Toggle("Justify text", isOn: $justified)
                 }
                 Section("Behaviour") {
                     Toggle("Tap edges to turn pages", isOn: $paged)
-                    stepper("Auto scroll speed", value: $autoScrollSpeed, range: 1...30, step: 1, format: { "\(Int($0))" })
+                    stepper(
+                        "Auto scroll speed", value: $autoScrollSpeed, range: 1...30, step: 1,
+                        format: { "\(Int($0))" })
                 }
                 Section("Reading guide") {
                     Toggle("Guide bar", isOn: $guide)
@@ -379,23 +430,32 @@ struct NovelReaderView: View {
                             HStack {
                                 Text("Thickness")
                                 Spacer()
-                                Text("\(guideLines) line\(guideLines == 1 ? "" : "s")").foregroundStyle(.secondary).monospacedDigit()
+                                Text("\(guideLines) line\(guideLines == 1 ? "" : "s")")
+                                    .foregroundStyle(.secondary).monospacedDigit()
                             }
                         }
                     }
                 }
                 Section {
-                    Text("The quick brown fox jumps over the lazy dog. Typography changes apply as you go.")
-                        .font(fontFor(size: bodySize))
-                        .lineSpacing(bodySize * (lineHeight - 1))
-                        .foregroundStyle(theme.text)
-                        .listRowBackground(theme.background)
-                } header: { Text("Preview") }
+                    Text(
+                        "The quick brown fox jumps over the lazy dog. Typography changes apply as you go."
+                    )
+                    .font(fontFor(size: bodySize))
+                    .lineSpacing(bodySize * (lineHeight - 1))
+                    .foregroundStyle(theme.text)
+                    .listRowBackground(theme.background)
+                } header: {
+                    Text("Preview")
+                }
             }
             .textCase(nil)
             .navigationTitle("Reader Settings")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { settingsOpen = false } } }
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { settingsOpen = false }
+                }
+            }
         }
         .presentationDetents([.medium, .large])
     }
@@ -421,11 +481,15 @@ struct NovelReaderView: View {
                         Button {
                             toggleBookmark()
                         } label: {
-                            Label(bookmarkedHere ? "Forget Saved Place" : "Save Place Here",
-                                  systemImage: bookmarkedHere ? "mappin.slash" : "mappin.and.ellipse")
+                            Label(
+                                bookmarkedHere ? "Forget Saved Place" : "Save Place Here",
+                                systemImage: bookmarkedHere ? "mappin.slash" : "mappin.and.ellipse")
                         }
                         .accessibilityIdentifier("novel.bookmark")
-                        if let bookmark, !bookmarkedHere, let marked = model.chapters.first(where: { $0.id == bookmark.chapterID }) {
+                        if let bookmark, !bookmarkedHere,
+                            let marked = model.chapters.first(where: { $0.id == bookmark.chapterID }
+                            )
+                        {
                             Button {
                                 model.open(bookmark)
                                 chaptersOpen = false
@@ -436,36 +500,45 @@ struct NovelReaderView: View {
                                         Text("\(marked.label) · \(Int(bookmark.fraction * 100))%")
                                             .font(.caption).foregroundStyle(.secondary)
                                     }
-                                } icon: { Image(systemName: "mappin.and.ellipse").foregroundStyle(NavigationStyle.accent) }
+                                } icon: {
+                                    Image(systemName: "mappin.and.ellipse").foregroundStyle(
+                                        NavigationStyle.accent)
+                                }
                                 .frame(minHeight: 44)
                             }
                             .accessibilityIdentifier("novel.gotoBookmark")
                         }
                     }
                     Section {
-                    ForEach(model.chapters) { chapter in
-                    Button {
-                        model.open(chapter)
-                        chaptersOpen = false
-                    } label: {
-                        HStack {
-                            Text(chapter.label).foregroundStyle(chapter.completed ? .secondary : .primary)
-                            Spacer()
-                            if chapter.id == model.chapterID {
-                                Image(systemName: "book.fill").foregroundStyle(NavigationStyle.accent)
+                        ForEach(model.chapters) { chapter in
+                            Button {
+                                model.open(chapter)
+                                chaptersOpen = false
+                            } label: {
+                                HStack {
+                                    Text(chapter.label).foregroundStyle(
+                                        chapter.completed ? .secondary : .primary)
+                                    Spacer()
+                                    if chapter.id == model.chapterID {
+                                        Image(systemName: "book.fill").foregroundStyle(
+                                            NavigationStyle.accent)
+                                    }
+                                }
+                                .frame(minHeight: 44)
                             }
+                            .id(chapter.id)
                         }
-                        .frame(minHeight: 44)
-                    }
-                    .id(chapter.id)
-                    }
                     }
                 }
                 .onAppear { proxy.scrollTo(model.chapterID, anchor: .center) }
             }
             .navigationTitle("Chapters")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { chaptersOpen = false } } }
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { chaptersOpen = false }
+                }
+            }
         }
     }
 }

@@ -190,11 +190,17 @@ private actor ResourceDisk {
     /// Enumerates the directory once, then accounts incrementally.
     private func indexIfNeeded() {
         guard records == nil else { return }
-        let files = (try? FileManager.default.contentsOfDirectory(
-            at: directory, includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey])) ?? []
+        let files =
+            (try? FileManager.default.contentsOfDirectory(
+                at: directory,
+                includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey])) ?? []
         var index: [URL: (size: Int, modified: Date)] = [:]
         for url in files {
-            guard let values = try? url.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey]) else { continue }
+            guard
+                let values = try? url.resourceValues(forKeys: [
+                    .fileSizeKey, .contentModificationDateKey,
+                ])
+            else { continue }
             index[url] = (values.fileSize ?? 0, values.contentModificationDate ?? .distantPast)
         }
         totalBytes = index.values.reduce(0) { $0 + $1.size }
@@ -209,7 +215,7 @@ private actor ResourceDisk {
                 try FileManager.default.removeItem(at: url)
                 self.records?.removeValue(forKey: url)
                 totalBytes -= record.size
-            } catch { }
+            } catch {}
         }
     }
 }

@@ -8,8 +8,10 @@ struct HomeChapter: Codable, Identifiable, Equatable, Sendable {
     var uploadedAt: String? = nil
 
     var displayTitle: String {
-        title.replacingOccurrences(of: #"^Chapter\s+(?=\d)"#, with: "Ch.", options: .regularExpression)
-            .replacingOccurrences(of: #"^Episode\s+(?=\d)"#, with: "Ep.", options: .regularExpression)
+        title.replacingOccurrences(
+            of: #"^Chapter\s+(?=\d)"#, with: "Ch.", options: .regularExpression
+        )
+        .replacingOccurrences(of: #"^Episode\s+(?=\d)"#, with: "Ep.", options: .regularExpression)
     }
 }
 
@@ -28,7 +30,8 @@ struct HomeEntry: Codable, Identifiable, Equatable, Sendable {
 
 extension HomeEntry {
     init(_ entry: MediaEntry) {
-        self.init(id: entry.id, title: entry.title, coverURL: entry.coverURL,
-                  media: entry.media.title, sourceEntry: entry)
+        self.init(
+            id: entry.id, title: entry.title, coverURL: entry.coverURL,
+            media: entry.media.title, sourceEntry: entry)
     }
 }

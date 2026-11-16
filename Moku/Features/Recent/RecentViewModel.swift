@@ -39,7 +39,9 @@ import Observation
             loading = false
             refreshing = false
         }
-        if repository.hasServerFeed, let feed = await loadFromServer(refresh: refresh) { return feed }
+        if repository.hasServerFeed, let feed = await loadFromServer(refresh: refresh) {
+            return feed
+        }
         let previous = updates
         var result: [RecentUpdate] = []
         var newCount = 0
@@ -108,15 +110,20 @@ import Observation
                 failedTitles = status.failedTitles
                 let count = status.newChapterCount
                 Toaster.shared.show(
-                    failedTitles.isEmpty ? "Library update complete" : "\(failedTitles.count) series failed to update",
-                    detail: count == 0 ? "Nothing new." : "\(count) new chapter\(count == 1 ? "" : "s") or episode\(count == 1 ? "" : "s").",
+                    failedTitles.isEmpty
+                        ? "Library update complete"
+                        : "\(failedTitles.count) series failed to update",
+                    detail: count == 0
+                        ? "Nothing new."
+                        : "\(count) new chapter\(count == 1 ? "" : "s") or episode\(count == 1 ? "" : "s").",
                     kind: failedTitles.isEmpty ? .success : .error)
             }
             guard let feed = try await repository.serverFeed() else { return nil }
             guard !Task.isCancelled else { return false }
             updates = feed
             if !failedTitles.isEmpty {
-                error = "Couldn’t update \(failedTitles.count) title(s): \(failedTitles.prefix(5).joined(separator: ", "))."
+                error =
+                    "Couldn’t update \(failedTitles.count) title(s): \(failedTitles.prefix(5).joined(separator: ", "))."
             }
             return failedTitles.isEmpty
         } catch is CancellationError {
@@ -141,7 +148,9 @@ import Observation
             } else {
                 queued.insert(update.id)
             }
-            Toaster.shared.show(delete ? "Download deleted" : "Download queued", kind: delete ? .success : .download)
+            Toaster.shared.show(
+                delete ? "Download deleted" : "Download queued", kind: delete ? .success : .download
+            )
         } catch {
             notice =
                 delete
@@ -164,9 +173,12 @@ import Observation
         return Dictionary(grouping: matching, by: \.mediaID).map { id, values in
             let ordered = values.sorted { $0.endedAt > $1.endedAt }
             let latest = ordered[0]
-            let entry = entries[id] ?? HomeEntry(
-                id: id, title: latest.title, coverURL: latest.coverURL, media: latest.media.title,
-                unreadCount: latest.unreadCount)
+            let entry =
+                entries[id]
+                ?? HomeEntry(
+                    id: id, title: latest.title, coverURL: latest.coverURL,
+                    media: latest.media.title,
+                    unreadCount: latest.unreadCount)
             return RecentHistoryTitle(entry: entry, sessions: ordered)
         }.sorted { $0.latest.endedAt > $1.latest.endedAt }
     }

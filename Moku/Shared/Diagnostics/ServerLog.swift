@@ -61,7 +61,9 @@ final class ServerLog: @unchecked Sendable {
             // Keep the newest half, starting at a line boundary.
             try? handle.synchronize()
             guard var kept = try? Data(contentsOf: url).suffix(Self.limit / 2) else { return }
-            if let newline = kept.firstIndex(of: 0x0A) { kept = kept.suffix(from: kept.index(after: newline)) }
+            if let newline = kept.firstIndex(of: 0x0A) {
+                kept = kept.suffix(from: kept.index(after: newline))
+            }
             try? handle.truncate(atOffset: 0)
             try? handle.write(contentsOf: kept)
             size = kept.count

@@ -53,7 +53,8 @@ struct AutomationControls: Codable, Sendable {
             let global: GlobalResult = try await BackendAPI.shared.graphql(
                 "{ automationSettings { \(Self.globalFields) } }", requiresSourceRuntime: false)
             let g = global.automationSettings
-            controls = AutomationControls(enabled: g.enabled, enforceGlobal: g.enforceGlobal, updateOnOpen: g.updateOnOpen)
+            controls = AutomationControls(
+                enabled: g.enabled, enforceGlobal: g.enforceGlobal, updateOnOpen: g.updateOnOpen)
             if let id = Self.series(mediaID) {
                 let result: SeriesResult = try await BackendAPI.shared.graphql(
                     "{ mediaAutomation(mediaId: \"\(id)\") { effective { autoDownload downloadAhead deleteOnRead deleteDelayHours maxKeepChapters pauseUpdates refreshInterval } } }",
@@ -61,12 +62,14 @@ struct AutomationControls: Codable, Sendable {
                 let r = result.mediaAutomation.effective
                 policy = DownloadPolicy(
                     pauseUpdates: r.pauseUpdates, refreshInterval: r.refreshInterval.lowercased(),
-                    autoDownload: r.autoDownload, downloadAhead: r.downloadAhead, deleteOnRead: r.deleteOnRead,
+                    autoDownload: r.autoDownload, downloadAhead: r.downloadAhead,
+                    deleteOnRead: r.deleteOnRead,
                     deleteDelayHours: r.deleteDelayHours, maxKeepChapters: r.maxKeepChapters)
             } else {
                 policy = DownloadPolicy(
                     pauseUpdates: false, refreshInterval: g.refreshInterval.lowercased(),
-                    autoDownload: g.autoDownload, downloadAhead: g.downloadAhead, deleteOnRead: g.deleteOnRead,
+                    autoDownload: g.autoDownload, downloadAhead: g.downloadAhead,
+                    deleteOnRead: g.deleteOnRead,
                     deleteDelayHours: g.deleteDelayHours, maxKeepChapters: g.maxKeepChapters)
             }
             loaded = true
@@ -78,7 +81,9 @@ struct AutomationControls: Codable, Sendable {
         guard !busy else { return }
         busy = true
         defer { busy = false }
-        let interval = ["daily", "weekly", "manual"].contains(value.refreshInterval) ? value.refreshInterval.uppercased() : "MANUAL"
+        let interval =
+            ["daily", "weekly", "manual"].contains(value.refreshInterval)
+            ? value.refreshInterval.uppercased() : "MANUAL"
         let rules =
             "autoDownload: \(value.autoDownload), downloadAhead: \(value.downloadAhead), deleteOnRead: \(value.deleteOnRead), "
             + "deleteDelayHours: \(value.deleteDelayHours), maxKeepChapters: \(value.maxKeepChapters), refreshInterval: \(interval)"
@@ -89,7 +94,8 @@ struct AutomationControls: Codable, Sendable {
                 "mutation { updateAutomationSettings(input: { \(rules) }) { configured } }"
             }
         do {
-            let _: IgnoredGraphQLResult = try await BackendAPI.shared.graphql(mutation, requiresSourceRuntime: false)
+            let _: IgnoredGraphQLResult = try await BackendAPI.shared.graphql(
+                mutation, requiresSourceRuntime: false)
             policy = value
             notice = nil
         } catch { notice = "Couldn’t save automation rules." }
@@ -112,7 +118,8 @@ struct AutomationControls: Codable, Sendable {
         guard !busy, let id = Self.series(mediaID) else { return }
         do {
             let _: IgnoredGraphQLResult = try await BackendAPI.shared.graphql(
-                "mutation { resetMediaAutomation(mediaId: \"\(id)\") }", requiresSourceRuntime: false)
+                "mutation { resetMediaAutomation(mediaId: \"\(id)\") }",
+                requiresSourceRuntime: false)
             await load(mediaID: mediaID)
         } catch { notice = "Couldn’t reset series rules." }
     }
@@ -136,50 +143,95 @@ struct AutomationSettingsContent: View {
     @State private var mediaID: String
     init(initialMediaID: String = "0") { _mediaID = State(initialValue: initialMediaID) }
     func policy<Value>(_ key: WritableKeyPath<DownloadPolicy, Value>) -> Binding<Value> {
-        Binding(get: { model.policy[keyPath: key] }, set: { value in
-            var next = model.policy; next[keyPath: key] = value
-            Task { await model.savePolicy(next, mediaID: mediaID) }
-        })
+        Binding(
+            get: { model.policy[keyPath: key] },
+            set: { value in
+                var next = model.policy
+                next[keyPath: key] = value
+                Task { await model.savePolicy(next, mediaID: mediaID) }
+            })
     }
     func controls(_ key: WritableKeyPath<AutomationControls, Bool>) -> Binding<Bool> {
-        Binding(get: { model.controls[keyPath: key] }, set: { value in
-            var next = model.controls; next[keyPath: key] = value
-            Task { await model.saveControls(next) }
-        })
+        Binding(
+            get: { model.controls[keyPath: key] },
+            set: { value in
+                var next = model.controls
+                next[keyPath: key] = value
+                Task { await model.saveControls(next) }
+            })
     }
     @AppStorage("automation.backgroundUpdates") private var backgroundUpdates = false
     var body: some View {
         SettingsForm {
             Section("Library updates") {
-                SettingsToggle("Update library on app open", detail: "Check every saved series for new chapters when Moku starts. Results appear in History → Updates.", isOn: controls(\.updateOnOpen))
-                SettingsToggle("Update in the background", detail: "iOS runs this while your iPhone is idle on a network, and Moku notifies you about new chapters.", isOn: Binding(get: { backgroundUpdates }, set: { value in
-                    backgroundUpdates = value
-                    if value { Task { _ = await BackgroundWork.requestNotificationPermission() } }
-                }))
+                SettingsToggle(
+                    "Update library on app open",
+                    detail:
+                        "Check every saved series for new chapters when Moku starts. Results appear in History → Updates.",
+                    isOn: controls(\.updateOnOpen))
+                SettingsToggle(
+                    "Update in the background",
+                    detail:
+                        "iOS runs this while your iPhone is idle on a network, and Moku notifies you about new chapters.",
+                    isOn: Binding(
+                        get: { backgroundUpdates },
+                        set: { value in
+                            backgroundUpdates = value
+                            if value {
+                                Task { _ = await BackgroundWork.requestNotificationPermission() }
+                            }
+                        }))
             }
             .disabled(!model.loaded || model.busy)
             Section("Behaviour") {
-                SettingsToggle("Enable automation", detail: "Run rules while Moku is active.", isOn: controls(\.enabled))
-                SettingsToggle("Enforce global defaults", detail: "Ignore per-series overrides.", isOn: controls(\.enforceGlobal))
+                SettingsToggle(
+                    "Enable automation", detail: "Run rules while Moku is active.",
+                    isOn: controls(\.enabled))
+                SettingsToggle(
+                    "Enforce global defaults", detail: "Ignore per-series overrides.",
+                    isOn: controls(\.enforceGlobal))
             }
             .disabled(!model.loaded || model.busy)
             Section {
-                SettingsPicker("Apply to", selection: $mediaID, options: [("0", "Global defaults")] + library.entries.filter { Int64($0.id) != nil }.map { ($0.id, $0.title) })
-                    .pickerStyle(.navigationLink)
-                SettingsToggle("Auto-download new chapters", detail: "Queue new chapters when a series refreshes.", isOn: policy(\.autoDownload))
-                number("Download ahead", detail: "Queue upcoming chapters while reading.", value: policy(\.downloadAhead), options: [0, 1, 2, 3, 5, 10, 20, 50, 100])
-                number("Max chapters to keep", detail: "0 keeps all downloaded chapters.", value: policy(\.maxKeepChapters), options: [0, 1, 5, 10, 20, 50, 100])
-                SettingsToggle("Delete after reading", detail: "Remove completed chapter downloads.", isOn: policy(\.deleteOnRead))
-                number("Delete delay", detail: "Hours after a chapter is marked read.", value: policy(\.deleteDelayHours), options: [0, 1, 6, 12, 24, 48, 72, 168])
-                SettingsPicker("Refresh interval", detail: "Check saved series for new chapters.", selection: policy(\.refreshInterval), options: [("manual", "Manual"), ("daily", "Daily"), ("weekly", "Weekly")])
+                SettingsPicker(
+                    "Apply to", selection: $mediaID,
+                    options: [("0", "Global defaults")]
+                        + library.entries.filter { Int64($0.id) != nil }.map { ($0.id, $0.title) }
+                )
+                .pickerStyle(.navigationLink)
+                SettingsToggle(
+                    "Auto-download new chapters",
+                    detail: "Queue new chapters when a series refreshes.",
+                    isOn: policy(\.autoDownload))
+                number(
+                    "Download ahead", detail: "Queue upcoming chapters while reading.",
+                    value: policy(\.downloadAhead), options: [0, 1, 2, 3, 5, 10, 20, 50, 100])
+                number(
+                    "Max chapters to keep", detail: "0 keeps all downloaded chapters.",
+                    value: policy(\.maxKeepChapters), options: [0, 1, 5, 10, 20, 50, 100])
+                SettingsToggle(
+                    "Delete after reading", detail: "Remove completed chapter downloads.",
+                    isOn: policy(\.deleteOnRead))
+                number(
+                    "Delete delay", detail: "Hours after a chapter is marked read.",
+                    value: policy(\.deleteDelayHours), options: [0, 1, 6, 12, 24, 48, 72, 168])
+                SettingsPicker(
+                    "Refresh interval", detail: "Check saved series for new chapters.",
+                    selection: policy(\.refreshInterval),
+                    options: [("manual", "Manual"), ("daily", "Daily"), ("weekly", "Weekly")])
                 if mediaID != "0" {
-                    SettingsToggle("Pause updates", detail: "Suspend scheduled refreshes for this series.", isOn: policy(\.pauseUpdates))
+                    SettingsToggle(
+                        "Pause updates", detail: "Suspend scheduled refreshes for this series.",
+                        isOn: policy(\.pauseUpdates))
                     Button("Use global defaults") { Task { await model.resetSeries(mediaID) } }
                 }
             } header: {
                 Text("Rules")
             } footer: {
-                Text(mediaID == "0" ? "Select global defaults or a saved series." : "Use global defaults removes this series’ custom rules.")
+                Text(
+                    mediaID == "0"
+                        ? "Select global defaults or a saved series."
+                        : "Use global defaults removes this series’ custom rules.")
             }
             .disabled(!model.loaded || model.busy)
             Section {
@@ -196,11 +248,17 @@ struct AutomationSettingsContent: View {
         .task { await library.load() }
         .task(id: mediaID) { await model.load(mediaID: mediaID) }
         // The server persists schedules; iOS controls when the application can execute them.
-        .confirmationDialog("Reset all custom rules?", isPresented: $reset, titleVisibility: .visible) {
+        .confirmationDialog(
+            "Reset all custom rules?", isPresented: $reset, titleVisibility: .visible
+        ) {
             Button("Reset rules", role: .destructive) { Task { await model.resetOverrides() } }
         }
     }
-    private func number(_ title: String, detail: String, value: Binding<Int>, options: [Int]) -> some View {
-        SettingsPicker(title, detail: detail, selection: value, options: Array(Set(options + [value.wrappedValue])).sorted().map { ($0, String($0)) })
+    private func number(_ title: String, detail: String, value: Binding<Int>, options: [Int])
+        -> some View
+    {
+        SettingsPicker(
+            title, detail: detail, selection: value,
+            options: Array(Set(options + [value.wrappedValue])).sorted().map { ($0, String($0)) })
     }
 }

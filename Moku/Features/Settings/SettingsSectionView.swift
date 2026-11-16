@@ -75,7 +75,8 @@ struct SettingsSectionView: View {
                 switch confirmation {
                 case .history:
                     Text(
-                        "Clear reading activity on this device. Saved titles and files will be kept.")
+                        "Clear reading activity on this device. Saved titles and files will be kept."
+                    )
                 case .cache:
                     Text(
                         "Remove cached covers and temporary results. They will load again when needed. Your library, downloads, history, and source installations will be kept."
@@ -95,8 +96,12 @@ struct SettingsSectionView: View {
                 }
                 if category == .about {
                     do {
-                        struct Result: Decodable, Sendable { struct About: Decodable, Sendable { let version: String }; let about: About }
-                        let result: Result = try await BackendAPI.shared.graphql("{ about { version } }", requiresSourceRuntime: false)
+                        struct Result: Decodable, Sendable {
+                            struct About: Decodable, Sendable { let version: String }
+                            let about: About
+                        }
+                        let result: Result = try await BackendAPI.shared.graphql(
+                            "{ about { version } }", requiresSourceRuntime: false)
                         serverVersion = result.about.version
                     } catch { notice = "Couldn’t load the server version." }
                 }
@@ -109,20 +114,36 @@ struct SettingsSectionView: View {
         case .appearance: AppearanceSettingsContent()
         case .reader:
             SettingsForm { ReaderSettingsView(preferences: readerPreferences) }
-        case .library: SettingsForm { library; SettingsNotice(text: notice) }
+        case .library:
+            SettingsForm {
+                library
+                SettingsNotice(text: notice)
+            }
         case .storage: StorageSettingsContent()
-        case .about: SettingsForm { about; SettingsNotice(text: notice) }
+        case .about:
+            SettingsForm {
+                about
+                SettingsNotice(text: notice)
+            }
         case .player: SettingsForm { player }
         case .automation: AutomationSettingsContent()
         case .sync: SyncSettingsContent()
         case .tracking: EmptyView()  // Hosted by TrackingSettingsDestination.
-        case .performance: SettingsForm { performance; SettingsNotice(text: notice) }
+        case .performance:
+            SettingsForm {
+                performance
+                SettingsNotice(text: notice)
+            }
         case .keybinds: KeybindsSettingsContent()
         case .folders: SettingsFoldersContent()
         case .content: ContentSettingsContent()
         case .server: ServerSettingsContent(openExtensions: openExtensions)
         case .auth: AuthSettingsContent()
-        case .devTools: SettingsForm { devTools; SettingsNotice(text: notice) }
+        case .devTools:
+            SettingsForm {
+                devTools
+                SettingsNotice(text: notice)
+            }
         }
     }
 
@@ -145,17 +166,28 @@ struct SettingsSectionView: View {
                 isOn: $showCardStats)
         }
         Section("Saved") {
-            SettingsToggle("Show all in Saved", detail: "Include titles that are assigned to folders.", isOn: $showAllInSaved)
-            SettingsToggle("Hide completed in Saved", detail: "Exclude finished titles from the Saved view.", isOn: $hideCompletedInSaved)
+            SettingsToggle(
+                "Show all in Saved", detail: "Include titles that are assigned to folders.",
+                isOn: $showAllInSaved)
+            SettingsToggle(
+                "Hide completed in Saved", detail: "Exclude finished titles from the Saved view.",
+                isOn: $hideCompletedInSaved)
             SettingsPicker(
                 "Default library view", detail: "Open this view when Library starts.",
                 selection: $defaultLibraryTab,
                 options: LibraryTab.allCases.map { ($0.rawValue, $0.rawValue) }
-                    + libraryStore.organization.folders.map { ("folder:\($0.id.uuidString)", $0.name) })
+                    + libraryStore.organization.folders.map {
+                        ("folder:\($0.id.uuidString)", $0.name)
+                    })
         }
         Section("Series") {
-            SettingsToggle("Auto-link on open", detail: "Group saved titles with matching names.", isOn: $autoLinkOnOpen)
-            SettingsToggle("Disable auto-complete", detail: "Keep finished titles in Reading instead of Completed.", isOn: $disableAutoComplete)
+            SettingsToggle(
+                "Auto-link on open", detail: "Group saved titles with matching names.",
+                isOn: $autoLinkOnOpen)
+            SettingsToggle(
+                "Disable auto-complete",
+                detail: "Keep finished titles in Reading instead of Completed.",
+                isOn: $disableAutoComplete)
         }
         Section("Chapters") {
             SettingsToggle(
@@ -182,8 +214,12 @@ struct SettingsSectionView: View {
             LabeledContent("Server version", value: serverVersion ?? "—")
         }
         Section {
-            Link("Source code", destination: URL(string: "https://github.com/moku-project/Moku-iOS")!)
-            Link("Release notes", destination: URL(string: "https://github.com/moku-project/Moku-iOS/releases")!)
+            Link(
+                "Source code", destination: URL(string: "https://github.com/moku-project/Moku-iOS")!
+            )
+            Link(
+                "Release notes",
+                destination: URL(string: "https://github.com/moku-project/Moku-iOS/releases")!)
             SettingsLinkRow(
                 "Report an issue", detail: "Bug or feature request, with the settings you choose."
             ) { reportOpen = true }
@@ -192,17 +228,26 @@ struct SettingsSectionView: View {
 
     @ViewBuilder private var player: some View {
         Section("Playback") {
-            SettingsToggle("Autoplay next episode", detail: "Continue when the current episode finishes.", isOn: $autoplayNext)
-            SettingsToggle("Compact transport bar", detail: "Use a single row for playback controls.", isOn: $compactControls)
-            SettingsToggle("Tap to toggle bar", detail: "Double-tap the video to show or hide controls.", isOn: $manualControls)
-            SettingsToggle("Autoplay", detail: "Start playback when an episode opens.", isOn: $playerAutoplay)
+            SettingsToggle(
+                "Autoplay next episode", detail: "Continue when the current episode finishes.",
+                isOn: $autoplayNext)
+            SettingsToggle(
+                "Compact transport bar", detail: "Use a single row for playback controls.",
+                isOn: $compactControls)
+            SettingsToggle(
+                "Tap to toggle bar", detail: "Double-tap the video to show or hide controls.",
+                isOn: $manualControls)
+            SettingsToggle(
+                "Autoplay", detail: "Start playback when an episode opens.", isOn: $playerAutoplay)
             SettingsPicker(
                 "Playback speed", detail: "Default speed for new playback sessions.",
                 selection: $playerSpeed,
                 options: [0.75, 1, 1.25, 1.5, 1.75, 2].map { ($0, "\($0.formatted())×") })
         }
         Section("Subtitles") {
-            SettingsToggle("Enable by default", detail: "Select a subtitle track when playback opens.", isOn: $autoSubtitles)
+            SettingsToggle(
+                "Enable by default", detail: "Select a subtitle track when playback opens.",
+                isOn: $autoSubtitles)
             LabeledContent {
                 TextField("Language", text: $subtitleLanguage, prompt: Text("en"))
                     .multilineTextAlignment(.trailing)
@@ -226,10 +271,14 @@ struct SettingsSectionView: View {
         } header: {
             Text("Background")
         } footer: {
-            Text("Audio continues when you lock the screen or switch apps. Picture in Picture starts when you go home.")
+            Text(
+                "Audio continues when you lock the screen or switch apps. Picture in Picture starts when you go home."
+            )
         }
         Section("Rendering") {
-            SettingsToggle("High-quality scaling", detail: "Use trilinear video scaling.", isOn: $qualityScaling)
+            SettingsToggle(
+                "High-quality scaling", detail: "Use trilinear video scaling.",
+                isOn: $qualityScaling)
         }
     }
 
@@ -273,15 +322,24 @@ struct SettingsSectionView: View {
         Section("Testing") {
             Button {
                 NotificationCenter.default.post(name: .mokuPreviewIdle, object: nil)
-            } label: { SettingsLabel("Preview idle screen", detail: "Preview the inactivity screen.") }
-            Button { appLock.lock() } label: {
+            } label: {
+                SettingsLabel("Preview idle screen", detail: "Preview the inactivity screen.")
+            }
+            Button {
+                appLock.lock()
+            } label: {
                 SettingsLabel("Lock app", detail: "Test the configured PIN or biometric unlock.")
             }
             .disabled(!appLock.enabled)
             Button {
-                Toaster.shared.show("Test toast", detail: "Toasts confirm actions without blocking.")
-            } label: { SettingsLabel("Show toast", detail: "Show a test toast.") }
-            Button { onboarded = false } label: {
+                Toaster.shared.show(
+                    "Test toast", detail: "Toasts confirm actions without blocking.")
+            } label: {
+                SettingsLabel("Show toast", detail: "Show a test toast.")
+            }
+            Button {
+                onboarded = false
+            } label: {
                 SettingsLabel("Replay onboarding", detail: "Show the welcome screens again.")
             }
         }
@@ -290,7 +348,8 @@ struct SettingsSectionView: View {
             LabeledContent("System", value: "iOS \(UIDevice.current.systemVersion)")
             LabeledContent(
                 "Build",
-                value: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1")
+                value: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"
+            )
             Button("Refresh runtime status") {
                 Task { serverURL = await Backend.shared.currentServerURL()?.absoluteString }
             }
@@ -301,7 +360,9 @@ struct SettingsSectionView: View {
         } header: {
             Text("Cache")
         } footer: {
-            Text("Remove cached covers and temporary results. Library, downloads, and history are kept.")
+            Text(
+                "Remove cached covers and temporary results. Library, downloads, and history are kept."
+            )
         }
     }
 
@@ -369,7 +430,8 @@ private struct SettingsFoldersContent: View {
                         HStack {
                             SettingsLabel(folder.name, detail: folderDetail(folder))
                             Spacer(minLength: 8)
-                            Image(systemName: "ellipsis.circle").foregroundStyle(NavigationStyle.accent)
+                            Image(systemName: "ellipsis.circle").foregroundStyle(
+                                NavigationStyle.accent)
                         }
                         .foregroundStyle(.primary)
                         .contentShape(Rectangle())
@@ -434,9 +496,18 @@ private struct SettingsFoldersContent: View {
     }
     @ViewBuilder private func actions(for folder: LibraryFolder) -> some View {
         Button("Rename", systemImage: "pencil") { rename(folder) }
-        Button(folder.hidden == true ? "Show in library" : "Hide from library", systemImage: folder.hidden == true ? "eye" : "eye.slash") { update(folder) { $0.hidden = !($0.hidden ?? false) } }
-        Button(folder.includeInUpdate == false ? "Include in updates" : "Exclude from updates", systemImage: "arrow.clockwise") { update(folder) { $0.includeInUpdate = !($0.includeInUpdate ?? true) } }
-        Button(folder.includeInDownload == false ? "Include in downloads" : "Exclude from downloads", systemImage: "arrow.down.circle") { update(folder) { $0.includeInDownload = !($0.includeInDownload ?? true) } }
+        Button(
+            folder.hidden == true ? "Show in library" : "Hide from library",
+            systemImage: folder.hidden == true ? "eye" : "eye.slash"
+        ) { update(folder) { $0.hidden = !($0.hidden ?? false) } }
+        Button(
+            folder.includeInUpdate == false ? "Include in updates" : "Exclude from updates",
+            systemImage: "arrow.clockwise"
+        ) { update(folder) { $0.includeInUpdate = !($0.includeInUpdate ?? true) } }
+        Button(
+            folder.includeInDownload == false ? "Include in downloads" : "Exclude from downloads",
+            systemImage: "arrow.down.circle"
+        ) { update(folder) { $0.includeInDownload = !($0.includeInDownload ?? true) } }
         Menu("Show for") {
             ForEach([ContentMode.manga, .novels, .anime]) { type in
                 let on = folder.contentTypes?.contains(type) == true
@@ -451,8 +522,10 @@ private struct SettingsFoldersContent: View {
                 }
             }
         }
-        Button("Move up", systemImage: "arrow.up") { move(folder, offset: -1) }.disabled(library.organization.folders.first?.id == folder.id)
-        Button("Move down", systemImage: "arrow.down") { move(folder, offset: 1) }.disabled(library.organization.folders.last?.id == folder.id)
+        Button("Move up", systemImage: "arrow.up") { move(folder, offset: -1) }.disabled(
+            library.organization.folders.first?.id == folder.id)
+        Button("Move down", systemImage: "arrow.down") { move(folder, offset: 1) }.disabled(
+            library.organization.folders.last?.id == folder.id)
         Button("Delete", systemImage: "trash", role: .destructive) { deleting = folder }
     }
     private func folderDetail(_ folder: LibraryFolder) -> String {
@@ -476,7 +549,9 @@ private struct SettingsFoldersContent: View {
             saving = true
             defer { saving = false }
             var next = library.organization
-            guard let index = next.folders.firstIndex(where: { $0.id == folder.id }), next.folders.indices.contains(index + offset) else { return }
+            guard let index = next.folders.firstIndex(where: { $0.id == folder.id }),
+                next.folders.indices.contains(index + offset)
+            else { return }
             next.folders.swapAt(index, index + offset)
             if !(await library.saveOrganization(next)) { error = library.error }
         }

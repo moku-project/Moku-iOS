@@ -12,7 +12,13 @@ struct ExtensionLibrarySheet: View {
     @State private var confirm = false
     @State private var error: String?
 
-    private enum Phase: Equatable { case idle, matching(Int), ready, moving(Int), done }
+    private enum Phase: Equatable {
+        case idle
+        case matching(Int)
+        case ready
+        case moving(Int)
+        case done
+    }
 
     struct Item: Identifiable {
         let entry: MediaEntry
@@ -37,15 +43,19 @@ struct ExtensionLibrarySheet: View {
         NavigationStack {
             List {
                 Section {
-                    Text("\(titles.count) saved title\(titles.count == 1 ? "" : "s") from \(source.displayName).")
-                        .font(.subheadline).foregroundStyle(GeneralStyle.label)
+                    Text(
+                        "\(titles.count) saved title\(titles.count == 1 ? "" : "s") from \(source.displayName)."
+                    )
+                    .font(.subheadline).foregroundStyle(GeneralStyle.label)
                 }
                 Section("Move all to another source") {
                     Picker("Move to", selection: $target) {
                         Text("Choose a source").tag(MigrateSheet.Source?.none)
                         ForEach(targets) { item in
-                            Text("\(item.displayName) · \(GeneralPreferences.languageName(GeneralPreferences.canonicalLanguage(item.lang)))")
-                                .tag(MigrateSheet.Source?.some(item))
+                            Text(
+                                "\(item.displayName) · \(GeneralPreferences.languageName(GeneralPreferences.canonicalLanguage(item.lang)))"
+                            )
+                            .tag(MigrateSheet.Source?.some(item))
                         }
                     }
                     .disabled(busy)
@@ -55,7 +65,8 @@ struct ExtensionLibrarySheet: View {
                             Text("Finding matches… \(done) of \(plan.count)").font(.footnote)
                         }
                     case .moving(let done):
-                        ProgressView(value: Double(done), total: Double(max(1, ready.count + done))) {
+                        ProgressView(value: Double(done), total: Double(max(1, ready.count + done)))
+                        {
                             Text("Moving titles… \(done) moved").font(.footnote)
                         }
                     default:
@@ -63,25 +74,35 @@ struct ExtensionLibrarySheet: View {
                             .disabled(target == nil || titles.isEmpty)
                     }
                     if phase == .ready, !ready.isEmpty {
-                        Button("Move \(ready.count) title\(ready.count == 1 ? "" : "s")") { confirm = true }
-                            .fontWeight(.semibold)
+                        Button("Move \(ready.count) title\(ready.count == 1 ? "" : "s")") {
+                            confirm = true
+                        }
+                        .fontWeight(.semibold)
                     }
                 }
                 if let error { Section { Text(error).foregroundStyle(.orange) } }
                 Section(plan.isEmpty ? "Titles" : "Matches") {
                     ForEach(plan.isEmpty ? titles.map { Item(entry: $0) } : plan) { item in
                         if phase == .ready, item.state == .matched || item.state == .excluded {
-                            Button { toggle(item.id) } label: { row(item) }
-                                .buttonStyle(.plain)
-                                .accessibilityHint(item.state == .matched ? "Leaves this title out" : "Includes this title")
+                            Button {
+                                toggle(item.id)
+                            } label: {
+                                row(item)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityHint(
+                                item.state == .matched
+                                    ? "Leaves this title out" : "Includes this title")
                         } else {
                             row(item)
                         }
                     }
                 }
                 Section {
-                    Text("Read progress carries over by chapter number. Downloads stay with the old source. Titles without a confident match are left alone; tap a match to leave it out.")
-                        .font(.footnote).foregroundStyle(.secondary)
+                    Text(
+                        "Read progress carries over by chapter number. Downloads stay with the old source. Titles without a confident match are left alone; tap a match to leave it out."
+                    )
+                    .font(.footnote).foregroundStyle(.secondary)
                 }
             }
             .textCase(nil)
@@ -89,7 +110,11 @@ struct ExtensionLibrarySheet: View {
             .background(NavigationStyle.background.ignoresSafeArea())
             .navigationTitle(source.displayName)
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() }.disabled(busy) } }
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }.disabled(busy)
+                }
+            }
             .interactiveDismissDisabled(busy)
             .task {
                 await library.load()
@@ -117,14 +142,19 @@ struct ExtensionLibrarySheet: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(item.entry.title).font(.subheadline).lineLimit(2)
                 if let status = status(item) {
-                    Text(status).font(.caption).foregroundStyle(item.state == .failed || item.state == .unmatched ? .orange : GeneralStyle.label)
-                        .lineLimit(1)
+                    Text(status).font(.caption).foregroundStyle(
+                        item.state == .failed || item.state == .unmatched
+                            ? .orange : GeneralStyle.label
+                    )
+                    .lineLimit(1)
                 }
             }
             Spacer(minLength: 0)
             switch item.state {
-            case .matched: Image(systemName: "checkmark.circle").foregroundStyle(NavigationStyle.accent)
-            case .moved: Image(systemName: "checkmark.circle.fill").foregroundStyle(NavigationStyle.accent)
+            case .matched:
+                Image(systemName: "checkmark.circle").foregroundStyle(NavigationStyle.accent)
+            case .moved:
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(NavigationStyle.accent)
             default: EmptyView()
             }
         }
@@ -151,11 +181,19 @@ struct ExtensionLibrarySheet: View {
         struct Response: Decodable, Sendable { let installedExtensions: [MigrateSheet.Source] }
         do {
             let response: Response = try await BackendAPI.shared.graphql(
-                "{ installedExtensions { id packageName displayName lang contentType } }", requiresSourceRuntime: false)
+                "{ installedExtensions { id packageName displayName lang contentType } }",
+                requiresSourceRuntime: false)
             targets = response.installedExtensions
-                .filter { $0.contentType == source.contentType && $0.packageName != source.packageName }
-                .sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
-            if targets.isEmpty { error = "Install another \(source.media.title.lowercased()) source to move titles to." }
+                .filter {
+                    $0.contentType == source.contentType && $0.packageName != source.packageName
+                }
+                .sorted {
+                    $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending
+                }
+            if targets.isEmpty {
+                error =
+                    "Install another \(source.media.title.lowercased()) source to move titles to."
+            }
         } catch { self.error = "Couldn’t load sources." }
     }
 
@@ -167,12 +205,18 @@ struct ExtensionLibrarySheet: View {
         for index in plan.indices {
             guard !Task.isCancelled else { break }
             let title = plan[index].entry.title
-            let request = SearchRequest(query: title, options: SearchOptions(media: source.media, sourceID: target.packageName))
+            let request = SearchRequest(
+                query: title,
+                options: SearchOptions(media: source.media, sourceID: target.packageName))
             let results = (try? await LiveMediaRepository.shared.search(request)) ?? []
-            let best = results.max { MigrateSheet.score($0.title, title) < MigrateSheet.score($1.title, title) }
+            let best = results.max {
+                MigrateSheet.score($0.title, title) < MigrateSheet.score($1.title, title)
+            }
             if let best, best.externalID != nil,
-               MigrateSheet.score(best.title, title) >= 0.8
-                || TrackingViewModel.normalized(best.title) == TrackingViewModel.normalized(title) {
+                MigrateSheet.score(best.title, title) >= 0.8
+                    || TrackingViewModel.normalized(best.title)
+                        == TrackingViewModel.normalized(title)
+            {
                 plan[index].match = best
                 plan[index].state = .matched
             } else {
@@ -181,7 +225,9 @@ struct ExtensionLibrarySheet: View {
             phase = .matching(index + 1)
         }
         phase = .ready
-        if ready.isEmpty { error = "No confident matches on \(target.displayName). Try another source." }
+        if ready.isEmpty {
+            error = "No confident matches on \(target.displayName). Try another source."
+        }
     }
 
     private func move() async {
@@ -192,7 +238,8 @@ struct ExtensionLibrarySheet: View {
             guard let externalID = plan[index].match?.externalID else { continue }
             do {
                 let _: IgnoredGraphQLResult = try await BackendAPI.shared.graphql(
-                    "mutation { migrateMedia(fromMediaId: \(BackendAPI.literal(plan[index].entry.id)), toExtensionId: \(BackendAPI.literal(target.id)), toExternalId: \(BackendAPI.literal(externalID))) { id } }")
+                    "mutation { migrateMedia(fromMediaId: \(BackendAPI.literal(plan[index].entry.id)), toExtensionId: \(BackendAPI.literal(target.id)), toExternalId: \(BackendAPI.literal(externalID))) { id } }"
+                )
                 plan[index].state = .moved
                 moved += 1
             } catch {
@@ -205,7 +252,8 @@ struct ExtensionLibrarySheet: View {
         library.invalidateServerVisibility()
         _ = await library.refreshFromServer()
         phase = .done
-        Toaster.shared.show("Moved \(moved) title\(moved == 1 ? "" : "s") to \(target.displayName)",
-                            kind: plan.contains { $0.state == .failed } ? .error : .success)
+        Toaster.shared.show(
+            "Moved \(moved) title\(moved == 1 ? "" : "s") to \(target.displayName)",
+            kind: plan.contains { $0.state == .failed } ? .error : .success)
     }
 }

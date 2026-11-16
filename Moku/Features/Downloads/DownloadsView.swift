@@ -46,7 +46,11 @@ struct DownloadsView: View {
                         expanded: Binding(
                             get: { expanded.contains(group.id) },
                             set: { open in
-                                if open { expanded.insert(group.id) } else { expanded.remove(group.id) }
+                                if open {
+                                    expanded.insert(group.id)
+                                } else {
+                                    expanded.remove(group.id)
+                                }
                             }))
                 }
             }
@@ -58,7 +62,9 @@ struct DownloadsView: View {
             if isEmpty {
                 ContentUnavailableView {
                     Label(
-                        history ? "No Download History" : "No \(section == .all ? "" : section.rawValue + " ")Downloads",
+                        history
+                            ? "No Download History"
+                            : "No \(section == .all ? "" : section.rawValue + " ")Downloads",
                         systemImage: history ? "clock.arrow.circlepath" : section.systemImage)
                 } description: {
                     Text(emptyDetail)
@@ -78,7 +84,9 @@ struct DownloadsView: View {
             .padding(.vertical, 8)
             .onChange(of: section) { _, _ in expanded = [] }
         }
-        .navigationTitle(selection.map { $0.isEmpty ? "Select Chapters" : "\($0.count) Selected" } ?? "Downloads")
+        .navigationTitle(
+            selection.map { $0.isEmpty ? "Select Chapters" : "\($0.count) Selected" } ?? "Downloads"
+        )
         .toolbar {
             if selection != nil {
                 ToolbarItem(placement: .topBarLeading) {
@@ -109,9 +117,15 @@ struct DownloadsView: View {
         .refreshable { await model.refresh() }
         .onChange(of: autoRetry) { _, value in model.autoRetry = value }
         .onChange(of: model.autoRetry) { _, value in autoRetry = value }
-        .alert("Downloads", isPresented: Binding(get: { model.notice != nil }, set: { if !$0 { model.notice = nil } })) {
+        .alert(
+            "Downloads",
+            isPresented: Binding(
+                get: { model.notice != nil }, set: { if !$0 { model.notice = nil } })
+        ) {
             Button("OK") { model.notice = nil }
-        } message: { Text(model.notice ?? "") }
+        } message: {
+            Text(model.notice ?? "")
+        }
         .confirmationDialog(
             "Clear \(section.rawValue.lowercased()) downloads?",
             isPresented: $confirmClear, titleVisibility: .visible
@@ -135,7 +149,9 @@ struct DownloadsView: View {
         guard selection != nil else { return nil }
         return Binding(get: { selection ?? [] }, set: { selection = $0 })
     }
-    private var selectedEntries: [DownloadEntry] { selectable.filter { selection?.contains($0.id) == true } }
+    private var selectedEntries: [DownloadEntry] {
+        selectable.filter { selection?.contains($0.id) == true }
+    }
 
     private func beginSelection() {
         selection = []
@@ -177,12 +193,14 @@ struct DownloadsView: View {
     }
 
     private var historyBinding: Binding<Bool> {
-        Binding(get: { history }, set: { value in
-            guard value != history else { return }
-            history = value
-            section = .all
-            expanded = []
-        })
+        Binding(
+            get: { history },
+            set: { value in
+                guard value != history else { return }
+                history = value
+                section = .all
+                expanded = []
+            })
     }
 
     private var toolsMenu: some View {
@@ -219,10 +237,16 @@ struct DownloadsView: View {
                 Toggle(isOn: $autoRetry) {
                     Label("Auto Retry", systemImage: "repeat")
                 }
-                Toggle(isOn: Binding(get: { notifications }, set: { value in
-                    notifications = value
-                    if value { Task { _ = await BackgroundWork.requestNotificationPermission() } }
-                })) {
+                Toggle(
+                    isOn: Binding(
+                        get: { notifications },
+                        set: { value in
+                            notifications = value
+                            if value {
+                                Task { _ = await BackgroundWork.requestNotificationPermission() }
+                            }
+                        })
+                ) {
                     Label("Download Notifications", systemImage: "bell")
                 }
                 .accessibilityIdentifier("downloads.notifications")

@@ -21,12 +21,15 @@ import XCTest
             waitForExpectations(timeout: 3)
         }
         mode.press(forDuration: 0.8)
-        let anime = app.buttons["mode.anime"].waitForExistence(timeout: 2)
+        let anime =
+            app.buttons["mode.anime"].waitForExistence(timeout: 2)
             ? app.buttons["mode.anime"] : app.buttons["Anime"].firstMatch
         XCTAssertTrue(anime.waitForExistence(timeout: 3))
         XCTAssertFalse(app.buttons["Manga"].exists)
         XCTAssertFalse(app.buttons["mode.manga"].exists)
-        let novels = app.buttons["mode.novels"].exists ? app.buttons["mode.novels"] : app.buttons["Novels"].firstMatch
+        let novels =
+            app.buttons["mode.novels"].exists
+            ? app.buttons["mode.novels"] : app.buttons["Novels"].firstMatch
         XCTAssertLessThan(anime.frame.midY, novels.frame.midY)
         keepScreenshot("Content menu with saved order")
         anime.tap()

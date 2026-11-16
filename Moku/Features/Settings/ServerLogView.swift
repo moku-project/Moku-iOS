@@ -10,7 +10,8 @@ struct ServerLogView: View {
 
     private var shown: [(offset: Int, element: String)] {
         let query = filter.trimmingCharacters(in: .whitespaces)
-        let matching = query.isEmpty ? lines : lines.filter { $0.localizedCaseInsensitiveContains(query) }
+        let matching =
+            query.isEmpty ? lines : lines.filter { $0.localizedCaseInsensitiveContains(query) }
         return Array(matching.suffix(2000).enumerated())
     }
 
@@ -37,7 +38,10 @@ struct ServerLogView: View {
                         ContentUnavailableView {
                             Text(filter.isEmpty ? "No server output yet" : "No matching lines")
                         } description: {
-                            Text(filter.isEmpty ? "Output appears here once the server starts working." : "Try a different filter.")
+                            Text(
+                                filter.isEmpty
+                                    ? "Output appears here once the server starts working."
+                                    : "Try a different filter.")
                         }
                     }
                 }
@@ -45,27 +49,39 @@ struct ServerLogView: View {
                     if let last = shown.last { proxy.scrollTo(last.offset, anchor: .bottom) }
                 }
             }
-            .searchable(text: $filter, placement: .navigationBarDrawer(displayMode: .always), prompt: "Filter")
+            .searchable(
+                text: $filter, placement: .navigationBarDrawer(displayMode: .always),
+                prompt: "Filter"
+            )
             .refreshable { await load() }
             .navigationTitle("Server log")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } }
                 ToolbarItemGroup(placement: .primaryAction) {
-                    ShareLink(item: ServerLog.shared.url) { Image(systemName: "square.and.arrow.up") }
-                        .accessibilityLabel("Share server log")
+                    ShareLink(item: ServerLog.shared.url) {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                    .accessibilityLabel("Share server log")
                     Menu {
                         Button("Copy all", systemImage: "doc.on.doc") {
-                            UIPasteboard.general.string = shown.map(\.element).joined(separator: "\n")
+                            UIPasteboard.general.string = shown.map(\.element).joined(
+                                separator: "\n")
                             Toaster.shared.show("Copied server log")
                         }
                         Button("Refresh", systemImage: "arrow.clockwise") { Task { await load() } }
-                        Button("Clear log", systemImage: "trash", role: .destructive) { confirmClear = true }
-                    } label: { Image(systemName: "ellipsis.circle") }
-                        .accessibilityLabel("Log actions")
+                        Button("Clear log", systemImage: "trash", role: .destructive) {
+                            confirmClear = true
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                    .accessibilityLabel("Log actions")
                 }
             }
-            .confirmationDialog("Clear the server log?", isPresented: $confirmClear, titleVisibility: .visible) {
+            .confirmationDialog(
+                "Clear the server log?", isPresented: $confirmClear, titleVisibility: .visible
+            ) {
                 Button("Clear log", role: .destructive) {
                     Task {
                         await ServerLog.shared.clear()
@@ -86,7 +102,9 @@ struct ServerLogView: View {
 
     private func tint(_ line: String) -> Color {
         let lower = line.lowercased()
-        if lower.contains("error") || lower.contains("panic") || lower.contains("fatal") { return .red.opacity(0.85) }
+        if lower.contains("error") || lower.contains("panic") || lower.contains("fatal") {
+            return .red.opacity(0.85)
+        }
         if lower.contains("warn") { return .orange }
         return .primary
     }

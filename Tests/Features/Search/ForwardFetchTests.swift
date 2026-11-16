@@ -6,8 +6,9 @@ import Testing
 /// Search results with no chapters at their source are hidden from typed searches.
 struct ForwardFetchTests {
     private static func entry(_ id: String) -> MediaEntry {
-        MediaEntry(id: id, title: id.capitalized, media: .manga, sourceName: "One", coverURL: nil,
-                   extensionID: "one", externalID: "/\(id)")
+        MediaEntry(
+            id: id, title: id.capitalized, media: .manga, sourceName: "One", coverURL: nil,
+            extensionID: "one", externalID: "/\(id)")
     }
 
     @Test func probeCachesAnswersAndKeepsUnknownTitles() async {
@@ -28,7 +29,8 @@ struct ForwardFetchTests {
         #expect(await probe.verdict(for: Self.entry("broken"), count: count) == .unknown)
         #expect(await probe.verdict(for: Self.entry("fixture"), count: count) == .unknown)
         // No source identity: nothing to check.
-        let bare = MediaEntry(id: "bare", title: "Bare", media: .manga, sourceName: "One", coverURL: nil)
+        let bare = MediaEntry(
+            id: "bare", title: "Bare", media: .manga, sourceName: "One", coverURL: nil)
         #expect(await probe.verdict(for: bare, count: count) == .unknown)
         #expect(await calls.ids.filter { $0 == "full" }.count == 1)
     }
@@ -43,28 +45,44 @@ struct ForwardFetchTests {
             return 1
         }
         await withTaskGroup(of: Void.self) { group in
-            for index in 0..<8 { group.addTask { _ = await probe.verdict(for: Self.entry("t\(index)"), count: count) } }
+            for index in 0..<8 {
+                group.addTask {
+                    _ = await probe.verdict(for: Self.entry("t\(index)"), count: count)
+                }
+            }
         }
         #expect(await gauge.peak == 2)
     }
 
     @MainActor @Test func typedSearchHidesTitlesWithoutChapters() async throws {
-        let model = SearchViewModel(repository: ChapterlessResults(), debounce: .milliseconds(10), probe: ContentProbe())
+        let model = SearchViewModel(
+            repository: ChapterlessResults(), debounce: .milliseconds(10), probe: ContentProbe())
         model.draft.hidesEmpty = true
         model.apply()
         model.query = "rent a girlfriend"
-        try await waitUntil { if case .results(let items) = model.state { items.count == 2 } else { false } }
-        guard case .results(let items) = model.state else { Issue.record("No results"); return }
+        try await waitUntil {
+            if case .results(let items) = model.state { items.count == 2 } else { false }
+        }
+        guard case .results(let items) = model.state else {
+            Issue.record("No results")
+            return
+        }
         #expect(items.map(\.id) == ["kept", "unknown"])
         #expect(model.hiddenEmpty == 1)
     }
 
     @MainActor @Test func hidingIsOffByDefault() async throws {
-        let model = SearchViewModel(repository: ChapterlessResults(), debounce: .milliseconds(10), probe: ContentProbe())
+        let model = SearchViewModel(
+            repository: ChapterlessResults(), debounce: .milliseconds(10), probe: ContentProbe())
         model.query = "rent a girlfriend"
-        try await waitUntil { if case .results(let items) = model.state { items.count == 3 } else { false } }
+        try await waitUntil {
+            if case .results(let items) = model.state { items.count == 3 } else { false }
+        }
         try await Task.sleep(for: .milliseconds(100))
-        guard case .results(let items) = model.state else { Issue.record("No results"); return }
+        guard case .results(let items) = model.state else {
+            Issue.record("No results")
+            return
+        }
         #expect(items.count == 3)
         #expect(model.hiddenEmpty == 0)
     }
@@ -81,8 +99,9 @@ private struct ChapterlessResults: SearchRepository {
     }
     func search(_ request: SearchRequest) async throws -> [MediaEntry] {
         ["kept", "empty", "unknown"].map {
-            MediaEntry(id: $0, title: $0, media: .manga, sourceName: "One", coverURL: nil,
-                       extensionID: "one", externalID: "/\($0)")
+            MediaEntry(
+                id: $0, title: $0, media: .manga, sourceName: "One", coverURL: nil,
+                extensionID: "one", externalID: "/\($0)")
         }
     }
     func chapterCount(_ entry: MediaEntry) async throws -> Int? {
@@ -102,6 +121,9 @@ private actor CallLog {
 private actor Gauge {
     private var now = 0
     private(set) var peak = 0
-    func enter() { now += 1; peak = max(peak, now) }
+    func enter() {
+        now += 1
+        peak = max(peak, now)
+    }
     func leave() { now -= 1 }
 }

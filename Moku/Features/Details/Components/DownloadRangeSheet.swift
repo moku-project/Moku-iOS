@@ -24,9 +24,11 @@ struct DownloadRangeSheet: View {
                     picker("To", selection: $to)
                 } footer: {
                     let count = queueable.count
-                    Text(count == 0
-                         ? "Everything in this range is already downloaded or queued."
-                         : "\(count) \(isAnime ? "episode" : "chapter")\(count == 1 ? "" : "s") will be queued. Downloaded and queued ones are skipped.")
+                    Text(
+                        count == 0
+                            ? "Everything in this range is already downloaded or queued."
+                            : "\(count) \(isAnime ? "episode" : "chapter")\(count == 1 ? "" : "s") will be queued. Downloaded and queued ones are skipped."
+                    )
                 }
             }
             .scrollContentBackground(.hidden)

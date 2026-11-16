@@ -56,7 +56,9 @@ struct LibraryItemView: View {
                     }
                 }
                 if Int64(item.id) != nil {
-                    Button("Tracking…", systemImage: "antenna.radiowaves.left.and.right") { trackingPresented = true }
+                    Button("Tracking…", systemImage: "antenna.radiowaves.left.and.right") {
+                        trackingPresented = true
+                    }
                 }
                 if let entry = library.entries.first(where: { $0.id == item.id }) {
                     Button("Refresh Chapters", systemImage: "arrow.clockwise") {
@@ -67,8 +69,11 @@ struct LibraryItemView: View {
                             Task { await LibraryActions.deleteDownloads([entry.id], model: model) }
                         }
                     }
-                    Button("Remove from Library", systemImage: "bookmark.slash", role: .destructive) {
-                        Task { await LibraryActions.remove([entry], library: library, model: model) }
+                    Button("Remove from Library", systemImage: "bookmark.slash", role: .destructive)
+                    {
+                        Task {
+                            await LibraryActions.remove([entry], library: library, model: model)
+                        }
                     }
                 }
                 Divider()
@@ -95,9 +100,12 @@ struct LibraryItemView: View {
             } catch { failed += 1 }
         }
         if failed > 0 {
-            Toaster.shared.show("Refresh failed", detail: "\(failed) of \(entries.count) couldn’t refresh.", kind: .error)
+            Toaster.shared.show(
+                "Refresh failed", detail: "\(failed) of \(entries.count) couldn’t refresh.",
+                kind: .error)
         } else {
-            Toaster.shared.show(entries.count == 1 ? "Refreshed" : "Refreshed \(entries.count) titles")
+            Toaster.shared.show(
+                entries.count == 1 ? "Refreshed" : "Refreshed \(entries.count) titles")
         }
     }
 
@@ -119,11 +127,14 @@ struct LibraryItemView: View {
                     requiresSourceRuntime: false)
             } catch { failed += 1 }
         }
-        Toaster.shared.show(failed == 0 ? "Downloads deleted" : "Some downloads couldn’t be deleted",
-                            kind: failed == 0 ? .success : .error)
+        Toaster.shared.show(
+            failed == 0 ? "Downloads deleted" : "Some downloads couldn’t be deleted",
+            kind: failed == 0 ? .success : .error)
     }
 
-    static func remove(_ entries: [MediaEntry], library: LibraryStore, model: LibraryViewModel) async {
+    static func remove(_ entries: [MediaEntry], library: LibraryStore, model: LibraryViewModel)
+        async
+    {
         var removed = 0
         for entry in entries where await library.setSaved(false, entry: entry) { removed += 1 }
         model.selected.subtract(entries.map(\.id))
@@ -134,7 +145,9 @@ struct LibraryItemView: View {
         }
     }
 
-    static func move(_ ids: Set<String>, to folderID: UUID?, library: LibraryStore, model: LibraryViewModel) async {
+    static func move(
+        _ ids: Set<String>, to folderID: UUID?, library: LibraryStore, model: LibraryViewModel
+    ) async {
         var next = library.organization
         for index in next.folders.indices {
             if next.folders[index].id == folderID {

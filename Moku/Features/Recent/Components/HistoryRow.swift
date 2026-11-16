@@ -15,13 +15,15 @@ struct HistoryRow: View {
             open(item.id, item.latest.endChapterID)
         } label: {
             HStack(spacing: 12) {
-                CoverImage(url: item.entry.coverURL, symbol: "BookOpen").frame(width: 46, height: 66)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                CoverImage(url: item.entry.coverURL, symbol: "BookOpen").frame(
+                    width: 46, height: 66
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 6))
                 VStack(alignment: .leading, spacing: 4) {
                     Text(item.entry.title).font(.body.weight(.medium)).lineLimit(2)
                         .foregroundStyle(.primary)
                     Text(HomeItem(entry: item.entry, session: item.latest).detail)
-                    .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                        .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 Text(RecentFormat.timeAgo(item.latest.endedAt))
@@ -33,7 +35,9 @@ struct HistoryRow: View {
         .accessibilityLabel("Resume \(item.entry.title)")
         .listRowBackground(Color.clear)
         .swipeActions(edge: .trailing) {
-            Button { clear(item) } label: {
+            Button {
+                clear(item)
+            } label: {
                 Label("Clear", systemImage: "trash")
             }.tint(.red)
         }
@@ -45,7 +49,9 @@ struct HistoryRow: View {
         .contextMenu {
             Button("Resume", systemImage: "play.fill") { open(item.id, item.latest.endChapterID) }
             Button("View Title", systemImage: "info.circle") { open(item.id, nil) }
-            Button(expanded ? "Hide Sessions" : "Show Sessions", systemImage: "list.bullet") { toggle() }
+            Button(expanded ? "Hide Sessions" : "Show Sessions", systemImage: "list.bullet") {
+                toggle()
+            }
             Button("Activity Statistics", systemImage: "chart.bar") { showStatistics() }
             Divider()
             Button("Clear Title History", systemImage: "trash", role: .destructive) { clear(item) }

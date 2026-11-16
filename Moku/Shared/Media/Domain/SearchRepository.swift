@@ -18,7 +18,9 @@ struct DiscoveryPage: Sendable {
 }
 
 extension SearchRepository {
-    func popular(options: SearchOptions) async throws -> DiscoveryPage { DiscoveryPage(entries: []) }
+    func popular(options: SearchOptions) async throws -> DiscoveryPage {
+        DiscoveryPage(entries: [])
+    }
     func chapterCount(_ entry: MediaEntry) async throws -> Int? { nil }
 
     func search(

@@ -10,7 +10,9 @@ import Testing
         func sessions(limit: Int) async throws -> [HistorySession] { [] }
         func statistics(timeZone: String) async throws -> HomeStatistics { HomeStatistics() }
         func record(_ session: ReadingSessionInput) async throws { recorded.append(session) }
-        func importHistory(source: String, sessions: [ReadingSessionInput], days: [ReadingDayInput]) async throws {
+        func importHistory(source: String, sessions: [ReadingSessionInput], days: [ReadingDayInput])
+            async throws
+        {
             imported = (sessions, days)
         }
         func clear(mediaID: String?) async throws {}
@@ -43,7 +45,8 @@ import Testing
         let recorder = ActivityRecorder()
         func sample(_ chapter: String, _ seconds: Double, page: Int = 3, active: Bool = true) {
             recorder.sample(
-                history: history, mediaID: "1", chapterID: chapter, position: page, active: active, valid: true,
+                history: history, mediaID: "1", chapterID: chapter, position: page, active: active,
+                valid: true,
                 now: Date(timeIntervalSince1970: seconds))
         }
         sample("10", 0)
@@ -66,7 +69,8 @@ import Testing
         let recorder = ActivityRecorder()
         func sample(_ media: String, _ seconds: Double, active: Bool = true) {
             recorder.sample(
-                history: history, mediaID: media, chapterID: "c", position: 1, active: active, valid: true,
+                history: history, mediaID: media, chapterID: "c", position: 1, active: active,
+                valid: true,
                 now: Date(timeIntervalSince1970: seconds))
         }
         sample("1", 0)
@@ -74,7 +78,9 @@ import Testing
         sample("1", 60 + ActivityRecorder.idleLimit + 1)
         sample("1", 60 + ActivityRecorder.idleLimit + 61)
         sample("2", 60 + ActivityRecorder.idleLimit + 121)
-        recorder.stop(history: history, now: Date(timeIntervalSince1970: 60 + ActivityRecorder.idleLimit + 181))
+        recorder.stop(
+            history: history,
+            now: Date(timeIntervalSince1970: 60 + ActivityRecorder.idleLimit + 181))
         try await Task.sleep(for: .milliseconds(100))
         let sessions = try await settle(capture, count: 3)
         #expect(sessions.map(\.mediaID) == ["1", "1", "2"])
@@ -104,7 +110,9 @@ import Testing
                 (UUID(), "local-file", "1", 1, day, 3, 1, nil, nil),
             ], calendar: calendar)
         #expect(sessions.count == 2)
-        #expect(sessions[0].mediaID == "12" && sessions[0].endChapterID == "40" && sessions[0].endPage == 9)
+        #expect(
+            sessions[0].mediaID == "12" && sessions[0].endChapterID == "40"
+                && sessions[0].endPage == 9)
         #expect(sessions[1].durationMs == 3_600_000)
         #expect(days.count == 1)
         #expect(days[0].seconds == 300 + 3600 + 180 && days[0].chapters == 2 + 1 + 1)

@@ -108,7 +108,9 @@ import Observation
         let saved = preferences.document.positions[details.id]
         let local = saved?.chapterID == id ? saved.map { min(max($0.page, 1), count) } : nil
         let fallback = details.chapters.first { $0.id == id }.flatMap { chapter -> Int? in
-            guard !chapter.completed, let progress = chapter.readingProgress?.progress else { return nil }
+            guard !chapter.completed, let progress = chapter.readingProgress?.progress else {
+                return nil
+            }
             return ReaderChapterState(
                 progress: .init(progress: progress, completed: false)
             ).page(count: count)
@@ -140,7 +142,9 @@ import Observation
             guard let paths = try? await repository.pages(chapterID: next) else { return }
             for path in paths.prefix(ahead) {
                 guard !Task.isCancelled, let self, self.prefetchedChapter == next else { return }
-                if let data = try? await repository.image(path: path) { self.prefetched[path] = data }
+                if let data = try? await repository.image(path: path) {
+                    self.prefetched[path] = data
+                }
             }
         }
     }
@@ -198,8 +202,12 @@ import Observation
             || completedChapters.contains(chapterID)
         if complete { completedChapters.insert(chapterID) }
         let value = Double(isStrip ? page : (visiblePages.max() ?? page)) / Double(pages.count)
-        if let committed = committedProgress[chapterID], committed.0 == value, committed.1 == complete,
-           committed.2 == page, pendingProgress[chapterID] == nil { return }
+        if let committed = committedProgress[chapterID], committed.0 == value,
+            committed.1 == complete,
+            committed.2 == page, pendingProgress[chapterID] == nil
+        {
+            return
+        }
         pendingProgress[chapterID] = (value, complete, page)
         startProgressWriter()
     }

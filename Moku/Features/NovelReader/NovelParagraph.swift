@@ -23,7 +23,9 @@ struct NovelParagraph: UIViewRepresentable {
         label.accessibilityLabel = String(text.characters)
     }
 
-    func sizeThatFits(_ proposal: ProposedViewSize, uiView label: UILabel, context: Context) -> CGSize? {
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView label: UILabel, context: Context)
+        -> CGSize?
+    {
         let width = proposal.width ?? 320
         label.preferredMaxLayoutWidth = width
         let fitted = label.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
@@ -42,25 +44,35 @@ struct NovelParagraph: UIViewRepresentable {
             var traits: UIFontDescriptor.SymbolicTraits = []
             if intent.contains(.stronglyEmphasized) { traits.insert(.traitBold) }
             if intent.contains(.emphasized) { traits.insert(.traitItalic) }
-            result.append(NSAttributedString(
-                string: String(text[run.range].characters),
-                attributes: [.font: Self.uiFont(font, size: size, traits: traits), .foregroundColor: ink, .paragraphStyle: style]))
+            result.append(
+                NSAttributedString(
+                    string: String(text[run.range].characters),
+                    attributes: [
+                        .font: Self.uiFont(font, size: size, traits: traits), .foregroundColor: ink,
+                        .paragraphStyle: style,
+                    ]))
         }
         return result
     }
 
-    static func uiFont(_ font: NovelFont, size: CGFloat, traits: UIFontDescriptor.SymbolicTraits = []) -> UIFont {
+    static func uiFont(
+        _ font: NovelFont, size: CGFloat, traits: UIFontDescriptor.SymbolicTraits = []
+    ) -> UIFont {
         let base: UIFont
         switch font {
         case .serif, .rounded, .mono, .sans:
             let system = UIFont.systemFont(ofSize: size)
             let design: UIFontDescriptor.SystemDesign =
-                font == .serif ? .serif : font == .rounded ? .rounded : font == .mono ? .monospaced : .default
-            base = system.fontDescriptor.withDesign(design).map { UIFont(descriptor: $0, size: size) } ?? system
+                font == .serif
+                ? .serif : font == .rounded ? .rounded : font == .mono ? .monospaced : .default
+            base =
+                system.fontDescriptor.withDesign(design).map { UIFont(descriptor: $0, size: size) }
+                ?? system
         case .georgia, .palatino, .avenir:
             base = UIFont(name: font.postScriptName, size: size) ?? .systemFont(ofSize: size)
         }
-        guard !traits.isEmpty, let descriptor = base.fontDescriptor.withSymbolicTraits(traits) else { return base }
+        guard !traits.isEmpty, let descriptor = base.fontDescriptor.withSymbolicTraits(traits)
+        else { return base }
         return UIFont(descriptor: descriptor, size: size)
     }
 }

@@ -11,7 +11,8 @@ struct ImportReview: View {
         Group {
             if model.working {
                 Section {
-                    LabeledContent(model.completed > 0 ? "Imported \(model.completed)" : "Working…") {
+                    LabeledContent(model.completed > 0 ? "Imported \(model.completed)" : "Working…")
+                    {
                         ProgressView()
                     }
                 }
@@ -26,14 +27,17 @@ struct ImportReview: View {
                             if actionable(item) {
                                 Button("Skip") { model.skip(item.id) }.tint(.gray)
                                 if model.sourceID != nil {
-                                    Button("Match") { chooseMatch(item) }.tint(NavigationStyle.accent)
+                                    Button("Match") { chooseMatch(item) }.tint(
+                                        NavigationStyle.accent)
                                 }
                             }
                         }
                         .contextMenu {
                             if actionable(item) {
                                 if model.sourceID != nil {
-                                    Button("Choose Match", systemImage: "magnifyingglass") { chooseMatch(item) }
+                                    Button("Choose Match", systemImage: "magnifyingglass") {
+                                        chooseMatch(item)
+                                    }
                                 }
                                 Button("Skip", systemImage: "forward") { model.skip(item.id) }
                             }
@@ -50,7 +54,9 @@ struct ImportReview: View {
                 Button("Start a New Import", role: .destructive) { discard() }
                     .disabled(model.working)
             } footer: {
-                Text("A dry run counts what would be imported without changing your library. Swipe a title to skip it or choose its match.")
+                Text(
+                    "A dry run counts what would be imported without changing your library. Swipe a title to skip it or choose its match."
+                )
             }
         }
     }
@@ -69,7 +75,8 @@ struct ImportReview: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.remote.title).font(.body).lineLimit(2)
                 Text(status(item)).font(.subheadline)
-                    .foregroundStyle(item.state == .failed || item.state == .unmatched ? .orange : .secondary)
+                    .foregroundStyle(
+                        item.state == .failed || item.state == .unmatched ? .orange : .secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             if let symbol = symbol(item) {

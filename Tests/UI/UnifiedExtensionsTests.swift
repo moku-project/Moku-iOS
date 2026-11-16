@@ -38,8 +38,10 @@ import XCTest
         added.swipeLeft()
         app.buttons["Uninstall"].firstMatch.tap()
         // Confirm in the dialog.
-        let confirm = app.sheets.buttons["Uninstall"].exists
-            ? app.sheets.buttons["Uninstall"] : app.buttons.matching(identifier: "Uninstall").element(boundBy: 0)
+        let confirm =
+            app.sheets.buttons["Uninstall"].exists
+            ? app.sheets.buttons["Uninstall"]
+            : app.buttons.matching(identifier: "Uninstall").element(boundBy: 0)
         XCTAssertTrue(confirm.waitForExistence(timeout: 3))
         confirm.tap()
         XCTAssertTrue(added.waitForNonExistence(timeout: 5))

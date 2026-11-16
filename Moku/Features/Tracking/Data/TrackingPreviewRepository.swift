@@ -29,7 +29,8 @@
         {
             // Never numeric: the library would treat it as a server title and call the real backend.
             MediaEntry(
-                id: "preview-\(key)-\(item.id)", title: item.remote.title, media: media, sourceName: "AniList",
+                id: "preview-\(key)-\(item.id)", title: item.remote.title, media: media,
+                sourceName: "AniList",
                 coverURL: nil,
                 externalID: "\(key):\(item.id)")
         }

@@ -29,11 +29,13 @@ actor CoverImagePipeline {
         if let existing = pending[key] {
             flight = existing
         } else {
-            flight = Flight(id: UUID(), task: Task {
-                let data = try await BackendAPI.shared.coverData(for: key)
-                try Task.checkCancellation()
-                return try Self.thumbnail(data)
-            })
+            flight = Flight(
+                id: UUID(),
+                task: Task {
+                    let data = try await BackendAPI.shared.coverData(for: key)
+                    try Task.checkCancellation()
+                    return try Self.thumbnail(data)
+                })
         }
         flight.consumers.insert(consumer)
         pending[key] = flight
@@ -47,7 +49,8 @@ actor CoverImagePipeline {
             }
             if pending[key]?.id == id {
                 if let cg = image.cgImage {
-                    Self.images.cache.setObject(image, forKey: key as NSURL, cost: cg.bytesPerRow * cg.height)
+                    Self.images.cache.setObject(
+                        image, forKey: key as NSURL, cost: cg.bytesPerRow * cg.height)
                 }
                 pending[key] = nil
             }

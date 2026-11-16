@@ -6,9 +6,15 @@ import Observation
 final class LibraryViewModel {
     var items: [LibraryItem] = [] { didSet { if items != oldValue { invalidateResults() } } }
     var showAllInSaved = true { didSet { if showAllInSaved != oldValue { invalidateResults() } } }
-    var hideCompletedInSaved = false { didSet { if hideCompletedInSaved != oldValue { invalidateResults() } } }
-    var disableAutoComplete = false { didSet { if disableAutoComplete != oldValue { invalidateResults() } } }
-    var folderEntryIDs: Set<String> = [] { didSet { if folderEntryIDs != oldValue { invalidateResults() } } }
+    var hideCompletedInSaved = false {
+        didSet { if hideCompletedInSaved != oldValue { invalidateResults() } }
+    }
+    var disableAutoComplete = false {
+        didSet { if disableAutoComplete != oldValue { invalidateResults() } }
+    }
+    var folderEntryIDs: Set<String> = [] {
+        didSet { if folderEntryIDs != oldValue { invalidateResults() } }
+    }
     var tab: LibraryTab = .saved { didSet { if tab != oldValue { invalidateResults() } } }
     var folder: LibraryFolder? { didSet { if folder != oldValue { invalidateResults() } } }
     var query = "" { didSet { if query != oldValue { invalidateResults() } } }
@@ -18,7 +24,9 @@ final class LibraryViewModel {
     var startedOnly = false { didSet { if startedOnly != oldValue { invalidateResults() } } }
     var downloadedOnly = false { didSet { if downloadedOnly != oldValue { invalidateResults() } } }
     var bookmarkedOnly = false { didSet { if bookmarkedOnly != oldValue { invalidateResults() } } }
-    var chapterBookmarkedOnly = false { didSet { if chapterBookmarkedOnly != oldValue { invalidateResults() } } }
+    var chapterBookmarkedOnly = false {
+        didSet { if chapterBookmarkedOnly != oldValue { invalidateResults() } }
+    }
     var trackedOnly = false { didSet { if trackedOnly != oldValue { invalidateResults() } } }
     var status: LibraryStatus? { didSet { if status != oldValue { invalidateResults() } } }
     var selecting = false
@@ -34,7 +42,8 @@ final class LibraryViewModel {
     }
 
     var hasFilters: Bool {
-        unreadOnly || startedOnly || downloadedOnly || bookmarkedOnly || chapterBookmarkedOnly || trackedOnly
+        unreadOnly || startedOnly || downloadedOnly || bookmarkedOnly || chapterBookmarkedOnly
+            || trackedOnly
             || status != nil
     }
 
@@ -73,13 +82,14 @@ final class LibraryViewModel {
     }
 
     private func selection(mode: ContentMode) -> LibrarySelection {
-        LibrarySelection(items: items, mode: mode, tab: tab, folder: folder,
-                         query: query, sort: sort, ascending: ascending,
-                         showAllInSaved: showAllInSaved, hideCompletedInSaved: hideCompletedInSaved,
-                         disableAutoComplete: disableAutoComplete, folderEntryIDs: folderEntryIDs,
-                         unreadOnly: unreadOnly, startedOnly: startedOnly, downloadedOnly: downloadedOnly,
-                         bookmarkedOnly: bookmarkedOnly, chapterBookmarkedOnly: chapterBookmarkedOnly,
-                         trackedOnly: trackedOnly, status: status)
+        LibrarySelection(
+            items: items, mode: mode, tab: tab, folder: folder,
+            query: query, sort: sort, ascending: ascending,
+            showAllInSaved: showAllInSaved, hideCompletedInSaved: hideCompletedInSaved,
+            disableAutoComplete: disableAutoComplete, folderEntryIDs: folderEntryIDs,
+            unreadOnly: unreadOnly, startedOnly: startedOnly, downloadedOnly: downloadedOnly,
+            bookmarkedOnly: bookmarkedOnly, chapterBookmarkedOnly: chapterBookmarkedOnly,
+            trackedOnly: trackedOnly, status: status)
     }
 
     func prepareVisible(mode: ContentMode) async -> [LibraryItem] {
@@ -90,7 +100,9 @@ final class LibraryViewModel {
         let worker = Task.detached(priority: .userInitiated) { input.evaluate() }
         let result = await withTaskCancellationHandler {
             await worker.value
-        } onCancel: { worker.cancel() }
+        } onCancel: {
+            worker.cancel()
+        }
         guard !Task.isCancelled, revision == resultsRevision else { return [] }
         visibleCache[mode] = result
         return result

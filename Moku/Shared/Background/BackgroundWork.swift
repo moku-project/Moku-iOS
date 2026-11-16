@@ -11,7 +11,9 @@ import UserNotifications
     /// Must run before launch finishes.
     static func register() {
         BGTaskScheduler.shared.register(forTaskWithIdentifier: maintenanceID, using: nil) { task in
-            guard let task = task as? BGProcessingTask else { return task.setTaskCompleted(success: false) }
+            guard let task = task as? BGProcessingTask else {
+                return task.setTaskCompleted(success: false)
+            }
             MainActor.assumeIsolated { run(task) }
         }
     }
@@ -74,8 +76,11 @@ import UserNotifications
                     if status.newChapterCount > 0 { await notify(count: status.newChapterCount) }
                 }
                 if try await pendingDownloads() > 0 {
-                    let _: IgnoredGraphQLResult = try await BackendAPI.shared.graphql("mutation { startDownloader }")
-                    while try await pendingDownloads() > 0 { try await Task.sleep(for: .seconds(5)) }
+                    let _: IgnoredGraphQLResult = try await BackendAPI.shared.graphql(
+                        "mutation { startDownloader }")
+                    while try await pendingDownloads() > 0 {
+                        try await Task.sleep(for: .seconds(5))
+                    }
                 }
                 task.setTaskCompleted(success: true)
             } catch {
@@ -87,21 +92,29 @@ import UserNotifications
 
     private static func pendingDownloads() async throws -> Int {
         struct Response: Decodable, Sendable {
-            struct Item: Decodable, Sendable { let mediaId: String; let chapterId: String; let status: String }
+            struct Item: Decodable, Sendable {
+                let mediaId: String
+                let chapterId: String
+                let status: String
+            }
             let downloadQueue: [Item]
         }
         let response: Response = try await BackendAPI.shared.graphql(
-            "{ downloadQueue { mediaId chapterId status } }", refresh: true, requiresSourceRuntime: false)
-        DownloadAlerts.shared.observe(response.downloadQueue.map { item in
-            let status: DownloadStatus = switch item.status {
-            case "DOWNLOADING": .downloading
-            case "FAILED": .failed
-            case "DONE": .completed
-            default: .queued
-            }
-            return .init(titleID: item.mediaId, chapterID: item.chapterId, status: status)
-        })
-        return response.downloadQueue.filter { $0.status == "QUEUED" || $0.status == "DOWNLOADING" }.count
+            "{ downloadQueue { mediaId chapterId status } }", refresh: true,
+            requiresSourceRuntime: false)
+        DownloadAlerts.shared.observe(
+            response.downloadQueue.map { item in
+                let status: DownloadStatus =
+                    switch item.status {
+                    case "DOWNLOADING": .downloading
+                    case "FAILED": .failed
+                    case "DONE": .completed
+                    default: .queued
+                    }
+                return .init(titleID: item.mediaId, chapterID: item.chapterId, status: status)
+            })
+        return response.downloadQueue.filter { $0.status == "QUEUED" || $0.status == "DOWNLOADING" }
+            .count
     }
 
     private static func notify(count: Int) async {
@@ -109,13 +122,17 @@ import UserNotifications
         guard await center.notificationSettings().authorizationStatus == .authorized else { return }
         let content = UNMutableNotificationContent()
         content.title = "New chapters"
-        content.body = "\(count) new chapter\(count == 1 ? "" : "s") or episode\(count == 1 ? "" : "s") in your library. Open History → Updates."
+        content.body =
+            "\(count) new chapter\(count == 1 ? "" : "s") or episode\(count == 1 ? "" : "s") in your library. Open History → Updates."
         content.sound = .default
-        try? await center.add(UNNotificationRequest(identifier: "library-updates", content: content, trigger: nil))
+        try? await center.add(
+            UNNotificationRequest(identifier: "library-updates", content: content, trigger: nil))
     }
 
     /// Asked when the user turns background updates or download notifications on.
     static func requestNotificationPermission() async -> Bool {
-        (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])) ?? false
+        (try? await UNUserNotificationCenter.current().requestAuthorization(options: [
+            .alert, .sound, .badge,
+        ])) ?? false
     }
 }

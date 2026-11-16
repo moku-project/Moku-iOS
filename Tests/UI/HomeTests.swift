@@ -16,7 +16,9 @@ final class HomeTests: XCTestCase {
         XCTAssertFalse(app.descendants(matching: .any)["home.recent"].exists)
         capture("Home — empty")
         app.buttons["Find Something"].tap()
-        expectation(for: NSPredicate(format: "isSelected == true"), evaluatedWith: app.buttons["tab.browse"])
+        expectation(
+            for: NSPredicate(format: "isSelected == true"), evaluatedWith: app.buttons["tab.browse"]
+        )
         waitForExpectations(timeout: 3)
     }
 

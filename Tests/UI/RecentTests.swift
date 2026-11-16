@@ -32,8 +32,9 @@ import XCTest
         XCTAssertTrue(search.waitForExistence(timeout: 3))
         search.tap()
         search.typeText("No matching fixture")
-        XCTAssertTrue(app.staticTexts["No Results for “No matching fixture”"].waitForExistence(timeout: 3)
-            || app.staticTexts["No Results"].waitForExistence(timeout: 1))
+        XCTAssertTrue(
+            app.staticTexts["No Results for “No matching fixture”"].waitForExistence(timeout: 3)
+                || app.staticTexts["No Results"].waitForExistence(timeout: 1))
         XCTAssertFalse(row.exists)
         // Clearing the query brings the history back.
         search.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 24))
@@ -72,8 +73,12 @@ import XCTest
         XCTAssertTrue(confirm.waitForExistence(timeout: 3))
         // Dismiss without clearing.
         // From a toolbar menu the dialog is a popover with no Cancel button: tap outside it.
-        if app.buttons["Cancel"].exists { app.buttons["Cancel"].tap() } else {
-            app.otherElements["PopoverDismissRegion"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9)).tap()
+        if app.buttons["Cancel"].exists {
+            app.buttons["Cancel"].tap()
+        } else {
+            app.otherElements["PopoverDismissRegion"].coordinate(
+                withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9)
+            ).tap()
         }
         XCTAssertTrue(confirm.waitForNonExistence(timeout: 3))
         XCTAssertTrue(row.exists)
@@ -102,10 +107,13 @@ import XCTest
         XCTAssertTrue(anilist.waitForExistence(timeout: 5))
         XCTAssertTrue(anilist.label.contains("Connected"), anilist.label)
         // Trackers the server can't sign in to are hidden rather than shown as "Coming soon".
-        XCTAssertFalse(app.buttons.containing(NSPredicate(format: "label CONTAINS 'Coming soon'")).firstMatch.exists)
+        XCTAssertFalse(
+            app.buttons.containing(NSPredicate(format: "label CONTAINS 'Coming soon'")).firstMatch
+                .exists)
         keepScreenshot("Tracking services")
         app.buttons["tracking.fab"].tap()
-        let importAction = app.buttons["tracking.action.Import list"].waitForExistence(timeout: 2)
+        let importAction =
+            app.buttons["tracking.action.Import list"].waitForExistence(timeout: 2)
             ? app.buttons["tracking.action.Import list"] : app.buttons["Import List…"].firstMatch
         XCTAssertTrue(importAction.waitForExistence(timeout: 3))
         keepScreenshot("Tracking actions menu")
@@ -125,8 +133,11 @@ import XCTest
         XCTAssertTrue(app.buttons["Save & Close"].waitForNonExistence(timeout: 5))
         // Disconnecting asks first; dismissing the dialog keeps the account.
         openDisconnect(app, anilist)
-        XCTAssertTrue(app.buttons.matching(identifier: "Disconnect").firstMatch.waitForExistence(timeout: 3))
-        if app.buttons["Cancel"].exists { app.buttons["Cancel"].tap() } else {
+        XCTAssertTrue(
+            app.buttons.matching(identifier: "Disconnect").firstMatch.waitForExistence(timeout: 3))
+        if app.buttons["Cancel"].exists {
+            app.buttons["Cancel"].tap()
+        } else {
             app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.12)).tap()
         }
         XCTAssertTrue(anilist.waitForExistence(timeout: 3))
@@ -135,7 +146,8 @@ import XCTest
         let confirm = app.buttons["Disconnect"].firstMatch
         XCTAssertTrue(confirm.waitForExistence(timeout: 3))
         confirm.tap()
-        expectation(for: NSPredicate(format: "label CONTAINS 'Not connected'"), evaluatedWith: anilist)
+        expectation(
+            for: NSPredicate(format: "label CONTAINS 'Not connected'"), evaluatedWith: anilist)
         waitForExpectations(timeout: 5)
         // A disconnected service can still connect with a pasted token.
         let useToken = app.buttons["Use a Token"].firstMatch
@@ -144,8 +156,9 @@ import XCTest
             _ = useToken.waitForExistence(timeout: 2)
         }
         useToken.tap()
-        XCTAssertTrue(app.secureTextFields["tracking.token"].waitForExistence(timeout: 3)
-            || app.textFields["tracking.token"].waitForExistence(timeout: 1))
+        XCTAssertTrue(
+            app.secureTextFields["tracking.token"].waitForExistence(timeout: 3)
+                || app.textFields["tracking.token"].waitForExistence(timeout: 1))
         app.buttons["Cancel"].firstMatch.tap()
     }
 

@@ -27,10 +27,14 @@ struct HomeSection<Content: View>: View {
 }
 
 extension View {
-    func homeCard(padding: EdgeInsets = EdgeInsets(top: 14, leading: 16, bottom: 14, trailing: 16)) -> some View {
+    func homeCard(padding: EdgeInsets = EdgeInsets(top: 14, leading: 16, bottom: 14, trailing: 16))
+        -> some View
+    {
         self.padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(NavigationStyle.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .background(
+                NavigationStyle.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+            )
             .overlay {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .strokeBorder(AppTheme.shared.colors.border, lineWidth: 1)

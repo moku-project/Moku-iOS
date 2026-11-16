@@ -15,7 +15,9 @@ struct ContentTypesSettingsView: View {
                 ForEach(movable) { row($0) }
                     .onMove(perform: move)
             } footer: {
-                Text("Drag to reorder the types the content button cycles through. All is always shown.")
+                Text(
+                    "Drag to reorder the types the content button cycles through. All is always shown."
+                )
             }
             Section {
                 Button("Reset to Default", role: .destructive) { savedModes = "" }
@@ -32,10 +34,12 @@ struct ContentTypesSettingsView: View {
     }
 
     private func row(_ item: ContentMode) -> some View {
-        Toggle(isOn: Binding(
-            get: { !configuration.hidden.contains(item) },
-            set: { _ in update { $0.toggle(item) } }
-        )) {
+        Toggle(
+            isOn: Binding(
+                get: { !configuration.hidden.contains(item) },
+                set: { _ in update { $0.toggle(item) } }
+            )
+        ) {
             Label(item.title, systemImage: item.systemImage)
         }
         .disabled(item == .all)

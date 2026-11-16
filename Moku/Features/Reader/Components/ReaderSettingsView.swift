@@ -44,7 +44,9 @@ struct ReaderSettingsView: View {
             }
             if !isStrip {
                 Section("Direction") {
-                    ForEach(Self.directions, id: \.0) { checkRow($0, binding: setting(\.readingDirection)) }
+                    ForEach(Self.directions, id: \.0) {
+                        checkRow($0, binding: setting(\.readingDirection))
+                    }
                 }
             }
             layout
@@ -65,7 +67,8 @@ struct ReaderSettingsView: View {
                             get: { preferences.document.overrides[mediaID] != nil },
                             set: { _ in preferences.toggleOverride(mediaID) }))
                 } footer: {
-                    Text("Keep this series’ mode, direction, fit and zoom apart from your defaults.")
+                    Text(
+                        "Keep this series’ mode, direction, fit and zoom apart from your defaults.")
                 }
             }
             presets
@@ -76,7 +79,9 @@ struct ReaderSettingsView: View {
             Button("Cancel", role: .cancel) {}
             Button("Save") {
                 let name = presetName.trimmingCharacters(in: .whitespacesAndNewlines)
-                if let id = editingPreset, let index = preferences.document.presets.firstIndex(where: { $0.id == id }) {
+                if let id = editingPreset,
+                    let index = preferences.document.presets.firstIndex(where: { $0.id == id })
+                {
                     preferences.document.presets[index].name = name
                 } else {
                     preferences.savePreset(name, mediaID: mediaID)
@@ -122,7 +127,8 @@ struct ReaderSettingsView: View {
                     Label("Zoom", systemImage: "plus.magnifyingglass")
                 }
             }
-            .accessibilityValue(Text(settings.readerZoom, format: .percent.precision(.fractionLength(0))))
+            .accessibilityValue(
+                Text(settings.readerZoom, format: .percent.precision(.fractionLength(0))))
         }
     }
 
@@ -134,7 +140,9 @@ struct ReaderSettingsView: View {
                 }
                 if preferences.document.behaviour.autoScroll {
                     Stepper(value: behaviour(\.autoScrollSpeed), in: 1...30, step: 1) {
-                        LabeledContent("Scroll Speed", value: "\(Int(preferences.document.behaviour.autoScrollSpeed))")
+                        LabeledContent(
+                            "Scroll Speed",
+                            value: "\(Int(preferences.document.behaviour.autoScrollSpeed))")
                     }
                 }
                 Toggle("Double-Tap to Show Controls", isOn: behaviour(\.tapToToggleBar))
@@ -149,7 +157,8 @@ struct ReaderSettingsView: View {
             Toggle("Continue to Next Chapter", isOn: behaviour(\.autoNextChapter))
             Toggle("Remember Last Page", isOn: behaviour(\.autoBookmark))
             Stepper(value: behaviour(\.preloadPages), in: 0...10) {
-                LabeledContent("Preload Pages", value: "\(preferences.document.behaviour.preloadPages)")
+                LabeledContent(
+                    "Preload Pages", value: "\(preferences.document.behaviour.preloadPages)")
             }
         }
     }
@@ -194,7 +203,8 @@ struct ReaderSettingsView: View {
         }
     }
 
-    private func checkRow(_ option: (String, String, String), binding: Binding<String>) -> some View {
+    private func checkRow(_ option: (String, String, String), binding: Binding<String>) -> some View
+    {
         let selected = binding.wrappedValue == option.0
         return Button {
             binding.wrappedValue = option.0

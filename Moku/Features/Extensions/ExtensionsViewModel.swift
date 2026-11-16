@@ -46,7 +46,9 @@ final class ExtensionsViewModel {
         error = nil
         await withTaskGroup(of: SectionResult.self) { group in
             if refreshSections || !installedLoaded {
-                group.addTask { .repositories(await Self.result { try await repository.repositories() }) }
+                group.addTask {
+                    .repositories(await Self.result { try await repository.repositories() })
+                }
                 group.addTask { .installed(await Self.result { try await repository.installed() }) }
             }
             group.addTask {
@@ -124,12 +126,16 @@ final class ExtensionsViewModel {
     }
 
     func perform(
-        on package: String? = nil, _ action: @Sendable (any ExtensionRepository) async throws -> Void
+        on package: String? = nil,
+        _ action: @Sendable (any ExtensionRepository) async throws -> Void
     ) async -> Bool {
         guard !isWorking else { return false }
         isWorking = true
         busyPackage = package
-        defer { isWorking = false; busyPackage = nil }
+        defer {
+            isWorking = false
+            busyPackage = nil
+        }
         do {
             try await action(repository)
             await load()

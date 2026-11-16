@@ -18,7 +18,8 @@ struct SourceBrowseView: View {
     @State private var feed: Feed = .popular
 
     private enum Feed: String, CaseIterable, Identifiable {
-        case popular = "Popular", latest = "Latest"
+        case popular = "Popular"
+        case latest = "Latest"
         var id: Self { self }
     }
 
@@ -44,7 +45,10 @@ struct SourceBrowseView: View {
                     } actions: {
                         if BrowserVerification.isChallenge(error) {
                             Button("Verify in Browser") {
-                                verify(extensionID: source.packageName, url: nil, sourceName: source.displayName) {
+                                verify(
+                                    extensionID: source.packageName, url: nil,
+                                    sourceName: source.displayName
+                                ) {
                                     Task { await load(reset: true) }
                                 }
                             }
@@ -64,7 +68,9 @@ struct SourceBrowseView: View {
                 } else {
                     PosterGrid(entries: items, identifier: "source.item", open: openEntry)
                     if hasNext {
-                        Button { Task { await load(reset: false) } } label: {
+                        Button {
+                            Task { await load(reset: false) }
+                        } label: {
                             Group {
                                 if loading { ProgressView() } else { Text("Load More") }
                             }
@@ -83,7 +89,8 @@ struct SourceBrowseView: View {
         .navigationBarTitleDisplayMode(.inline)
         .searchable(
             text: $query, placement: .navigationBarDrawer(displayMode: .always),
-            prompt: "Search \(source.displayName)")
+            prompt: "Search \(source.displayName)"
+        )
         .onSubmit(of: .search) { Task { await load(reset: true) } }
         .onChange(of: query) { _, value in
             // Clearing the field returns to the source's popular titles.
@@ -126,8 +133,10 @@ struct SourceBrowseView: View {
         defer { if generation == current { loading = false } }
         let id = BackendAPI.literal(source.packageName)
         let fields = "results { id externalId title contentType thumbnailUrl } hasNextPage"
-        let listing = feed == .latest && source.supportsLatest == true ? "latestUpdates" : "popularManga"
-        let request = submitted.isEmpty
+        let listing =
+            feed == .latest && source.supportsLatest == true ? "latestUpdates" : "popularManga"
+        let request =
+            submitted.isEmpty
             ? "{ \(listing)(extensionId: \(id), page: \(page)) { \(fields) } }"
             : "{ search(extensionId: \(id), query: \(BackendAPI.literal(submitted)), page: \(page)) { \(fields) } }"
         do {
@@ -135,9 +144,10 @@ struct SourceBrowseView: View {
             guard generation == current else { return }
             let result = response.popularManga ?? response.latestUpdates ?? response.search
             let fresh = (result?.results ?? []).map {
-                MediaEntry(id: $0.id, title: $0.title, media: source.media, sourceName: source.displayName,
-                           coverURL: BackendAPI.coverURL($0.thumbnailUrl),
-                           extensionID: source.packageName, externalID: $0.externalId)
+                MediaEntry(
+                    id: $0.id, title: $0.title, media: source.media, sourceName: source.displayName,
+                    coverURL: BackendAPI.coverURL($0.thumbnailUrl),
+                    extensionID: source.packageName, externalID: $0.externalId)
             }
             let known = reset ? [] : Set(items.map(\.id))
             items = (reset ? [] : items) + fresh.filter { !known.contains($0.id) }
@@ -146,9 +156,12 @@ struct SourceBrowseView: View {
         } catch {
             guard generation == current else { return }
             if !reset { page -= 1 }
-            self.error = (error as? EmbeddedSearchError)?.errorDescription
+            self.error =
+                (error as? EmbeddedSearchError)?.errorDescription
                 ?? "The source couldn’t be reached. It may be down or limiting requests."
-            if !items.isEmpty { Toaster.shared.show("Couldn’t load more", detail: self.error, kind: .error) }
+            if !items.isEmpty {
+                Toaster.shared.show("Couldn’t load more", detail: self.error, kind: .error)
+            }
         }
     }
 }
