@@ -15,18 +15,30 @@ import Testing
             """
         let document = NovelDocument.parse(html, isHTML: true)
         #expect(document.blocks.count == 5)
-        guard case .heading(let heading) = document.blocks[0] else { Issue.record("no heading"); return }
+        guard case .heading(let heading) = document.blocks[0] else {
+            Issue.record("no heading")
+            return
+        }
         #expect(String(heading.characters) == "Chapter 1")
-        guard case .paragraph(let first) = document.blocks[1] else { Issue.record("no paragraph"); return }
+        guard case .paragraph(let first) = document.blocks[1] else {
+            Issue.record("no paragraph")
+            return
+        }
         #expect(String(first.characters) == "It was a quiet night & the moon rose.")
         #expect(first.runs.contains { $0.inlinePresentationIntent == .emphasized })
         #expect(document.blocks[2] == .rule)
-        guard case .paragraph(let second) = document.blocks[3] else { Issue.record("no second"); return }
+        guard case .paragraph(let second) = document.blocks[3] else {
+            Issue.record("no second")
+            return
+        }
         #expect(String(second.characters) == "Second\u{00A0}line…")
-        #expect(!document.blocks.contains { block in
-            if case .paragraph(let text) = block { return String(text.characters).contains("alert") }
-            return false
-        })
+        #expect(
+            !document.blocks.contains { block in
+                if case .paragraph(let text) = block {
+                    return String(text.characters).contains("alert")
+                }
+                return false
+            })
     }
 
     @Test func plainNovelTextSplitsParagraphs() {
@@ -37,11 +49,15 @@ import Testing
 
     @Test func genreFiltersMapOntoSourceFilterTrees() {
         let tree = [
-            FilterBuilder.Node(typename: "GroupFilter", name: "Genres", values: nil, children: [
-                .init(typename: "TriStateFilter", name: "Comedy", values: nil, children: nil),
-                .init(typename: "TriStateFilter", name: "Drama", values: nil, children: nil),
-            ]),
-            .init(typename: "SelectFilter", name: "Status", values: ["Any", "Ongoing", "Completed"], children: nil),
+            FilterBuilder.Node(
+                typename: "GroupFilter", name: "Genres", values: nil,
+                children: [
+                    .init(typename: "TriStateFilter", name: "Comedy", values: nil, children: nil),
+                    .init(typename: "TriStateFilter", name: "Drama", values: nil, children: nil),
+                ]),
+            .init(
+                typename: "SelectFilter", name: "Status", values: ["Any", "Ongoing", "Completed"],
+                children: nil),
         ]
         let built = FilterBuilder.inputs(tree, genres: ["comedy"], statuses: ["Completed"])
         #expect(built.matchedAll)
@@ -58,6 +74,11 @@ import Testing
         #expect(MokuSync.address("http://10.0.0.2:6008/x?y=1") == "http://10.0.0.2:6008")
         #expect(MokuSync.address("") == nil)
         #expect(MokuSync.address("ftp://host") == nil)
+        #expect(
+            MokuSync.displayAddresses([
+                "http://127.0.0.1:6008", "http://[fe80::1]:6008", "http://[fd00::5]:6008",
+                "http://192.168.1.20:6008", "http://10.0.0.2:7000", "http://192.168.1.20:6008",
+            ]) == ["192.168.1.20", "10.0.0.2:7000", "[fd00::5]"])
     }
 
     @Test func skipMarkersUseDesktopLabels() {
@@ -84,26 +105,42 @@ import Testing
 
     @Test func chapterSortModesAndReadingOrder() async {
         let chapters = [
-            Chapter(id: "a", title: nil, number: 2, scanlator: nil, completed: false, downloaded: false, uploadedAt: "2024-01-03T00:00:00Z", sourceOrder: 0),
-            Chapter(id: "b", title: nil, number: 1, scanlator: nil, completed: true, downloaded: false, uploadedAt: "2024-01-01T00:00:00Z", sourceOrder: 1),
-            Chapter(id: "c", title: nil, number: 3, scanlator: nil, completed: false, downloaded: false, uploadedAt: "2024-01-02T00:00:00Z", sourceOrder: 2),
+            Chapter(
+                id: "a", title: nil, number: 2, scanlator: nil, completed: false, downloaded: false,
+                uploadedAt: "2024-01-03T00:00:00Z", sourceOrder: 0),
+            Chapter(
+                id: "b", title: nil, number: 1, scanlator: nil, completed: true, downloaded: false,
+                uploadedAt: "2024-01-01T00:00:00Z", sourceOrder: 1),
+            Chapter(
+                id: "c", title: nil, number: 3, scanlator: nil, completed: false, downloaded: false,
+                uploadedAt: "2024-01-02T00:00:00Z", sourceOrder: 2),
         ]
-        let byUpload = await ChapterPresentation.filtered(chapters, preferences: Data(), mediaID: "m", query: "", ascending: false, sort: .uploaded)
+        let byUpload = await ChapterPresentation.filtered(
+            chapters, preferences: Data(), mediaID: "m", query: "", ascending: false,
+            sort: .uploaded)
         #expect(byUpload.map(\.id) == ["a", "c", "b"])
-        let byNumber = await ChapterPresentation.filtered(chapters, preferences: Data(), mediaID: "m", query: "", ascending: true, sort: .number)
+        let byNumber = await ChapterPresentation.filtered(
+            chapters, preferences: Data(), mediaID: "m", query: "", ascending: true, sort: .number)
         #expect(byNumber.map(\.id) == ["b", "a", "c"])
-        #expect(ChapterPresentation.readingOrder(chapters, preferences: Data(), mediaID: "m").map(\.id) == ["b", "a", "c"])
+        #expect(
+            ChapterPresentation.readingOrder(chapters, preferences: Data(), mediaID: "m").map(\.id)
+                == ["b", "a", "c"])
     }
 }
 
 @MainActor struct ThemeInteropTests {
     @Test func themesRoundTripThroughDesktopJSON() throws {
-        let theme = NativeTheme(name: "Dusk", background: "#101820", surface: "#18222c", accent: "#88aacc", text: "#f0f0f0")
+        let theme = NativeTheme(
+            name: "Dusk", background: "#101820", surface: "#18222c", accent: "#88aacc",
+            text: "#f0f0f0")
         let imported = try #require(NativeTheme(desktopJSON: theme.desktopJSON))
         #expect(imported.name == "Dusk")
-        #expect(imported.background == "#101820" && imported.surface == "#18222c" && imported.accent == "#88aacc")
+        #expect(
+            imported.background == "#101820" && imported.surface == "#18222c"
+                && imported.accent == "#88aacc")
         #expect(!imported.isLight)
-        let desktop = ##"{"id":"custom:1","name":"Paper","tokens":{"bg-base":"#f4f2ee","text-primary":"#1a1916","accent":"#2a5a2a"}}"##
+        let desktop =
+            ##"{"id":"custom:1","name":"Paper","tokens":{"bg-base":"#f4f2ee","text-primary":"#1a1916","accent":"#2a5a2a"}}"##
         let paper = try #require(NativeTheme(desktopJSON: desktop))
         #expect(paper.isLight && paper.accent == "#2a5a2a")
         #expect(NativeTheme(desktopJSON: "not json") == nil)

@@ -58,7 +58,8 @@ import Observation
     func load() async {
         await run { () async throws -> Status in
             struct R: Decodable, Sendable { let syncStatus: Status }
-            let r: R = try await BackendAPI.shared.graphql("{ syncStatus { \(Self.statusFields) } }", requiresSourceRuntime: false)
+            let r: R = try await BackendAPI.shared.graphql(
+                "{ syncStatus { \(Self.statusFields) } }", requiresSourceRuntime: false)
             return r.syncStatus
         }
     }
@@ -70,15 +71,21 @@ import Observation
 
     func syncNow() async { await mutateStatus("syncNow") }
 
-    func unpair(_ peer: Peer) async { await mutateStatus("removeSyncPeer(node: \(BackendAPI.literal(peer.node)))") }
+    func unpair(_ peer: Peer) async {
+        await mutateStatus("removeSyncPeer(node: \(BackendAPI.literal(peer.node)))")
+    }
 
     func install(_ missing: MissingExtension) async {
         working = true
         defer { working = false }
         do {
-            struct R: Decodable, Sendable { struct E: Decodable, Sendable { let id: String }; let installSyncExtension: E }
+            struct R: Decodable, Sendable {
+                struct E: Decodable, Sendable { let id: String }
+                let installSyncExtension: E
+            }
             let _: R = try await BackendAPI.shared.graphql(
-                "mutation { installSyncExtension(packageName: \(BackendAPI.literal(missing.packageName))) { id } }")
+                "mutation { installSyncExtension(packageName: \(BackendAPI.literal(missing.packageName))) { id } }"
+            )
         } catch {
             self.error = error.localizedDescription
         }
@@ -116,10 +123,28 @@ import Observation
     }
 
     /// Accepts "192.168.1.20", "host:6008" or a full URL; Tsunagu's sync port is 6008.
+    /// The addresses worth typing on another device, shortest form first: IPv4, no scheme, no default port.
+    nonisolated static func displayAddresses(_ addresses: [String]) -> [String] {
+        let shown = addresses.compactMap { raw -> String? in
+            guard let parts = URLComponents(string: raw.contains("://") ? raw : "http://" + raw),
+                let host = parts.host?.trimmingCharacters(in: CharacterSet(charactersIn: "[]")),
+                !host.isEmpty, host != "localhost",
+                !host.hasPrefix("127."), !host.lowercased().hasPrefix("fe80"), host != "::1"
+            else { return nil }
+            let name = host.contains(":") ? "[\(host)]" : host
+            return parts.port == nil || parts.port == 6008 ? name : "\(name):\(parts.port!)"
+        }
+        var seen = Set<String>()
+        let unique = shown.filter { seen.insert($0).inserted }
+        return unique.filter { !$0.hasPrefix("[") } + unique.filter { $0.hasPrefix("[") }
+    }
+
     nonisolated static func address(_ input: String) -> String? {
         let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
-        guard var parts = URLComponents(string: trimmed.contains("://") ? trimmed : "http://" + trimmed),
+        guard
+            var parts = URLComponents(
+                string: trimmed.contains("://") ? trimmed : "http://" + trimmed),
             parts.scheme == "http" || parts.scheme == "https", let host = parts.host, !host.isEmpty
         else { return nil }
         parts.port = parts.port ?? 6008
@@ -133,7 +158,8 @@ import Observation
         await run { () async throws -> Status in
             struct R: Decodable, Sendable { let value: Status }
             let r: R = try await BackendAPI.shared.graphql(
-                "mutation { value: \(field) { \(Self.statusFields) } }", requiresSourceRuntime: false)
+                "mutation { value: \(field) { \(Self.statusFields) } }",
+                requiresSourceRuntime: false)
             return r.value
         }
     }

@@ -22,11 +22,19 @@ struct SyncSettingsContent: View {
                 ProgressView().frame(maxWidth: .infinity)
             }
             if let error = sync.error {
-                Section { Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.orange) }
+                Section {
+                    Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
+                }
             }
             Section {
-                SettingsLabel("Syncs", detail: "Library, folders, reading progress, bookmarks and reading history.")
-                SettingsLabel("Stays on each device", detail: "Extensions and downloads. Titles from a missing extension appear once it's installed.")
+                SettingsLabel(
+                    "Syncs",
+                    detail: "Library, folders, reading progress, bookmarks and reading history.")
+                SettingsLabel(
+                    "Stays on each device",
+                    detail:
+                        "Extensions and downloads. Titles from a missing extension appear once it's installed."
+                )
             } footer: {
                 Text("Devices sync directly over your local network. No account or cloud.")
             }
@@ -42,7 +50,8 @@ struct SyncSettingsContent: View {
             Button("Save") { save() }
         }
         .confirmationDialog(
-            "Unpair \(unpairing?.name ?? "")?", isPresented: Binding(get: { unpairing != nil }, set: { if !$0 { unpairing = nil } }),
+            "Unpair \(unpairing?.name ?? "")?",
+            isPresented: Binding(get: { unpairing != nil }, set: { if !$0 { unpairing = nil } }),
             titleVisibility: .visible
         ) {
             Button("Unpair", role: .destructive) {
@@ -77,12 +86,28 @@ struct SyncSettingsContent: View {
                 LabeledContent("This Device", value: status.name ?? "")
             }
             .foregroundStyle(.primary)
+            ForEach(MokuSync.displayAddresses(status.addresses), id: \.self) { address in
+                Button {
+                    UIPasteboard.general.string = address
+                    Toaster.shared.show("Address copied")
+                } label: {
+                    LabeledContent("Address") {
+                        Text(address).font(.body.monospaced()).textSelection(.enabled)
+                    }
+                }
+                .foregroundStyle(.primary)
+                .accessibilityHint("Copies the address")
+            }
             Button("Pair a Device", systemImage: "plus.circle") { pairing = true }
-            Button("Sync Now", systemImage: "arrow.triangle.2.circlepath") { Task { await sync.syncNow() } }
-                .disabled(sync.working || status.peers.isEmpty)
+            Button("Sync Now", systemImage: "arrow.triangle.2.circlepath") {
+                Task { await sync.syncNow() }
+            }
+            .disabled(sync.working || status.peers.isEmpty)
         } footer: {
             if status.pendingTitles > 0 {
-                Text("\(counted(status.pendingTitles, "synced title")) still loading from their sources.")
+                Text(
+                    "\(counted(status.pendingTitles, "synced title")) still loading from their sources."
+                )
             }
         }
     }
@@ -94,7 +119,8 @@ struct SyncSettingsContent: View {
             }
             ForEach(status.peers) { peer in
                 HStack(spacing: 12) {
-                    Circle().fill(peer.online ? Color.green : Color.secondary.opacity(0.4)).frame(width: 8, height: 8)
+                    Circle().fill(peer.online ? Color.green : Color.secondary.opacity(0.4)).frame(
+                        width: 8, height: 8)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(peer.name)
                         Text(seen(peer)).font(.caption).foregroundStyle(.secondary)
@@ -114,8 +140,11 @@ struct SyncSettingsContent: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(missing.name)
-                        Text(([counted(missing.titles, "title")] + missing.examples.prefix(2)).joined(separator: " · "))
-                            .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                        Text(
+                            ([counted(missing.titles, "title")] + missing.examples.prefix(2))
+                                .joined(separator: " · ")
+                        )
+                        .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                     }
                     Spacer()
                     Button("Install") { Task { await sync.install(missing) } }
@@ -166,7 +195,10 @@ private struct PairDeviceSheet: View {
                     enterCodeSection
                 }
                 if let error {
-                    Section { Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.orange) }
+                    Section {
+                        Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(
+                            .orange)
+                    }
                 }
             }
             .navigationTitle("Pair a Device")
@@ -183,8 +215,14 @@ private struct PairDeviceSheet: View {
         Section {
             if let code {
                 VStack(spacing: 6) {
-                    Text(code.code).font(.system(.largeTitle, design: .monospaced).weight(.semibold))
-                        .textSelection(.enabled)
+                    Text(code.code).font(
+                        .system(.largeTitle, design: .monospaced).weight(.semibold)
+                    )
+                    .textSelection(.enabled)
+                    if let address = MokuSync.displayAddresses(sync.status?.addresses ?? []).first {
+                        Text(address).font(.title3.monospaced()).foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                    }
                     if let expires = MokuSync.date(code.expiresAt) {
                         Text("Expires \(expires.formatted(.relative(presentation: .named)))")
                             .font(.caption).foregroundStyle(.secondary)
@@ -196,17 +234,16 @@ private struct PairDeviceSheet: View {
             } else {
                 Button("Show Pairing Code", systemImage: "number") {
                     Task {
-                        do { code = try await sync.createCode() } catch { self.error = error.localizedDescription }
+                        do { code = try await sync.createCode() } catch {
+                            self.error = error.localizedDescription
+                        }
                     }
                 }
             }
         } header: {
             Text("On This Device")
         } footer: {
-            let addresses = sync.status?.addresses ?? []
-            Text(addresses.isEmpty
-                 ? "Enter this code on the other device."
-                 : "Enter this code on the other device. Its address here is \(addresses.joined(separator: ", ")).")
+            Text("On the other device, type this address and code.")
         }
     }
 
@@ -225,12 +262,14 @@ private struct PairDeviceSheet: View {
                 .foregroundStyle(.primary)
             }
             if searching { ProgressView().frame(maxWidth: .infinity) }
-            TextField("Address", text: $address)
+            TextField("Address, like 192.168.1.20", text: $address)
                 .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
             TextField("Pairing Code", text: $entered)
                 .textInputAutocapitalization(.characters).autocorrectionDisabled()
             Button("Continue") { Task { await loadPreview() } }
-                .disabled(busy || MokuSync.address(address) == nil || entered.trimmingCharacters(in: .whitespaces).isEmpty)
+                .disabled(
+                    busy || MokuSync.address(address) == nil
+                        || entered.trimmingCharacters(in: .whitespaces).isEmpty)
         } header: {
             HStack {
                 Text("Another Device's Code")
@@ -251,7 +290,8 @@ private struct PairDeviceSheet: View {
             LabeledContent("Folders", value: "\(preview.folders)")
             LabeledContent("Chapters read", value: "\(preview.readChapters)")
             if !preview.mergingFolders.isEmpty {
-                LabeledContent("Merging folders", value: preview.mergingFolders.joined(separator: ", "))
+                LabeledContent(
+                    "Merging folders", value: preview.mergingFolders.joined(separator: ", "))
             }
             Button("Pair with \(preview.name)") { Task { await connect(preview) } }
                 .bold().disabled(busy)
@@ -274,7 +314,8 @@ private struct PairDeviceSheet: View {
         busy = true
         defer { busy = false }
         do {
-            preview = try await sync.preview(address: target, code: entered.trimmingCharacters(in: .whitespaces))
+            preview = try await sync.preview(
+                address: target, code: entered.trimmingCharacters(in: .whitespaces))
             error = nil
         } catch {
             self.error = error.localizedDescription
@@ -286,7 +327,9 @@ private struct PairDeviceSheet: View {
         busy = true
         defer { busy = false }
         do {
-            try await sync.connect(address: target, code: entered.trimmingCharacters(in: .whitespaces), node: preview.node)
+            try await sync.connect(
+                address: target, code: entered.trimmingCharacters(in: .whitespaces),
+                node: preview.node)
             dismiss()
         } catch {
             self.error = error.localizedDescription
