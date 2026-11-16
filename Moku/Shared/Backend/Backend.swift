@@ -86,6 +86,14 @@ actor Backend {
     private var sandboxToken: String?
     private var recovery: Task<Void, Never>?
 
+    /// Wakes sync with paired devices and republishes this device on the local network.
+    func refreshSync() async {
+        guard startup != nil else { return }
+        await controller.syncWake()
+        let advert = await controller.syncAdvert()
+        await SyncAdvertiser.shared.update(advert)
+    }
+
     /// iOS reclaims loopback listeners while the app is suspended; rebind both servers if they stopped answering.
     func recoverIfNeeded() async {
         if let recovery { return await recovery.value }

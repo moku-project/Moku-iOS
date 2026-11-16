@@ -56,7 +56,7 @@ import XCTest
             ("more.category.History", "History"),
         ] + [
             "General", "Appearance", "Reader", "Player", "Library", "Folders", "Content",
-            "Automation", "Performance", "Keybinds", "Sync", "Storage", "Server", "Auth",
+            "Automation", "Performance", "Keybinds", "Moku Sync", "Storage", "Server", "Auth",
         ].map { ("settings.category.\($0)", $0) } + [
             ("settings.category.Tracking", "Tracker Accounts"), ("more.category.About", "About"),
             ("settings.category.Dev tools", "Dev tools"),

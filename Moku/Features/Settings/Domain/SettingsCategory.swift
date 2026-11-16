@@ -8,7 +8,7 @@ enum SettingsCategory: String, CaseIterable, Hashable {
     case library = "Library"
     case automation = "Automation"
     case tracking = "Tracking"
-    case sync = "Sync"
+    case sync = "Moku Sync"
     case performance = "Performance"
     case keybinds = "Keybinds"
     case storage = "Storage"

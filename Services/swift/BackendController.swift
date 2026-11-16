@@ -125,6 +125,17 @@ public actor BackendController {
         }
     }
 
+    /// The `_moku._tcp` service to publish, or "" until the device is named.
+    public func syncAdvert() async -> String {
+        guard state == .running else { return "" }
+        return (try? await worker.perform { $0.syncAdvert() }) ?? ""
+    }
+
+    public func syncWake() async {
+        guard state == .running else { return }
+        _ = try? await worker.perform { $0.syncWake() }
+    }
+
     public func status() async throws -> CoreStatus {
         guard state == .running, let connection else {
             throw BackendError.invalidTransition(state)
@@ -205,6 +216,7 @@ private final class NativeServiceWorker: @unchecked Sendable {
                         throw BackendController.BackendError.unhealthyResponse
                     }
                     try service.setVideoEngine(TSVideoEngine())
+                    service.setSyncDiscovery(SyncBrowser())
                     self.service = service
                     if let sandbox {
                         try service.start(

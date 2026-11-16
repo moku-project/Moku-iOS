@@ -274,10 +274,6 @@ struct RemainingParityTests {
         #expect(landscape.width > landscape.height)
         await #expect(throws: (any Error).self) { try await source.image(path: "/content/7/9/pdfpage/3", load: load) }
     }
-
-    @Test func mapsDesktopFolderContentTypes() {
-        #expect(["MANGA", "NOVEL", "ANIME", "OTHER"].compactMap(DesktopSync.contentMode) == [.manga, .novels, .anime])
-    }
 }
 
 private actor Counter {

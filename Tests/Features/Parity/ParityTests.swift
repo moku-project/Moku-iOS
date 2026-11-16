@@ -52,12 +52,12 @@ import Testing
         #expect(!FilterBuilder.inputs(tree, genres: ["Mecha"], statuses: []).matchedAll)
     }
 
-    @Test func desktopAddressesNormaliseToTheServerPort() {
-        #expect(DesktopClient.normalize("192.168.1.20")?.absoluteString == "http://192.168.1.20:6007")
-        #expect(DesktopClient.normalize(" mac.local:6107 ")?.absoluteString == "http://mac.local:6107")
-        #expect(DesktopClient.normalize("https://moku.example/path?x=1")?.absoluteString == "https://moku.example:6007")
-        #expect(DesktopClient.normalize("") == nil)
-        #expect(DesktopClient.normalize("ftp://host") == nil)
+    @Test func syncAddressesUseTheSyncPort() {
+        #expect(MokuSync.address("192.168.1.20") == "http://192.168.1.20:6008")
+        #expect(MokuSync.address(" device.local:6108 ") == "http://device.local:6108")
+        #expect(MokuSync.address("http://10.0.0.2:6008/x?y=1") == "http://10.0.0.2:6008")
+        #expect(MokuSync.address("") == nil)
+        #expect(MokuSync.address("ftp://host") == nil)
     }
 
     @Test func skipMarkersUseDesktopLabels() {

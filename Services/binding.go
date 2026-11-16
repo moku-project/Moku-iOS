@@ -161,3 +161,23 @@ func (s *Service) ImportLocalFile(source, kind, series, chapter, name string) er
 	}
 	return nil
 }
+
+// SyncDiscovery browses _moku._tcp natively; iOS can't open Tsunagu's own mDNS sockets.
+type SyncDiscovery interface {
+	Browse(waitMillis int64) (string, error)
+}
+
+// SetSyncDiscovery takes effect from the next start, so call it before starting.
+func (s *Service) SetSyncDiscovery(d SyncDiscovery) {
+	if d == nil {
+		embedded.SetSyncDiscovery(nil)
+		return
+	}
+	embedded.SetSyncDiscovery(d)
+}
+
+// SyncAdvert is the _moku._tcp service JSON the app should publish, or "" until the device is named.
+func (s *Service) SyncAdvert() string { return embedded.SyncAdvert() }
+
+// SyncWake syncs with paired devices now; call it on returning to the foreground.
+func (s *Service) SyncWake() { embedded.SyncWake() }

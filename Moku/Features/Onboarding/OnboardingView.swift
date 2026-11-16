@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// First-run walkthrough; Moku ships with no sources, so it ends at the ways to get content and desktop sync.
+/// First-run walkthrough; Moku ships with no sources, so it ends at the ways to get content and sync.
 struct OnboardingView: View {
     let openExtensions: () -> Void
     let openSettings: () -> Void
@@ -20,8 +20,8 @@ struct OnboardingView: View {
              body: "Read manga and novels and watch anime from sources you choose. Sources run on this iPhone, with no account or server needed."),
         Page(id: 1, symbol: "PuzzlePiece", title: "Add your sources",
              body: "Moku doesn’t come with any content. Add a Mihon, Aniyomi or LNReader repository in Extensions, then install the sources you want. You can also import CBZ, EPUB and video files."),
-        Page(id: 2, symbol: "ArrowsClockwise", title: "Bring your desktop library",
-             body: "Use Moku on your computer? Turn on phone sync there, then connect in Settings → Sync to share your library, folders and reading progress."),
+        Page(id: 2, symbol: "ArrowsClockwise", title: "Sync your devices",
+             body: "Use Moku elsewhere? Pair in Settings → Moku Sync to share your library, progress and reading history over your network."),
     ]
 
     var body: some View {

@@ -33,12 +33,12 @@ struct AppSessionView: View {
             initialValue: LibraryStore(directory: storage.directory, synchronizeWithServer: !PreviewMode.isEnabled))
     }
 
-    /// Paired desktops sync on open; the short delay keeps launch responsive.
-    private func syncWithDesktop() {
-        guard preferences.object(forKey: "sync.automatic") as? Bool ?? true, !PreviewMode.isEnabled else { return }
+    /// Paired devices sync on open; the short delay keeps launch responsive.
+    private func refreshSync() {
+        guard !PreviewMode.isEnabled else { return }
         Task {
             try? await Task.sleep(for: .seconds(3))
-            await DesktopSync.shared.syncIfDue(library: library)
+            await Backend.shared.refreshSync()
         }
     }
 
@@ -72,7 +72,7 @@ struct AppSessionView: View {
                 await appLock.load()
                 appLock.showIfLocked()
                 await library.load()
-                syncWithDesktop()
+                refreshSync()
                 updateLibraryOnOpen()
             }
             .alert("Moku Closed Unexpectedly", isPresented: Binding(
@@ -97,9 +97,8 @@ struct AppSessionView: View {
                     Task { await readerPreferences.flush(); await home.flush() }
                 }
                 if phase == .active {
-                    Task { await Backend.shared.recoverIfNeeded() }
+                    Task { await Backend.shared.recoverIfNeeded(); await Backend.shared.refreshSync() }
                     appLock.showIfLocked()
-                    syncWithDesktop()
                 }
             }
     }
