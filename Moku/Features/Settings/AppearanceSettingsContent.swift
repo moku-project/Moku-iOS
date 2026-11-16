@@ -12,7 +12,7 @@ struct NativeTheme: Codable, Identifiable, Equatable, Sendable {
     var muted = "#9b9b9b"
     var border = "#252525"
     var isLight = false
-    // Same tokens as desktop themes.css and Android MokuThemes.kt.
+    // Desktop themes.css tokens; muted text is lifted a step in dark themes for small-screen legibility.
     static let builtins: [NativeTheme] = [
         .init(
             id: "dark", name: "Dark", background: "#080808", surface: "#111111", accent: "#7aaa7a",
@@ -23,15 +23,15 @@ struct NativeTheme: Codable, Identifiable, Equatable, Sendable {
             border: "#c4c0b8", isLight: true),
         .init(
             id: "midnight", name: "Midnight", background: "#080c18", surface: "#101428",
-            accent: "#6a7ab8", text: "#eeeef8", secondary: "#c0c4d8", muted: "#808498",
+            accent: "#6a7ab8", text: "#eeeef8", secondary: "#c0c4d8", muted: "#9a9eb4",
             border: "#1a2035"),
         .init(
             id: "original", name: "Original", background: "#0c0c0c", surface: "#151515",
-            accent: "#6b8f6b", text: "#f0efec", secondary: "#c8c6c0", muted: "#8a8880",
+            accent: "#6b8f6b", text: "#f0efec", secondary: "#c8c6c0", muted: "#a3a199",
             border: "#1c1c1c"),
         .init(
             id: "warm", name: "Warm", background: "#100e08", surface: "#1c1810", accent: "#c0902a",
-            text: "#f5f0e0", secondary: "#d8d0b0", muted: "#988c60", border: "#201c10"),
+            text: "#f5f0e0", secondary: "#d8d0b0", muted: "#b0a476", border: "#201c10"),
     ]
     static func custom(_ data: Data) -> [NativeTheme] {
         (try? JSONDecoder().decode([NativeTheme].self, from: data)) ?? []
@@ -155,7 +155,7 @@ struct AppearanceSettingsContent: View {
                 Text("Custom themes")
             } footer: {
                 Text(
-                    "Import a theme copied from Moku desktop or another device, or create one from the current colors."
+                    "Paste a theme from another Moku device, or save the current colors."
                 )
             }
             Section("Interface") {

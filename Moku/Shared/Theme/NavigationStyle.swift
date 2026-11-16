@@ -26,17 +26,7 @@ final class AppTheme {
 }
 
 enum NavigationStyle {
-    static let selectionAnimation = Animation.easeInOut(duration: 0.28)
-    static let pagePadding: CGFloat = 10
-    static let navigationHeight: CGFloat = 52
-    static let navigationCornerRadius: CGFloat = 26
-    static let navigationHorizontalPadding: CGFloat = 8
-    static let navigationSpacing: CGFloat = 2
-    static let navigationBottomPadding: CGFloat = 0
-    static let navigationInset = navigationHeight + navigationSpacing
-    static let navigationLowering: CGFloat = 12
-    static let compactNavigationHeight: CGFloat = 46
-    static let navigationIndicatorSpacing: CGFloat = 2
+    static let pagePadding: CGFloat = 16
 
     @MainActor static var background: Color { AppTheme.shared.colors.background }
     @MainActor static var surface: Color { AppTheme.shared.colors.surface }
