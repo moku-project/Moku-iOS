@@ -90,7 +90,7 @@
                 }
             }
         }
-        func progress(mediaID: String, chapterID: String, value: Double, completed: Bool)
+        func progress(mediaID: String, chapterID: String, value: Double, completed: Bool, page: Int?)
             async throws
         {}
         func download(mediaID: String, chapterIDs: [String]) async throws {}

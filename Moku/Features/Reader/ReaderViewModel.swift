@@ -20,8 +20,8 @@ import Observation
     var jumpID = UUID()
     /// The saved page this chapter reopened at, for the resume banner.
     var resumedPage: Int?
-    private var committedProgress: [String: (Double, Bool)] = [:]
-    private var pendingProgress: [String: (Double, Bool)] = [:]
+    private var committedProgress: [String: (Double, Bool, Int)] = [:]
+    private var pendingProgress: [String: (Double, Bool, Int)] = [:]
     private var progressTask: Task<Void, Never>?
     private var loadedChapterID: String?
     private var completedChapters = Set<String>()
@@ -92,7 +92,7 @@ import Observation
                 activityPrepared = true
             }
             let repository = repository
-            async let remote = try? repository.chapterState(chapterID: id)
+            async let remote = try? repository.chapterState(mediaID: details.id, chapterID: id)
             let result = try await repository.pages(chapterID: id)
             let state = await remote
             try Task.checkCancellation()
@@ -217,8 +217,8 @@ import Observation
         if complete { completedChapters.insert(chapterID) }
         let value = Double(isStrip ? page : (visiblePages.max() ?? page)) / Double(pages.count)
         if let committed = committedProgress[chapterID], committed.0 == value, committed.1 == complete,
-           pendingProgress[chapterID] == nil { return }
-        pendingProgress[chapterID] = (value, complete)
+           committed.2 == page, pendingProgress[chapterID] == nil { return }
+        pendingProgress[chapterID] = (value, complete, page)
         startProgressWriter()
     }
     private func startProgressWriter() {
@@ -231,7 +231,7 @@ import Observation
                 do {
                     try await repository.progress(
                         mediaID: details.id, chapterID: id,
-                        value: progress.0, completed: progress.1)
+                        value: progress.0, completed: progress.1, page: progress.2)
                     committedProgress[id] = progress
                 } catch {
                     notice = "Progress is saved on this device, but couldn’t sync. Try again."

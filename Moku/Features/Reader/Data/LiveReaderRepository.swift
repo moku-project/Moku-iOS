@@ -23,7 +23,7 @@ struct LiveReaderRepository: ReaderRepository {
         }
         return try await BackendAPI.shared.readerPageData(path: path)
     }
-    func progress(mediaID: String, chapterID: String, value: Double, completed: Bool) async throws {
+    func progress(mediaID: String, chapterID: String, value: Double, completed: Bool, page: Int?) async throws {
         struct Response: Decodable, Sendable {
             struct Progress: Decodable, Sendable { let progress: Double }
             let updateReadingProgress: Progress
@@ -31,11 +31,11 @@ struct LiveReaderRepository: ReaderRepository {
         let _: Response = try await BackendAPI.shared.graphql(
             """
             mutation { updateReadingProgress(mediaId: \(BackendAPI.literal(mediaID)),
-            chapterId: \(BackendAPI.literal(chapterID)), progress: \(value), completed: \(completed)) { progress } }
+            chapterId: \(BackendAPI.literal(chapterID)), progress: \(value), completed: \(completed)\(page.map { ", page: \($0)" } ?? "")) { progress } }
             """)
     }
-    func chapterState(chapterID: String) async throws -> ReaderChapterState? {
-        try await ChapterSync.state(chapterID: chapterID)
+    func chapterState(mediaID: String, chapterID: String) async throws -> ReaderChapterState? {
+        try await ChapterSync.state(mediaID: mediaID, chapterID: chapterID)
     }
     func download(mediaID: String, chapterIDs: [String]) async throws {
         struct Response: Decodable, Sendable {
@@ -53,7 +53,7 @@ struct LiveReaderRepository: ReaderRepository {
 }
 
 enum ChapterSync {
-    static func state(chapterID: String) async throws -> ReaderChapterState? {
+    static func state(mediaID: String, chapterID: String) async throws -> ReaderChapterState? {
         struct Response: Decodable, Sendable {
             struct Chapter: Decodable, Sendable {
                 struct Progress: Decodable, Sendable {
@@ -63,17 +63,26 @@ enum ChapterSync {
                 }
                 let readingProgress: Progress?
             }
+            struct Media: Decodable, Sendable {
+                struct Point: Decodable, Sendable { let chapterId: String; let page: Int? }
+                let resumePoint: Point?
+            }
             let chapter: Chapter?
+            let media: Media?
         }
         // Never cached: another device may have moved on since the last read.
         let response: Response = try await BackendAPI.shared.graphql(
-            "{ chapter(id: \(BackendAPI.literal(chapterID))) { readingProgress { progress completed updatedAt } } }",
-            requiresSourceRuntime: false)
+            """
+            { chapter(id: \(BackendAPI.literal(chapterID))) { readingProgress { progress completed updatedAt } } \
+            media(id: \(BackendAPI.literal(mediaID))) { resumePoint { chapterId page } } }
+            """, requiresSourceRuntime: false)
         guard let chapter = response.chapter else { return nil }
+        let point = response.media?.resumePoint
         return ReaderChapterState(
             progress: chapter.readingProgress.map {
                 .init(progress: $0.progress, completed: $0.completed, updatedAt: date($0.updatedAt))
-            })
+            },
+            resumePage: point?.chapterId == chapterID ? point?.page : nil)
     }
 
     /// Go encodes times as RFC 3339 with up to nine fractional digits.

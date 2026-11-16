@@ -166,7 +166,7 @@ actor RecordingReaderRepository: ReaderRepository {
     var downloads: [String] = []
     func pages(chapterID: String) async throws -> [String] { (1...5).map { "page/\($0)" } }
     func image(path: String) async throws -> Data { Data() }
-    func progress(mediaID: String, chapterID: String, value: Double, completed: Bool) async throws {
+    func progress(mediaID: String, chapterID: String, value: Double, completed: Bool, page: Int?) async throws {
         updates.append(Update(chapter: chapterID, value: value, completed: completed))
     }
     func download(mediaID: String, chapterIDs: [String]) async throws { downloads = chapterIDs }
@@ -176,7 +176,7 @@ struct FailingReaderRepository: ReaderRepository {
         throw URLError(.notConnectedToInternet)
     }
     func image(path: String) async throws -> Data { throw URLError(.notConnectedToInternet) }
-    func progress(mediaID: String, chapterID: String, value: Double, completed: Bool) async throws {
+    func progress(mediaID: String, chapterID: String, value: Double, completed: Bool, page: Int?) async throws {
     }
     func download(mediaID: String, chapterIDs: [String]) async throws {}
 }

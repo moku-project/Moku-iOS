@@ -133,7 +133,7 @@ import Observation
     }
 
     private nonisolated func savedPosition(chapterID: String) async -> ReaderChapterState? {
-        try? await ChapterSync.state(chapterID: chapterID)
+        try? await ChapterSync.state(mediaID: details.id, chapterID: chapterID)
     }
 }
 
