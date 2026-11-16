@@ -6,7 +6,11 @@ import Observation
     /// Reading order: oldest first, so "next" always means the following chapter.
     let chapters: [Chapter]
     private(set) var chapterID: String
-    private(set) var document: NovelDocument?
+    /// Changes only when a chapter is opened directly, which reloads the page from scratch.
+    private(set) var loadID: String
+    /// Loaded chapters in reading order; continuous reading appends to this.
+    private(set) var sections: [Section] = []
+    private var appending = false
     private(set) var loading = true
     var error: String?
     /// Fraction of the chapter scrolled past, 0…1.
@@ -22,6 +26,7 @@ import Observation
     init(details: MediaDetails, chapterID: String, preferences: Data) {
         self.details = details
         self.chapterID = chapterID
+        loadID = chapterID
         chapters = ChapterPresentation.readingOrder(
             details.chapters, preferences: preferences, mediaID: details.id)
     }
@@ -31,7 +36,21 @@ import Observation
     var previous: Chapter? { chapters.indices.contains(index - 1) ? chapters[index - 1] : nil }
     var next: Chapter? { chapters.indices.contains(index + 1) ? chapters[index + 1] : nil }
     var completed: Bool { progress >= 0.97 }
-    var ready: Bool { !loading && error == nil && document != nil }
+    var ready: Bool { !loading && error == nil && !sections.isEmpty }
+    var document: NovelDocument? { sections.first?.document }
+    /// The chapter after the last one loaded, for continuous reading.
+    var upcoming: Chapter? {
+        guard let last = sections.last, let i = chapters.firstIndex(where: { $0.id == last.id }),
+            chapters.indices.contains(i + 1)
+        else { return nil }
+        return chapters[i + 1]
+    }
+
+    struct Section: Identifiable {
+        let chapter: Chapter
+        let document: NovelDocument
+        var id: String { chapter.id }
+    }
 
     func load() async {
         let id = chapterID
@@ -39,7 +58,8 @@ import Observation
         generation = current
         loading = true
         error = nil
-        document = nil
+        sections = []
+        appending = false
         progress = 0
         resumeAt = nil
         do {
@@ -51,8 +71,8 @@ import Observation
             }.value
             let state = await saved
             try Task.checkCancellation()
-            guard generation == current else { return }
-            document = parsed
+            guard generation == current, let chapter else { return }
+            sections = [Section(chapter: chapter, document: parsed)]
             // A finished chapter reopens at the top rather than at its last line.
             resumeAt =
                 pendingResume
@@ -73,14 +93,44 @@ import Observation
     func didResume() { resumeAt = nil }
 
     func open(_ chapter: Chapter) {
-        guard chapter.id != chapterID else { return }
+        guard chapter.id != chapterID || sections.count > 1 else { return }
         flush()
         chapterID = chapter.id
+        loadID = chapter.id
+    }
+
+    /// Loads the following chapter under the last one.
+    func appendNext() async {
+        guard !appending, ready, let next = upcoming else { return }
+        appending = true
+        defer { appending = false }
+        let current = generation
+        guard
+            let (body, isHTML) = try? await BackendAPI.shared.chapterText(
+                mediaID: details.id, chapterID: next.id)
+        else { return }
+        let parsed = await Task.detached(priority: .userInitiated) {
+            NovelDocument.parse(body, isHTML: isHTML)
+        }.value
+        guard generation == current, upcoming?.id == next.id else { return }
+        sections.append(Section(chapter: next, document: parsed))
+    }
+
+    /// Scrolling into another loaded chapter: the one left behind counts as read.
+    func enter(_ id: String, at fraction: Double) {
+        guard id != chapterID else { return scrolled(to: fraction) }
+        let forward =
+            (chapters.firstIndex { $0.id == id } ?? 0)
+            > (chapters.firstIndex { $0.id == chapterID } ?? 0)
+        if forward { progress = 1 }
+        flush()
+        chapterID = id
+        progress = min(1, max(0, fraction))
     }
 
     /// Opens a bookmark: scrolls within this chapter, or loads its chapter there.
     func open(_ bookmark: NovelBookmark) {
-        if bookmark.chapterID == chapterID {
+        if bookmark.chapterID == chapterID && sections.count <= 1 {
             resumeAt = bookmark.fraction
         } else if let chapter = chapters.first(where: { $0.id == bookmark.chapterID }) {
             pendingResume = bookmark.fraction

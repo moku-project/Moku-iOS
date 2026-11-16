@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// One chapter at a time: continuous scroll or tap-to-turn paging, typography, paper themes and synced progress.
+/// Chapters read on one after another or one at a time, with paging, typography, paper themes and synced progress.
 struct NovelReaderView: View {
     @State var model: NovelReaderViewModel
     @Environment(\.dismiss) private var dismiss
@@ -14,6 +14,7 @@ struct NovelReaderView: View {
     @AppStorage("novel.paragraphGap") private var paragraphGap = 0.9
     @AppStorage("novel.width") private var width = 70.0
     @AppStorage("novel.paged") private var paged = false
+    @AppStorage("novel.continuous") private var continuous = true
     @AppStorage("novel.justified") private var justified = false
     @AppStorage("novel.autoScrollSpeed.v2") private var autoScrollSpeed = 5.0
     @AppStorage("novel.guide") private var guide = false
@@ -28,6 +29,7 @@ struct NovelReaderView: View {
     @State private var position = ScrollPosition(edge: .top)
     @State private var geometry = ScrollMetrics()
     @State private var previousIdleTimer = false
+    @State private var sectionFrames: [String: CGRect] = [:]
 
     private struct ScrollMetrics: Equatable {
         var offset: CGFloat = 0
@@ -56,9 +58,15 @@ struct NovelReaderView: View {
         .persistentSystemOverlays(chromeVisible ? .visible : .hidden)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: chromeVisible)
         .preference(key: GeneralMediaPresentedKey.self, value: true)
-        .task(id: model.chapterID) { await model.load() }
+        .task(id: model.loadID) { await model.load() }
         .task(id: autoScrolling) { await runAutoScroll() }
-        .onChange(of: model.chapterID) { _, _ in autoScrolling = false }
+        .onChange(of: continuous) { _, _ in
+            if model.sections.count > 1, let chapter = model.chapter { model.open(chapter) }
+        }
+        .onChange(of: model.loadID) { _, _ in
+            autoScrolling = false
+            sectionFrames = [:]
+        }
         .onChange(of: model.resumeAt) { _, resume in
             // Bookmark jumps inside the open chapter: layout is already known.
             guard let resume, geometry.content > geometry.viewport else { return }
@@ -86,15 +94,17 @@ struct NovelReaderView: View {
     }
 
     @ViewBuilder private var content: some View {
-        if let document = model.document {
+        if model.ready {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(model.chapter?.label ?? "")
-                        .font(fontFor(size: bodySize * 1.35, weight: .semibold))
-                        .padding(.bottom, bodySize * 1.4)
-                        .accessibilityAddTraits(.isHeader)
-                    ForEach(Array(document.blocks.enumerated()), id: \.offset) { _, block in
-                        blockView(block)
+                    ForEach(continuous ? model.sections : Array(model.sections.prefix(1))) {
+                        section in
+                        sectionView(section)
+                            .onGeometryChange(for: CGRect.self) {
+                                $0.frame(in: .scrollView)
+                            } action: {
+                                sectionFrames[section.id] = $0
+                            }
                     }
                     footer
                 }
@@ -118,7 +128,7 @@ struct NovelReaderView: View {
                     position.scrollTo(
                         y: max(0, CGFloat(resume) * (metrics.content - metrics.viewport)))
                 } else if model.resumeAt == nil {
-                    model.scrolled(to: metrics.fraction)
+                    trackChapter(metrics)
                 }
             }
             .onScrollPhaseChange { _, phase in
@@ -129,7 +139,7 @@ struct NovelReaderView: View {
             }
             // On the scroll view itself, so taps never steal the scroll pan.
             .onTapGesture { location in tap(at: location.x) }
-            .id(model.chapterID)
+            .id(model.loadID)
         } else if let error = model.error {
             VStack(spacing: 14) {
                 Text(error).multilineTextAlignment(.center).foregroundStyle(theme.secondary)
@@ -179,10 +189,47 @@ struct NovelReaderView: View {
         }
     }
 
+    private func sectionView(_ section: NovelReaderViewModel.Section) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(section.chapter.label)
+                .font(fontFor(size: bodySize * 1.35, weight: .semibold))
+                .padding(.bottom, bodySize * 1.4)
+                .padding(.top, section.id == model.sections.first?.id ? 0 : bodySize * 3)
+                .accessibilityAddTraits(.isHeader)
+            ForEach(Array(section.document.blocks.enumerated()), id: \.offset) { _, block in
+                blockView(block)
+            }
+        }
+    }
+
+    /// Progress follows the chapter at the top of the screen; nearing the end loads the next one.
+    private func trackChapter(_ metrics: ScrollMetrics) {
+        guard continuous, model.sections.count > 1 || model.upcoming != nil else {
+            return model.scrolled(to: metrics.fraction)
+        }
+        let line = metrics.viewport * 0.25
+        if let current = model.sections.last(where: {
+            (sectionFrames[$0.id]?.minY ?? .infinity) <= line
+        })
+            ?? model.sections.first, let frame = sectionFrames[current.id]
+        {
+            let range = frame.height - metrics.viewport
+            let fraction =
+                range > 1 ? Double(-frame.minY / range) : (frame.maxY <= metrics.viewport ? 1 : 0)
+            model.enter(current.id, at: fraction)
+        }
+        if metrics.content - metrics.offset - metrics.viewport < metrics.viewport * 2 {
+            Task { await model.appendNext() }
+        }
+    }
+
     private var footer: some View {
         VStack(spacing: 12) {
             Rectangle().fill(theme.secondary.opacity(0.25)).frame(height: 1).padding(.vertical, 24)
-            if let next = model.next {
+            if continuous, model.upcoming != nil {
+                ProgressView().frame(maxWidth: .infinity, minHeight: 56)
+                    .accessibilityLabel("Loading the next chapter")
+            } else if !continuous, let next = model.next {
                 Button {
                     model.advance()
                 } label: {
@@ -286,7 +333,7 @@ struct NovelReaderView: View {
         let target = min(
             max(0, geometry.offset + direction * step), max(0, geometry.content - geometry.viewport)
         )
-        if direction > 0, geometry.offset >= geometry.content - geometry.viewport - 2,
+        if direction > 0, !continuous, geometry.offset >= geometry.content - geometry.viewport - 2,
             model.next != nil
         {
             model.advance()
@@ -416,6 +463,7 @@ struct NovelReaderView: View {
                 }
                 Section("Layout") {
                     Toggle("Justify text", isOn: $justified)
+                    Toggle("Continuous chapters", isOn: $continuous)
                 }
                 Section("Behaviour") {
                     Toggle("Tap edges to turn pages", isOn: $paged)
