@@ -66,19 +66,11 @@ struct SourceBrowseView: View {
                         systemImage: "magnifyingglass",
                         description: Text("Nothing found."))
                 } else {
-                    PosterGrid(entries: items, identifier: "source.item", open: openEntry)
-                    if hasNext {
-                        Button {
-                            Task { await load(reset: false) }
-                        } label: {
-                            Group {
-                                if loading { ProgressView() } else { Text("Load More") }
-                            }
-                            .frame(maxWidth: .infinity, minHeight: 36)
-                        }
-                        .buttonStyle(.bordered)
-                        .disabled(loading)
-                        .accessibilityIdentifier("source.loadMore")
+                    PosterGrid(
+                        entries: items, identifier: "source.item", open: openEntry,
+                        reachEnd: hasNext ? { await load(reset: false) } : nil)
+                    if loading && !items.isEmpty {
+                        ProgressView().frame(maxWidth: .infinity).padding(.vertical, 12)
                     }
                 }
             }

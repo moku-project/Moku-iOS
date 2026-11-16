@@ -123,22 +123,11 @@ struct SearchView: View {
                     )
                     .accessibilityIdentifier("search.hiddenEmpty")
                 }
-                PosterGrid(entries: entries, identifier: "search.result", open: openEntry)
-                if model.isSearching {
+                PosterGrid(
+                    entries: entries, identifier: "search.result", open: openEntry,
+                    reachEnd: model.canLoadMore ? { await model.loadMore() } : nil)
+                if model.isSearching || model.loadingMore {
                     ProgressView().frame(maxWidth: .infinity).padding(.vertical, 12)
-                } else if model.canLoadMore {
-                    Button {
-                        Task { await model.loadMore() }
-                    } label: {
-                        Group {
-                            if model.loadingMore { ProgressView() } else { Text("Load More") }
-                        }
-                        .frame(maxWidth: .infinity, minHeight: 36)
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(model.loadingMore)
-                    .padding(.vertical, 12)
-                    .accessibilityIdentifier("search.loadMore")
                 }
             }
         }

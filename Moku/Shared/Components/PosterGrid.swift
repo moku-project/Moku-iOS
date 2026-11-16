@@ -5,8 +5,11 @@ struct PosterGrid: View {
     let entries: [MediaEntry]
     let identifier: String
     let open: (MediaEntry) -> Void
+    /// Called when the last poster appears, to load the next page.
+    var reachEnd: (() async -> Void)?
     @Environment(LibraryStore.self) private var library
-    private let columns = [GridItem(.adaptive(minimum: 104), spacing: 12)]
+    private let columns = Array(
+        repeating: GridItem(.flexible(), spacing: 12, alignment: .top), count: 3)
 
     var body: some View {
         LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
@@ -32,27 +35,34 @@ struct PosterGrid: View {
     }
 
     private func card(_ entry: MediaEntry) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 4) {
             Color.clear
                 .aspectRatio(2 / 3, contentMode: .fit)
                 .overlay {
                     CoverImage(url: entry.coverURL, symbol: entry.media.symbol).scaledToFill()
                 }
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .strokeBorder(.white.opacity(0.08), lineWidth: 0.5)
+                }
+                .shadow(color: .black.opacity(0.25), radius: 6, y: 3)
                 .overlay(alignment: .topLeading) {
                     if library.contains(entry) {
-                        Text("Saved").font(.caption2.weight(.semibold))
-                            .padding(.horizontal, 6).padding(.vertical, 3)
-                            .background(NavigationStyle.accent, in: Capsule())
+                        Image(systemName: "bookmark.fill")
+                            .font(.caption.weight(.semibold))
                             .foregroundStyle(NavigationStyle.background)
                             .padding(6)
+                            .background(NavigationStyle.accent, in: Circle())
+                            .padding(6)
+                            .accessibilityLabel("Saved")
                     }
                 }
-            Text(entry.title).font(.caption).lineLimit(2, reservesSpace: true).foregroundStyle(
-                .primary
-            )
-            .multilineTextAlignment(.leading)
-            Text(entry.sourceName).font(.caption2).lineLimit(1).foregroundStyle(.secondary)
+                .padding(.bottom, 4)
+            Text(entry.title).font(.subheadline.weight(.medium))
+                .lineLimit(2).foregroundStyle(.primary)
+                .multilineTextAlignment(.leading)
+            Text(entry.sourceName).font(.caption).lineLimit(1).foregroundStyle(.secondary)
         }
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
