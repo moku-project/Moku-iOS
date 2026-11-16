@@ -66,7 +66,7 @@ import XCTest
         XCTAssertTrue(app.buttons["Clear Filters"].firstMatch.waitForExistence(timeout: 3))
         keepScreenshot("Library filtered")
         app.buttons["Clear Filters"].firstMatch.tap()
-        XCTAssertTrue(app.staticTexts["Nothing Here Yet"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["No Saved Titles"].waitForExistence(timeout: 3))
     }
 
     func testNewFolderOpensAsAlertAndSelectsFolder() {

@@ -168,7 +168,7 @@ struct StorageSettingsContent: View {
                 Text("Local source directory")
             } footer: {
                 Text(
-                    "Choose a directory within server data. Existing files move to the new directory."
+                    "Existing files move to the new folder."
                 )
             }
             Section("Server backups") {

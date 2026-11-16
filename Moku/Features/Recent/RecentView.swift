@@ -202,7 +202,7 @@ struct RecentView: View {
         } else if tab == .history {
             ContentUnavailableView(
                 "No History Yet", systemImage: "clock.arrow.circlepath",
-                description: Text("Your reading and watching history will appear here."))
+                description: Text("Titles you read or watch appear here."))
         } else {
             ContentUnavailableView {
                 Label("No Recent Library Updates", systemImage: "arrow.triangle.2.circlepath")

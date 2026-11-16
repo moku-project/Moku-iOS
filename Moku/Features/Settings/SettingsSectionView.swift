@@ -272,7 +272,7 @@ struct SettingsSectionView: View {
             Text("Background")
         } footer: {
             Text(
-                "Audio continues when you lock the screen or switch apps. Picture in Picture starts when you go home."
+                "Keeps playing in the background and in Picture in Picture."
             )
         }
         Section("Rendering") {
@@ -361,7 +361,7 @@ struct SettingsSectionView: View {
             Text("Cache")
         } footer: {
             Text(
-                "Remove cached covers and temporary results. Library, downloads, and history are kept."
+                "Library, downloads and history are kept."
             )
         }
     }

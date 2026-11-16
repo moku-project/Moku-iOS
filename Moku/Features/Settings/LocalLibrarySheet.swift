@@ -27,7 +27,7 @@ struct LocalLibrarySheet: View {
                 if loading && items.isEmpty {
                     ProgressView().frame(maxWidth: .infinity, minHeight: 80)
                 } else if items.isEmpty {
-                    Text("No local titles yet. Import a file in Settings › Storage › Local files.")
+                    Text("Import files in Settings › Storage.")
                         .foregroundStyle(.secondary)
                 }
                 ForEach(items) { item in

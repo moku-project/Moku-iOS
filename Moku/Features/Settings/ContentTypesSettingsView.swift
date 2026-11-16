@@ -16,7 +16,7 @@ struct ContentTypesSettingsView: View {
                     .onMove(perform: move)
             } footer: {
                 Text(
-                    "Drag to reorder the types the content button cycles through. All is always shown."
+                    "Drag to reorder. All is always shown."
                 )
             }
             Section {

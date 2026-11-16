@@ -49,7 +49,7 @@ struct GeneralSettingsView: View {
                 Text("Inactivity")
             } footer: {
                 Text(
-                    "Show the Moku idle screen after this much inactivity. Paused while reading or playing media."
+                    "Paused while reading or watching."
                 )
             }
             Section("Animations") {

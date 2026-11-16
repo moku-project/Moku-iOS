@@ -55,7 +55,7 @@ struct TrackingView: View {
                     }
                     .disabled(model.loading)
                 } label: {
-                    Label("Tracking Actions", systemImage: "ellipsis.circle")
+                    Label("Tracking Actions", systemImage: "ellipsis")
                 }
                 .accessibilityIdentifier("tracking.fab")
             }
@@ -157,7 +157,7 @@ struct TrackingView: View {
         } footer: {
             if !model.services.isEmpty {
                 Text(
-                    "\(connected.count) connected. Sign in to import your lists and keep progress in sync."
+                    "\(connected.count) connected."
                 )
             }
         }
@@ -331,7 +331,7 @@ struct TrackingView: View {
                             Text("Sign in elsewhere")
                         } footer: {
                             Text(
-                                "Approve access in your browser, then paste the token or the redirected URL below."
+                                "After approving, paste the token or the redirected URL."
                             )
                         }
                     }
@@ -495,7 +495,7 @@ struct TrackingView: View {
                     matchingID = nil
                 } label: {
                     HStack(spacing: 12) {
-                        CoverImage(url: entry.coverURL, symbol: "BookOpen")
+                        CoverImage(url: entry.coverURL, symbol: "book")
                             .frame(width: 40, height: 56).clipShape(
                                 RoundedRectangle(cornerRadius: 5))
                         Text(entry.title).foregroundStyle(.primary)

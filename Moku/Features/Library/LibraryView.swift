@@ -318,7 +318,7 @@ struct LibraryView: View {
                 }
             }
         } label: {
-            Label("Library Options", systemImage: "ellipsis.circle")
+            Label("Library Options", systemImage: "ellipsis")
         }
         .accessibilityIdentifier("library.options")
     }
@@ -474,11 +474,9 @@ struct LibraryView: View {
 
     private var emptyLibrary: some View {
         ContentUnavailableView {
-            Label("Nothing Here Yet", systemImage: "books.vertical")
+            Label("No Saved Titles", systemImage: "books.vertical")
         } description: {
-            Text(
-                "Save titles from Search, import files in Settings → Storage, or sync with Moku on your computer."
-            )
+            Text("Titles you save appear here.")
         } actions: {
             Button("Browse Titles", action: onBrowse)
                 .buttonStyle(.borderedProminent)

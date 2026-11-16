@@ -59,7 +59,7 @@ struct ImportSetup: View {
                 Text("Match on")
             } footer: {
                 Text(
-                    "With a source, each title is matched to it so chapters are ready to read. Without one, titles are saved from the tracker’s details."
+                    "With a source, chapters are ready to read right away."
                 )
             }
             if model.working {

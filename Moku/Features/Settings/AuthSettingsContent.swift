@@ -52,7 +52,7 @@ struct AuthSettingsContent: View {
                 Text("App lock")
             } footer: {
                 Text(
-                    "6–8 digits, stored in the device Keychain. Locks when Moku goes into the background."
+                    "6–8 digits. Moku locks when you leave it."
                 )
             }
             if lock.enabled {

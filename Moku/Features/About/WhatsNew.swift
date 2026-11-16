@@ -13,7 +13,7 @@ enum WhatsNew {
         Release(
             version: "0.1.0",
             notes: [
-                "Sync your library, folders and reading progress with Moku on your computer (Settings → Sync).",
+                "Pair your devices with Moku Sync to share your library, progress and history (Settings › Moku Sync).",
                 "Novel reader with paper, sepia and dark themes and adjustable type.",
                 "Mark chapters read or unread, select several at once, and download ranges from a title.",
                 "Search by genre, load more results, and pin your favourite sources.",
