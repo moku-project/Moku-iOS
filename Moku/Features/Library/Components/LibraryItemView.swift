@@ -113,14 +113,11 @@ struct LibraryItemView: View {
         var failed = 0
         for id in ids where Int64(id) != nil {
             do {
-                struct Media: Decodable, Sendable {
-                    struct Item: Decodable, Sendable { let chapters: [Chapter] }
-                    let media: Item?
-                }
-                let media: Media = try await BackendAPI.shared.graphql(
-                    "{ media(id: \(BackendAPI.literal(id))) { chapters { id title number scanlator completed downloaded } } }",
+                struct Stored: Decodable, Sendable { let chapters: [Chapter] }
+                let stored: Stored = try await BackendAPI.shared.graphql(
+                    "{ chapters(mediaId: \(BackendAPI.literal(id))) { id title number scanlator completed downloaded } }",
                     requiresSourceRuntime: false)
-                let chapters = media.media?.chapters.filter(\.downloaded).map(\.id) ?? []
+                let chapters = stored.chapters.filter(\.downloaded).map(\.id)
                 guard !chapters.isEmpty else { continue }
                 let _: IgnoredGraphQLResult = try await BackendAPI.shared.graphql(
                     "mutation { deleteDownload(mediaId: \(BackendAPI.literal(id)), chapterIds: [\(chapters.map(BackendAPI.literal).joined(separator: ","))]) }",

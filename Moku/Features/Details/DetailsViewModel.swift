@@ -90,15 +90,15 @@ import Observation
                 let completed: Bool
                 let readingProgress: Chapter.Progress?
             }
-            struct Media: Decodable, Sendable { let chapters: [Item] }
-            let media: Media?
+            let chapters: [Item]
         }
         guard
             let response: Response = try? await BackendAPI.shared.graphql(
-                "{ media(id: \(BackendAPI.literal(mediaID))) { chapters { id completed readingProgress { progress positionSeconds } } } }",
+                "{ chapters(mediaId: \(BackendAPI.literal(mediaID))) { id completed readingProgress { progress positionSeconds } } }",
                 requiresSourceRuntime: false),
-            details?.id == mediaID, let items = response.media?.chapters
+            details?.id == mediaID
         else { return }
+        let items = response.chapters
         let states = Dictionary(items.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
         guard
             details?.chapters.contains(where: { chapter in
@@ -231,15 +231,15 @@ import Observation
                 let downloaded: Bool
                 let download: Chapter.DownloadJob?
             }
-            struct Media: Decodable, Sendable { let chapters: [Item] }
-            let media: Media?
+            let chapters: [Item]
         }
         guard
             let response: Response = try? await BackendAPI.shared.graphql(
-                "{ media(id: \(BackendAPI.literal(mediaID))) { chapters { id downloaded download { status progress } } } }",
+                "{ chapters(mediaId: \(BackendAPI.literal(mediaID))) { id downloaded download { status progress } } }",
                 requiresSourceRuntime: false),
-            !Task.isCancelled, details?.id == mediaID, let items = response.media?.chapters
+            !Task.isCancelled, details?.id == mediaID
         else { return }
+        let items = response.chapters
         let states = Dictionary(items.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
         var changed = false
         var updated = details?.chapters ?? []

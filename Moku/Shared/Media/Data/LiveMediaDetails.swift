@@ -66,14 +66,11 @@ extension LiveMediaRepository: DetailsRepository {
             Date.now.timeIntervalSince(synced) < 600
         {
             // Reopening reads progress from SQLite without having the extension rescrape the chapters.
-            struct Stored: Decodable, Sendable {
-                struct Media: Decodable, Sendable { let chapters: [Chapter] }
-                let media: Media?
-            }
+            struct Stored: Decodable, Sendable { let chapters: [Chapter] }
             let stored: Stored = try await BackendAPI.shared.graphql(
-                "{ media(id: \(BackendAPI.literal(mediaID))) { chapters { id title number scanlator completed downloaded uploadedAt sourceOrder readingProgress { progress positionSeconds } bookmarked download { status progress } } } }",
+                "{ chapters(mediaId: \(BackendAPI.literal(mediaID))) { id title number scanlator completed downloaded uploadedAt sourceOrder readingProgress { progress positionSeconds } bookmarked download { status progress } } }",
                 requiresSourceRuntime: false)
-            if let media = stored.media { return media.chapters }
+            if !stored.chapters.isEmpty { return stored.chapters }
         }
         // Outlive the view: a new consumer joins this call instead of starting an overlapping extension update.
         let request = Task {

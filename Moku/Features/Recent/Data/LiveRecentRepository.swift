@@ -11,18 +11,11 @@ struct LiveRecentRepository: RecentRepository {
         if refresh {
             _ = try await LiveMediaRepository.shared.chapters(mediaID: mediaID, refresh: true)
         }
-        struct Response: Decodable, Sendable {
-            struct Media: Decodable, Sendable { let chapters: [RecentChapter] }
-            let media: Media?
-        }
+        struct Response: Decodable, Sendable { let chapters: [RecentChapter] }
         let result: Response = try await BackendAPI.shared.graphql(
-            """
-            { media(id: \(BackendAPI.literal(mediaID))) {
-                chapters { id title number uploadedAt completed downloaded }
-            } }
-            """, requiresSourceRuntime: false)
-        guard let media = result.media else { throw SearchFailure.notConnected }
-        return media.chapters.map { RecentUpdate(entry: entry, mediaID: mediaID, chapter: $0) }
+            "{ chapters(mediaId: \(BackendAPI.literal(mediaID))) { id title number uploadedAt completed downloaded } }",
+            requiresSourceRuntime: false)
+        return result.chapters.map { RecentUpdate(entry: entry, mediaID: mediaID, chapter: $0) }
     }
 
     func entry(id: String) async throws -> MediaEntry {
