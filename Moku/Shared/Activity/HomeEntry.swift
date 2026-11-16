@@ -26,23 +26,6 @@ struct HomeEntry: Codable, Identifiable, Equatable, Sendable {
     var summary: String? = nil
 }
 
-struct HomeSession: Codable, Identifiable, Sendable {
-    var id = UUID()
-    var entryID: String
-    var chapterID: String
-    var page: Int
-    var endedAt: Date
-    var minutes: Int
-    var completedUnits: Int
-    var startedAt: Date? = nil
-    var durationSeconds: Double? = nil
-}
-
-struct HomeSnapshot: Codable, Sendable {
-    var entries: [HomeEntry] = []
-    var sessions: [HomeSession] = []
-}
-
 extension HomeEntry {
     init(_ entry: MediaEntry) {
         self.init(id: entry.id, title: entry.title, coverURL: entry.coverURL,

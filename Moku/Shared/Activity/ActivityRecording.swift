@@ -1,96 +1,102 @@
 import SwiftUI
 
-/// Sessions are replaced as progress changes and split on chapter change; only foreground reading or playback counts.
+/// Builds one reading session per stretch on a title: it ends when the title changes or after an hour idle.
 @MainActor final class ActivityRecorder {
-    private var session: HomeSession?
-    private var entry: HomeEntry?
-    private var seconds: TimeInterval = 0
+    private struct Draft {
+        let id = UUID().uuidString
+        let mediaID: String
+        let startChapterID: String
+        let startPage: Int
+        let startedAt: Date
+        var endChapterID: String
+        var endPage: Int
+        var endedAt: Date
+        var seconds: TimeInterval = 0
+        var chapters: Set<String>
+    }
+
+    static let idleLimit: TimeInterval = 3600
+    private var draft: Draft?
     private var previousTime: Date?
     private var wasActive = false
-    private var lastPersisted: Date?
+    private var lastSent: Date?
 
     func sample(
-        home: HomeStore, entry: HomeEntry, chapterID: String, position: Int,
-        completed: Bool, active: Bool, valid: Bool, now: Date = .now
+        history: ReadingHistory, mediaID: String, chapterID: String, position: Int,
+        active: Bool, valid: Bool, now: Date = .now
     ) {
-        if let previousTime, wasActive {
-            seconds += max(0, now.timeIntervalSince(previousTime))
-            session?.endedAt = now
+        accumulate(now: now)
+        if let current = draft, current.mediaID != mediaID || now.timeIntervalSince(current.endedAt) > Self.idleLimit {
+            send(history: history)
+            draft = nil
         }
+        let reading = active && valid
+        let stopped = wasActive && !reading
+        wasActive = reading
         previousTime = now
-        let activeChanged = wasActive != (active && valid)
-        wasActive = active && valid
-        if session?.chapterID != chapterID || session?.entryID != entry.id {
-            persist(home: home, now: now)
-            session = nil
-            seconds = 0
-        }
         guard valid else {
-            persist(home: home, now: now)
+            if stopped { send(history: history) }
             return
         }
-        self.entry = entry
-        let isNew = session == nil
-        if session == nil {
-            guard active else { return }
-            session = HomeSession(
-                entryID: entry.id, chapterID: chapterID, page: position,
-                endedAt: now, minutes: 0, completedUnits: 0, startedAt: now)
+        if draft == nil {
+            guard reading else { return }
+            draft = Draft(
+                mediaID: mediaID, startChapterID: chapterID, startPage: max(1, position), startedAt: now,
+                endChapterID: chapterID, endPage: max(1, position), endedAt: now, chapters: [chapterID])
         }
-        session?.page = position
-        let units = max(session?.completedUnits ?? 0, completed ? 1 : 0)
-        let completedChanged = units != session?.completedUnits
-        session?.completedUnits = units
-        // Throttle Home writes, which re-render every observer; the modifier's 5 s tick flushes the rest.
-        if isNew || completedChanged || activeChanged || lastPersisted.map({ now.timeIntervalSince($0) >= 5 }) ?? true {
-            persist(home: home, now: now)
+        let newChapter = draft?.chapters.insert(chapterID).inserted ?? false
+        draft?.endChapterID = chapterID
+        draft?.endPage = max(1, position)
+        if reading { draft?.endedAt = now }
+        if newChapter || stopped || lastSent.map({ now.timeIntervalSince($0) >= 30 }) ?? true {
+            send(history: history, now: now)
         }
     }
 
-    func stop(home: HomeStore, now: Date = .now) {
-        if let previousTime, wasActive {
-            seconds += max(0, now.timeIntervalSince(previousTime))
-            session?.endedAt = now
-        }
+    func stop(history: ReadingHistory, now: Date = .now) {
+        accumulate(now: now)
         wasActive = false
         previousTime = nil
-        persist(home: home, now: now)
+        send(history: history, now: now)
     }
 
-    private func persist(home: HomeStore, now: Date) {
-        guard var session, let entry else { return }
-        session.minutes = Int(seconds / 60)
-        session.durationSeconds = seconds
-        // Paused sessions don't continually jump to the top of Recent.
-        if wasActive { session.endedAt = now }
-        self.session = session
-        lastPersisted = now
-        home.record(session, entry: entry)
+    private func accumulate(now: Date) {
+        guard wasActive, let previousTime else { return }
+        draft?.seconds += min(Self.idleLimit, max(0, now.timeIntervalSince(previousTime)))
+        draft?.endedAt = now
+    }
+
+    private func send(history: ReadingHistory, now: Date = .now) {
+        // Opening and closing without reading leaves no history.
+        guard let draft, draft.seconds >= 5 || draft.chapters.count > 1 else { return }
+        lastSent = now
+        let input = ReadingSessionInput(
+            id: draft.id, mediaID: draft.mediaID, startChapterID: draft.startChapterID,
+            endChapterID: draft.endChapterID, startPage: draft.startPage, endPage: draft.endPage,
+            startedAt: draft.startedAt, endedAt: max(draft.endedAt, draft.startedAt),
+            durationMs: Int(min(Self.idleLimit, draft.seconds) * 1000), chapters: draft.chapters.count)
+        Task { await history.record(input) }
     }
 }
 
 private struct ActivityRecording: ViewModifier {
-    @Environment(HomeStore.self) private var home: HomeStore?
+    @Environment(ReadingHistory.self) private var history: ReadingHistory?
     @Environment(\.scenePhase) private var scenePhase
     @State private var recorder = ActivityRecorder()
-    let entry: HomeEntry
+    let mediaID: String
     let chapterID: String
     let position: Int
-    let completed: Bool
     let active: Bool
     let valid: Bool
 
     private struct Sample: Equatable {
         let chapterID: String
         let position: Int
-        let completed: Bool
         let active: Bool
         let valid: Bool
     }
     private var sample: Sample {
-        Sample(
-            chapterID: chapterID, position: position, completed: completed,
-            active: active && scenePhase == .active, valid: valid)
+        Sample(chapterID: chapterID, position: position, active: active && scenePhase == .active, valid: valid)
     }
     func body(content: Content) -> some View {
         content
@@ -98,28 +104,22 @@ private struct ActivityRecording: ViewModifier {
             .task(id: sample) {
                 guard sample.active && sample.valid else { return }
                 while !Task.isCancelled {
-                    do { try await Task.sleep(for: .seconds(5)) } catch { break }
+                    do { try await Task.sleep(for: .seconds(30)) } catch { break }
                     record()
                 }
             }
-            .onDisappear { if let home { recorder.stop(home: home) } }
+            .onDisappear { if let history { recorder.stop(history: history) } }
     }
     private func record() {
-        guard let home else { return }
+        guard let history else { return }
         recorder.sample(
-            home: home, entry: entry, chapterID: chapterID, position: position,
-            completed: completed, active: sample.active, valid: valid)
+            history: history, mediaID: mediaID, chapterID: chapterID, position: position,
+            active: sample.active, valid: valid)
     }
 }
 
 extension View {
-    func recordActivity(
-        entry: HomeEntry, chapterID: String, position: Int,
-        completed: Bool, active: Bool, valid: Bool
-    ) -> some View {
-        modifier(
-            ActivityRecording(
-                entry: entry, chapterID: chapterID, position: position,
-                completed: completed, active: active, valid: valid))
+    func recordActivity(mediaID: String, chapterID: String, position: Int, active: Bool, valid: Bool) -> some View {
+        modifier(ActivityRecording(mediaID: mediaID, chapterID: chapterID, position: position, active: active, valid: valid))
     }
 }

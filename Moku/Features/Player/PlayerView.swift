@@ -374,9 +374,7 @@ struct PlayerView: View {
             .persistentSystemOverlays(controlsVisible ? .automatic : .hidden)
         }
         .recordActivity(
-            entry: model.activityEntry,
-            chapterID: model.chapterID, position: Int(max(0, model.position)),
-            completed: model.duration > 0 && model.position >= model.duration - 1,
+            mediaID: model.mediaID, chapterID: model.chapterID, position: Int(max(0, model.position)),
             active: model.playing && !model.buffering,
             valid: model.activityReady
         )

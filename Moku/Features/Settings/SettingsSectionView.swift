@@ -6,7 +6,7 @@ struct SettingsSectionView: View {
     @Environment(\.dismiss) private var dismiss
 
     let openExtensions: () -> Void
-    @Environment(HomeStore.self) private var home
+    @Environment(ReadingHistory.self) private var home
     @Environment(ReaderPreferences.self) private var readerPreferences
     @AppStorage("preferences.language") private var language = "all"
     @AppStorage("preferences.interfaceScale") private var interfaceScale = 100.0
@@ -313,8 +313,8 @@ struct SettingsSectionView: View {
         defer { working = false }
         switch action {
         case .history:
-            await home.clearHistory()
-            notice = home.storageError ?? "Reading history cleared."
+            await home.clear()
+            notice = home.error ?? "Reading history cleared."
         case .cache:
             do {
                 await BackendAPI.shared.clearContentCache()

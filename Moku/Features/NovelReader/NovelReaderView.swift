@@ -76,8 +76,8 @@ struct NovelReaderView: View {
             UIApplication.shared.isIdleTimerDisabled = previousIdleTimer
         }
         .recordActivity(
-            entry: model.activityEntry, chapterID: model.chapterID,
-            position: Int(model.progress * 100), completed: model.completed,
+            mediaID: model.details.id, chapterID: model.chapterID,
+            position: Int(model.progress * 100),
             active: !settingsOpen && !chaptersOpen, valid: model.ready)
         .sheet(isPresented: $settingsOpen) { settings }
         .sheet(isPresented: $chaptersOpen) { chapterList }

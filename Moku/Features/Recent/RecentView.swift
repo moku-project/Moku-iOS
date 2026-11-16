@@ -2,9 +2,8 @@ import SwiftUI
 
 struct RecentView: View {
     @Binding var mode: ContentMode
-    @Environment(HomeStore.self) private var home
+    @Environment(ReadingHistory.self) private var home
     @Environment(LibraryStore.self) private var library
-    @Environment(ReaderPreferences.self) private var readerPreferences
     @State private var model: RecentViewModel
     @State private var tab: Tab = .history
     @State private var unreadOnly = false
@@ -25,7 +24,8 @@ struct RecentView: View {
     private struct Removal: Identifiable {
         var entryID: String?
         var title: String
-        var id: String { entryID ?? "all" }
+        var resetsStatistics = false
+        var id: String { resetsStatistics ? "reset" : entryID ?? "all" }
     }
     private struct Route: Identifiable, Hashable {
         static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
@@ -51,7 +51,6 @@ struct RecentView: View {
 
     private var query: Binding<String> { tab == .history ? $historySearch : $updatesSearch }
     @State private var history: [RecentHistoryDay] = []
-    @State private var activityStats = HomeStatistics()
     private struct HistoryKey: Equatable {
         let revision: Int
         let query: String
@@ -71,7 +70,7 @@ struct RecentView: View {
     var body: some View {
         List {
             if tab == .history {
-                if let error = home.storageError {
+                if let error = home.error {
                     Text(error).font(.footnote).foregroundStyle(.red)
                         .listRowBackground(Color.clear)
                 }
@@ -102,7 +101,7 @@ struct RecentView: View {
         }
         .searchable(text: query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search titles or chapters")
         .scrollDismissesKeyboard(.interactively)
-        .refreshable { if tab == .updates { await refresh() } else { await home.load() } }
+        .refreshable { if tab == .updates { await refresh() } else { await home.refresh() } }
         .accessibilityIdentifier("recent.scroll")
         .navigationTitle("History")
         .navigationBarTitleDisplayMode(.inline)
@@ -125,15 +124,17 @@ struct RecentView: View {
             isPresented: Binding(get: { confirmation != nil }, set: { if !$0 { confirmation = nil } }),
             titleVisibility: .visible, presenting: confirmation
         ) { removal in
-            Button("Clear History", role: .destructive) {
+            Button(removal.resetsStatistics ? "Reset Statistics" : "Clear History", role: .destructive) {
                 Task {
-                    await home.clearHistory(entryID: removal.entryID)
-                    if let error = home.storageError { model.notice = error }
+                    if removal.resetsStatistics { await home.reset() } else { await home.clear(mediaID: removal.entryID) }
+                    if let error = home.error { model.notice = error }
                 }
             }
             .accessibilityIdentifier("recent.confirmClear")
-        } message: { _ in
-            Text("Saved titles and downloaded files will be kept.")
+        } message: { removal in
+            Text(removal.resetsStatistics
+                 ? "History and stats are deleted on every paired device."
+                 : "Stats keep counting it. Saved titles and downloaded files will be kept.")
         }
         .sheet(isPresented: $showingStatistics) { statisticsSheet }
         .task {
@@ -146,22 +147,14 @@ struct RecentView: View {
             _ = await model.load(entries: savedEntries)
             if !Task.isCancelled { didLoad = true }
         }
-        .task(id: HistoryKey(revision: home.snapshotRevision, query: historySearch, mode: mode)) {
-            let snapshot = home.snapshot, query = historySearch, selectedMode = mode
+        .task(id: HistoryKey(revision: home.revision, query: historySearch, mode: mode)) {
+            let sessions = home.sessions, entries = home.entries, query = historySearch, selectedMode = mode
             let result = await Task.detached(priority: .userInitiated) {
-                RecentHistoryDay.group(RecentViewModel.history(snapshot, query: query, mode: selectedMode))
+                RecentHistoryDay.group(
+                    RecentViewModel.history(sessions, entries: entries, query: query, mode: selectedMode))
             }.value
             guard !Task.isCancelled else { return }
             history = result
-        }
-        .task(id: showingStatistics) {
-            guard showingStatistics else { return }
-            let snapshot = home.snapshot
-            let result = await Task.detached(priority: .userInitiated) {
-                HomeStatistics.calculate(snapshot: snapshot)
-            }.value
-            guard !Task.isCancelled else { return }
-            activityStats = result
         }
         .alert(
             "Recent",
@@ -239,7 +232,10 @@ struct RecentView: View {
                     Button("Clear All History", systemImage: "trash", role: .destructive) {
                         confirmation = Removal(title: "Clear all history?")
                     }
-                    .disabled(home.snapshot.sessions.isEmpty)
+                    .disabled(home.sessions.isEmpty)
+                    Button("Reset Statistics", systemImage: "chart.bar.xaxis", role: .destructive) {
+                        confirmation = Removal(title: "Reset all reading stats?", resetsStatistics: true)
+                    }
                 }
             }
         } label: {
@@ -252,7 +248,7 @@ struct RecentView: View {
     }
 
     private var statisticsSheet: some View {
-        let stats = activityStats
+        let stats = home.statistics
         return NavigationStack {
             List {
                 LabeledContent {
@@ -295,15 +291,6 @@ struct RecentView: View {
             defer { opening = false }
             do {
                 let entry = try await model.entry(id: id)
-                if entry.media == .manga, let chapterID,
-                    let session = home.snapshot.sessions.filter({
-                        $0.entryID == id && $0.chapterID == chapterID
-                    })
-                    .max(by: { $0.endedAt < $1.endedAt })
-                {
-                    readerPreferences.document.positions[id] = ReaderPosition(
-                        chapterID: chapterID, page: max(1, session.page))
-                }
                 route = Route(entry: entry, chapterID: chapterID)
             } catch {
                 model.notice =

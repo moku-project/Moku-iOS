@@ -1,10 +1,10 @@
 import Foundation
 
 enum AppDependencies {
-    @MainActor static var homeStore: HomeStore {
+    @MainActor static func readingHistory(legacyURL: URL?) -> ReadingHistory {
         #if DEBUG
             if ProcessInfo.processInfo.arguments.contains("--ui-testing-home-empty") {
-                return HomeStore(fileURL: nil)
+                return HomePreviewData.makeStore(titleCount: 0)
             }
             if ProcessInfo.processInfo.arguments.contains("--ui-testing-home-one") {
                 return HomePreviewData.makeStore(titleCount: 1)
@@ -15,7 +15,7 @@ enum AppDependencies {
                 return HomePreviewData.makeStore()
             }
         #endif
-        return HomeStore()
+        return ReadingHistory(legacyURL: legacyURL)
     }
 
     static var detailsRepository: any DetailsRepository {

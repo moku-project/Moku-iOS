@@ -2,7 +2,7 @@ import SwiftUI
 
 #if DEBUG
     private struct GeneralSettingsPreviewHost: View {
-        @State private var home = HomeStore(fileURL: nil)
+        @State private var home = HomePreviewData.makeStore(titleCount: 0)
         private let defaults = UserDefaults(suiteName: "Moku.Previews.Settings")!
 
         var body: some View {

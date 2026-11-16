@@ -9,7 +9,7 @@ struct LibraryView: View {
     var onSearch: (String) -> Void
     var onOpen: (MediaEntry) -> Void
     @Environment(LibraryStore.self) private var library
-    @Environment(HomeStore.self) private var home
+    @Environment(ReadingHistory.self) private var home
     @AppStorage("library.showAllInSaved") private var showAllInSaved = true
     @AppStorage("library.hideCompletedInSaved") private var hideCompletedInSaved = false
     @AppStorage("library.disableAutoComplete") private var disableAutoComplete = false
@@ -352,7 +352,7 @@ struct LibraryView: View {
         }
         .onChange(of: renderLimit) { _, _ in revealedPages = 1 }
         .onChange(of: library.serverVisibleIDs) { _, _ in syncItems() }
-        .onChange(of: home.snapshotRevision) { _, _ in syncItems() }
+        .onChange(of: home.revision) { _, _ in syncItems() }
         .onChange(of: downloadedIDs) { _, _ in syncItems() }
         .onChange(of: library.organization.starred) { _, _ in syncItems() }
         .onChange(of: library.organization.folders, initial: true) { _, folders in
@@ -484,7 +484,7 @@ struct LibraryView: View {
 
     private func syncItems() {
         guard isActive else { return }
-        let input = ItemInput(entriesRevision: library.entriesRevision, activityRevision: home.snapshotRevision,
+        let input = ItemInput(entriesRevision: library.entriesRevision, activityRevision: home.revision,
                               statsRevision: statsRevision, serverIDs: library.serverVisibleIDs,
                               downloaded: downloadedIDs, starred: library.organization.starred)
         guard input != preparedItemInput else {
@@ -497,28 +497,21 @@ struct LibraryView: View {
         pendingItemInput = input
         let entries = library.entries
         let visibleIDs = library.serverVisibleIDs
-        let snapshot = home.snapshot
+        let lastRead = home.lastRead
         let stats = backendStats
         let starred = library.organization.starred
         let downloaded = downloadedIDs
         let worker = Task.detached(priority: .userInitiated) {
-            var lastRead: [String: Date] = [:]
-            for session in snapshot.sessions {
-                if Task.isCancelled { return [LibraryItem]() }
-                lastRead[session.entryID] = max(lastRead[session.entryID] ?? .distantPast, session.endedAt)
-            }
-            let homeEntries = Dictionary(snapshot.entries.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
             var items: [LibraryItem] = []
             items.reserveCapacity(entries.count)
             for entry in entries {
                 if Task.isCancelled { return [LibraryItem]() }
                 guard Int64(entry.id) == nil || visibleIDs?.contains(entry.id) != false else { continue }
                 let progress = stats[entry.id]
-                let saved = homeEntries[entry.id]
                 items.append(LibraryItem(
                     id: entry.id, title: entry.title, media: entry.media, coverURL: entry.coverURL,
-                    readUnits: progress.map { max(0, $0.chapterCount - $0.unreadCount) } ?? saved?.chapters.filter(\.isRead).count ?? 0,
-                    totalUnits: progress?.chapterCount ?? saved?.chapters.count ?? 0,
+                    readUnits: progress.map { max(0, $0.chapterCount - $0.unreadCount) } ?? 0,
+                    totalUnits: progress?.chapterCount ?? 0,
                     downloaded: downloaded.contains(entry.id) || (progress?.downloadedCount ?? 0) > 0,
                     bookmarked: starred.contains(entry.id),
                     status: LibraryStatus(source: progress?.status),

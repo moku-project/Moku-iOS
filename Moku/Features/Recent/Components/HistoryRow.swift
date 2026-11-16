@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// One title in History: tap resumes, swipe clears, the context menu holds the rest; expanded, its chapters follow.
+/// One title in History: tap resumes, swipe clears, the context menu holds the rest; expanded, its sessions follow.
 struct HistoryRow: View {
     let item: RecentHistoryTitle
     let expanded: Bool
@@ -12,7 +12,7 @@ struct HistoryRow: View {
 
     var body: some View {
         Button {
-            open(item.id, item.latest.chapterID)
+            open(item.id, item.latest.endChapterID)
         } label: {
             HStack(spacing: 12) {
                 CoverImage(url: item.entry.coverURL, symbol: "BookOpen").frame(width: 46, height: 66)
@@ -20,9 +20,7 @@ struct HistoryRow: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(item.entry.title).font(.body.weight(.medium)).lineLimit(2)
                         .foregroundStyle(.primary)
-                    Text(
-                        "\(item.chapters.first?.title ?? "Chapter") · \(item.latest.completedUnits > 0 ? "Finished" : "Continue")"
-                    )
+                    Text(HomeItem(entry: item.entry, session: item.latest).detail)
                     .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -41,27 +39,28 @@ struct HistoryRow: View {
         }
         .swipeActions(edge: .leading) {
             Button(action: toggle) {
-                Label(expanded ? "Hide Chapters" : "Show Chapters", systemImage: "list.bullet")
+                Label(expanded ? "Hide Sessions" : "Show Sessions", systemImage: "list.bullet")
             }.tint(.indigo)
         }
         .contextMenu {
-            Button("Resume", systemImage: "play.fill") { open(item.id, item.latest.chapterID) }
+            Button("Resume", systemImage: "play.fill") { open(item.id, item.latest.endChapterID) }
             Button("View Title", systemImage: "info.circle") { open(item.id, nil) }
-            Button(expanded ? "Hide Chapters" : "Show Chapters", systemImage: "list.bullet") { toggle() }
+            Button(expanded ? "Hide Sessions" : "Show Sessions", systemImage: "list.bullet") { toggle() }
             Button("Activity Statistics", systemImage: "chart.bar") { showStatistics() }
             Divider()
             Button("Clear Title History", systemImage: "trash", role: .destructive) { clear(item) }
         }
 
         if expanded {
-            ForEach(item.chapters) { chapter in
+            ForEach(item.sessions) { session in
                 Button {
-                    open(item.id, chapter.id)
+                    open(item.id, session.endChapterID)
                 } label: {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(chapter.title).font(.subheadline).foregroundStyle(.primary)
+                        Text(HomeItem(entry: item.entry, session: session).detail)
+                            .font(.subheadline).foregroundStyle(.primary)
                         Text(
-                            "\(position(chapter.page, media: item.entry.media)) · \(RecentFormat.duration(chapter.minutes)) · \(chapter.sessions.count) visit(s)"
+                            "\(RecentFormat.timeAgo(session.endedAt)) · \(RecentFormat.duration(session.minutes)) · \(counted(session.chapters, item.entry.media == "Anime" ? "episode" : "chapter"))"
                         )
                         .font(.caption).foregroundStyle(.secondary)
                     }
@@ -73,11 +72,5 @@ struct HistoryRow: View {
                 .listRowBackground(Color.clear)
             }
         }
-    }
-
-    private func position(_ value: Int, media: String) -> String {
-        media == "Anime"
-            ? "\(value / 60):\(String(format: "%02d", value % 60))"
-            : media == "Novels" ? "\(value)%" : "Page \(value)"
     }
 }

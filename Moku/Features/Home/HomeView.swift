@@ -3,17 +3,16 @@ import Observation
 
 /// Continue card, stats, activity, up next and recent, in the Android order.
 struct HomeView: View {
-    let store: HomeStore
+    let store: ReadingHistory
     var isActive = true
     var onBrowse: () -> Void = {}
     var onOpenTitle: ((MediaEntry, String?) -> Void)?
     @Environment(LibraryStore.self) private var library: LibraryStore?
-    @Environment(ReaderPreferences.self) private var readerPreferences: ReaderPreferences?
     @State private var loader = HomeTitleLoader()
     @State private var route: HomeRoute?
     @State private var opening = false
     @State private var openError: String?
-    @State private var statistics = HomeStatistics()
+    @State private var featuredResume: ResumePoint?
 
     private static let weeks = 18
 
@@ -24,9 +23,7 @@ struct HomeView: View {
     }
 
     private var items: [HomeItem] {
-        store.recentSessions.compactMap { session in
-            store.entry(session.entryID).map { HomeItem(entry: $0, session: session) }
-        }
+        store.recent.map { HomeItem(entry: store.entry(for: $0), session: $0) }
     }
     /// The next most recent title that still has something unread.
     private func upNext(_ items: [HomeItem]) -> HomeItem? {
@@ -45,24 +42,24 @@ struct HomeView: View {
                     if let featured = items.first {
                         HomeContinueCard(
                             item: featured, opening: opening,
-                            resume: { open(featured.entry, chapterID: featured.session.chapterID) },
+                            resume: { open(featured.entry, chapterID: resumeChapter(featured)) },
                             details: { open(featured.entry) })
                     } else {
                         HomeWelcomeCard(browse: onBrowse)
                     }
                     HomeSection(title: "Your Stats", systemImage: "chart.line.uptrend.xyaxis") {
-                        HomeStatsStrip(statistics: statistics)
+                        HomeStatsStrip(statistics: store.statistics)
                     }
                     HomeSection(
                         title: "Activity", systemImage: "clock",
-                        trailing: "\(HomeHeatmap.total(statistics.daily, weeks: Self.weeks)) in \(Self.weeks) weeks"
+                        trailing: "\(HomeHeatmap.total(store.statistics.daily, weeks: Self.weeks)) in \(Self.weeks) weeks"
                     ) {
-                        HomeHeatmap(daily: statistics.daily, weeks: Self.weeks)
+                        HomeHeatmap(daily: store.statistics.daily, weeks: Self.weeks)
                     }
                     HomeSection(title: "Up Next") {
                         Group {
                             if let upNext {
-                                HomeMediaRow(item: upNext) { open(upNext.entry, chapterID: upNext.session.chapterID) }
+                                HomeMediaRow(item: upNext) { open(upNext.entry, chapterID: upNext.session.endChapterID) }
                             } else {
                                 HStack {
                                     Text("Nothing queued yet").font(.subheadline).foregroundStyle(.secondary)
@@ -82,10 +79,10 @@ struct HomeView: View {
                             VStack(spacing: 0) {
                                 ForEach(recent) { item in
                                     if item.id != recent.first?.id { Divider() }
-                                    HomeMediaRow(item: item) { open(item.entry, chapterID: item.session.chapterID) }
+                                    HomeMediaRow(item: item) { open(item.entry, chapterID: item.session.endChapterID) }
                                         .contextMenu {
                                             Button("Resume", systemImage: "play.fill") {
-                                                open(item.entry, chapterID: item.session.chapterID)
+                                                open(item.entry, chapterID: item.session.endChapterID)
                                             }
                                             Button("View Title", systemImage: "info.circle") { open(item.entry) }
                                         }
@@ -97,7 +94,7 @@ struct HomeView: View {
                         }
                     }
                 }
-                if let error = store.storageError {
+                if let error = store.error {
                     Label(error, systemImage: "exclamationmark.triangle")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
@@ -127,19 +124,10 @@ struct HomeView: View {
             Button("OK") { openError = nil }
         } message: { Text(openError ?? "") }
         .task { await store.load(); await library?.load() }
-        .task(id: "\(isActive)-\(store.snapshotRevision)") {
-            guard isActive else { return }
-            let snapshot = store.snapshot
-            let result = await Task.detached(priority: .userInitiated) {
-                HomeStatistics.calculate(snapshot: snapshot)
-            }.value
-            guard !Task.isCancelled else { return }
-            statistics = result
-        }
         .task(id: "\(isActive)-\(items.first?.id ?? "empty")") {
             if isActive { await refreshFeatured() }
         }
-        .refreshable { await refreshFeatured(refresh: true) }
+        .refreshable { await store.refresh(); await refreshFeatured(refresh: true) }
         .fullScreenCover(item: $route, onDismiss: { Task { await refreshFeatured(refresh: true) } }) { route in
             NavigationStack {
                 DetailsView(entry: route.entry, initialChapterID: route.chapterID) { self.route = nil }
@@ -151,10 +139,18 @@ struct HomeView: View {
     private func refreshFeatured(refresh: Bool = false) async {
         guard let entry = items.first?.entry else { return }
         await library?.load()
+        async let resume = try? store.repository.resumePoint(mediaID: entry.id)
         await loader.load(entry, library: library?.entries ?? [], refresh: refresh)
         if !Task.isCancelled, let updated = loader.updatedEntry, updated.id == entry.id {
-            store.updateEntry(updated)
+            store.update(updated)
         }
+        let point = await resume
+        if !Task.isCancelled, items.first?.id == entry.id { featuredResume = point ?? nil }
+    }
+
+    /// The resume point is synced from every device; the session is the fallback until it loads.
+    private func resumeChapter(_ item: HomeItem) -> String? {
+        featuredResume.map(\.chapterID) ?? item.session.endChapterID
     }
 
     private func open(_ entry: HomeEntry, chapterID: String? = nil) {
@@ -165,13 +161,6 @@ struct HomeView: View {
             defer { opening = false }
             do {
                 let media = try await loader.resolve(entry, library: library?.entries ?? [])
-                if media.media == .manga, let chapterID,
-                   let session = store.snapshot.sessions.filter({
-                       $0.entryID == entry.id && $0.chapterID == chapterID
-                   }).max(by: { $0.endedAt < $1.endedAt }) {
-                    readerPreferences?.document.positions[media.id] = ReaderPosition(
-                        chapterID: chapterID, page: max(1, session.page))
-                }
                 if let onOpenTitle { onOpenTitle(media, chapterID) }
                 else { route = HomeRoute(entry: media, chapterID: chapterID) }
             } catch {

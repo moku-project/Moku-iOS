@@ -39,7 +39,7 @@ struct RootView: View {
         }
         return navigation
     }()
-    let homeStore: HomeStore
+    let homeStore: ReadingHistory
     @State private var downloadsModel = DownloadsViewModel.makeDefault()
     @Environment(\.colorScheme) private var colorScheme
     @AppStorage("preferences.systemTheme") private var systemTheme = false
@@ -147,7 +147,7 @@ private struct RootTabPage: View, Equatable {
     let tab: AppTab
     let activity: TabActivity
     let navigation: RootNavigation
-    let homeStore: HomeStore
+    let homeStore: ReadingHistory
     let downloadsModel: DownloadsViewModel
     @AppStorage("contentMode") private var mode: ContentMode = .all
     @AppStorage("preferences.language") private var sourceLanguage = "all"

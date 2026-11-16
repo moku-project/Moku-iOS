@@ -2,15 +2,17 @@ import SwiftUI
 
 struct HomeItem: Identifiable {
     let entry: HomeEntry
-    let session: HomeSession
+    let session: HistorySession
     var id: String { entry.id }
 
     var isAnime: Bool { entry.media == "Anime" }
 
-    /// "Ch.12 · Page 37", or the unread count when the chapter list isn't known yet.
+    /// "Ch.12 · Page 37", or the unread count when the chapter isn't known.
     var detail: String {
-        if let chapter = entry.chapters.first(where: { $0.id == session.chapterID }) {
-            return isAnime ? chapter.displayTitle : "\(chapter.displayTitle) · Page \(session.page)"
+        let title = entry.chapters.first { $0.id == session.endChapterID }?.title ?? session.endChapterTitle
+        if let title {
+            let chapter = HomeChapter(id: "", title: title).displayTitle
+            return isAnime || session.media == .novels ? chapter : "\(chapter) · Page \(session.endPage)"
         }
         return entry.unreadCount > 0 ? "\(entry.unreadCount) unread" : "In progress"
     }

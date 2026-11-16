@@ -21,12 +21,12 @@ import XCTest
         capture("Recent history")
         // Row actions live in the context menu.
         row.press(forDuration: 1.0)
-        app.buttons["Show Chapters"].firstMatch.tap()
+        app.buttons["Show Sessions"].firstMatch.tap()
         row.press(forDuration: 1.0)
-        XCTAssertTrue(app.buttons["Hide Chapters"].firstMatch.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Hide Sessions"].firstMatch.waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["Clear Title History"].firstMatch.exists)
         capture("Recent expanded history")
-        app.buttons["Hide Chapters"].firstMatch.tap()
+        app.buttons["Hide Sessions"].firstMatch.tap()
         // The system search field filters history.
         let search = app.searchFields.firstMatch
         XCTAssertTrue(search.waitForExistence(timeout: 3))

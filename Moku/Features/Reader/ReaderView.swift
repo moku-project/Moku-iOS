@@ -110,11 +110,7 @@ struct ReaderView: View {
             UIApplication.shared.isIdleTimerDisabled = previousIdleTimer
         }
         .recordActivity(
-            entry: model.activityEntry,
-            chapterID: model.chapterID, position: model.page,
-            completed: !model.pages.isEmpty
-                && (model.isStrip ? model.page : (model.visiblePages.max() ?? model.page))
-                    == model.pages.count,
+            mediaID: model.details.id, chapterID: model.chapterID, position: model.page,
             active: !model.drawerOpen && !pickerOpen && !downloadsOpen,
             valid: model.activityReady
         )

@@ -66,7 +66,7 @@ actor BackendAPI {
     private nonisolated static func isProgressMutation(_ mutation: String) -> Bool {
         let body = mutation.dropFirst("mutation".count)
             .drop { $0 == " " || $0 == "{" || $0.isNewline }
-        return ["updateReadingProgress", "markChapterRead", "markChaptersRead"]
+        return ["updateReadingProgress", "markChapterRead", "markChaptersRead", "recordReadingSession"]
             .contains { body.hasPrefix($0) }
     }
 

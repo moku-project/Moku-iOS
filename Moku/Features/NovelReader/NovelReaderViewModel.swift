@@ -13,7 +13,6 @@ import Observation
     var progress: Double = 0
     /// Set once per chapter load; the view scrolls there after layout.
     private(set) var resumeAt: Double?
-    private(set) var activityEntry: HomeEntry
     private var savedProgress: [String: (Double, Bool)] = [:]
     private var saveTask: Task<Void, Never>?
     private var generation = UUID()
@@ -24,13 +23,6 @@ import Observation
         self.details = details
         self.chapterID = chapterID
         chapters = ChapterPresentation.readingOrder(details.chapters, preferences: preferences, mediaID: details.id)
-        activityEntry = HomeEntry(
-            id: details.id, title: details.title, coverURL: BackendAPI.coverURL(details.thumbnailUrl),
-            media: "Novels", genres: details.genres,
-            unreadCount: details.chapters.filter { !$0.completed }.count,
-            chapters: details.chapters.map {
-                HomeChapter(id: $0.id, title: $0.label, isRead: $0.completed, uploadedAt: $0.uploadedAt)
-            }, author: details.byline, summary: details.description)
     }
 
     var chapter: Chapter? { chapters.first { $0.id == chapterID } }

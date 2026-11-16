@@ -3,7 +3,7 @@ import SwiftUI
 #if DEBUG
     private struct LibraryPreviewHost: View {
         @State private var mode: ContentMode = .all
-        @State private var home = HomeStore(fileURL: nil)
+        @State private var home = HomePreviewData.makeStore(titleCount: 0)
         @State private var library = LibraryStore(
             directory: FileManager.default.temporaryDirectory
                 .appending(path: "MokuPreviews/\(UUID().uuidString)"))

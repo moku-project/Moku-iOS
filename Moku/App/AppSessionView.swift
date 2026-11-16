@@ -3,7 +3,7 @@ import SwiftUI
 struct AppSessionView: View {
     let preferences: UserDefaults
     let searchHistory: SearchHistoryStore
-    @State private var home: HomeStore
+    @State private var home: ReadingHistory
     @State private var library: LibraryStore
     @Environment(\.scenePhase) private var scenePhase
     @State private var appLock: AppLockStore
@@ -18,17 +18,7 @@ struct AppSessionView: View {
             url: storage.directory.appending(path: "search-history.sqlite"))
         _readerPreferences = State(
             initialValue: ReaderPreferences(defaults: storage.preferences))
-        #if DEBUG
-            if ProcessInfo.processInfo.arguments.contains(where: {
-                $0.hasPrefix("--ui-testing-home-")
-            }) {
-                _home = State(initialValue: AppDependencies.homeStore)
-            } else {
-                _home = State(initialValue: HomeStore(fileURL: storage.homeURL))
-            }
-        #else
-            _home = State(initialValue: HomeStore(fileURL: storage.homeURL))
-        #endif
+        _home = State(initialValue: AppDependencies.readingHistory(legacyURL: storage.homeURL))
         _library = State(
             initialValue: LibraryStore(directory: storage.directory, synchronizeWithServer: !PreviewMode.isEnabled))
     }
@@ -67,6 +57,7 @@ struct AppSessionView: View {
             .environment(\.searchHistoryStore, searchHistory)
             .environment(\.skeletonStorageScope, searchHistory.url.path)
             .environment(home).environment(library).environment(readerPreferences).environment(appLock)
+            .task { await home.load() }
             .defaultAppStorage(preferences)
             .task {
                 await appLock.load()
@@ -94,10 +85,14 @@ struct AppSessionView: View {
                 if phase == .background {
                     BackgroundWork.didEnterBackground(defaults: preferences)
                     appLock.lock()
-                    Task { await readerPreferences.flush(); await home.flush() }
+                    Task { await readerPreferences.flush() }
                 }
                 if phase == .active {
-                    Task { await Backend.shared.recoverIfNeeded(); await Backend.shared.refreshSync() }
+                    Task {
+                        await Backend.shared.recoverIfNeeded()
+                        await Backend.shared.refreshSync()
+                        await home.refresh()
+                    }
                     appLock.showIfLocked()
                 }
             }

@@ -2,11 +2,10 @@ import SwiftUI
 
 #if DEBUG
     private struct HomePreviewHost: View {
-        @State private var store: HomeStore
+        @State private var store: ReadingHistory
 
         init(empty: Bool = false) {
-            _store = State(
-                initialValue: empty ? HomeStore(fileURL: nil) : HomePreviewData.makeStore())
+            _store = State(initialValue: HomePreviewData.makeStore(titleCount: empty ? 0 : 3))
         }
 
         var body: some View {

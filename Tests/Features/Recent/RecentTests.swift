@@ -12,54 +12,23 @@ import Testing
             uploadedAt: "2026-09-20T12:00:00Z", completed: false, downloaded: downloaded)
     }
 
-    @Test func historyCollapsesTitlesAndChaptersAndSortsUnorderedSessions() {
-        let entry = HomeEntry(
-            id: "a", title: "Alpha",
-            chapters: [
-                HomeChapter(id: "1", title: "Arrival"), HomeChapter(id: "2", title: "Departure"),
-            ])
-        let dates = [
-            Date(timeIntervalSince1970: 100), Date(timeIntervalSince1970: 300),
-            Date(timeIntervalSince1970: 200),
+    @Test func historyGroupsTitlesNewestFirstAndFilters() {
+        func session(_ id: String, _ media: String, at seconds: Double, chapter: String) -> HistorySession {
+            HistorySession(
+                id: id, mediaID: media, title: media == "a" ? "Alpha" : "Beta", media: media == "a" ? .manga : .anime,
+                endChapterID: chapter, endChapterTitle: chapter, startedAt: Date(timeIntervalSince1970: seconds - 60),
+                endedAt: Date(timeIntervalSince1970: seconds), durationMs: 300_000)
+        }
+        let sessions = [
+            session("1", "a", at: 100, chapter: "Arrival"), session("2", "b", at: 300, chapter: "Episode 2"),
+            session("3", "a", at: 200, chapter: "Departure"),
         ]
-        let sessions = dates.enumerated().map { index, date in
-            HomeSession(
-                entryID: "a", chapterID: index == 1 ? "2" : "1", page: index + 2,
-                endedAt: date, minutes: 5, completedUnits: 0)
-        }
-        let snapshot = HomeSnapshot(entries: [entry], sessions: sessions)
-        let titles = RecentViewModel.history(snapshot, query: "", mode: .all)
-        #expect(titles.count == 1)
-        #expect(titles[0].latest.chapterID == "2")
-        #expect(titles[0].chapters.count == 2)
-        #expect(titles[0].chapters[1].sessions.count == 2)
-        #expect(titles[0].chapters[1].page == 4)
-        #expect(titles[0].minutes == 15)
-        #expect(
-            RecentViewModel.history(snapshot, query: " arrival ", mode: .manga)[0].chapters.count
-                == 1)
-        #expect(RecentViewModel.history(snapshot, query: "", mode: .anime).isEmpty)
-    }
-
-    @Test func titleClearPersistsWithoutRemovingOtherActivity() async throws {
-        let folder = URL.temporaryDirectory.appending(path: UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: folder) }
-        let url = folder.appending(path: "home.json")
-        let store = HomeStore(fileURL: url)
-        for id in ["a", "b"] {
-            let entry = HomeEntry(id: id, title: id)
-            store.record(
-                HomeSession(
-                    entryID: id, chapterID: "1", page: 4, endedAt: .now,
-                    minutes: 5, completedUnits: 1), entry: entry)
-        }
-        await store.clearHistory(entryID: "a")
-        let reloaded = HomeStore(fileURL: url)
-        await reloaded.load()
-        #expect(reloaded.snapshot.sessions.map(\.entryID) == ["b"])
-        #expect(reloaded.snapshot.entries.count == 2)
-        await reloaded.clearHistory()
-        #expect(reloaded.snapshot.sessions.isEmpty)
+        let titles = RecentViewModel.history(sessions, entries: [:], query: "", mode: .all)
+        #expect(titles.map(\.id) == ["b", "a"])
+        #expect(titles[1].latest.id == "3")
+        #expect(titles[1].minutes == 10)
+        #expect(RecentViewModel.history(sessions, entries: [:], query: " arrival ", mode: .all).map(\.id) == ["a"])
+        #expect(RecentViewModel.history(sessions, entries: [:], query: "", mode: .anime).map(\.id) == ["b"])
     }
 
     @Test func updateRefreshCountsNewChaptersAndDownloadActionsUseBackend() async {
@@ -90,27 +59,6 @@ import Testing
         #expect(await model.load(entries: []))
         #expect(model.updates.isEmpty)
         #expect(await repository.requested.allSatisfy { $0 == "a" })
-    }
-
-    @Test func activitySplitsChaptersAndExcludesPausedTime() {
-        let store = HomeStore(fileURL: nil)
-        let recorder = ActivityRecorder()
-        let entry = HomeEntry(id: "a", title: "Alpha")
-        func sample(_ chapter: String, _ seconds: Double, active: Bool = true) {
-            recorder.sample(
-                home: store, entry: entry, chapterID: chapter, position: 8,
-                completed: true, active: active, valid: true,
-                now: Date(timeIntervalSince1970: seconds))
-        }
-        sample("1", 0)
-        sample("1", 65, active: false)
-        sample("1", 200)
-        sample("2", 210)
-        sample("2", 275, active: false)
-        recorder.stop(home: store, now: Date(timeIntervalSince1970: 400))
-        #expect(store.snapshot.sessions.count == 2)
-        #expect(store.snapshot.sessions.allSatisfy { $0.minutes == 1 })
-        #expect(store.snapshot.sessions.allSatisfy { $0.completedUnits == 1 })
     }
 }
 

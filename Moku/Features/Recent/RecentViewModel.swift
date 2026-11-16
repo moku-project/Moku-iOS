@@ -152,29 +152,22 @@ import Observation
 
     func entry(id: String) async throws -> MediaEntry { try await repository.entry(id: id) }
 
-    nonisolated static func history(_ snapshot: HomeSnapshot, query: String, mode: ContentMode)
-        -> [RecentHistoryTitle]
-    {
+    nonisolated static func history(
+        _ sessions: [HistorySession], entries: [String: HomeEntry], query: String, mode: ContentMode
+    ) -> [RecentHistoryTitle] {
         let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        let entries = Dictionary(
-            snapshot.entries.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
-        var matchingChapters: [String: Set<String>] = [:]
-        if !query.isEmpty {
-            for entry in snapshot.entries {
-                matchingChapters[entry.id] = Set(entry.chapters.filter { $0.title.localizedStandardContains(query) }.map(\.id))
-            }
+        let matching = sessions.filter { session in
+            (mode == .all || session.media == mode)
+                && (query.isEmpty || session.title.localizedStandardContains(query)
+                    || session.endChapterTitle?.localizedStandardContains(query) == true)
         }
-        let sessions = snapshot.sessions.filter { session in
-            guard let entry = entries[session.entryID],
-                mode == .all || entry.media.lowercased() == mode.rawValue
-            else { return false }
-            return query.isEmpty || entry.title.localizedStandardContains(query)
-                || matchingChapters[entry.id]?.contains(session.chapterID) == true
-        }
-        return Dictionary(grouping: sessions, by: \.entryID).compactMap { id, values in
-            guard let entry = entries[id] else { return nil }
-            return RecentHistoryTitle(
-                entry: entry, sessions: values.sorted { $0.endedAt > $1.endedAt })
+        return Dictionary(grouping: matching, by: \.mediaID).map { id, values in
+            let ordered = values.sorted { $0.endedAt > $1.endedAt }
+            let latest = ordered[0]
+            let entry = entries[id] ?? HomeEntry(
+                id: id, title: latest.title, coverURL: latest.coverURL, media: latest.media.title,
+                unreadCount: latest.unreadCount)
+            return RecentHistoryTitle(entry: entry, sessions: ordered)
         }.sorted { $0.latest.endedAt > $1.latest.endedAt }
     }
 

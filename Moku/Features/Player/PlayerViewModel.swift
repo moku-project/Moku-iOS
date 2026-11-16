@@ -8,8 +8,6 @@ final class PlayerViewModel {
     let mediaID: String
     let chapters: [Chapter]
     let repository: any PlayerRepository
-    private(set) var activityEntry: HomeEntry
-    @ObservationIgnored private var activityPrepared = false
     var chapterID: String
     var stream: EpisodeStream?
     var sourceIndex: Int?
@@ -63,7 +61,6 @@ final class PlayerViewModel {
         repository: any PlayerRepository = LivePlayerRepository()
     ) {
         self.title = title
-        self.activityEntry = HomeEntry(id: mediaID, title: title, media: "Anime")
         self.mediaID = mediaID
         self.chapters = chapters.sorted { ($0.number ?? 0) < ($1.number ?? 0) }
         self.chapterID = chapterID
@@ -112,17 +109,6 @@ final class PlayerViewModel {
         player.pause()
         player.replaceCurrentItem(with: nil)
         do {
-            if !activityPrepared {
-                let chapters = chapters, mediaID = mediaID, title = title
-                let prepared = await Task.detached(priority: .userInitiated) {
-                    HomeEntry(id: mediaID, title: title, media: "Anime",
-                              chapters: chapters.map { HomeChapter(id: $0.id, title: $0.label) })
-                }.value
-                try Task.checkCancellation()
-                guard generation == token else { return }
-                activityEntry = prepared
-                activityPrepared = true
-            }
             let (stream, resume) = try await repository.stream(chapterID: chapterID)
             try Task.checkCancellation()
             guard generation == token else { return }
