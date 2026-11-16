@@ -17,6 +17,8 @@
 	<array>
 		<string>_moku._tcp</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Moku scans the pairing code another device shows so they can sync.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Moku finds and syncs with your other devices running Moku on your local network.</string>
 	<key>UIBackgroundModes</key>

@@ -222,6 +222,7 @@
 		D766F28B733D38FF285AC880 /* KeybindsSettingsContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41225B9D64C3EAD9A7033077 /* KeybindsSettingsContent.swift */; };
 		D7EE905A242F56B8F80C51BB /* OverflowMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8549906DCE3A1C3FA5F1ECE /* OverflowMenu.swift */; };
 		D9999786D520929AB657981C /* ChapterPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4650EF36E39378F97FDD0FDA /* ChapterPicker.swift */; };
+		DC9AFB618604896D47717FE3 /* PairingQR.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87D7309F8C379CCD10F0387E /* PairingQR.swift */; };
 		DF1B1F4C4834B9CDB9C8A53A /* PlayerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5560909BC1E5EFEE45D50C40 /* PlayerTests.swift */; };
 		DFA8FD742233530DBEB55239 /* MoreDestinationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5A925C735D6BF7A0535D4EF /* MoreDestinationView.swift */; };
 		E016D878CDA63BAE14615C92 /* BackendConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8947BB555B6611BE9D132D6E /* BackendConnection.swift */; };
@@ -446,6 +447,7 @@
 		8540F6E8CBF1473AC19904DC /* AppDataStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDataStoreTests.swift; sourceTree = "<group>"; };
 		866A193F9209D27F4D34141B /* AppLockStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLockStore.swift; sourceTree = "<group>"; };
 		872BB5BA53E110B6DF0C8F67 /* NativeBuild.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeBuild.swift; sourceTree = "<group>"; };
+		87D7309F8C379CCD10F0387E /* PairingQR.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingQR.swift; sourceTree = "<group>"; };
 		8947BB555B6611BE9D132D6E /* BackendConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendConnection.swift; sourceTree = "<group>"; };
 		89C3A26B6C37F431FBA91669 /* Simulator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Simulator.swift; sourceTree = "<group>"; };
 		8AEBFF0FC52771C70F6C1224 /* PreviewMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewMode.swift; sourceTree = "<group>"; };
@@ -1581,6 +1583,7 @@
 			isa = PBXGroup;
 			children = (
 				9483C4CB53FF91964DEA8294 /* GeneralControls.swift */,
+				87D7309F8C379CCD10F0387E /* PairingQR.swift */,
 				BDE12C2289DAE1CD58A1A890 /* SettingsGroup.swift */,
 			);
 			path = Components;
@@ -1962,6 +1965,7 @@
 				D7EE905A242F56B8F80C51BB /* OverflowMenu.swift in Sources */,
 				75C05971ADD76DDD2BF0EFDA /* PDFPageSource.swift in Sources */,
 				8192F0CEA13B52DA2437C194 /* PageDecoder.swift in Sources */,
+				DC9AFB618604896D47717FE3 /* PairingQR.swift in Sources */,
 				A3860A20D1067C5E48524CDA /* PhosphorIcon.swift in Sources */,
 				B2EDF8C2334844F57C3E08BE /* PlayerControls.swift in Sources */,
 				934EE1383E2A0ACFCC70EB4D /* PlayerPreview.swift in Sources */,

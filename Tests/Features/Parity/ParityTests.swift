@@ -68,6 +68,17 @@ import Testing
         #expect(!FilterBuilder.inputs(tree, genres: ["Mecha"], statuses: []).matchedAll)
     }
 
+    @Test func pairLinksMatchDesktopAndAndroid() {
+        let link = MokuSync.PairLink(
+            node: "n1", name: "Yuvan's iPhone", code: "ABCD1234",
+            addresses: ["http://192.168.1.20:6008", "http://10.0.0.2:6008"])
+        #expect(MokuSync.PairLink(link.url) == link)
+        #expect(link.url.hasPrefix("moku://pair?node=n1&name=Yuvan's%20iPhone&code=ABCD1234&addr="))
+        #expect(MokuSync.PairLink("moku://pair?code=AB&addr=10.0.0.2")?.addresses == ["10.0.0.2"])
+        #expect(MokuSync.PairLink("moku://pair?code=AB") == nil)
+        #expect(MokuSync.PairLink("https://example.com/pair?code=AB&addr=x") == nil)
+    }
+
     @Test func syncAddressesUseTheSyncPort() {
         #expect(MokuSync.address("192.168.1.20") == "http://192.168.1.20:6008")
         #expect(MokuSync.address(" device.local:6108 ") == "http://device.local:6108")

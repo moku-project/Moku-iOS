@@ -123,6 +123,47 @@ import Observation
     }
 
     /// Accepts "192.168.1.20", "host:6008" or a full URL; Tsunagu's sync port is 6008.
+    /// The pairing QR code Moku desktop and Android use: moku://pair?node=…&name=…&code=…&addr=… (one addr each).
+    struct PairLink: Equatable, Sendable {
+        let node: String?
+        let name: String?
+        let code: String
+        let addresses: [String]
+
+        nonisolated init(node: String?, name: String?, code: String, addresses: [String]) {
+            self.node = node
+            self.name = name
+            self.code = code
+            self.addresses = addresses
+        }
+
+        nonisolated init?(_ text: String) {
+            guard
+                let parts = URLComponents(
+                    string: text.trimmingCharacters(in: .whitespacesAndNewlines)),
+                parts.scheme == "moku", parts.host == "pair"
+            else { return nil }
+            let items = parts.queryItems ?? []
+            let value = { (name: String) in items.first { $0.name == name }?.value }
+            let addresses = items.filter { $0.name == "addr" }.compactMap(\.value).filter {
+                !$0.isEmpty
+            }
+            guard let code = value("code"), !code.isEmpty, !addresses.isEmpty else { return nil }
+            self.init(node: value("node"), name: value("name"), code: code, addresses: addresses)
+        }
+
+        nonisolated var url: String {
+            var parts = URLComponents()
+            parts.scheme = "moku"
+            parts.host = "pair"
+            parts.queryItems =
+                [("node", node), ("name", name), ("code", code)].compactMap { key, value in
+                    value.map { URLQueryItem(name: key, value: $0) }
+                } + addresses.map { URLQueryItem(name: "addr", value: $0) }
+            return parts.string ?? ""
+        }
+    }
+
     /// The addresses worth typing on another device, shortest form first: IPv4, no scheme, no default port.
     nonisolated static func displayAddresses(_ addresses: [String]) -> [String] {
         let shown = addresses.compactMap { raw -> String? in

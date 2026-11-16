@@ -184,6 +184,7 @@ private struct PairDeviceSheet: View {
     @State private var preview: MokuSync.Preview?
     @State private var busy = false
     @State private var error: String?
+    @State private var scanning = false
 
     var body: some View {
         NavigationStack {
@@ -208,6 +209,9 @@ private struct PairDeviceSheet: View {
             }
             .tint(NavigationStyle.accent)
             .task { await search() }
+            .sheet(isPresented: $scanning) {
+                PairingScanner { text in Task { await pair(link: text) } }
+            }
         }
     }
 
@@ -215,6 +219,15 @@ private struct PairDeviceSheet: View {
         Section {
             if let code {
                 VStack(spacing: 6) {
+                    if let status = sync.status {
+                        PairingQRCode(
+                            text: MokuSync.PairLink(
+                                node: status.node, name: status.name, code: code.code,
+                                addresses: status.addresses
+                            ).url
+                        )
+                        .padding(.bottom, 6)
+                    }
                     Text(code.code).font(
                         .system(.largeTitle, design: .monospaced).weight(.semibold)
                     )
@@ -243,12 +256,14 @@ private struct PairDeviceSheet: View {
         } header: {
             Text("On This Device")
         } footer: {
-            Text("On the other device, type this address and code.")
+            Text("Scan this on the other device, or type the address and code.")
         }
     }
 
     private var enterCodeSection: some View {
         Section {
+            Button("Scan QR Code", systemImage: "qrcode.viewfinder") { scanning = true }
+                .disabled(busy)
             ForEach(nearby.filter { !$0.paired }) { device in
                 Button {
                     address = device.address
@@ -307,6 +322,28 @@ private struct PairDeviceSheet: View {
         searching = true
         defer { searching = false }
         nearby = (try? await sync.nearby()) ?? []
+    }
+
+    /// Fills in a scanned code and previews the first of its addresses that answers.
+    private func pair(link text: String) async {
+        guard let link = MokuSync.PairLink(text) else {
+            error = "That isn't a Moku pairing code."
+            return
+        }
+        entered = link.code
+        busy = true
+        defer { busy = false }
+        var failure: Error?
+        for candidate in link.addresses {
+            guard let target = MokuSync.address(candidate) else { continue }
+            do {
+                address = candidate
+                preview = try await sync.preview(address: target, code: link.code)
+                error = nil
+                return
+            } catch { failure = error }
+        }
+        error = failure?.localizedDescription ?? "None of that device's addresses answered."
     }
 
     private func loadPreview() async {
