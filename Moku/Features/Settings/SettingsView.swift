@@ -13,9 +13,7 @@ struct SettingsView: View {
             Section {
                 ForEach([MoreDestination.extensions, .tracking, .recent]) { destination in
                     NavigationLink(value: Route.more(destination)) {
-                        SettingsRowLabel(
-                            title: destination.rawValue, symbol: destination.tile.symbol,
-                            color: destination.tile.color)
+                        Label(destination.rawValue, systemImage: destination.systemImage)
                     }
                     .accessibilityIdentifier("more.category.\(destination.rawValue)")
                 }
@@ -24,17 +22,13 @@ struct SettingsView: View {
             Section("Data") {
                 rows(Self.data)
                 NavigationLink(value: Route.settings(.tracking)) {
-                    SettingsRowLabel(
-                        title: "Tracker Accounts", symbol: SettingsCategory.tracking.tile.symbol,
-                        color: SettingsCategory.tracking.tile.color)
+                    Label("Tracker Accounts", systemImage: "person.crop.circle.badge.checkmark")
                 }
                 .accessibilityIdentifier("settings.category.Tracking")
             }
             Section {
                 NavigationLink(value: Route.more(.about)) {
-                    SettingsRowLabel(
-                        title: "About Moku", symbol: MoreDestination.about.tile.symbol,
-                        color: MoreDestination.about.tile.color)
+                    Label("About Moku", systemImage: MoreDestination.about.systemImage)
                 }
                 .accessibilityIdentifier("more.category.About")
                 #if DEBUG
@@ -51,9 +45,7 @@ struct SettingsView: View {
     private func rows(_ categories: [SettingsCategory]) -> some View {
         ForEach(categories, id: \.self) { category in
             NavigationLink(value: Route.settings(category)) {
-                SettingsRowLabel(
-                    title: category.rawValue, symbol: category.tile.symbol,
-                    color: category.tile.color)
+                Label(category.rawValue, systemImage: category.systemImage)
             }
             .accessibilityIdentifier("settings.category.\(category.rawValue)")
         }

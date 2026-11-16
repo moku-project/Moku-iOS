@@ -14,6 +14,7 @@ struct AboutView: View {
         Notice(name: "OpenJDK", license: "GPL v2 with Classpath Exception"),
         Notice(name: "FFmpeg", license: "LGPL v2.1"),
         Notice(name: "Go", license: "BSD 3-Clause"),
+        Notice(name: "Phosphor Icons", license: "MIT License"),
     ]
 
     @State private var reportOpen = false

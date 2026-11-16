@@ -127,7 +127,7 @@ extension ContentMode {
     var systemImage: String {
         switch self {
         case .all: "square.grid.2x2"
-        case .manga: "photo.on.rectangle"
+        case .manga: "photo"
         case .novels: "book"
         case .anime: "film"
         }

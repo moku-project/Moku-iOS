@@ -6,7 +6,7 @@ struct CoverImage: View {
     let url: URL?
     var contentMode: SwiftUI.ContentMode?
     var alignment: Alignment = .center
-    var symbol = "book"
+    var symbol = "BookOpen"
     var isIcon = false
     var bareIcon = false
     @State private var loaded: LoadedCover?
@@ -27,9 +27,11 @@ struct CoverImage: View {
                 } else if loading {
                     Rectangle().fill(.primary.opacity(0.08))
                 } else {
-                    Image(systemName: symbol)
-                        .font(bareIcon ? .title : .body)
-                        .foregroundStyle(NavigationStyle.accent)
+                    if bareIcon {
+                        PhosphorIcon(symbol).iconSize(40).foregroundStyle(NavigationStyle.accent)
+                    } else {
+                        PhosphorIcon(symbol).foregroundStyle(NavigationStyle.accent)
+                    }
                 }
             }
             .frame(width: geometry.size.width, height: geometry.size.height, alignment: alignment)

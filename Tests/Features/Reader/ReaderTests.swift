@@ -112,6 +112,20 @@ import UIKit
             try await PageDecoder.shared.decode(Data("not an image".utf8))
         }
     }
+    @Test func everyDeclaredPhosphorAssetIsBundled() throws {
+        struct Manifest: Decodable {
+            let icons: [String]
+            let weights: [String]
+        }
+        let url = try #require(
+            Bundle.main.url(forResource: "phosphor-manifest", withExtension: "json"))
+        let manifest = try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: url))
+        for icon in manifest.icons {
+            for weight in manifest.weights {
+                #expect(UIImage(named: icon + "-" + weight) != nil, "Missing \(icon)-\(weight)")
+            }
+        }
+    }
     @Test func imageDecodeBoundsPixelsAndPreservesOriginalGeometry() async throws {
         func png(_ width: CGFloat, _ height: CGFloat) -> Data {
             let format = UIGraphicsImageRendererFormat()
@@ -134,6 +148,14 @@ import UIKit
         #expect((strip.cgImage?.width ?? 0) >= 600)
         // Scale comes from the rounded decoded width, so allow 0.1 % on the long side.
         #expect(abs(strip.size.height - 12000) < 12)
+    }
+    @Test func desktopReaderIconsAreBundled() throws {
+        for name in [
+            "Sliders-regular", "ArrowLeft-light", "ArrowRight-light", "Bookmark-fill", "Rows-light",
+            "ArrowsLeftRight-fill",
+        ] {
+            #expect(UIImage(named: name) != nil, "Missing \(name)")
+        }
     }
 }
 

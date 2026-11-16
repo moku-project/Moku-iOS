@@ -27,8 +27,7 @@ struct ExtensionIdentity: View {
 
     @ViewBuilder private var icon: some View {
         if item.iconURL != nil {
-            CoverImage(
-                url: item.iconURL, symbol: "puzzlepiece.extension", isIcon: true, bareIcon: true)
+            CoverImage(url: item.iconURL, symbol: "PuzzlePiece", isIcon: true, bareIcon: true)
         } else {
             ZStack {
                 LinearGradient(

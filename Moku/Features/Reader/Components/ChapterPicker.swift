@@ -30,9 +30,7 @@ struct ChapterPicker: View {
                                 }
                             }
                             Spacer()
-                            if chapter.id == model.chapterID {
-                                Image(systemName: "checkmark").font(.body.weight(.semibold))
-                            }
+                            if chapter.id == model.chapterID { PhosphorIcon("Check", size: 18) }
                         }.foregroundStyle(
                             chapter.id == model.chapterID ? NavigationStyle.accent : .primary
                         )
@@ -47,15 +45,16 @@ struct ChapterPicker: View {
         HStack {
             Text(title).font(.headline)
             Spacer()
-            icon("xmark", label: "Close", id: "reader.sheet.close", action: close)
+            icon("X", label: "Close", id: "reader.sheet.close", action: close)
         }.padding(.horizontal, 12)
     }
     private func icon(
-        _ name: String, label: String, id: String, action: @escaping () -> Void
+        _ name: String, label: String, id: String, weight: String = "regular",
+        action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            Image(systemName: name).font(.body.weight(.semibold))
-                .frame(width: 44, height: 44).contentShape(Rectangle())
+            PhosphorIcon(name, size: 20, weight: weight).frame(width: 44, height: 44).contentShape(
+                Rectangle())
         }
         .accessibilityLabel(label).accessibilityIdentifier(id)
     }

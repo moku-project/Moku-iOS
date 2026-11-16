@@ -331,7 +331,7 @@ struct PlayerView: View {
                         if !flash.leading { Spacer() }
                         Label(
                             flash.leading ? "−\(flash.seconds)s" : "+\(flash.seconds)s",
-                            systemImage: flash.leading ? "gobackward" : "goforward"
+                            phosphor: flash.leading ? "ArrowCounterClockwise" : "ArrowClockwise"
                         )
                         .font(.subheadline.weight(.semibold))
                         .padding(.horizontal, 16).padding(.vertical, 10)

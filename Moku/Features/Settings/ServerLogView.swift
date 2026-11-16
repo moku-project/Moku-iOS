@@ -74,7 +74,7 @@ struct ServerLogView: View {
                             confirmClear = true
                         }
                     } label: {
-                        Image(systemName: "ellipsis")
+                        Image(systemName: "ellipsis.circle")
                     }
                     .accessibilityLabel("Log actions")
                 }

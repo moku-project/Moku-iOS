@@ -87,10 +87,10 @@ private struct ToastCard: View {
 
     private var icon: String {
         switch toast.kind {
-        case .success: "checkmark.circle.fill"
-        case .error: "exclamationmark.circle.fill"
-        case .info: "info.circle.fill"
-        case .download: "arrow.down.circle.fill"
+        case .success: "CheckCircle.fill"
+        case .error: "WarningCircle.fill"
+        case .info: "Info.fill"
+        case .download: "DownloadSimple.fill"
         }
     }
 
@@ -103,7 +103,7 @@ private struct ToastCard: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Image(systemName: icon).foregroundStyle(tint).font(.subheadline.weight(.semibold))
+            PhosphorIcon(icon).foregroundStyle(tint).font(.subheadline)
             VStack(alignment: .leading, spacing: 2) {
                 Text(toast.title).font(.subheadline.weight(.semibold))
                 if let detail = toast.detail {

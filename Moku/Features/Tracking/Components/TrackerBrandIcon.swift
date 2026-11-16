@@ -9,9 +9,7 @@ struct TrackerBrandIcon: View {
             } else if service.comingSoon {
                 Image("MyAnimeListLogo").resizable().scaledToFit()
             } else {
-                CoverImage(
-                    url: BackendAPI.coverURL(service.iconUrl),
-                    symbol: "dot.radiowaves.left.and.right")
+                CoverImage(url: BackendAPI.coverURL(service.iconUrl), symbol: "Broadcast")
             }
         }.clipShape(RoundedRectangle(cornerRadius: 8)).accessibilityHidden(true)
     }

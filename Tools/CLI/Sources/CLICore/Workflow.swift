@@ -265,6 +265,7 @@ public final class Workflow {
       case "ffmpeg": try native.ffmpeg(command.platform)
       default: try backend(command.platform, command.task ?? "all", force: true)
       }
+    case "import-icons": try native.importIcons()
     case "video-device": try native.videoDevice(command.task!)
     case "generate": try runner.run(["xcodegen", "generate"])
     case "embed-backend": try embed()

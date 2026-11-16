@@ -29,8 +29,7 @@ struct ChoicePicker<Value: Hashable>: View {
                 Text(selectedLabel)
                     .foregroundStyle(NavigationStyle.accent)
                     .lineLimit(1)
-                Image(systemName: "chevron.up.chevron.down").font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                PhosphorIcon("CaretDown", size: 10).foregroundStyle(.secondary)
             }.frame(minHeight: 44).contentShape(Rectangle())
         }
         .accessibilityLabel(title.isEmpty ? selectedLabel : title)

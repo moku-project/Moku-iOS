@@ -46,7 +46,7 @@ public struct Command {
           guard
             [
               "dev", "run", "build", "backend", "test", "simulators", "generate", "format",
-              "doctor", "embed-backend", "help", "video-device",
+              "doctor", "embed-backend", "help", "import-icons", "video-device",
             ].contains(arg)
           else { throw CLIError("Unknown command '\(arg)'. Run ./moku-ios help.") }
           name = arg
@@ -90,6 +90,7 @@ public struct Command {
       test bridge                  Verify Swift/native bridge with prepared libraries
       test video                   Verify embedded media engine on macOS
       video-device DEVICE_ID       Run media checks on a connected iPhone
+      import-icons                 Rebuild pinned Phosphor vector assets
       simulators                   List available simulators
       generate                     Regenerate the Xcode project
       format [--fix]               Check or format app Swift sources

@@ -149,7 +149,7 @@ struct PlayerControls: View {
             }
             Section { Text(model.streamInfo) }
         } label: {
-            Image(systemName: "ellipsis").font(.body.weight(.semibold)).frame(
+            Image(systemName: "ellipsis.circle").font(.body.weight(.medium)).frame(
                 width: 40, height: 40)
         }
         .accessibilityLabel("Player options")

@@ -15,7 +15,7 @@ struct HistoryRow: View {
             open(item.id, item.latest.endChapterID)
         } label: {
             HStack(spacing: 12) {
-                CoverImage(url: item.entry.coverURL, symbol: "book").frame(
+                CoverImage(url: item.entry.coverURL, symbol: "BookOpen").frame(
                     width: 46, height: 66
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 6))

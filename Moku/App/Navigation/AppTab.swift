@@ -44,6 +44,14 @@ enum MoreDestination: String, CaseIterable, Identifiable, Hashable {
     case recent = "History"
     case about = "About"
     var id: Self { self }
+    var systemImage: String {
+        switch self {
+        case .extensions: "puzzlepiece.extension"
+        case .tracking: "chart.line.uptrend.xyaxis"
+        case .recent: "clock.arrow.circlepath"
+        case .about: "info.circle"
+        }
+    }
 }
 
 /// Per-page activity, so pages don't observe the global selected tab; identity survives navigation once mounted.

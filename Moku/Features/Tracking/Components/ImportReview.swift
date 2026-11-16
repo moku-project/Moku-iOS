@@ -69,7 +69,7 @@ struct ImportReview: View {
         HStack(spacing: 12) {
             CoverImage(
                 url: item.match?.coverURL ?? BackendAPI.coverURL(item.remote.coverUrl),
-                symbol: "book"
+                symbol: "BookOpen"
             )
             .frame(width: 40, height: 56).clipShape(RoundedRectangle(cornerRadius: 5))
             VStack(alignment: .leading, spacing: 4) {
