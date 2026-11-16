@@ -209,8 +209,10 @@ struct TrackingSheet: View {
                 Task { await bind(result, tracker: tracker) }
             } label: {
                 HStack(spacing: 12) {
-                    CoverImage(url: result.coverUrl.flatMap(URL.init(string:)), symbol: "Book")
-                        .frame(width: 40, height: 58).clipShape(RoundedRectangle(cornerRadius: 4))
+                    CoverImage(
+                        url: result.coverUrl.flatMap(URL.init(string:)), symbol: "book.closed"
+                    )
+                    .frame(width: 40, height: 58).clipShape(RoundedRectangle(cornerRadius: 4))
                     VStack(alignment: .leading, spacing: 3) {
                         Text(result.title).font(.subheadline).multilineTextAlignment(.leading)
                         Text(

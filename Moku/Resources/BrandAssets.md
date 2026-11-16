@@ -10,4 +10,4 @@ Discord and GitHub retain their official white artwork.
   - File: `GitHub Logos/SVG/GitHub_Invertocat_White.svg`
 
 Brand marks belong to Discord Inc. and GitHub, respectively.
-The website uses the existing Phosphor Globe icon in white, not a third-party browser brand.
+The website uses the SF Symbols globe in white, not a third-party browser brand.
