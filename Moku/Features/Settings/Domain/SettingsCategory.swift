@@ -27,26 +27,4 @@ enum SettingsCategory: String, CaseIterable, Hashable {
             allCases.filter { $0 != .devTools }
         #endif
     }
-
-    var systemImage: String {
-        switch self {
-        case .general: "gear"
-        case .appearance: "paintbrush"
-        case .reader: "book"
-        case .player: "play.rectangle"
-        case .library: "photo.on.rectangle"
-        case .automation: "wand.and.stars"
-        case .tracking: "person.crop.circle.badge.checkmark"
-        case .sync: "arrow.triangle.2.circlepath"
-        case .performance: "slider.horizontal.3"
-        case .keybinds: "keyboard"
-        case .storage: "internaldrive"
-        case .folders: "folder"
-        case .content: "checkmark.shield"
-        case .server: "server.rack"
-        case .auth: "lock"
-        case .about: "info.circle"
-        case .devTools: "wrench.and.screwdriver"
-        }
-    }
 }
