@@ -22,12 +22,12 @@ struct OnboardingView: View {
                 "Read manga and novels and watch anime from sources you choose. Sources run on this iPhone, with no account or server needed."
         ),
         Page(
-            id: 1, symbol: "PuzzlePiece", title: "Add your sources",
+            id: 1, symbol: "puzzlepiece.extension", title: "Add your sources",
             body:
                 "Moku doesn’t come with any content. Add a Mihon, Aniyomi or LNReader repository in Extensions, then install the sources you want. You can also import CBZ, EPUB and video files."
         ),
         Page(
-            id: 2, symbol: "ArrowsClockwise", title: "Sync your devices",
+            id: 2, symbol: "arrow.triangle.2.circlepath", title: "Sync your devices",
             body:
                 "Use Moku elsewhere? Pair in Settings → Moku Sync to share your library, progress and reading history over your network."
         ),
@@ -85,7 +85,8 @@ struct OnboardingView: View {
                     Image("MokuMark").resizable().scaledToFit().frame(width: 64, height: 64)
                         .foregroundStyle(NavigationStyle.accent)
                 } else {
-                    PhosphorIcon(item.symbol, size: 56).foregroundStyle(NavigationStyle.accent)
+                    Image(systemName: item.symbol).font(.system(size: 52, weight: .light))
+                        .foregroundStyle(NavigationStyle.accent)
                 }
             }
             .accessibilityHidden(true)

@@ -6,14 +6,8 @@ enum ContentMode: String, CaseIterable, Identifiable, Sendable, Codable {
     var id: Self { self }
     var title: String { rawValue.capitalized }
 
-    var symbol: String {
-        switch self {
-        case .all: "Stack"
-        case .manga: "ImageSquare"
-        case .novels: "BookOpenText"
-        case .anime: "FilmSlate"
-        }
-    }
+    /// SF Symbol for covers and rows of this type.
+    var symbol: String { systemImage }
 
     /// The server's `ContentType` enum value.
     var graphQLType: String {

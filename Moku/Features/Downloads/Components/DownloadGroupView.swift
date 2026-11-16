@@ -29,7 +29,7 @@ struct DownloadGroupView: View {
 
     private var header: some View {
         HStack(spacing: 12) {
-            CoverImage(url: group.entries.first?.coverURL, symbol: "BookOpen")
+            CoverImage(url: group.entries.first?.coverURL, symbol: "book")
                 .frame(width: 42, height: 58)
                 .clipShape(RoundedRectangle(cornerRadius: 5))
             VStack(alignment: .leading, spacing: 4) {

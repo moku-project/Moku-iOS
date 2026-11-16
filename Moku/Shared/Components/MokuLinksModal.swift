@@ -89,7 +89,7 @@ struct MokuLinksModal: View {
                 }
                 .overlay(alignment: .topTrailing) {
                     Button(action: dismiss) {
-                        PhosphorIcon("X", size: 15)
+                        Image(systemName: "xmark").font(.subheadline.weight(.semibold))
                             .foregroundStyle(.white.opacity(0.6))
                             .frame(width: 44, height: 44).contentShape(Rectangle())
                     }
@@ -123,7 +123,7 @@ struct MokuLinksModal: View {
                     if let asset {
                         Image(asset).renderingMode(.original).resizable().scaledToFit()
                     } else {
-                        PhosphorIcon("Globe", size: 24)
+                        Image(systemName: "globe").font(.title3)
                             .foregroundStyle(GeneralStyle.text)
                     }
                 }

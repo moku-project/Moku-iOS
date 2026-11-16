@@ -30,16 +30,15 @@ struct DownloadPicker: View {
         HStack {
             Text(title).font(.headline)
             Spacer()
-            icon("X", label: "Close", id: "reader.sheet.close", action: close)
+            icon("xmark", label: "Close", id: "reader.sheet.close", action: close)
         }.padding(.horizontal, 12)
     }
     private func icon(
-        _ name: String, label: String, id: String, weight: String = "regular",
-        action: @escaping () -> Void
+        _ name: String, label: String, id: String, action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            PhosphorIcon(name, size: 20, weight: weight).frame(width: 44, height: 44).contentShape(
-                Rectangle())
+            Image(systemName: name).font(.body.weight(.semibold))
+                .frame(width: 44, height: 44).contentShape(Rectangle())
         }
         .accessibilityLabel(label).accessibilityIdentifier(id)
     }

@@ -6,7 +6,7 @@ struct CoverImage: View {
     let url: URL?
     var contentMode: SwiftUI.ContentMode?
     var alignment: Alignment = .center
-    var symbol = "BookOpen"
+    var symbol = "book"
     var isIcon = false
     var bareIcon = false
     @State private var loaded: LoadedCover?
@@ -27,11 +27,9 @@ struct CoverImage: View {
                 } else if loading {
                     Rectangle().fill(.primary.opacity(0.08))
                 } else {
-                    if bareIcon {
-                        PhosphorIcon(symbol).iconSize(40).foregroundStyle(NavigationStyle.accent)
-                    } else {
-                        PhosphorIcon(symbol).foregroundStyle(NavigationStyle.accent)
-                    }
+                    Image(systemName: Self.systemName(symbol))
+                        .font(bareIcon ? .title : .body)
+                        .foregroundStyle(NavigationStyle.accent)
                 }
             }
             .frame(width: geometry.size.width, height: geometry.size.height, alignment: alignment)
@@ -65,6 +63,15 @@ struct CoverImage: View {
     private var resolvedImage: UIImage? {
         if loaded?.url == url, let image = loaded?.image { return image }
         return CoverImagePipeline.cachedImage(for: url)
+    }
+
+    /// Placeholder symbol; a few callers still pass the old desktop icon names.
+    private static func systemName(_ symbol: String) -> String {
+        let legacy = [
+            "PuzzlePiece": "puzzlepiece.extension", "Book": "book.closed", "BookOpen": "book",
+            "Broadcast": "dot.radiowaves.left.and.right",
+        ]
+        return legacy[symbol] ?? symbol
     }
 }
 
