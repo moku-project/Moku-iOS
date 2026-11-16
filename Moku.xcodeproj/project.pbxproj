@@ -102,6 +102,7 @@
 		5FA2215CCDEDD1E6CB7F6D89 /* HeaderEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24E23135EB983226217012FA /* HeaderEnvironment.swift */; };
 		605B3CB424967E806138B149 /* TrackingDraftStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A09F083F75FD433A973BC61 /* TrackingDraftStore.swift */; };
 		61A23F2CA3DEBD660753CD4E /* ContentTypesSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECAD30FDAFDBC7C874CD6A94 /* ContentTypesSettingsView.swift */; };
+		636F7D8AC10BE4687B87339E /* ExtensionActionButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFDA1426386A81A365D63BEE /* ExtensionActionButton.swift */; };
 		63EFEEB0A316874FCC3402E7 /* SourceExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66C0FFCFF8E02647B11ABBD3 /* SourceExtension.swift */; };
 		63F07A6BA07132F29D1200EB /* StoragePreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15294974DDD53BE3B79B7B3B /* StoragePreferences.swift */; };
 		65F72ED6CD1DC4E3CFBB543D /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 493DB128B6261A8D691EFFCB /* RootView.swift */; };
@@ -537,6 +538,7 @@
 		DD466DF87D6D9AFBD9C0AD12 /* LegacyHistoryImport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyHistoryImport.swift; sourceTree = "<group>"; };
 		DD4F7378ECAB760738946C79 /* AppearanceSettingsContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceSettingsContent.swift; sourceTree = "<group>"; };
 		DE6C74DCBDE7678B275028B2 /* ExtensionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionsView.swift; sourceTree = "<group>"; };
+		DFDA1426386A81A365D63BEE /* ExtensionActionButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionActionButton.swift; sourceTree = "<group>"; };
 		E00AF3AFA884CD95FA703983 /* MokuApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MokuApp.swift; sourceTree = "<group>"; };
 		E14E72295598BD204CC2AD35 /* ReaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderView.swift; sourceTree = "<group>"; };
 		E1613C25578A5354DC5A596F /* LiveTrackingRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveTrackingRepository.swift; sourceTree = "<group>"; };
@@ -1158,6 +1160,7 @@
 			isa = PBXGroup;
 			children = (
 				C16657B93A0A9B3DFE8C5097 /* AddRepositoryView.swift */,
+				DFDA1426386A81A365D63BEE /* ExtensionActionButton.swift */,
 				1C6905DC673D065E297D4B83 /* ExtensionIdentity.swift */,
 				F163A93B394CD671229759B7 /* ExtensionRow.swift */,
 			);
@@ -1893,6 +1896,7 @@
 				76FD20D90559F11A7910931B /* DownloadsViewModel.swift in Sources */,
 				5BAF46E2B4C687A16891E8F0 /* EmptyState.swift in Sources */,
 				3C7F87C90C5A575ADBF6B64B /* EpisodeStream.swift in Sources */,
+				636F7D8AC10BE4687B87339E /* ExtensionActionButton.swift in Sources */,
 				C94949E7C159D3825D857274 /* ExtensionFileInstaller.swift in Sources */,
 				4C42EA42C34E531FE2A63466 /* ExtensionIdentity.swift in Sources */,
 				3AEF6C077721A6C1361A4246 /* ExtensionLibrarySheet.swift in Sources */,

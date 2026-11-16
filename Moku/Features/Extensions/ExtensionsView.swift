@@ -52,6 +52,7 @@ struct ExtensionsView: View {
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                 .listSectionSpacing(.compact)
+                .listRowSeparator(.hidden)
                 if let error = model.error {
                     Section {
                         Label(error, systemImage: "exclamationmark.triangle")
@@ -66,6 +67,7 @@ struct ExtensionsView: View {
                 }
             }
             .listStyle(.insetGrouped)
+            .contentMargins(.top, 4, for: .scrollContent)
             .scrollContentBackground(.hidden)
             .firstLoadSkeleton(
                 "extensions-\(section.rawValue)", loading: model.isLoading, style: .extensions
@@ -263,11 +265,7 @@ struct ExtensionsView: View {
             Section {
                 ForEach(upToDate) { row($0) }
             } header: {
-                Text("Installed")
-            } footer: {
-                Text(
-                    "\(model.visibleInstalled.count) installed. Tap a source to browse it; touch and hold for settings and migration."
-                )
+                Text(counted(model.visibleInstalled.count, "installed", "installed"))
             }
         }
     }
@@ -277,8 +275,12 @@ struct ExtensionsView: View {
             Section {
                 ForEach(model.items) { row($0) }
                 if model.items.count < model.total {
-                    Button("Load More") { Task { await model.load(more: true) } }
-                        .disabled(model.isLoading)
+                    // The next page loads as this row scrolls into view.
+                    ProgressView().frame(maxWidth: .infinity)
+                        .listRowBackground(Color.clear)
+                        .task(id: model.items.count) {
+                            if !model.isLoading { await model.load(more: true) }
+                        }
                 }
             } header: {
                 Text(counted(model.total, "extension"))
@@ -297,10 +299,6 @@ struct ExtensionsView: View {
             .accessibilityIdentifier("extensions.addRepository.row")
         } header: {
             Text(counted(visibleRepositories.count, "repository", "repositories"))
-        } footer: {
-            Text(
-                "Tap a repository to browse its extensions. A repository can be removed once its sources are uninstalled."
-            )
         }
     }
 

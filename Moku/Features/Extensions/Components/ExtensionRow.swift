@@ -26,21 +26,19 @@ struct ExtensionRow: View {
             .allowsHitTesting(browsable)
             .accessibilityHint(browsable ? "Browses this source" : "")
             .accessibilityIdentifier("extensions.search.\(item.packageName)")
-            if busy {
-                ProgressView().controlSize(.small)
-            } else if !item.installed {
-                Button("Install") { change(.installExtension, item) }
-                    .buttonStyle(.bordered).buttonBorderShape(.capsule).controlSize(.small)
-                    .accessibilityLabel("Install \(item.displayName)")
-                    .accessibilityIdentifier("extensions.install.\(item.packageName)")
+            if !item.installed {
+                ExtensionActionButton(kind: .install, busy: busy) {
+                    change(.installExtension, item)
+                }
+                .accessibilityLabel("Install \(item.displayName)")
+                .accessibilityIdentifier("extensions.install.\(item.packageName)")
             } else if item.needsUpdate == true {
-                Button("Update") { change(.updateExtension, item) }
-                    .buttonStyle(.bordered).buttonBorderShape(.capsule).controlSize(.small)
+                ExtensionActionButton(kind: .update, busy: busy) { change(.updateExtension, item) }
                     .accessibilityLabel("Update \(item.displayName)")
             } else if browsable {
-                Image(systemName: "chevron.forward")
-                    .font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
-                    .accessibilityHidden(true)
+                ExtensionActionButton(kind: .open, busy: busy) { search(item) }
+                    .accessibilityLabel("Open \(item.displayName)")
+                    .accessibilityIdentifier("extensions.open.\(item.packageName)")
             }
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
