@@ -21,7 +21,7 @@
         }
 
         var body: some View {
-            RootView(homeStore: home)
+            RootView(history: home)
                 .environment(home)
                 .environment(library)
                 .environment(storage)

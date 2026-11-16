@@ -1,7 +1,7 @@
 import XCTest
 
 @MainActor final class ReaderUITests: XCTestCase {
-    func testReaderDrawerNavigationAndSavedPreset() {
+    func testReaderSettingsAndSavedPreset() {
         XCUIDevice.shared.orientation = .portrait
         let app = XCUIApplication()
         app.launchArguments = ["--ui-testing-reader"]
@@ -57,7 +57,9 @@ import XCTest
         XCTAssertTrue(app.buttons["reader.option.double"].isSelected)
         // Scroll the sheet up only; swiping down would dismiss it.
         let offset = app.switches["Offset spreads"]
-        for _ in 0..<6 where !offset.isHittable { app.collectionViews["reader.drawer.scroll"].swipeUp(velocity: .slow) }
+        for _ in 0..<6 where !offset.isHittable {
+            app.collectionViews["reader.drawer.scroll"].swipeUp(velocity: .slow)
+        }
         XCTAssertTrue(offset.isHittable)
         capture("reader-landscape-drawer")
         app.buttons["reader.drawer.close"].tap()

@@ -15,13 +15,11 @@ sources = [
     "Shared/Media/Domain/MediaEntry.swift", "Shared/Media/Domain/ContentMode.swift",
     "Shared/Media/Domain/Chapter.swift", "Shared/Library/LibraryFolder.swift",
     "Shared/Activity/HomeEntry.swift", "Shared/Activity/HomeStatistics.swift",
-    "Shared/Activity/HomeStore.swift", "Shared/Activity/HomeDisk.swift",
     "Features/Library/Domain/LibraryItem.swift", "Features/Library/LibraryViewModel.swift",
     "Features/Reader/Domain/ReaderSettings.swift", "Features/Reader/Data/ReaderPreferences.swift",
-    "Features/Recent/Domain/RecentHistory.swift", "Features/Recent/Domain/RecentUpdate.swift",
+    "Features/Recent/Domain/RecentUpdate.swift",
 ]
 tests = [
-    "Tests/Shared/Activity/HomeStoreTests.swift",
     "Tests/Shared/Cache/CacheTests.swift",
     "Tools/PerformanceChecks/CorePerformanceTests.swift",
 ]

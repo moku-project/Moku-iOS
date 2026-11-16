@@ -39,7 +39,7 @@ struct RootView: View {
         }
         return navigation
     }()
-    let homeStore: ReadingHistory
+    let history: ReadingHistory
     @State private var downloadsModel = DownloadsViewModel.makeDefault()
     @Environment(\.colorScheme) private var colorScheme
     @AppStorage("preferences.systemTheme") private var systemTheme = false
@@ -47,7 +47,9 @@ struct RootView: View {
     @AppStorage("preferences.lightTheme") private var lightTheme = "light"
     @AppStorage("preferences.customThemes") private var customThemes = Data()
     @AppStorage("preferences.theme") private var theme = "dark"
-    private var effectiveTheme: String { systemTheme ? (colorScheme == .dark ? darkTheme : lightTheme) : theme }
+    private var effectiveTheme: String {
+        systemTheme ? (colorScheme == .dark ? darkTheme : lightTheme) : theme
+    }
     private var palette: NativeTheme { NativeTheme.resolve(effectiveTheme, custom: customThemes) }
 
     @AppStorage("onboarding.completed") private var onboarded = false
@@ -56,7 +58,8 @@ struct RootView: View {
     private static let skipsOnboarding: Bool = {
         let arguments = ProcessInfo.processInfo.arguments
         if arguments.contains("--ui-testing-onboarding") { return false }
-        return PreviewMode.isEnabled || arguments.contains { $0.hasPrefix("--ui-testing") || $0 == "--acceptance" }
+        return PreviewMode.isEnabled
+            || arguments.contains { $0.hasPrefix("--ui-testing") || $0 == "--acceptance" }
     }()
 
     private var tabSelection: Binding<AppTab> {
@@ -72,7 +75,7 @@ struct RootView: View {
                 Tab(tab.title, systemImage: tab.systemImage, value: tab) {
                     RootTabPage(
                         tab: tab, activity: navigation.tabs[tab], navigation: navigation,
-                        homeStore: homeStore, downloadsModel: downloadsModel
+                        history: history, downloadsModel: downloadsModel
                     )
                     .equatable()
                     .environment(\.tabBarInset, barVisible ? MokuTabBar.height + 8 : 0)
@@ -86,20 +89,27 @@ struct RootView: View {
                 MokuTabBar(
                     selection: tabSelection,
                     // Choosing the open tab again returns it to its first page.
-                    reselect: { navigation.paths[$0] = [] })
+                    reselect: { navigation.paths[$0] = [] }
+                )
                 .padding(.bottom, 2)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .animation(.easeOut(duration: 0.2), value: barVisible)
-        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+        .onReceive(
+            NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)
+        ) { _ in
             keyboardVisible = true
         }
-        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+        .onReceive(
+            NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)
+        ) { _ in
             keyboardVisible = false
         }
         .background(NavigationStyle.background.ignoresSafeArea())
-        .fullScreenCover(isPresented: Binding(get: { !onboarded && !Self.skipsOnboarding }, set: { _ in })) {
+        .fullScreenCover(
+            isPresented: Binding(get: { !onboarded && !Self.skipsOnboarding }, set: { _ in })
+        ) {
             OnboardingView(
                 openExtensions: { navigation.open(.more(.extensions), in: .settings) },
                 openSettings: { navigation.open(.settings(.sync), in: .settings) },
@@ -109,10 +119,13 @@ struct RootView: View {
                     seenVersion = WhatsNew.current
                 })
         }
-        .sheet(isPresented: Binding(
-            get: { onboarded && !Self.skipsOnboarding && seenVersion != WhatsNew.current
-                && WhatsNew.releases.contains { $0.version == WhatsNew.current } },
-            set: { if !$0 { seenVersion = WhatsNew.current } })
+        .sheet(
+            isPresented: Binding(
+                get: {
+                    onboarded && !Self.skipsOnboarding && seenVersion != WhatsNew.current
+                        && WhatsNew.releases.contains { $0.version == WhatsNew.current }
+                },
+                set: { if !$0 { seenVersion = WhatsNew.current } })
         ) {
             if let release = WhatsNew.releases.first(where: { $0.version == WhatsNew.current }) {
                 WhatsNewView(release: release) { seenVersion = WhatsNew.current }
@@ -128,12 +141,12 @@ struct RootView: View {
             // Sheets, menus and alerts take their tint from the window, not the SwiftUI environment.
             let accent = UIColor(Color(themeHex: value.accent))
             for case let scene as UIWindowScene in UIApplication.shared.connectedScenes {
-                scene.windows.forEach { $0.tintColor = accent }
+                for window in scene.windows { window.tintColor = accent }
             }
         }
         .background {
             #if DEBUG
-            NavigationFrameProbe(tab: navigation.selection).frame(width: 1, height: 1)
+                NavigationFrameProbe(tab: navigation.selection).frame(width: 1, height: 1)
             #endif
         }
         .modifier(OverflowMenuHost())
@@ -147,7 +160,7 @@ private struct RootTabPage: View, Equatable {
     let tab: AppTab
     let activity: TabActivity
     let navigation: RootNavigation
-    let homeStore: ReadingHistory
+    let history: ReadingHistory
     let downloadsModel: DownloadsViewModel
     @AppStorage("contentMode") private var mode: ContentMode = .all
     @AppStorage("preferences.language") private var sourceLanguage = "all"
@@ -155,7 +168,7 @@ private struct RootTabPage: View, Equatable {
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.tab == rhs.tab && lhs.activity === rhs.activity
-            && lhs.navigation === rhs.navigation && lhs.homeStore === rhs.homeStore
+            && lhs.navigation === rhs.navigation && lhs.history === rhs.history
             && lhs.downloadsModel === rhs.downloadsModel
     }
 
@@ -206,7 +219,9 @@ private struct RootTabPage: View, Equatable {
         case .more(let destination):
             MoreDestinationView(
                 destination: destination, mode: $mode,
-                searchSource: { source in navigation.open(.source(SourceRoute(source: source)), in: tab) }
+                searchSource: { source in
+                    navigation.open(.source(SourceRoute(source: source)), in: tab)
+                }
             )
             .navigationTitle(destination.rawValue)
             .navigationBarTitleDisplayMode(.inline)
@@ -221,7 +236,8 @@ private struct RootTabPage: View, Equatable {
         case .source(let route):
             SourceBrowseView(
                 source: route.source, openEntry: { openDetails($0) },
-                close: { navigation.pop(.source(route), in: tab) })
+                close: { navigation.pop(.source(route), in: tab) }
+            )
             .id(route.source.packageName)
         }
     }
@@ -230,7 +246,7 @@ private struct RootTabPage: View, Equatable {
         switch tab {
         case .home:
             HomeView(
-                store: homeStore, isActive: activity.isActive,
+                store: history, isActive: activity.isActive,
                 onBrowse: { navigation.select(.browse, language: sourceLanguage) },
                 onOpenTitle: { entry, chapterID in openDetails(entry, chapterID: chapterID) })
         case .downloads:
@@ -250,7 +266,8 @@ private struct RootTabPage: View, Equatable {
             if let model = navigation.globalSearchModel {
                 SearchView(
                     model: model, openEntry: { openDetails($0) }, isActive: activity.isActive,
-                    openSources: { navigation.open(.more(.extensions), in: .browse) })
+                    openSources: { navigation.open(.more(.extensions), in: .browse) }
+                )
                 .id(ObjectIdentifier(model))
             }
         case .settings:
@@ -282,7 +299,7 @@ private struct RootTabPage: View, Equatable {
 
     func select(_ tab: AppTab, language: String = "all") {
         #if DEBUG
-        NavigationTiming.begin(tab)
+            NavigationTiming.begin(tab)
         #endif
         if tab == .browse { prepareSearch(language: language) }
         selection = tab

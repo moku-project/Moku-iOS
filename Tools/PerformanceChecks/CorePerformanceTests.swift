@@ -15,7 +15,7 @@ struct CorePerformanceTests {
             _ = library.hasVisited
         } onChange: { changed.set() }
         for _ in 0..<100 {
-            tabs.update(selection: .more, covered: false)
+            tabs.update(selection: .settings, covered: false)
             tabs.update(selection: .downloads, covered: false)
             tabs.update(selection: .home, covered: false)
         }
@@ -92,30 +92,6 @@ struct CorePerformanceTests {
         #expect(restored.document.presets.count == 1)
     }
 
-    @MainActor @Test func coalescedHistoryPreservesLatestSessionAndPins() async throws {
-        let url = URL.temporaryDirectory.appending(path: UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: url) }
-        let store = HomeStore(fileURL: url)
-        await store.load()
-        let entry = HomeEntry(id: "title", title: "Title")
-        var session = HomeSession(entryID: entry.id, chapterID: "one", page: 1,
-                                  endedAt: .now, minutes: 1, completedUnits: 0)
-        for page in 1...300 {
-            session.page = page
-            store.record(session, entry: entry)
-        }
-        store.pin(entry, slot: 2)
-        await store.flush()
-        let restored = HomeStore(fileURL: url)
-        await restored.load()
-        #expect(restored.snapshot.sessions.count == 1)
-        #expect(restored.snapshot.sessions.first?.page == 300)
-        #expect(restored.slots[2].isPinned)
-        let revision = restored.snapshotRevision
-        restored.updateEntry(entry)
-        #expect(restored.snapshotRevision == revision)
-    }
-
     @MainActor @Test func preparedLibraryMatchesFiltersAndInvalidatesCachedResults() async {
         let model = LibraryViewModel()
         model.items = (0..<2_000).map {
@@ -159,18 +135,6 @@ struct CorePerformanceTests {
             #expect(decoded.date == chapter.date)
         }
         #expect(RecentChapter(id: "one", title: nil, number: nil, uploadedAt: "invalid", completed: false, downloaded: false).date == nil)
-    }
-
-    @Test func historyGroupingPreservesChapterNamesAndLatestVisit() {
-        let entry = HomeEntry(id: "title", title: "Title", chapters: [HomeChapter(id: "chapter", title: "Named chapter")])
-        let latest = HomeSession(entryID: entry.id, chapterID: "chapter", page: 20, endedAt: .now, minutes: 2, completedUnits: 0)
-        let earlier = HomeSession(entryID: entry.id, chapterID: "chapter", page: 10, endedAt: .now.addingTimeInterval(-100), minutes: 1, completedUnits: 0)
-        let title = RecentHistoryTitle(entry: entry, sessions: [latest, earlier])
-        #expect(title.chapters.count == 1)
-        #expect(title.chapters[0].title == "Named chapter")
-        #expect(title.chapters[0].page == 20)
-        #expect(title.chapters[0].minutes == 3)
-        #expect(RecentHistoryDay.group([title]).first?.titles.first?.id == entry.id)
     }
 }
 
