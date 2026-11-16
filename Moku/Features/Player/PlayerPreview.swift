@@ -16,8 +16,7 @@
             )
         }
         func request(path: String) async throws -> URLRequest {
-            let url = Bundle.main.url(forResource: "player-preview", withExtension: "mp4")!
-            return URLRequest(url: url)
+            URLRequest(url: try TestClip.url())
         }
         func subtitle(path: String) async throws -> String {
             if path == "signs" {

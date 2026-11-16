@@ -17,7 +17,7 @@ actor Backend {
                 throw EmbeddedSearchError.message("Player tests require an isolated backend.")
             }
             _ = try await connection()
-            let video = Bundle.main.url(forResource: "player-preview", withExtension: "mp4")!
+            let video = try TestClip.url()
             for episode in 1...3 {
                 try await controller.importLocalFile(
                     video, kind: "anime", series: "Player Fixture",
