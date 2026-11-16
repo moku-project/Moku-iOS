@@ -291,8 +291,12 @@ struct DetailsView: View {
     private func cover(width: CGFloat) -> some View {
         CoverImage(url: coverURL, symbol: entry.media.symbol)
             .frame(width: width, height: width * 1.5)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .shadow(color: .black.opacity(0.35), radius: 10, y: 4)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(.white.opacity(0.1), lineWidth: 0.5)
+            }
+            .shadow(color: .black.opacity(0.45), radius: 18, y: 10)
             .accessibilityHidden(true)
     }
 
@@ -300,10 +304,10 @@ struct DetailsView: View {
     @ViewBuilder private var backdrop: some View {
         if let coverURL {
             CoverImage(url: coverURL, contentMode: .fill, symbol: entry.media.symbol)
-                .frame(height: 440)
-                .blur(radius: 36, opaque: true)
+                .frame(height: 520)
+                .blur(radius: 40, opaque: true)
                 .drawingGroup()
-                .opacity(0.4)
+                .opacity(0.6)
                 .mask(
                     LinearGradient(
                         stops: [
@@ -344,29 +348,45 @@ struct DetailsView: View {
         "french", "portuguese", "russian", "german", "italian", "filipino", "arabic",
     ]
 
-    private var identity: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(details?.title ?? entry.title).font(.title2.weight(.bold))
+    private func identity(centered: Bool) -> some View {
+        VStack(alignment: centered ? .center : .leading, spacing: 6) {
+            Text(details?.title ?? entry.title).font(.title.weight(.bold))
+                .multilineTextAlignment(centered ? .center : .leading)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityAddTraits(.isHeader)
             if let byline = details?.byline, !byline.isEmpty {
-                Text(byline).font(.subheadline).foregroundStyle(.secondary)
+                Text(byline).font(.headline).foregroundStyle(NavigationStyle.accent)
+                    .multilineTextAlignment(centered ? .center : .leading)
             }
-            ChipFlow(spacing: 6) {
-                if let status = details?.status {
-                    badge(status.capitalized, accent: true)
-                }
-                badge(entry.sourceName)
-                ForEach(tags.badges, id: \.self) { badge($0) }
-            }
+            Text(metadataLine).font(.subheadline).foregroundStyle(.secondary)
+                .multilineTextAlignment(centered ? .center : .leading)
         }
+    }
+
+    /// Source, status, chapter count and rating badges on one quiet line.
+    private var metadataLine: String {
+        var parts = [entry.sourceName]
+        if let status = details?.status, !status.isEmpty { parts.append(status.capitalized) }
+        if let count = details?.chapters.count, count > 0 {
+            parts.append(counted(count, entry.media == .anime ? "episode" : "chapter"))
+        }
+        return (parts + tags.badges).joined(separator: " · ")
     }
 
     private func metadata(wide: Bool) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top, spacing: 16) {
-                cover(width: wide ? 180 : 128)
-                identity.frame(maxWidth: .infinity, alignment: .leading)
+            if wide {
+                HStack(alignment: .top, spacing: 20) {
+                    cover(width: 180)
+                    identity(centered: false).frame(maxWidth: .infinity, alignment: .leading)
+                }
+            } else {
+                VStack(spacing: 16) {
+                    cover(width: 168)
+                    identity(centered: true)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top, 8)
             }
             if loading && details == nil {
                 ContentSkeleton(style: .settings, count: 3)
@@ -1151,13 +1171,6 @@ struct DetailsView: View {
             Image(systemName: icon).font(.title3).frame(width: 44, height: 44)
         }
         .accessibilityLabel(label)
-    }
-
-    private func badge(_ text: String, accent: Bool = false) -> some View {
-        Text(text).font(.caption2)
-            .foregroundStyle(accent ? NavigationStyle.accent : .secondary)
-            .padding(.horizontal, 8).padding(.vertical, 4)
-            .background(NavigationStyle.surface, in: RoundedRectangle(cornerRadius: 4))
     }
 
     private func load(refresh: Bool = false) async {

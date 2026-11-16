@@ -26,12 +26,7 @@ import Observation
     }
 
     var emptyChapterMessage: String {
-        if entry.media == .anime {
-            return
-                "\(entry.sourceName) returned no episodes for this title. Check the source’s availability and language settings, then refresh."
-        }
-        return
-            "\(entry.sourceName) returned no readable chapters for this title. A title can have metadata and a cover even when the source has no chapters available. Check the source’s availability and language settings, then refresh."
+        "\(entry.sourceName) has no \(entry.media == .anime ? "episodes" : "chapters") for this title yet."
     }
 
     /// The source answered with a browser challenge (Cloudflare and the like).

@@ -16,7 +16,7 @@ import Testing
         #expect(model.details?.title == "Fixture title")
         #expect(model.details?.chapters.isEmpty == true)
         #expect(model.error == nil && model.chapterError == nil && !model.loading)
-        #expect(model.emptyChapterMessage.contains("Fixture Source returned no readable chapters"))
+        #expect(model.emptyChapterMessage == "Fixture Source has no chapters for this title yet.")
     }
 
     @Test func chapterFailurePreservesMetadataAndCanRetry() async {
